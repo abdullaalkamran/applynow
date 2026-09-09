@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --brand-50: #eef4ff;
+  --brand-100: #dbe6ff;
+  --brand-500: #3b5fe0;
+  --brand-600: #2f4bc4;
+  --brand-700: #26399e;
+  --ink-900: #0f172a;
+
+  /* Student mobile app tokens */
+  --sd-bg: #f7f5f0;
+  --sd-ink: #12213c;
+  --sd-ink-2: #1c2e52;
+  --sd-teal: #0f9d6d;
+  --sd-muted: #6b7280;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f5f7fb;
+  color: var(--ink-900);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+/* Progress bar stripe animation */
+@keyframes progress-stripe-move {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+.progress-stripes {
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 8px, rgba(0,0,0,0) 8px 16px);
+  background-size: 40px 40px;
+  animation: progress-stripe-move 1s linear infinite;
+}
