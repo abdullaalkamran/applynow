@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Check } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete } from "../../data/profileCompletion";
+import { saveWorkExperience } from "../../data/studentProfileDetailsStore";
 
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Internship", "Contract", "Freelance", "Volunteer"] as const;
 
@@ -154,6 +155,10 @@ export default function WorkExperience() {
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
       markStepComplete("work-experience");
+      saveWorkExperience(entries.map((e) => ({
+        type: e.type, company: e.company, title: e.title, industry: e.industry,
+        startDate: e.startDate, endDate: e.endDate, currentlyWorking: e.currentlyWorking, description: e.description,
+      })));
       setSaved(true);
       if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
       savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
@@ -194,7 +199,7 @@ export default function WorkExperience() {
           ))}
 
           {addMenuOpen ? (
-            <div className="rounded-2xl bg-white p-3.5 shadow-sm shadow-black/[0.03]">
+            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <p className="mb-2 text-[12px] font-medium text-slate-500">Choose an employment type</p>
               <div className="flex flex-wrap gap-2">
                 {EMPLOYMENT_TYPES.map((t) => (
@@ -257,7 +262,7 @@ function WorkCard({
   onRemoveFile: () => void;
 }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
       <div className="flex items-center justify-between">
         <Pill tone="navy">{entry.type}</Pill>
         <button onClick={onRemove} aria-label="Remove experience" className="text-slate-300 hover:text-slate-500">

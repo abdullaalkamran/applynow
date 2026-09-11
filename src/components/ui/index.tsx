@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -207,6 +207,82 @@ export function Avatar({ name, colorClass }: { name: string; colorClass: string 
   return (
     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${colorClass}`}>
       {initials}
+    </div>
+  );
+}
+
+/** A text input that filters `options` as you type and shows a click-to-pick suggestion list —
+ * for pickers with too many options to comfortably scroll a plain <select> (e.g. course/subject). */
+export function SearchableSelect({
+  value, onChange, options, placeholder = "Search…",
+}: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string }) {
+  const [query, setQuery] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setQuery(value);
+  }
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery(value);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [value]);
+
+  const filtered = options.filter((o) => o.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div ref={containerRef} className="relative mt-1">
+      <input
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => { setQuery(""); setOpen(true); }}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--sd-ink)] focus:outline-none"
+      />
+      {open && (
+        <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
+          ) : (
+            filtered.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => { onChange(o); setQuery(o); setOpen(false); }}
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${o === value ? "font-medium text-[var(--sd-ink)]" : "text-slate-700"}`}
+              >
+                {o}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div onClick={onClose} className="absolute inset-0 bg-black/30" />
+      <div className="relative w-full max-w-sm rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+            ✕
+          </button>
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
     </div>
   );
 }

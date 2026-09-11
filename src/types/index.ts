@@ -52,6 +52,11 @@ export interface Student {
   riskFlag?: "none" | "watch" | "high";
 }
 
+// A "lead" isn't a separate record — it's any Student account that's been created (signed up,
+// possibly filled in some of their profile) but hasn't submitted an application yet. This tracks
+// only the counsellor's own follow-up progress with that account.
+export type LeadFollowUpStatus = "New" | "Contacted" | "Nurturing" | "Not Interested";
+
 export interface WorkflowStage {
   key: string;
   label: string;
@@ -65,12 +70,16 @@ export interface Application {
   course: string;
   intake: string;
   country: string;
+  campus?: string;
   status: AppStatus;
   progress: number; // 0-100 weighted
   nextAction: string;
   waitingOn: "student" | "staff" | "university" | "none";
   stages: WorkflowStage[];
   updatedAt: string;
+  // Who confirmed the application — absent on seeded demo data. A "student" application the
+  // counsellor hasn't opened yet is flagged as new on the counsellor's Applications page.
+  source?: "student" | "counsellor";
 }
 
 export interface DocumentItem {
@@ -160,10 +169,18 @@ export interface University {
   studentCount: string;
   description: string;
   highlights: string[];
-  courses: { name: string; level: string; duration: string }[];
+  courses: { name: string; level: string; duration: string; subject: string; feeUSD: number }[];
   requirements: string[];
   fees: { label: string; amount: number }[];
   currencySymbol: string;
   minIELTS: number;
+  minGPA: number;
+  accreditations: string[];
+  scholarshipsAvailable: boolean;
+  // The intake currently open for applications, e.g. "September 2026" — distinct from `intakes`,
+  // which lists every intake session the university runs each year.
+  openIntake: string;
+  // Official public domain, e.g. "manchester.ac.uk" — no scheme/path.
+  website: string;
   tone: "violet" | "amber" | "teal" | "rose";
 }

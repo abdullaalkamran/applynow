@@ -4,6 +4,7 @@ import { MobileHeader, FieldShell, inputClass, DocumentUpload, monthsUntil, type
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { COUNTRIES, countryByName, countryByIso2 } from "../../data/countries";
 import { markStepComplete } from "../../data/profileCompletion";
+import { savePersonalInfo } from "../../data/studentProfileDetailsStore";
 
 const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
 const [DEFAULT_FIRST, ...DEFAULT_LAST] = student.name.split(" ");
@@ -213,6 +214,34 @@ export default function PersonalInformation() {
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
       markStepComplete("personal-information");
+      savePersonalInfo({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: `${countryByIso2(form.phoneCountry)?.dial ?? ""} ${form.phone}`.trim(),
+        dob: form.dob,
+        gender: form.gender,
+        nationality: countryByIso2(form.nationality)?.name ?? form.nationality,
+        fatherName: form.fatherName,
+        motherName: form.motherName,
+        maritalStatus: form.maritalStatus,
+        passportNumber: form.passportNumber,
+        personalNumber: form.personalNumber,
+        previousPassportNumber: form.previousPassportNumber,
+        placeOfBirth: form.placeOfBirth,
+        issuingAuthority: form.issuingAuthority,
+        issueDate: form.issueDate,
+        passportExpiry: form.expiryDate,
+        permanentAddress: form.permanentAddress,
+        presentAddress: presentAddressValue,
+        city: form.city,
+        country: residenceCountry?.name ?? form.country,
+        emergencyContactName: ec.name,
+        emergencyContactRelationship: ec.relationship,
+        emergencyContactAddress: ec.address,
+        emergencyContactPhone: `${countryByIso2(ec.phoneCountry)?.dial ?? ""} ${ec.phone}`.trim(),
+        emergencyContactEmail: ec.email,
+      });
       setSaved(true);
       if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
       savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
@@ -231,7 +260,7 @@ export default function PersonalInformation() {
             </div>
             <button
               aria-label="Change photo"
-              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-[var(--sd-ink)] shadow-sm shadow-black/10"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-[0_0_8px_rgba(0,0,0,0.13)]"
             >
               <Camera size={13} />
             </button>
@@ -277,7 +306,7 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Phone Number" autoFilled={autoFilled.has("phoneCountry")}>
-            <div className="flex items-center gap-2 rounded-xl bg-white px-2 py-1.5 shadow-sm shadow-black/[0.03]">
+            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <select
                 name="phoneCountry"
                 value={form.phoneCountry}
@@ -298,7 +327,7 @@ export default function PersonalInformation() {
               <PhoneVerifyButton status={phoneStatus} onClick={sendOtp} />
             </div>
             {phoneStatus !== "unverified" && phoneStatus !== "verified" && (
-              <div className="mt-2 flex items-center gap-2 rounded-xl bg-white p-2.5 shadow-sm shadow-black/[0.03]">
+              <div className="mt-2 flex items-center gap-2 rounded-xl bg-[var(--sd-card)] p-2.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
                 <span className="shrink-0 pl-1 text-[12px] text-slate-500">
                   Code sent to {phoneCountry?.dial} {form.phone || "—"}
                 </span>
@@ -498,7 +527,7 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Phone Number" autoFilled={ecAutoFilled.has("phone")}>
-            <div className="flex items-center gap-2 rounded-xl bg-white px-2 py-1.5 shadow-sm shadow-black/[0.03]">
+            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <select
                 name="ec-phoneCountry"
                 value={ec.phoneCountry}

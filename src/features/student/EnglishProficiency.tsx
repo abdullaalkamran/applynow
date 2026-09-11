@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Check, AlertTriangle } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, monthsUntil, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete } from "../../data/profileCompletion";
+import { saveEnglishTests } from "../../data/studentProfileDetailsStore";
 
 const TEST_NAMES = [
   "IELTS", "TOEFL iBT", "TOEFL Essentials", "PTE Academic", "Duolingo English Test",
@@ -171,6 +172,11 @@ export default function EnglishProficiency() {
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
       markStepComplete("english-proficiency");
+      saveEnglishTests(entries.map((e) => ({
+        testName: e.testName, testType: e.testType, overallScore: e.overallScore,
+        listening: e.listening, reading: e.reading, writing: e.writing, speaking: e.speaking,
+        testDate: e.testDate, expiryDate: e.expiryDate, reportNumber: e.reportNumber, issuingInstitution: e.issuingInstitution,
+      })));
       setSaved(true);
       if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
       savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
@@ -210,7 +216,7 @@ export default function EnglishProficiency() {
           ))}
 
           {addMenuOpen ? (
-            <div className="rounded-2xl bg-white p-3.5 shadow-sm shadow-black/[0.03]">
+            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <p className="mb-2 text-[12px] font-medium text-slate-500">Choose a test to add</p>
               <div className="flex flex-wrap gap-2">
                 {TEST_NAMES.map((t) => (
@@ -274,7 +280,7 @@ function TestCard({
   const expiryWarning = getExpiryWarning(entry.expiryDate);
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
       <div className="flex items-center justify-between">
         <Pill tone="navy">{entry.testName}</Pill>
         <button onClick={onRemove} aria-label="Remove test" className="text-slate-300 hover:text-slate-500">

@@ -1,12 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { BackButton } from "../../components/ui/mobile";
-
-const THREADS = [
-  { id: "t1", name: "AI Counsellor", last: "Your bank statement was received — I'll flag it to your counsellor.", time: "2m", unread: true, ai: true },
-  { id: "t2", name: "Admissions — Manchester", last: "We may request an additional reference letter.", time: "1h", unread: true, color: "bg-slate-500" },
-  { id: "t3", name: "Counsellor — Sarah K.", last: "Great news on your offer! Let's discuss the deposit.", time: "Yesterday", unread: false, color: "bg-emerald-500" },
-];
+import { MESSAGE_THREADS as THREADS } from "../../data/messageThreads";
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -26,7 +21,7 @@ export default function Messages() {
           <button
             key={t.id}
             onClick={() => navigate(t.ai ? "/student/counsellor" : "#")}
-            className="flex w-full items-center gap-3 rounded-2xl bg-white p-3.5 text-left shadow-sm shadow-black/[0.03]"
+            className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
           >
             {t.ai ? (
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">

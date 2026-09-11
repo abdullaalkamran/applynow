@@ -1,9 +1,10 @@
 import { Table, StatusBadge, ProgressBar, PageHeader } from "../../components/ui";
-import { STUDENTS, APPLICATIONS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { STUDENTS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { getAllApplications } from "../../data/applicationsStore";
 
 export default function AgentApplications() {
   const myStudents = STUDENTS.filter((s) => s.agentId === CURRENT_AGENT_ID);
-  const myApps = APPLICATIONS.filter((a) => myStudents.some((s) => s.id === a.studentId));
+  const myApps = getAllApplications().filter((a) => myStudents.some((s) => s.id === a.studentId));
 
   return (
     <div>

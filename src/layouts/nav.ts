@@ -37,7 +37,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Commission Approvals", path: "/staff/finance" },
   ],
   admin: [
-    { label: "Users & Roles", path: "/admin" },
+    { label: "Teams & Roles", path: "/admin" },
     { label: "Workflow Templates", path: "/admin/workflows" },
     { label: "Commission Rules", path: "/admin/commission-rules" },
     { label: "Audit Logs", path: "/admin/audit-logs" },

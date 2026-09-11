@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Settings, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Shield, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Settings, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Shield, ChevronRight, CheckCircle2, LogOut } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getProfileCompletion } from "../../data/profileCompletion";
@@ -23,9 +23,11 @@ export default function Profile() {
 
   return (
     <div className="min-h-full pb-8">
-      <MobileHeader title="My Profile" right={<button className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm"><Settings size={16} /></button>} />
+      <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
+        <MobileHeader title="My Profile" right={<button className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-500 shadow-sm"><Settings size={16} /></button>} />
+      </div>
 
-      <div className="px-5">
+      <div className="px-5 lg:mx-auto lg:w-full lg:max-w-2xl lg:px-10">
         <div className="flex flex-col items-center pb-2 pt-2 text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--sd-ink)] text-xl font-semibold text-white">
             {initials}
@@ -34,7 +36,7 @@ export default function Profile() {
           <p className="text-[13px] text-slate-400">{student.email}</p>
         </div>
 
-        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-medium text-slate-700">Profile Completion</span>
             <span className="text-[13px] font-semibold text-[var(--sd-teal)]">{percent}%</span>
@@ -44,7 +46,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl bg-white shadow-sm shadow-black/[0.03]">
+        <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           {SETTINGS.map((s, i) => {
             const complete = s.stepKey ? completeByKey.get(s.stepKey) : undefined;
             return (
@@ -63,6 +65,16 @@ export default function Profile() {
             );
           })}
         </div>
+
+        <button
+          onClick={() => navigate("/student/onboarding")}
+          className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+            <LogOut size={16} />
+          </div>
+          <span className="flex-1 text-[13px] font-medium text-rose-500">Log Out</span>
+        </button>
       </div>
     </div>
   );

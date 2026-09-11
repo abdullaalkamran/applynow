@@ -16,14 +16,14 @@ export default function CostPlanner() {
       <MobileHeader title="Cost Planner" />
 
       <div className="px-5">
-        <button className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+        <button className="flex w-full items-center justify-between rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           <span className="flex items-center gap-2 text-[14px] font-medium text-slate-800">
             <span className="text-lg">🇬🇧</span> United Kingdom
           </span>
           <ChevronDown size={16} className="text-slate-400" />
         </button>
 
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white p-1 shadow-sm shadow-black/[0.03]">
+        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-[var(--sd-card)] p-1 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           {(["1st Year", "Full Duration"] as const).map((d) => (
             <button
               key={d}
@@ -37,7 +37,7 @@ export default function CostPlanner() {
           ))}
         </div>
 
-        <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+        <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           {fees.map((f) => (
             <div key={f.label} className="flex items-center justify-between py-2 text-[13px]">
               <span className="text-slate-500">{f.label}</span>
@@ -50,7 +50,7 @@ export default function CostPlanner() {
           </div>
         </div>
 
-        <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
+        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--sd-teal)]">
               <CheckCircle2 size={15} /> Available Funds

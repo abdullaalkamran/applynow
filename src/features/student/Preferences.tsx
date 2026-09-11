@@ -1,8 +1,9 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { Check, Bell, GraduationCap, Globe2, BookOpen, Wallet } from "lucide-react";
-import { MobileHeader, Toggle, Chip } from "../../components/ui/mobile";
+import { MobileHeader, Toggle, Chip, Section, SubLabel, ChipRow } from "../../components/ui/mobile";
 import { COUNTRIES } from "../../data/countries";
 import { markStepComplete } from "../../data/profileCompletion";
+import { savePreferences } from "../../data/studentProfileDetailsStore";
 import { FIELDS_OF_STUDY } from "../../data/fields";
 
 const STUDY_LEVELS = ["Bachelor's", "Master's", "PhD", "Diploma"];
@@ -54,6 +55,20 @@ export default function Preferences() {
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
       markStepComplete("preferences");
+      savePreferences({
+        destinations: [...destinations].map((iso2) => COUNTRIES.find((c) => c.iso2 === iso2)?.name ?? iso2),
+        studyLevel,
+        fields: [...fields],
+        intake,
+        budget,
+        accommodation,
+        scholarshipInterest,
+        emailUpdates,
+        smsUpdates,
+        whatsappUpdates,
+        pushUpdates,
+        contactLanguage,
+      });
       setSaved(true);
       if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
       savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
@@ -171,29 +186,4 @@ export default function Preferences() {
       </div>
     </div>
   );
-}
-
-function Section({ icon, title, subtitle, children }: { icon: ReactNode; title: string; subtitle?: string; children: ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm shadow-black/[0.03]">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
-          {icon}
-        </div>
-        <div>
-          <h2 className="text-[14px] font-semibold text-slate-900">{title}</h2>
-          {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function SubLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <p className={`mb-1.5 text-xs font-medium text-slate-500 ${className}`}>{children}</p>;
-}
-
-function ChipRow({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap gap-1.5">{children}</div>;
 }

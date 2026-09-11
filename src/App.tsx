@@ -2,14 +2,19 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { RoleProvider } from "./context/RoleContext";
 import AppLayout from "./layouts/AppLayout";
 import StudentShell from "./layouts/StudentShell";
+import CounsellorShell from "./layouts/CounsellorShell";
 
 import StudentOnboarding from "./features/student/Onboarding";
 import StudentDashboard from "./features/student/Dashboard";
 import StudentApplications from "./features/student/Applications";
 import StudentApplicationDetail from "./features/student/ApplicationDetail";
 import StudentDocuments from "./features/student/Documents";
+import StudentNotifications from "./features/student/Notifications";
 import UniversitySearch from "./features/student/UniversitySearch";
+import UniversityFilters from "./features/student/UniversityFilters";
 import UniversityDetail from "./features/student/UniversityDetail";
+import CampusOptions from "./features/student/CampusOptions";
+import SubjectDetail from "./features/student/SubjectDetail";
 import AICounsellor from "./features/student/AICounsellor";
 import CostPlanner from "./features/student/CostPlanner";
 import StudentMessages from "./features/student/Messages";
@@ -26,7 +31,19 @@ import AgentApplications from "./features/agent/Applications";
 import AgentCommissions from "./features/agent/Commissions";
 import AgentStatements from "./features/agent/Statements";
 
+import CounsellorDashboard from "./features/staff/counsellor/Dashboard";
+import CounsellorLeads from "./features/staff/counsellor/Leads";
 import CounsellorCaseQueue from "./features/staff/counsellor/CaseQueue";
+import CounsellorStudentProfile from "./features/staff/counsellor/StudentProfile";
+import CounsellorTasks from "./features/staff/counsellor/Tasks";
+import CounsellorMessages from "./features/staff/counsellor/Messages";
+import CounsellorApplications from "./features/staff/counsellor/Applications";
+import CounsellorCounseling from "./features/staff/counsellor/Counseling";
+import CounsellorUniversityPartners from "./features/staff/counsellor/UniversityPartners";
+import CounsellorVisaCompliance from "./features/staff/counsellor/VisaCompliance";
+import CounsellorReports from "./features/staff/counsellor/Reports";
+import CounsellorResources from "./features/staff/counsellor/Resources";
+import CounsellorSettings from "./features/staff/counsellor/Settings";
 import AdmissionSubmissionQueue from "./features/staff/admission/SubmissionQueue";
 import ComplianceRiskQueue from "./features/staff/compliance/RiskQueue";
 import DataCatalog from "./features/staff/data/Catalog";
@@ -46,11 +63,16 @@ export default function App() {
           <Route element={<StudentShell />}>
             <Route path="/student/onboarding" element={<StudentOnboarding />} />
             <Route path="/student" element={<StudentDashboard />} />
-            <Route path="/student/search" element={<UniversitySearch />} />
+            <Route path="/student/search" element={<UniversitySearch />}>
+              <Route path="filters" element={<UniversityFilters />} />
+            </Route>
             <Route path="/student/universities/:id" element={<UniversityDetail />} />
+            <Route path="/student/universities/:id/campuses" element={<CampusOptions />} />
+            <Route path="/student/subjects/:subject" element={<SubjectDetail />} />
             <Route path="/student/applications" element={<StudentApplications />} />
             <Route path="/student/applications/:id" element={<StudentApplicationDetail />} />
             <Route path="/student/documents" element={<StudentDocuments />} />
+            <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/counsellor" element={<AICounsellor />} />
             <Route path="/student/cost-planner" element={<CostPlanner />} />
             <Route path="/student/messages" element={<StudentMessages />} />
@@ -60,6 +82,23 @@ export default function App() {
             <Route path="/student/profile/english-proficiency" element={<EnglishProficiency />} />
             <Route path="/student/profile/work-experience" element={<WorkExperience />} />
             <Route path="/student/profile/preferences" element={<Preferences />} />
+          </Route>
+
+          {/* Counsellor — dedicated ApplyHub-branded shell, separate from the shared staff/admin shell */}
+          <Route element={<CounsellorShell />}>
+            <Route path="/staff/counsellor" element={<CounsellorDashboard />} />
+            <Route path="/staff/counsellor/leads" element={<CounsellorLeads />} />
+            <Route path="/staff/counsellor/students" element={<CounsellorCaseQueue />} />
+            <Route path="/staff/counsellor/students/:id" element={<CounsellorStudentProfile />} />
+            <Route path="/staff/counsellor/applications" element={<CounsellorApplications />} />
+            <Route path="/staff/counsellor/counseling" element={<CounsellorCounseling />} />
+            <Route path="/staff/counsellor/partners" element={<CounsellorUniversityPartners />} />
+            <Route path="/staff/counsellor/visa-compliance" element={<CounsellorVisaCompliance />} />
+            <Route path="/staff/counsellor/tasks" element={<CounsellorTasks />} />
+            <Route path="/staff/counsellor/messages" element={<CounsellorMessages />} />
+            <Route path="/staff/counsellor/reports" element={<CounsellorReports />} />
+            <Route path="/staff/counsellor/resources" element={<CounsellorResources />} />
+            <Route path="/staff/counsellor/settings" element={<CounsellorSettings />} />
           </Route>
 
           <Route element={<AppLayout />}>
@@ -73,7 +112,6 @@ export default function App() {
             <Route path="/agent/statements" element={<AgentStatements />} />
 
             {/* Staff */}
-            <Route path="/staff/counsellor" element={<CounsellorCaseQueue />} />
             <Route path="/staff/admission" element={<AdmissionSubmissionQueue />} />
             <Route path="/staff/compliance" element={<ComplianceRiskQueue />} />
             <Route path="/staff/data" element={<DataCatalog />} />

@@ -1,26 +1,22 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, SlidersHorizontal, Heart, MapPin, X } from "lucide-react";
-import { BackButton, SkylineArt, Pill, Chip, Toggle } from "../../components/ui/mobile";
-import { UNIVERSITIES } from "../../data/mockData";
-import { FIELDS_OF_STUDY } from "../../data/fields";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import {
+  Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock, Award,
+  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, ArrowUpRight,
+} from "lucide-react";
+import { BackButton, SkylineArt, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
+import { UNIVERSITIES, STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { countryByName } from "../../data/countries";
+import {
+  emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
+  ALL_PROGRAMS, FEE_BANDS, feeBandMax, scholarshipAmountUSD, SUBJECT_OPTIONS, DESTINATION_OPTIONS,
+  type UniversityFilterState,
+} from "../../utils/universityFilter";
+import { ApplyModal } from "./ApplyModal";
+import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
+import type { University } from "../../types";
 
-const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-const COUNTRY_OPTIONS = Array.from(new Set(UNIVERSITIES.map((u) => u.country)));
-const CAMPUS_OPTIONS = Array.from(new Set(UNIVERSITIES.map((u) => u.city))).sort();
-const UNIVERSITY_OPTIONS = UNIVERSITIES.map((u) => u.name);
-const COURSE_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.courses.map((c) => c.name)))).sort();
-const LEVEL_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.courses.map((c) => c.level))));
-const SUBJECT_OPTIONS = FIELDS_OF_STUDY;
-const INTAKE_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.intakes))).sort(
-  (a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b)
-);
-const FEE_RANGES = ["Under $20k", "$20k – $40k", "$40k – $60k", "$60k+"];
-const IELTS_OPTIONS = [5.5, 6.0, 6.5, 7.0, 7.5, 8.0];
-
-// Approximate FX rates to USD, used only to make the fee-range filter comparable across currencies.
-const FX_TO_USD: Record<string, number> = { "£": 1.27, "$": 1.0, "C$": 0.74, "A$": 0.66, "€": 1.09, "AED ": 0.27 };
+type Tab = "universities" | "subjects";
 
 type SortBy = "best" | "rank" | "employability" | "name";
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
@@ -36,87 +32,71 @@ function rankNumber(rank: string) {
 function employabilityNumber(emp: string) {
   return parseInt(emp.replace(/\D/g, ""), 10) || 0;
 }
-function tuitionInUSD(u: (typeof UNIVERSITIES)[number]) {
-  const tuition = u.fees.find((f) => f.label === "Tuition Fee")?.amount ?? 0;
-  return tuition * (FX_TO_USD[u.currencySymbol] ?? 1);
-}
-function matchesFeeRange(u: (typeof UNIVERSITIES)[number], range: string) {
-  const usd = tuitionInUSD(u);
-  if (range === "Under $20k") return usd < 20000;
-  if (range === "$20k – $40k") return usd >= 20000 && usd < 40000;
-  if (range === "$40k – $60k") return usd >= 40000 && usd < 60000;
-  return usd >= 60000;
-}
 
-function toggleInSet(set: Set<string>, setter: (s: Set<string>) => void, value: string) {
-  const next = new Set(set);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  setter(next);
-}
+const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
+const defaultResidenceCountry = countryByName(student.country)?.iso2 ?? "";
 
-type PanelKey =
-  | "country" | "campus" | "university" | "course" | "level" | "subject" | "intake" | "fees" | "ielts" | "more" | "sort"
-  | null;
+export interface FiltersOutletContext {
+  filters: UniversityFilterState;
+  setFilters: Dispatch<SetStateAction<UniversityFilterState>>;
+  resultCount: number;
+}
 
 export default function UniversitySearch() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [openPanel, setOpenPanel] = useState<PanelKey>(null);
+  const [, setShortlistTick] = useState(0);
 
-  const [selectedCountries, setSelectedCountries] = useState<Set<string>>(new Set());
-  const [selectedCampuses, setSelectedCampuses] = useState<Set<string>>(new Set());
-  const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
-  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
-  const [selectedLevels, setSelectedLevels] = useState<Set<string>>(new Set());
-  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
-  const [selectedIntakes, setSelectedIntakes] = useState<Set<string>>(new Set());
-  const [feeRange, setFeeRange] = useState<string | null>(null);
-  const [minIeltsFilter, setMinIeltsFilter] = useState<number | null>(null);
-  const [topRankedOnly, setTopRankedOnly] = useState(false);
-  const [highEmployabilityOnly, setHighEmployabilityOnly] = useState(false);
+  function toggleProgramShortlist(programKey: string) {
+    toggleShortlisted(programKey);
+    setShortlistTick((t) => t + 1);
+  }
+  const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
+  const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("best");
+  const [filters, setFilters] = useState<UniversityFilterState>(() => emptyFilters(defaultResidenceCountry));
+  const [tab, setTab] = useState<Tab>("subjects");
 
-  const filtersActive =
-    selectedCountries.size > 0 || selectedCampuses.size > 0 || selectedUniversities.size > 0 ||
-    selectedCourses.size > 0 || selectedLevels.size > 0 || selectedSubjects.size > 0 || selectedIntakes.size > 0 ||
-    feeRange !== null || minIeltsFilter !== null || topRankedOnly || highEmployabilityOnly;
+  // Independent, compact filters for the flat "all programs" list on the Subjects tab.
+  const [programSubject, setProgramSubject] = useState("");
+  const [programDestination, setProgramDestination] = useState("");
+  const [programIntake, setProgramIntake] = useState("");
+  const [programFeeBand, setProgramFeeBand] = useState("");
+  const [programScholarship, setProgramScholarship] = useState("");
+
+  const showingFilters = location.pathname === "/student/search/filters";
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = UNIVERSITIES.filter((u) => {
-      if (q) {
-        const matches =
-          u.name.toLowerCase().includes(q) ||
-          u.city.toLowerCase().includes(q) ||
-          u.country.toLowerCase().includes(q) ||
-          u.courses.some((c) => c.name.toLowerCase().includes(q));
-        if (!matches) return false;
-      }
-      if (selectedCountries.size > 0 && !selectedCountries.has(u.country)) return false;
-      if (selectedCampuses.size > 0 && !selectedCampuses.has(u.city)) return false;
-      if (selectedUniversities.size > 0 && !selectedUniversities.has(u.name)) return false;
-      if (selectedCourses.size > 0 && !u.courses.some((c) => selectedCourses.has(c.name))) return false;
-      if (selectedLevels.size > 0 && !u.courses.some((c) => selectedLevels.has(c.level))) return false;
-      if (selectedSubjects.size > 0 && !u.subjects.some((s) => selectedSubjects.has(s))) return false;
-      if (selectedIntakes.size > 0 && !u.intakes.some((i) => selectedIntakes.has(i))) return false;
-      if (feeRange && !matchesFeeRange(u, feeRange)) return false;
-      if (minIeltsFilter !== null && u.minIELTS > minIeltsFilter) return false;
-      if (topRankedOnly && rankNumber(u.worldRank) > 50) return false;
-      if (highEmployabilityOnly && employabilityNumber(u.employability) < 90) return false;
-      return true;
-    });
-
+    const filtered = applyFilters(UNIVERSITIES, filters, query);
     const sorted = [...filtered];
     if (sortBy === "rank") sorted.sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank));
     else if (sortBy === "employability") sorted.sort((a, b) => employabilityNumber(b.employability) - employabilityNumber(a.employability));
     else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     return sorted;
-  }, [
-    query, selectedCountries, selectedCampuses, selectedUniversities, selectedCourses, selectedLevels,
-    selectedSubjects, selectedIntakes, feeRange, minIeltsFilter, topRankedOnly, highEmployabilityOnly, sortBy,
-  ]);
+  }, [query, filters, sortBy]);
+
+  const programIntakeOptions = useMemo(() => Array.from(new Set(ALL_PROGRAMS.map((p) => p.university.openIntake))).sort(), []);
+
+  const programs = useMemo(
+    () =>
+      ALL_PROGRAMS.filter(({ university: u, course: c }) => {
+        if (programSubject && c.subject !== programSubject) return false;
+        if (programDestination && u.country !== programDestination) return false;
+        if (programIntake && u.openIntake !== programIntake) return false;
+        if (programFeeBand && c.feeUSD > feeBandMax(programFeeBand)) return false;
+        if (programScholarship === "Available" && !u.scholarshipsAvailable) return false;
+        return true;
+      }),
+    [programSubject, programDestination, programIntake, programFeeBand, programScholarship]
+  );
+
+  if (showingFilters) {
+    return <Outlet context={{ filters, setFilters, resultCount: results.length } satisfies FiltersOutletContext} />;
+  }
+
+  const activeFilterCount = countActiveFilters(filters);
 
   function toggleFavorite(id: string) {
     setFavorites((prev) => {
@@ -127,223 +107,268 @@ export default function UniversitySearch() {
     });
   }
 
-  function togglePanel(key: PanelKey) {
-    setOpenPanel((prev) => (prev === key ? null : key));
+  function resetProgramFilters() {
+    setProgramSubject("");
+    setProgramDestination("");
+    setProgramIntake("");
+    setProgramFeeBand("");
+    setProgramScholarship("");
   }
 
-  function clearFilters() {
-    setSelectedCountries(new Set());
-    setSelectedCampuses(new Set());
-    setSelectedUniversities(new Set());
-    setSelectedCourses(new Set());
-    setSelectedLevels(new Set());
-    setSelectedSubjects(new Set());
-    setSelectedIntakes(new Set());
-    setFeeRange(null);
-    setMinIeltsFilter(null);
-    setTopRankedOnly(false);
-    setHighEmployabilityOnly(false);
-    setOpenPanel(null);
+  function openProgram(universityId: string, courseName: string, subject: string) {
+    navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
   }
+
+  function openUniversityProfile(universityId: string) {
+    navigate(`/student/universities/${universityId}`);
+  }
+
+  const subjectQueryText = filters.subjectQuery.trim() || filters.courseQuery.trim() || query.trim();
 
   return (
-    <div className="px-5 pb-6 pt-6">
-      <div className="flex items-center gap-3">
-        <BackButton />
-        <h1 className="text-xl font-bold text-slate-900">Explore Universities</h1>
-      </div>
-
-      <div className="mt-4 flex items-center gap-2 rounded-xl bg-white px-3.5 py-3 shadow-sm shadow-black/[0.03]">
-        <Search size={17} className="text-slate-400" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search university, course or city"
-          className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-        />
-      </div>
-
-      <div className="no-scrollbar mt-3 flex items-center gap-2 overflow-x-auto">
-        <FilterTrigger label="Country" count={selectedCountries.size} singleValue={selectedCountries.size === 1 ? [...selectedCountries][0] : undefined} active={openPanel === "country"} onClick={() => togglePanel("country")} />
-        <FilterTrigger label="Campus" count={selectedCampuses.size} singleValue={selectedCampuses.size === 1 ? [...selectedCampuses][0] : undefined} active={openPanel === "campus"} onClick={() => togglePanel("campus")} />
-        <FilterTrigger label="University" count={selectedUniversities.size} active={openPanel === "university"} onClick={() => togglePanel("university")} />
-        <FilterTrigger label="Course" count={selectedCourses.size} active={openPanel === "course"} onClick={() => togglePanel("course")} />
-        <FilterTrigger label="Level" count={selectedLevels.size} singleValue={selectedLevels.size === 1 ? [...selectedLevels][0] : undefined} active={openPanel === "level"} onClick={() => togglePanel("level")} />
-        <FilterTrigger label="Subject" count={selectedSubjects.size} active={openPanel === "subject"} onClick={() => togglePanel("subject")} />
-        <FilterTrigger label="Intake" count={selectedIntakes.size} active={openPanel === "intake"} onClick={() => togglePanel("intake")} />
-        <FilterTrigger label="Fees" count={feeRange ? 1 : 0} singleValue={feeRange ?? undefined} active={openPanel === "fees"} onClick={() => togglePanel("fees")} />
-        <FilterTrigger label="English Score" count={minIeltsFilter !== null ? 1 : 0} singleValue={minIeltsFilter !== null ? `IELTS ${minIeltsFilter}` : undefined} active={openPanel === "ielts"} onClick={() => togglePanel("ielts")} />
-        <FilterTrigger label="More" count={(topRankedOnly ? 1 : 0) + (highEmployabilityOnly ? 1 : 0)} active={openPanel === "more"} onClick={() => togglePanel("more")} />
-      </div>
-
-      {openPanel === "country" && (
-        <FilterPanel>
-          {COUNTRY_OPTIONS.map((c) => (
-            <Chip key={c} label={c} selected={selectedCountries.has(c)} onClick={() => toggleInSet(selectedCountries, setSelectedCountries, c)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "campus" && (
-        <FilterPanel>
-          {CAMPUS_OPTIONS.map((c) => (
-            <Chip key={c} label={c} selected={selectedCampuses.has(c)} onClick={() => toggleInSet(selectedCampuses, setSelectedCampuses, c)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "university" && (
-        <FilterPanel>
-          {UNIVERSITY_OPTIONS.map((n) => (
-            <Chip key={n} label={n} selected={selectedUniversities.has(n)} onClick={() => toggleInSet(selectedUniversities, setSelectedUniversities, n)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "course" && (
-        <FilterPanel>
-          {COURSE_OPTIONS.map((c) => (
-            <Chip key={c} label={c} selected={selectedCourses.has(c)} onClick={() => toggleInSet(selectedCourses, setSelectedCourses, c)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "level" && (
-        <FilterPanel>
-          {LEVEL_OPTIONS.map((l) => (
-            <Chip key={l} label={l} selected={selectedLevels.has(l)} onClick={() => toggleInSet(selectedLevels, setSelectedLevels, l)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "subject" && (
-        <FilterPanel>
-          {SUBJECT_OPTIONS.map((s) => (
-            <Chip key={s} label={s} selected={selectedSubjects.has(s)} onClick={() => toggleInSet(selectedSubjects, setSelectedSubjects, s)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "intake" && (
-        <FilterPanel>
-          {INTAKE_OPTIONS.map((i) => (
-            <Chip key={i} label={i} selected={selectedIntakes.has(i)} onClick={() => toggleInSet(selectedIntakes, setSelectedIntakes, i)} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "fees" && (
-        <FilterPanel caption="Approximate, converted to USD for comparison across countries.">
-          {FEE_RANGES.map((r) => (
-            <Chip key={r} label={r} selected={feeRange === r} onClick={() => setFeeRange((prev) => (prev === r ? null : r))} />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "ielts" && (
-        <FilterPanel caption="Shows universities that accept your IELTS score or lower.">
-          {IELTS_OPTIONS.map((score) => (
-            <Chip
-              key={score}
-              label={`IELTS ${score.toFixed(1)}`}
-              selected={minIeltsFilter === score}
-              onClick={() => setMinIeltsFilter((prev) => (prev === score ? null : score))}
-            />
-          ))}
-        </FilterPanel>
-      )}
-      {openPanel === "more" && (
-        <div className="mt-2 space-y-2.5 rounded-2xl bg-white p-3.5 shadow-sm shadow-black/[0.03]">
-          <Toggle checked={topRankedOnly} onChange={setTopRankedOnly} label="Top 50 Global only" />
-          <Toggle checked={highEmployabilityOnly} onChange={setHighEmployabilityOnly} label="High employability (90%+)" />
-        </div>
-      )}
-      {openPanel === "sort" && (
-        <FilterPanel>
-          {SORT_OPTIONS.map((s) => (
-            <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); setOpenPanel(null); }} />
-          ))}
-        </FilterPanel>
-      )}
-
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <p className="text-[13px] text-slate-500">{results.length} universities found</p>
-          {filtersActive && (
-            <button onClick={clearFilters} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
-              <X size={11} /> Clear
-            </button>
-          )}
-        </div>
-        <button
-          onClick={() => togglePanel("sort")}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg shadow-sm shadow-black/[0.03] ${
-            openPanel === "sort" ? "bg-[var(--sd-ink)] text-white" : "bg-white text-slate-500"
-          }`}
-          aria-label="Sort"
-        >
-          <SlidersHorizontal size={15} />
-        </button>
-      </div>
-
-      <div className="mt-3 space-y-3">
-        {results.length === 0 && (
-          <div className="rounded-2xl bg-white p-6 text-center shadow-sm shadow-black/[0.03]">
-            <p className="text-sm font-medium text-slate-700">No universities match your filters</p>
-            <p className="mt-1 text-xs text-slate-400">Try clearing a filter or searching a different term.</p>
+    <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
+      <div className="lg:mx-auto lg:max-w-6xl">
+        <div className="flex items-center gap-3">
+          <div className="lg:hidden">
+            <BackButton />
           </div>
-        )}
-        {results.map((u) => {
-          const fav = favorites.has(u.id);
-          return (
-            <button
-              key={u.id}
-              onClick={() => navigate(`/student/universities/${u.id}`)}
-              className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm shadow-black/[0.03]"
-            >
-              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-                <SkylineArt tone={u.tone} className="h-full w-full" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-[14px] font-semibold text-slate-900">{u.name}</p>
-                  <span
-                    onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
-                    className="shrink-0 text-slate-300"
+          <h1 className="text-xl font-bold text-slate-900 lg:text-2xl">Explore Universities</h1>
+        </div>
+
+        <div className="mt-4 flex items-center gap-1 rounded-xl bg-[var(--sd-card)] p-1 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:w-fit">
+          <button
+            onClick={() => setTab("universities")}
+            className={`rounded-lg px-6 py-2 text-[13px] font-medium transition-colors lg:flex-none ${
+              tab === "universities" ? "bg-[var(--sd-ink)] text-white" : "text-slate-500"
+            } flex-1`}
+          >
+            Universities
+          </button>
+          <button
+            onClick={() => setTab("subjects")}
+            className={`rounded-lg px-6 py-2 text-[13px] font-medium transition-colors lg:flex-none ${
+              tab === "subjects" ? "bg-[var(--sd-ink)] text-white" : "text-slate-500"
+            } flex-1`}
+          >
+            Subjects
+          </button>
+        </div>
+
+        {tab === "subjects" ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] text-slate-500">
+                {programs.length} {programs.length === 1 ? "program" : "programs"} from top universities worldwide.
+              </p>
+              {(programSubject || programDestination || programIntake || programFeeBand || programScholarship) && (
+                <button onClick={resetProgramFilters} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
+                  <X size={11} /> Clear
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+              <PillSelect label="Subject" value={programSubject} options={SUBJECT_OPTIONS} onChange={setProgramSubject} placeholder="All subjects" />
+              <PillSelect label="Destination" value={programDestination} options={DESTINATION_OPTIONS} onChange={setProgramDestination} placeholder="All destinations" />
+              <PillSelect label="Intake" value={programIntake} options={programIntakeOptions} onChange={setProgramIntake} placeholder="Any intake" />
+              <PillSelect label="Fees" value={programFeeBand} options={FEE_BANDS} onChange={setProgramFeeBand} placeholder="Any fee" />
+              <PillSelect label="Scholarship" value={programScholarship} options={["Available"]} onChange={setProgramScholarship} placeholder="Any" />
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:grid lg:grid-cols-2 lg:gap-x-6 lg:rounded-none lg:bg-transparent lg:shadow-none">
+              {programs.map(({ university: u, course: c }, i) => {
+                const scholarshipUSD = scholarshipAmountUSD(u, c.feeUSD);
+                const programKey = `${u.id}::${c.name}`;
+                const shortlisted = isShortlisted(programKey);
+                return (
+                  <div
+                    key={programKey}
+                    onClick={() => openProgram(u.id, c.name, c.subject)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
+                    className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left lg:rounded-2xl lg:bg-[var(--sd-card)] lg:px-4 lg:shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
+                      i !== programs.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
+                    }`}
                   >
-                    <Heart size={16} className={fav ? "fill-rose-500 text-rose-500" : ""} />
-                  </span>
+                    <LogoBadge name={u.name} tone={u.tone} className="h-12 w-12" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] text-slate-400">{u.name}</p>
+                      <p className="truncate text-[14.5px] font-semibold text-slate-900">{c.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
+                          {Math.round(c.feeUSD).toLocaleString()}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays size={11} className="text-slate-400" /> {u.openIntake}
+                        </span>
+                        {scholarshipUSD && (
+                          <span className="inline-flex items-center gap-1">
+                            <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1">
+                          <Building2 size={11} className="text-slate-400" /> Main Campus
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-2">
+                        <span
+                          onClick={(e) => { e.stopPropagation(); openUniversityProfile(u.id); }}
+                          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--sd-ink)]"
+                        >
+                          University Profile <ArrowUpRight size={11} />
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setApplyTarget({ university: u, course: c }); }}
+                          className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
+                        >
+                          Apply Now
+                        </button>
+                      </div>
+                    </div>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); toggleProgramShortlist(programKey); }}
+                      aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
+                      className={`shrink-0 ${shortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
+                    >
+                      <Bookmark size={16} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                  </div>
+                );
+              })}
+
+              {programs.length === 0 && (
+                <div className="p-6 text-center lg:col-span-full lg:rounded-2xl lg:bg-[var(--sd-card)] lg:shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                  <p className="text-sm font-medium text-slate-700">No programs match these filters</p>
+                  <button onClick={resetProgramFilters} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
+                    Reset filters
+                  </button>
                 </div>
-                <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                  <MapPin size={11} /> {u.city}, {u.country}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <Pill tone="blue">{u.tags[0]}</Pill>
-                  <Pill tone="green">{u.tags[1]}</Pill>
-                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-3.5 py-3 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:flex-1">
+                <Search size={17} className="text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search university, course or city"
+                  className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                />
               </div>
-            </button>
-          );
-        })}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate("/student/search/filters")}
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-[13px] font-medium lg:flex-none ${
+                    activeFilterCount > 0 ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+                  }`}
+                >
+                  <SlidersHorizontal size={14} /> Filters
+                  {activeFilterCount > 0 && (
+                    <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--sd-card)]/20 px-1 text-[10px] font-semibold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setSortOpen((v) => !v)}
+                  className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
+                    sortOpen ? "bg-[var(--sd-ink)] text-white" : "bg-[var(--sd-card)] text-slate-500"
+                  }`}
+                  aria-label="Sort"
+                >
+                  <SlidersHorizontal size={15} className="rotate-90" />
+                </button>
+              </div>
+            </div>
+
+            {sortOpen && (
+              <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-[var(--sd-card)] p-3 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:w-fit">
+                {SORT_OPTIONS.map((s) => (
+                  <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); setSortOpen(false); }} />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="text-[13px] text-slate-500">{results.length} {results.length === 1 ? "university" : "universities"} found</p>
+                {activeFilterCount > 0 && (
+                  <button onClick={() => setFilters(emptyFilters(defaultResidenceCountry))} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
+                    <X size={11} /> Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+              {results.length === 0 && (
+                <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:col-span-full">
+                  <p className="text-sm font-medium text-slate-700">No universities match your filters</p>
+                  <p className="mt-1 text-xs text-slate-400">Try clearing a filter or searching a different term.</p>
+                </div>
+              )}
+              {results.map((u) => {
+                const fav = favorites.has(u.id);
+                const feeUSD = courseFeeForSubject(u, subjectQueryText);
+                const matchedCourse = matchingCourse(u, subjectQueryText);
+                return (
+                  <button
+                    key={u.id}
+                    onClick={() => navigate(`/student/universities/${u.id}`)}
+                    className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                  >
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+                      <SkylineArt tone={u.tone} className="h-full w-full" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-[14px] font-semibold text-slate-900">{u.name}</p>
+                        <span
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
+                          className="shrink-0 text-slate-300"
+                        >
+                          <Heart size={16} className={fav ? "fill-rose-500 text-rose-500" : ""} />
+                        </span>
+                      </div>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+                        <MapPin size={11} /> {u.city}, {u.country}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Pill tone="blue">{u.tags[0]}</Pill>
+                        <Pill tone="green">{u.tags[1]}</Pill>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarClock size={11} className="text-slate-400" /> Open: {u.openIntake}
+                        </span>
+                        {u.scholarshipsAvailable && (
+                          <span className="inline-flex items-center gap-1 text-[#12805A]">
+                            <Award size={11} /> Scholarships
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] font-medium text-slate-700">
+                        ≈${Math.round(feeUSD).toLocaleString()}/yr{matchedCourse ? ` · ${matchedCourse.name}` : ""}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
-    </div>
-  );
-}
 
-function FilterTrigger({
-  label, count, singleValue, active, onClick,
-}: { label: string; count: number; singleValue?: string; active: boolean; onClick: () => void }) {
-  const highlighted = active || count > 0;
-  const text = singleValue ?? (count > 1 ? `${label} (${count})` : label);
-  return (
-    <button
-      onClick={onClick}
-      className={`flex shrink-0 items-center gap-1 rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
-        highlighted ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-white text-slate-600"
-      }`}
-    >
-      {text} <ChevronDown size={13} className={active ? "rotate-180 transition-transform" : "transition-transform"} />
-    </button>
-  );
-}
-
-function FilterPanel({ children, caption }: { children: React.ReactNode; caption?: string }) {
-  return (
-    <div className="mt-2 rounded-2xl bg-white p-3 shadow-sm shadow-black/[0.03]">
-      <div className="flex flex-wrap gap-2">{children}</div>
-      {caption && <p className="mt-2 text-[11px] text-slate-400">{caption}</p>}
+      {applyTarget && (
+        <ApplyModal university={applyTarget.university} course={applyTarget.course} onClose={() => setApplyTarget(null)} />
+      )}
     </div>
   );
 }

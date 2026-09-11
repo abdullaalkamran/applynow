@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { Card, CardBody, CardHeader, StatTile, StatusBadge, Avatar } from "../../components/ui";
-import { STUDENTS, APPLICATIONS, COMMISSIONS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { STUDENTS, COMMISSIONS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { getAllApplications } from "../../data/applicationsStore";
 
 export default function AgentDashboard() {
   const myStudents = STUDENTS.filter((s) => s.agentId === CURRENT_AGENT_ID);
-  const myApps = APPLICATIONS.filter((a) => myStudents.some((s) => s.id === a.studentId));
+  const myApps = getAllApplications().filter((a) => myStudents.some((s) => s.id === a.studentId));
   const myCommissions = COMMISSIONS.filter((c) => c.agentId === CURRENT_AGENT_ID);
   const pipelineValue = myCommissions.filter((c) => c.status !== "Paid").reduce((sum, c) => sum + c.amount, 0);
 

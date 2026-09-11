@@ -20,6 +20,10 @@ export const STUDENTS: Student[] = [
   { id: "s3", name: "Priya Nair", email: "priya.n@example.com", country: "India", agentId: "a2", counsellorId: "c1", avatarColor: "bg-emerald-500", riskFlag: "none" },
   { id: "s4", name: "Duy Nguyen", email: "duy.n@example.com", country: "Vietnam", agentId: "a2", counsellorId: "c2", avatarColor: "bg-sky-500", riskFlag: "high" },
   { id: "s5", name: "Fatima Al-Sayed", email: "fatima.a@example.com", country: "Egypt", agentId: "a1", counsellorId: "c2", avatarColor: "bg-violet-500", riskFlag: "none" },
+  // Signed up on the website and started their profile, but haven't submitted an application yet —
+  // these are what show up on the counsellor's Leads page (no matching entry in APPLICATIONS).
+  { id: "s6", name: "Amara Chukwu", email: "amara.chukwu@example.com", country: "Nigeria", counsellorId: "c1", avatarColor: "bg-indigo-500", riskFlag: "none" },
+  { id: "s7", name: "Carlos Mendes", email: "carlos.mendes@example.com", country: "Brazil", counsellorId: "c1", avatarColor: "bg-teal-500", riskFlag: "none" },
 ];
 
 export const CURRENT_STUDENT_ID = "s1";
@@ -34,7 +38,17 @@ export const AGENTS: SupportContact[] = [
   { id: "a2", name: "Nusrat Jahan", role: "Education Agent", organization: "BrightFuture Education", phone: "+880 1911-556677", avatarColor: "bg-violet-500" },
 ];
 
-function stages(currentIdx: number, blockedIdx: number | null = null) {
+// Pooled review-team roles (not assigned 1:1 per student like Counsellor/Agent) — whoever is
+// currently handling submission and compliance review across applications.
+export const ADMISSION_OFFICERS: SupportContact[] = [
+  { id: "ad1", name: "Aisha Rahman", role: "Admission Officer", phone: "+44 7700 900654", avatarColor: "bg-indigo-500" },
+];
+
+export const COMPLIANCE_OFFICERS: SupportContact[] = [
+  { id: "co1", name: "R. Fernandez", role: "Compliance Officer", phone: "+44 7700 900987", avatarColor: "bg-rose-500" },
+];
+
+export function stages(currentIdx: number, blockedIdx: number | null = null) {
   const labels = ["Profile", "Documents", "Application", "Decision", "Acceptance", "Visa", "Enrolment"];
   return labels.map((label, i) => ({
     key: label.toLowerCase(),
@@ -50,7 +64,7 @@ export const APPLICATIONS: Application[] = [
     waitingOn: "university", stages: stages(3), updatedAt: "2026-09-02",
   },
   {
-    id: "app2", studentId: "s1", university: "University of Melbourne", course: "MSc Computer Science",
+    id: "app2", studentId: "s1", university: "University of Melbourne", course: "Master of Data Science",
     intake: "Feb 2027", country: "Australia", status: "Documents Pending", progress: 28, nextAction: "Upload bank statement",
     waitingOn: "student", stages: stages(1), updatedAt: "2026-09-05",
   },
@@ -128,14 +142,19 @@ export const UNIVERSITIES: University[] = [
     description: "A world-class university known for its research, innovation and diverse community.",
     highlights: ["Global recognition", "Wide range of scholarships", "Vibrant student life", "Excellent career support"],
     courses: [
-      { name: "MSc Data Science", level: "Postgraduate", duration: "1 year" },
-      { name: "MSc Computer Science", level: "Postgraduate", duration: "1 year" },
-      { name: "BSc Economics", level: "Undergraduate", duration: "3 years" },
+      { name: "MSc Data Science", level: "Postgraduate", duration: "1 year", subject: "Data Science & AI", feeUSD: 35000 },
+      { name: "MSc Computer Science", level: "Postgraduate", duration: "1 year", subject: "Computer Science & IT", feeUSD: 33500 },
+      { name: "BSc Economics", level: "Undergraduate", duration: "3 years", subject: "Social Sciences", feeUSD: 24500 },
     ],
     requirements: ["Bachelor's degree, 2:1 or equivalent", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose", "Two academic references"],
     fees: [{ label: "Tuition Fee", amount: 26500 }, { label: "Accommodation", amount: 8000 }, { label: "Living Expenses", amount: 9000 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 1500 }],
     currencySymbol: "£",
     minIELTS: 6.5,
+    minGPA: 3.3,
+    accreditations: ["Russell Group"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "manchester.ac.uk",
     tone: "violet",
   },
   {
@@ -147,13 +166,18 @@ export const UNIVERSITIES: University[] = [
     description: "One of the UK's most prestigious universities, at the heart of London.",
     highlights: ["Central London campus", "Strong alumni network", "Award-winning research", "High graduate employability"],
     courses: [
-      { name: "MSc International Management", level: "Postgraduate", duration: "1 year" },
-      { name: "LLM Law", level: "Postgraduate", duration: "1 year" },
+      { name: "MSc International Management", level: "Postgraduate", duration: "1 year", subject: "Business & Management", feeUSD: 39000 },
+      { name: "LLM Law", level: "Postgraduate", duration: "1 year", subject: "Law", feeUSD: 40500 },
     ],
     requirements: ["Bachelor's degree, 2:1 or equivalent", "IELTS 7.0 overall, no band below 6.5", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 29800 }, { label: "Accommodation", amount: 11500 }, { label: "Living Expenses", amount: 10200 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 1500 }],
     currencySymbol: "£",
     minIELTS: 7.0,
+    minGPA: 3.3,
+    accreditations: ["Russell Group"],
+    scholarshipsAvailable: true,
+    openIntake: "January 2027",
+    website: "kcl.ac.uk",
     tone: "amber",
   },
   {
@@ -165,13 +189,18 @@ export const UNIVERSITIES: University[] = [
     description: "A historic, research-led university set in the heart of Scotland's capital.",
     highlights: ["Dedicated international student support", "Rich campus heritage", "Strong scholarship program", "Thriving student societies"],
     courses: [
-      { name: "MSc Artificial Intelligence", level: "Postgraduate", duration: "1 year" },
-      { name: "BEng Mechanical Engineering", level: "Undergraduate", duration: "4 years" },
+      { name: "MSc Artificial Intelligence", level: "Postgraduate", duration: "1 year", subject: "Data Science & AI", feeUSD: 36000 },
+      { name: "BEng Mechanical Engineering", level: "Undergraduate", duration: "4 years", subject: "Engineering", feeUSD: 26000 },
     ],
     requirements: ["Bachelor's degree, 2:1 or equivalent", "IELTS 6.5 overall, no band below 6.0", "Portfolio (for some courses)"],
     fees: [{ label: "Tuition Fee", amount: 27200 }, { label: "Accommodation", amount: 9200 }, { label: "Living Expenses", amount: 9500 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 1500 }],
     currencySymbol: "£",
     minIELTS: 6.5,
+    minGPA: 3.3,
+    accreditations: ["Russell Group"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "ed.ac.uk",
     tone: "teal",
   },
   {
@@ -183,13 +212,18 @@ export const UNIVERSITIES: University[] = [
     description: "A leading Russell Group university with one of the UK's most diverse student communities.",
     highlights: ["Large international student body", "Modern campus facilities", "Strong industry links", "Affordable cost of living"],
     courses: [
-      { name: "MSc Business Analytics", level: "Postgraduate", duration: "1 year" },
-      { name: "BSc Computer Science", level: "Undergraduate", duration: "3 years" },
+      { name: "MSc Business Analytics", level: "Postgraduate", duration: "1 year", subject: "Business & Management", feeUSD: 33000 },
+      { name: "BSc Computer Science", level: "Undergraduate", duration: "3 years", subject: "Computer Science & IT", feeUSD: 23000 },
     ],
     requirements: ["Bachelor's degree, 2:2 or equivalent", "IELTS 6.0 overall, no band below 5.5", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 24800 }, { label: "Accommodation", amount: 7500 }, { label: "Living Expenses", amount: 8800 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 1500 }],
     currencySymbol: "£",
     minIELTS: 6.0,
+    minGPA: 3.0,
+    accreditations: ["Russell Group"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "birmingham.ac.uk",
     tone: "rose",
   },
   {
@@ -201,13 +235,18 @@ export const UNIVERSITIES: University[] = [
     description: "A major private research university in the heart of Boston with strong industry connections.",
     highlights: ["Central Boston campus", "Extensive alumni network", "Co-op and internship programs", "Vibrant international community"],
     courses: [
-      { name: "MS Business Analytics", level: "Postgraduate", duration: "1.5 years" },
-      { name: "BA Economics", level: "Undergraduate", duration: "4 years" },
+      { name: "MS Business Analytics", level: "Postgraduate", duration: "1.5 years", subject: "Business & Management", feeUSD: 60000 },
+      { name: "BA Economics", level: "Undergraduate", duration: "4 years", subject: "Social Sciences", feeUSD: 54000 },
     ],
     requirements: ["Bachelor's degree, GPA 3.0+", "TOEFL 90 or IELTS 6.5 overall", "Statement of purpose", "Two academic references"],
     fees: [{ label: "Tuition Fee", amount: 58000 }, { label: "Accommodation", amount: 16000 }, { label: "Living Expenses", amount: 14000 }, { label: "Travel", amount: 1500 }, { label: "Visa & Insurance", amount: 700 }],
     currencySymbol: "$",
     minIELTS: 6.5,
+    minGPA: 3.0,
+    accreditations: ["NEASC"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "bu.edu",
     tone: "amber",
   },
   {
@@ -219,13 +258,18 @@ export const UNIVERSITIES: University[] = [
     description: "A leading private research university known for its strong industry ties across tech and media.",
     highlights: ["Strong ties to LA's tech and entertainment industries", "Large international student body", "Extensive career services", "Renowned faculty"],
     courses: [
-      { name: "MS Computer Science", level: "Postgraduate", duration: "1.5 years" },
-      { name: "BA Communication", level: "Undergraduate", duration: "4 years" },
+      { name: "MS Computer Science", level: "Postgraduate", duration: "1.5 years", subject: "Computer Science & IT", feeUSD: 66000 },
+      { name: "BA Communication", level: "Undergraduate", duration: "4 years", subject: "Arts & Humanities", feeUSD: 60000 },
     ],
     requirements: ["Bachelor's degree, GPA 3.2+", "TOEFL 100 or IELTS 7.0 overall", "Statement of purpose", "Portfolio (for some programs)"],
     fees: [{ label: "Tuition Fee", amount: 64000 }, { label: "Accommodation", amount: 17000 }, { label: "Living Expenses", amount: 15000 }, { label: "Travel", amount: 1500 }, { label: "Visa & Insurance", amount: 700 }],
     currencySymbol: "$",
     minIELTS: 7.0,
+    minGPA: 3.2,
+    accreditations: ["WSCUC"],
+    scholarshipsAvailable: false,
+    openIntake: "January 2027",
+    website: "usc.edu",
     tone: "violet",
   },
   {
@@ -237,13 +281,18 @@ export const UNIVERSITIES: University[] = [
     description: "Canada's leading research university, known worldwide for innovation across every discipline.",
     highlights: ["World-renowned faculty", "Extensive research funding", "Large, diverse student body", "Strong co-op and internship network"],
     courses: [
-      { name: "MEng Computer Engineering", level: "Postgraduate", duration: "1.5 years" },
-      { name: "BSc Computer Science", level: "Undergraduate", duration: "4 years" },
+      { name: "MEng Computer Engineering", level: "Postgraduate", duration: "1.5 years", subject: "Engineering", feeUSD: 35000 },
+      { name: "BSc Computer Science", level: "Undergraduate", duration: "4 years", subject: "Computer Science & IT", feeUSD: 29000 },
     ],
     requirements: ["Bachelor's degree, B+ average or equivalent", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 45000 }, { label: "Accommodation", amount: 12000 }, { label: "Living Expenses", amount: 11000 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 235 }],
     currencySymbol: "C$",
     minIELTS: 6.5,
+    minGPA: 3.3,
+    accreditations: ["U15"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "utoronto.ca",
     tone: "teal",
   },
   {
@@ -255,13 +304,18 @@ export const UNIVERSITIES: University[] = [
     description: "A historic, research-intensive university known for its beautiful Montreal campus and global outlook.",
     highlights: ["Historic downtown campus", "Strong international student support", "Renowned medical and law faculties", "Bilingual city environment"],
     courses: [
-      { name: "MA Political Science", level: "Postgraduate", duration: "2 years" },
-      { name: "BSc Biology", level: "Undergraduate", duration: "3 years" },
+      { name: "MA Political Science", level: "Postgraduate", duration: "2 years", subject: "Arts & Humanities", feeUSD: 31000 },
+      { name: "BSc Biology", level: "Undergraduate", duration: "3 years", subject: "Medicine & Health Sciences", feeUSD: 26000 },
     ],
     requirements: ["Bachelor's degree, B average or equivalent", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose", "Two academic references"],
     fees: [{ label: "Tuition Fee", amount: 40000 }, { label: "Accommodation", amount: 11000 }, { label: "Living Expenses", amount: 10500 }, { label: "Travel", amount: 1200 }, { label: "Visa & Insurance", amount: 235 }],
     currencySymbol: "C$",
     minIELTS: 6.5,
+    minGPA: 3.0,
+    accreditations: ["U15"],
+    scholarshipsAvailable: true,
+    openIntake: "January 2027",
+    website: "mcgill.ca",
     tone: "rose",
   },
   {
@@ -273,13 +327,18 @@ export const UNIVERSITIES: University[] = [
     description: "Australia's top-ranked university, known for research excellence and a large international community.",
     highlights: ["Global top-15 ranking", "Extensive scholarship program", "Vibrant campus culture", "Strong graduate outcomes"],
     courses: [
-      { name: "Master of Data Science", level: "Postgraduate", duration: "2 years" },
-      { name: "Bachelor of Commerce", level: "Undergraduate", duration: "3 years" },
+      { name: "Master of Data Science", level: "Postgraduate", duration: "2 years", subject: "Data Science & AI", feeUSD: 31000 },
+      { name: "Bachelor of Commerce", level: "Undergraduate", duration: "3 years", subject: "Business & Management", feeUSD: 25000 },
     ],
     requirements: ["Bachelor's degree, distinction average or equivalent", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 45000 }, { label: "Accommodation", amount: 13000 }, { label: "Living Expenses", amount: 12000 }, { label: "Travel", amount: 1500 }, { label: "Visa & Insurance", amount: 710 }],
     currencySymbol: "A$",
     minIELTS: 6.5,
+    minGPA: 3.7,
+    accreditations: ["Group of Eight"],
+    scholarshipsAvailable: true,
+    openIntake: "February 2027",
+    website: "unimelb.edu.au",
     tone: "violet",
   },
   {
@@ -291,13 +350,18 @@ export const UNIVERSITIES: University[] = [
     description: "One of Australia's oldest and most prestigious universities, with a strong global reputation.",
     highlights: ["Historic sandstone campus", "Large, diverse international community", "Strong industry partnerships", "Excellent career services"],
     courses: [
-      { name: "Master of Engineering", level: "Postgraduate", duration: "2 years" },
-      { name: "Bachelor of Architecture", level: "Undergraduate", duration: "5 years" },
+      { name: "Master of Engineering", level: "Postgraduate", duration: "2 years", subject: "Engineering", feeUSD: 32500 },
+      { name: "Bachelor of Architecture", level: "Undergraduate", duration: "5 years", subject: "Architecture", feeUSD: 27000 },
     ],
     requirements: ["Bachelor's degree, credit average or equivalent", "IELTS 6.5 overall, no band below 6.0", "Portfolio (for some programs)"],
     fees: [{ label: "Tuition Fee", amount: 47000 }, { label: "Accommodation", amount: 13500 }, { label: "Living Expenses", amount: 12000 }, { label: "Travel", amount: 1500 }, { label: "Visa & Insurance", amount: 710 }],
     currencySymbol: "A$",
     minIELTS: 6.5,
+    minGPA: 3.0,
+    accreditations: ["Group of Eight"],
+    scholarshipsAvailable: true,
+    openIntake: "February 2027",
+    website: "sydney.edu.au",
     tone: "amber",
   },
   {
@@ -309,13 +373,18 @@ export const UNIVERSITIES: University[] = [
     description: "Ireland's oldest university, offering a historic campus in the heart of Dublin.",
     highlights: ["Historic city-centre campus", "Dedicated international student office", "Strong EU and UK industry links", "Rich cultural heritage"],
     courses: [
-      { name: "MSc Business Analytics", level: "Postgraduate", duration: "1 year" },
-      { name: "BA English Studies", level: "Undergraduate", duration: "4 years" },
+      { name: "MSc Business Analytics", level: "Postgraduate", duration: "1 year", subject: "Business & Management", feeUSD: 27500 },
+      { name: "BA English Studies", level: "Undergraduate", duration: "4 years", subject: "Arts & Humanities", feeUSD: 21000 },
     ],
     requirements: ["Bachelor's degree, 2:1 or equivalent", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 24000 }, { label: "Accommodation", amount: 9000 }, { label: "Living Expenses", amount: 8500 }, { label: "Travel", amount: 800 }, { label: "Visa & Insurance", amount: 300 }],
     currencySymbol: "€",
     minIELTS: 6.5,
+    minGPA: 3.3,
+    accreditations: ["IUA"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "tcd.ie",
     tone: "teal",
   },
   {
@@ -327,13 +396,18 @@ export const UNIVERSITIES: University[] = [
     description: "One of Europe's leading technical universities, renowned for engineering and applied sciences.",
     highlights: ["Low tuition fees", "Strong industry partnerships across Europe", "Cutting-edge research facilities", "English-taught postgraduate programs"],
     courses: [
-      { name: "MSc Data Engineering & Analytics", level: "Postgraduate", duration: "2 years" },
-      { name: "BSc Mechanical Engineering", level: "Undergraduate", duration: "3 years" },
+      { name: "MSc Data Engineering & Analytics", level: "Postgraduate", duration: "2 years", subject: "Data Science & AI", feeUSD: 3200 },
+      { name: "BSc Mechanical Engineering", level: "Undergraduate", duration: "3 years", subject: "Engineering", feeUSD: 2800 },
     ],
     requirements: ["Bachelor's degree in a related field", "IELTS 6.5 overall, no band below 6.0", "Statement of purpose", "Relevant coursework transcript"],
     fees: [{ label: "Tuition Fee", amount: 3000 }, { label: "Accommodation", amount: 7000 }, { label: "Living Expenses", amount: 8000 }, { label: "Travel", amount: 700 }, { label: "Visa & Insurance", amount: 75 }],
     currencySymbol: "€",
     minIELTS: 6.5,
+    minGPA: 3.0,
+    accreditations: ["TU9"],
+    scholarshipsAvailable: false,
+    openIntake: "October 2026",
+    website: "tum.de",
     tone: "rose",
   },
   {
@@ -345,13 +419,18 @@ export const UNIVERSITIES: University[] = [
     description: "A leading American-style university in the UAE, drawing students from over 90 countries.",
     highlights: ["American-accredited curriculum", "Highly international student body", "Modern purpose-built campus", "Strong regional employer links"],
     courses: [
-      { name: "MBA", level: "Postgraduate", duration: "2 years" },
-      { name: "BSc Architecture", level: "Undergraduate", duration: "5 years" },
+      { name: "MBA", level: "Postgraduate", duration: "2 years", subject: "Business & Management", feeUSD: 24000 },
+      { name: "BSc Architecture", level: "Undergraduate", duration: "5 years", subject: "Architecture", feeUSD: 21000 },
     ],
     requirements: ["Bachelor's degree, GPA 3.0+", "IELTS 6.0 overall, no band below 5.5", "Statement of purpose"],
     fees: [{ label: "Tuition Fee", amount: 85000 }, { label: "Accommodation", amount: 25000 }, { label: "Living Expenses", amount: 20000 }, { label: "Travel", amount: 2000 }, { label: "Visa & Insurance", amount: 3000 }],
     currencySymbol: "AED ",
     minIELTS: 6.0,
+    minGPA: 3.0,
+    accreditations: ["MSCHE"],
+    scholarshipsAvailable: true,
+    openIntake: "September 2026",
+    website: "aus.edu",
     tone: "violet",
   },
 ];
