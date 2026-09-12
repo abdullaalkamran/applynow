@@ -4,7 +4,8 @@ import { Search, Plus, ListChecks } from "lucide-react";
 import { Badge, Button } from "../../components/ui";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
-import { loadAgentTasks, loadDoneAgentTaskIds } from "../../data/agentTasksStore";
+import { getAgentTasks } from "../../utils/taskBoard";
+import { CURRENT_AGENT_ID } from "../../data/mockData";
 import { formatStudentId } from "../../utils/displayId";
 
 export default function AgentStudents() {
@@ -13,8 +14,7 @@ export default function AgentStudents() {
 
   const students = loadAgentStudents();
   const allApps = getAllApplications();
-  const tasks = loadAgentTasks();
-  const doneTaskIds = loadDoneAgentTaskIds();
+  const tasks = getAgentTasks(CURRENT_AGENT_ID);
 
   const filtered = students.filter((s) => {
     const q = query.trim().toLowerCase();
@@ -48,7 +48,7 @@ export default function AgentStudents() {
         {filtered.map((s) => {
           const count = allApps.filter((a) => a.studentId === s.id).length;
           const studentTasks = tasks.filter((t) => t.studentId === s.id);
-          const openTasks = studentTasks.filter((t) => !doneTaskIds.has(t.id));
+          const openTasks = studentTasks.filter((t) => !t.done);
           return (
             <button
               key={s.id}

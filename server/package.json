@@ -1,0 +1,21 @@
+{
+  "name": "studyone-assistant-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Backend proxy for StudyOne's AI assistant — holds provider API keys server-side and normalizes tool-calling across providers.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.0"
+  }
+}

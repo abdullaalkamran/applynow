@@ -13,6 +13,7 @@ import { shortlistedCount } from "../../data/shortlistStore";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import { APPLICATION_STAGES, applicationStageIndex, applicationBucket } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
+import { getStudentTasks } from "../../utils/taskBoard";
 
 const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
 const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
@@ -26,12 +27,6 @@ function greeting() {
   if (h < 18) return "Good afternoon,";
   return "Good evening,";
 }
-
-const TASKS = [
-  { title: "Upload financial statement", detail: "University of Manchester — Due in 3 days", urgent: true, icon: FileText, tone: "rose" as const, path: "/student/documents" },
-  { title: "Complete visa questionnaire", detail: "Required for your UK student visa", urgent: false, icon: ShieldCheck, tone: "blue" as const, path: "/student/applications" },
-  { title: "Review offer conditions", detail: "University of Edinburgh", urgent: false, icon: Check, tone: "slate" as const, path: "/student/applications" },
-];
 
 const QUICK_ACTIONS = [
   { icon: Search, tone: "blue" as const, title: "Find Programs", subtitle: "Explore 1000+ programs", path: "/student/search" },
@@ -73,6 +68,7 @@ export default function Dashboard() {
   const inProgressCount = myApplications.filter((a) => applicationBucket(a.status) === "inProgress").length;
   const savedProgramsCount = shortlistedCount();
   const unreadNotifications = unreadNotificationCount();
+  const nextStepTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done).slice(0, 3);
 
   const primaryApplication = [...myApplications].sort((a, b) => b.progress - a.progress)[0];
   const primaryUniversity = primaryApplication ? UNIVERSITIES.find((u) => u.name === primaryApplication.university) : undefined;
@@ -212,34 +208,43 @@ export default function Dashboard() {
 
             <div className="mt-6 flex items-center justify-between">
               <h2 className="text-[15px] font-semibold text-slate-900">Your Next Steps</h2>
-              <button onClick={() => navigate("/student/applications")} className="text-[13px] font-medium text-[#2955C4]">
+              <button onClick={() => navigate("/student/tasks")} className="text-[13px] font-medium text-[#2955C4]">
                 View All
               </button>
             </div>
 
             <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-              {TASKS.map((t, i) => (
-                <button
-                  key={t.title}
-                  onClick={() => navigate(t.path)}
-                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== TASKS.length - 1 ? "border-b border-slate-50" : ""}`}
-                >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[t.tone]}`}>
-                    <t.icon size={16} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800">{t.title}</p>
-                    <p className="truncate text-xs text-slate-400">
-                      {t.detail.split(" — ").map((part, idx) => (
-                        <span key={idx} className={idx === 1 && t.urgent ? "font-medium text-rose-500" : ""}>
-                          {idx === 1 ? " — " + part : part}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className="shrink-0 text-slate-300" />
-                </button>
-              ))}
+              {nextStepTasks.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
+              ) : (
+                nextStepTasks.map((t, i) => {
+                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
+                  const tone = t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => navigate("/student/tasks")}
+                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
+                    >
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
+                        <Icon size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-slate-800">{t.title}</p>
+                        <p className="truncate text-xs text-slate-400">
+                          {t.subtitle}
+                          {t.dueDate && (
+                            <span className={t.tone === "overdue" ? "font-medium text-rose-500" : ""}>
+                              {" — Due "}{new Date(`${t.dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             <h2 className="mt-6 text-[15px] font-semibold text-slate-900">Quick Actions</h2>

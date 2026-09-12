@@ -169,30 +169,71 @@ export interface University {
   studentCount: string;
   description: string;
   highlights: string[];
-  courses: { id: string; name: string; level: string; duration: string; subject: string; feeUSD: number }[];
+  courses: {
+    id: string;
+    name: string;
+    level: string;
+    duration: string;
+    subject: string;
+    feeUSD: number;
+    // Course-specific intake months and application deadline — a subset of the university's own
+    // `intakes`, since a course needn't run every session the university offers. Falls back to the
+    // university's own intake data on display when absent (older courses, or ones on the general schedule).
+    intakes?: string[];
+    applicationDeadline?: string;
+    // Course-specific entry requirements, distinct from the university-wide `requirements` above —
+    // e.g. a specific prior degree or portfolio this particular course additionally expects. Absent
+    // (or empty) means the course follows the university's own academic requirements as-is.
+    requirements?: string[];
+    // Course-specific English test requirements, same shape as University.englishRequirements —
+    // absent means the course follows the university's own English requirements as-is. Only set
+    // this when the course genuinely differs (e.g. a more competitive program with a higher bar).
+    englishRequirements?: {
+      testName: string;
+      minScore?: string;
+      skillScores?: { skill: string; score: string }[];
+    }[];
+    scholarshipAvailable?: boolean;
+    scholarshipInfo?: string;
+    // Fee currency for this course — falls back to the university's own `currencySymbol` when unset.
+    currencySymbol?: string;
+    // Which of the university's campuses this course runs at, if it has more than one.
+    campusId?: string;
+  }[];
   // Real per-campus data, where the university has told us about more than one — falls back to a
   // synthetic "Main Campus" + one generated variant (see campusesFor) when this is absent, so
   // seeded universities that predate this field still show something on the Campus Options page.
   campuses?: { id: string; name: string; city: string; feeUSD?: number }[];
   requirements: string[];
   fees: { label: string; amount: number }[];
+  // Minimum deposit required to secure a place after an offer — distinct from the itemized `fees`
+  // above, and typically due before visa/CAS issuance. `depositRules` are free-text conditions,
+  // e.g. refundability, deadlines, or how it's later adjusted against tuition. `depositMode` records
+  // whether the amount was set as a flat figure or as a fraction of the first year's tuition fee —
+  // "half"/"full" display as a rule of thumb (e.g. "50% of first year tuition fees") rather than a
+  // raw number, since it should track the tuition fee if that later changes.
+  minimumDepositAmount?: number;
+  depositMode?: "custom" | "half" | "full";
+  paymentDeadline?: string;
+  depositRules?: string[];
   currencySymbol: string;
   minIELTS: number;
   minGPA: number;
-  // Every English test the university accepts, each with its own minimum overall score/band —
-  // distinct from `minIELTS`, which stays the single figure existing search filtering compares
-  // against. `minBand` is a single "no section below X" floor applied to every skill; `skillScores`
-  // lets a data manager instead (or additionally) set a distinct minimum per named skill, e.g.
-  // Speaking 7.0 while Listening/Reading/Writing stay at 6.5 — both are optional since not every
-  // test publishes per-section floors, and not every university requires them.
+  // Every English test the university accepts — distinct from `minIELTS`, which stays the single
+  // figure existing search filtering compares against. `minScore` is the overall score required;
+  // `skillScores` additionally sets a minimum per named skill, e.g. Speaking 7.0 while
+  // Listening/Reading/Writing stay at 6.5.
   englishRequirements?: {
     testName: string;
-    minScore: string;
-    minBand?: string;
+    minScore?: string;
     skillScores?: { skill: string; score: string }[];
   }[];
   accreditations: string[];
   scholarshipsAvailable: boolean;
+  // Named scholarships this university offers, each with its own award amount and eligibility
+  // note — optional detail beyond the plain `scholarshipsAvailable` flag above, e.g. "Vice-
+  // Chancellor's Excellence Scholarship — up to $10,000 — for students with a GPA of 3.7+".
+  scholarships?: { name: string; amount: string; description?: string }[];
   // The intake currently open for applications, e.g. "September 2026" — distinct from `intakes`,
   // which lists every intake session the university runs each year.
   openIntake: string;
@@ -200,6 +241,10 @@ export interface University {
   // one intake open at once even though `openIntake` (above) only ever displays the first for
   // backward compatibility with pages that show a single "currently open" value.
   intakeStatus?: Record<string, boolean>;
+  // Key dates for each offered intake month, keyed the same way as `intakeStatus` — the last day
+  // to submit an application, the last day to request a CAS/CoE, and the date study formally
+  // begins. All optional since not every intake has every date confirmed yet.
+  intakeDates?: Record<string, { applicationDeadline?: string; casRequestDeadline?: string; enrollmentDate?: string }>;
   // Official public domain, e.g. "manchester.ac.uk" — no scheme/path.
   website: string;
   tone: "violet" | "amber" | "teal" | "rose";

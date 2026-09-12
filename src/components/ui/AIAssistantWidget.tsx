@@ -1,5 +1,6 @@
 import { MicOff, Sparkles, Square, X } from "lucide-react";
-import { useVoiceConversation } from "../../utils/useVoiceConversation";
+import { useActiveVoiceConversation } from "../../utils/useActiveVoiceConversation";
+import { useAssistant } from "../../context/AssistantContext";
 
 const STATE_LABEL: Record<string, string> = {
   listening: "Listening…",
@@ -14,7 +15,8 @@ const STATE_LABEL: Record<string, string> = {
  * right above it. No separate page, no popup/sheet — just the icon itself going live.
  */
 export function AIAssistantWidget({ raised = false }: { raised?: boolean }) {
-  const { state, caption, errorText, start, stop } = useVoiceConversation();
+  const { ask } = useAssistant();
+  const { state, caption, errorText, start, stop } = useActiveVoiceConversation(ask);
   const active = state !== "idle";
 
   const orbTone =

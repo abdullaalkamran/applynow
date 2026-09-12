@@ -14,11 +14,11 @@ import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getAllApplications, getStatusHistory } from "../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
 import { loadDocDueDate } from "../../data/documentDueDatesStore";
-import { loadAgentTasks, loadDoneAgentTaskIds, toggleAgentTaskDone } from "../../data/agentTasksStore";
+import { getAgentTasks } from "../../utils/taskBoard";
 import { loadShortlistFor, removeShortlistFor } from "../../data/agentShortlistStore";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
-import { UNIVERSITIES, DOCUMENTS } from "../../data/mockData";
+import { UNIVERSITIES, DOCUMENTS, CURRENT_AGENT_ID } from "../../data/mockData";
 import { daysAgo } from "../../utils/counsellorData";
 import { loadOpenNextStepsFor } from "../../utils/agentNextSteps";
 
@@ -52,8 +52,7 @@ export default function AgentStudentProfile() {
   const activeApps = apps.filter((a) => !CLOSED_STATUSES.has(a.status));
   const avgProgress = activeApps.length ? Math.round(activeApps.reduce((s, a) => s + a.progress, 0) / activeApps.length) : 0;
 
-  const tasks = loadAgentTasks().filter((t) => t.studentId === student.id);
-  const doneTaskIds = loadDoneAgentTaskIds();
+  const tasks = getAgentTasks(CURRENT_AGENT_ID).filter((t) => t.studentId === student.id);
   const counsellorSteps = loadOpenNextStepsFor([student], apps);
 
   const coreMissing = buildCoreChecklist(student.id).filter((r) => !r.own);
@@ -455,23 +454,28 @@ export default function AgentStudentProfile() {
             ) : (
               <div className="space-y-2">
                 {tasks.map((t) => {
-                  const done = doneTaskIds.has(t.id);
-                  const d = new Date(t.date);
+                  const d = t.dueDate ? new Date(`${t.dueDate}T00:00:00`) : null;
                   return (
                     <div key={t.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
-                      <button
-                        onClick={() => { toggleAgentTaskDone(t.id); forceTick((n) => n + 1); }}
-                        aria-label={done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
-                      >
-                        {done && <Check size={11} />}
-                      </button>
+                      {t.onToggle ? (
+                        <button
+                          onClick={() => { t.onToggle?.(); forceTick((n) => n + 1); }}
+                          aria-label={t.done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${t.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
+                        >
+                          {t.done && <Check size={11} />}
+                        </button>
+                      ) : (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-slate-300" />
+                      )}
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate text-[13px] font-medium ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.title}</p>
+                        <p className={`truncate text-[13px] font-medium ${t.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.title}</p>
                       </div>
-                      <span className="shrink-0 text-[11px] text-slate-400">
-                        {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </span>
+                      {d && (
+                        <span className="shrink-0 text-[11px] text-slate-400">
+                          {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

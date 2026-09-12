@@ -10,9 +10,9 @@ import { getAllApplications, getStatusHistory } from "../../data/applicationsSto
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getStatTrends } from "../../data/staffStatsSnapshotStore";
 import { agentStageFor, AGENT_STAGES, type AgentStage } from "../../utils/agentPipeline";
-import { loadAgentTasks, loadDoneAgentTaskIds, toggleAgentTaskDone } from "../../data/agentTasksStore";
 import { AGENT_AI_SUGGESTIONS, buildAgentAnswer } from "../../utils/agentAssistantEngine";
 import { loadOpenNextStepsFor } from "../../utils/agentNextSteps";
+import { getAgentTasks } from "../../utils/taskBoard";
 import type { Student } from "../../types";
 
 const CLOSED_STATUSES = new Set(["Enrolled", "Deferred", "Withdrawn", "Rejected"]);
@@ -59,8 +59,7 @@ export default function AgentDashboard() {
   );
   const impactTrends = getStatTrends({ placed: enrolledCount }, "agent-impact");
 
-  const tasks = loadAgentTasks();
-  const doneTaskIds = loadDoneAgentTaskIds();
+  const tasks = getAgentTasks(CURRENT_AGENT_ID).filter((t) => t.source === "manual").slice(0, 5);
   const counsellorSteps = loadOpenNextStepsFor(students, allApps).slice(0, 5);
 
   // Application Pipeline — Enquiry is any student with zero applications at all; the rest bucket
@@ -341,23 +340,26 @@ export default function AgentDashboard() {
             <div className="mt-3 space-y-3">
               {tasks.length === 0 && <p className="text-xs text-slate-400">No tasks scheduled.</p>}
               {tasks.map((t) => {
-                const done = doneTaskIds.has(t.id);
-                const d = new Date(t.date);
+                const d = t.dueDate ? new Date(`${t.dueDate}T00:00:00`) : null;
                 return (
                   <div key={t.id} className="flex items-start gap-2.5">
                     <div className="flex w-8 shrink-0 flex-col items-center leading-none">
-                      <span className="text-[9.5px] font-semibold uppercase text-slate-400">{d.toLocaleDateString(undefined, { month: "short" })}</span>
-                      <span className="text-xs font-bold text-slate-700">{d.getDate()}</span>
+                      {d && (
+                        <>
+                          <span className="text-[9.5px] font-semibold uppercase text-slate-400">{d.toLocaleDateString(undefined, { month: "short" })}</span>
+                          <span className="text-xs font-bold text-slate-700">{d.getDate()}</span>
+                        </>
+                      )}
                     </div>
                     <button
-                      onClick={() => { toggleAgentTaskDone(t.id); forceTick((n) => n + 1); }}
-                      aria-label={done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
-                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
+                      onClick={() => { t.onToggle?.(); forceTick((n) => n + 1); }}
+                      aria-label={t.done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${t.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
                     >
-                      {done && <Check size={10} />}
+                      {t.done && <Check size={10} />}
                     </button>
                     <div className="min-w-0 flex-1">
-                      <p className={`truncate text-[12px] font-medium ${done ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.title}</p>
+                      <p className={`truncate text-[12px] font-medium ${t.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{t.title}</p>
                       <p className="truncate text-[10.5px] text-slate-400">{t.subtitle}</p>
                     </div>
                   </div>

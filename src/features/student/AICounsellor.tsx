@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Send, Sparkles, Mic, Volume2, VolumeX } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { VoiceModePanel } from "../../components/ui/VoiceMode";
-import { type ChatMessage, AI_SUGGESTIONS, aiStudent, getAssistantReply } from "../../utils/aiCounsellorEngine";
+import { type ChatMessage, aiStudent } from "../../utils/aiCounsellorEngine";
+import { useAssistant } from "../../context/AssistantContext";
 
 export default function AICounsellor() {
   const navigate = useNavigate();
+  const { ask, suggestions } = useAssistant();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: "m0", from: "ai", text: `Hi ${aiStudent.name.split(" ")[0]}! 👋 How can I help you today?` },
   ]);
@@ -37,7 +39,7 @@ export default function AICounsellor() {
     const userMsg: ChatMessage = { id: `u${nextId.current++}`, from: "me", text };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    const replyText = await getAssistantReply(text);
+    const replyText = await ask(text);
     const aiMsg: ChatMessage = { id: `a${nextId.current++}`, from: "ai", text: replyText };
     setMessages((prev) => [...prev, aiMsg]);
     speak(replyText);
@@ -92,7 +94,7 @@ export default function AICounsellor() {
 
             {messages.length === 1 && (
               <div className="space-y-2 pl-9">
-                {AI_SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button
                     key={s}
                     onClick={() => send(s)}

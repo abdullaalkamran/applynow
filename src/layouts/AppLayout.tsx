@@ -1,9 +1,11 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { GraduationCap, ChevronDown, Bell, Search, Menu, X } from "lucide-react";
+import { GraduationCap, Bell } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { ROLES } from "../data/mockData";
 import { NAV, ROLE_HOME } from "./nav";
+import { RoleBottomNav } from "./RoleBottomNav";
+import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import type { Role } from "../types";
 
 export default function AppLayout() {
@@ -19,20 +21,17 @@ export default function AppLayout() {
     navigate(ROLE_HOME[next]);
   }
 
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [mobileNavVisible, setMobileNavVisible] = useState(false);
-
   return (
-    <div className="flex min-h-screen min-w-0 bg-[#f5f7fb]">
+    <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
       {/* Sidebar (hidden on small screens) */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--brand-600)] text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sd-ink)] text-white">
             <GraduationCap size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900 leading-tight">EduPath</p>
-            <p className="text-[11px] text-slate-400 leading-tight">AI Powered. Human Guided.</p>
+            <p className="text-sm font-semibold text-slate-900 leading-tight">StudyOne</p>
+            <p className="text-[11px] text-slate-400 leading-tight">{meta.label} Portal</p>
           </div>
         </div>
 
@@ -43,11 +42,12 @@ export default function AppLayout() {
               to={item.path}
               end
               className={({ isActive }) =>
-                `block rounded-lg px-3 py-2 text-sm font-medium transition max-w-full truncate ${
-                  isActive ? "bg-[var(--brand-50)] text-[var(--brand-700)]" : "text-slate-600 hover:bg-slate-50"
+                `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition max-w-full truncate ${
+                  isActive ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50"
                 }`
               }
             >
+              <item.icon size={17} className="shrink-0" />
               <span className="truncate block">{item.label}</span>
             </NavLink>
           ))}
@@ -61,41 +61,22 @@ export default function AppLayout() {
 
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6">
-          <div className="md:hidden">
+        <header className="flex items-center justify-end border-b border-slate-200 bg-white px-4 py-3 md:px-6">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => {
-                setMobileNavVisible(true);
-                // next tick to allow mount before transition
-                requestAnimationFrame(() => setMobileNavOpen(true));
-              }}
-              className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100"
-              aria-label="Open menu"
+              aria-label="Notifications"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
             >
-              <Menu size={20} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-400">
-            <Search size={15} />
-            <span>Search students, applications, universities…</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button className="relative text-slate-400 hover:text-slate-600">
-              <Bell size={19} />
+              <Bell size={16} />
               <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />
             </button>
 
             <div className="relative">
               <button
                 onClick={() => setSwitcherOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-100)] text-[10px] font-semibold text-[var(--brand-700)]">
-                  {meta.label.slice(0, 2).toUpperCase()}
-                </span>
-                <span className="font-medium text-slate-700">{meta.label}</span>
-                <ChevronDown size={14} className="text-slate-400" />
+                {meta.label.slice(0, 2).toUpperCase()}
               </button>
 
               {switcherOpen && (
@@ -123,75 +104,14 @@ export default function AppLayout() {
           </div>
         </header>
 
-        {/* Mobile nav overlay */}
-        {mobileNavVisible && (
-          <div className="fixed inset-0 z-50 flex md:hidden">
-            <div
-              className={`fixed inset-0 bg-black/40 transition-opacity duration-200 ${mobileNavOpen ? 'opacity-100' : 'opacity-0'}`}
-              onClick={() => {
-                setMobileNavOpen(false);
-                setTimeout(() => setMobileNavVisible(false), 200);
-              }}
-            />
-            <aside
-              className={`relative w-64 max-w-[80vw] shrink-0 flex-col border-r border-slate-200 bg-white transform transition-transform duration-200 ${
-                mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2 px-5 py-5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--brand-600)] text-white">
-                    <GraduationCap size={18} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 leading-tight">EduPath</p>
-                    <p className="text-[11px] text-slate-400 leading-tight">AI Powered. Human Guided.</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setMobileNavOpen(false);
-                    setTimeout(() => setMobileNavVisible(false), 200);
-                  }}
-                  className="p-2"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <nav className="flex-1 space-y-0.5 px-3">
-                {nav.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    end
-                    onClick={() => {
-                      setMobileNavOpen(false);
-                      setTimeout(() => setMobileNavVisible(false), 200);
-                    }}
-                    className={({ isActive }) =>
-                      `block rounded-lg px-2 py-2 text-sm font-medium transition max-w-full truncate ${
-                        isActive ? "bg-[var(--brand-50)] text-[var(--brand-700)]" : "text-slate-600 hover:bg-slate-50"
-                      }`
-                    }
-                  >
-                    <span className="truncate block">{item.label}</span>
-                  </NavLink>
-                ))}
-              </nav>
-
-              <div className="border-t border-slate-100 p-3">
-                <p className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Demo role switcher</p>
-                <p className="px-2 text-[11px] text-slate-400">No auth backend — switch roles to preview each workspace.</p>
-              </div>
-            </aside>
-          </div>
-        )}
-
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+
+        {nav.length > 1 && <RoleBottomNav items={nav} />}
       </div>
+
+      <AIAssistantWidget raised={nav.length > 1} />
     </div>
   );
 }

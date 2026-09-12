@@ -12,6 +12,7 @@ type Course = University["courses"][number];
 type Fee = University["fees"][number];
 type Campus = NonNullable<University["campuses"]>[number];
 type EnglishReq = NonNullable<University["englishRequirements"]>[number];
+type Scholarship = NonNullable<University["scholarships"]>[number];
 const TONES: University["tone"][] = ["violet", "amber", "teal", "rose"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -25,19 +26,32 @@ function blankCampus(city: string): Campus {
   return { id: `cmp-custom-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, name: "Main Campus", city };
 }
 function blankEnglishReq(): EnglishReq {
-  return { testName: TEST_NAME_OPTIONS[0], minScore: "", minBand: "", skillScores: [] };
+  return { testName: TEST_NAME_OPTIONS[0], minScore: "", skillScores: [] };
+}
+function blankScholarship(): Scholarship {
+  return { name: "", amount: "" };
 }
 const COMMON_SKILLS = ["Listening", "Reading", "Writing", "Speaking"];
 
-type MonthState = Record<string, { offered: boolean; open: boolean }>;
+type MonthState = Record<
+  string,
+  { offered: boolean; open: boolean; applicationDeadline: string; casRequestDeadline: string; enrollmentDate: string }
+>;
 
 function initMonthState(existing?: University): MonthState {
   const offered = new Set(existing?.intakes ?? []);
   const openMap = existing?.intakeStatus ?? {};
+  const datesMap = existing?.intakeDates ?? {};
   const openIntakeMonth = existing?.openIntake?.split(" ")[0];
   const state: MonthState = {};
   MONTHS.forEach((m) => {
-    state[m] = { offered: offered.has(m), open: openMap[m] ?? m === openIntakeMonth };
+    state[m] = {
+      offered: offered.has(m),
+      open: openMap[m] ?? m === openIntakeMonth,
+      applicationDeadline: datesMap[m]?.applicationDeadline ?? "",
+      casRequestDeadline: datesMap[m]?.casRequestDeadline ?? "",
+      enrollmentDate: datesMap[m]?.enrollmentDate ?? "",
+    };
   });
   return state;
 }
@@ -71,10 +85,19 @@ export default function DataUniversityForm() {
   const [requirements, setRequirements] = useState((existing?.requirements ?? []).join("\n"));
   const [accreditations, setAccreditations] = useState((existing?.accreditations ?? []).join(", "));
   const [scholarshipsAvailable, setScholarshipsAvailable] = useState(existing?.scholarshipsAvailable ?? false);
-  const [minIELTS, setMinIELTS] = useState(String(existing?.minIELTS ?? 6.0));
+  const [scholarships, setScholarships] = useState<Scholarship[]>(existing?.scholarships ?? []);
   const [minGPA, setMinGPA] = useState(String(existing?.minGPA ?? 3.0));
   const [currencySymbol, setCurrencySymbol] = useState(existing?.currencySymbol ?? "$");
   const [fees, setFees] = useState<Fee[]>(existing?.fees ?? [blankFee()]);
+  const [depositMode, setDepositMode] = useState<"custom" | "half" | "full">(existing?.depositMode ?? "custom");
+  const [minimumDepositAmount, setMinimumDepositAmount] = useState(String(existing?.minimumDepositAmount ?? ""));
+  const [paymentDeadline, setPaymentDeadline] = useState(existing?.paymentDeadline ?? "");
+  const [depositRules, setDepositRules] = useState((existing?.depositRules ?? []).join("\n"));
+  const tuitionFeeAmount = fees.find((f) => f.label.trim().toLowerCase() === "tuition fee")?.amount ?? 0;
+  const effectiveDepositAmount =
+    depositMode === "half" ? Math.round(tuitionFeeAmount * 0.5)
+    : depositMode === "full" ? tuitionFeeAmount
+    : Number(minimumDepositAmount) || 0;
   const [courses, setCourses] = useState<Course[]>(existing?.courses ?? [blankCourse()]);
   const [campuses, setCampuses] = useState<Campus[]>(existing?.campuses ?? []);
   const [englishTests, setEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements ?? []);
@@ -104,11 +127,14 @@ export default function DataUniversityForm() {
   function toggleMonthOffered(month: string) {
     setMonthState((prev) => ({
       ...prev,
-      [month]: { offered: !prev[month].offered, open: !prev[month].offered ? prev[month].open : false },
+      [month]: { ...prev[month], offered: !prev[month].offered, open: !prev[month].offered ? prev[month].open : false },
     }));
   }
   function toggleMonthOpen(month: string) {
     setMonthState((prev) => ({ ...prev, [month]: { ...prev[month], open: !prev[month].open } }));
+  }
+  function updateMonthDate(month: string, field: "applicationDeadline" | "casRequestDeadline" | "enrollmentDate", value: string) {
+    setMonthState((prev) => ({ ...prev, [month]: { ...prev[month], [field]: value } }));
   }
 
   function updateCourse(i: number, patch: Partial<Course>) {
@@ -120,33 +146,21 @@ export default function DataUniversityForm() {
   function updateCampus(i: number, patch: Partial<Campus>) {
     setCampuses((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
   }
+  function updateScholarship(i: number, patch: Partial<Scholarship>) {
+    setScholarships((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  }
   function updateEnglishReq(i: number, patch: Partial<EnglishReq>) {
     setEnglishTests((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
   }
-  function addSkillScore(testIdx: number) {
+  function setSkillScore(testIdx: number, skill: string, score: string) {
     setEnglishTests((prev) =>
       prev.map((e, idx) => {
         if (idx !== testIdx) return e;
-        const used = new Set((e.skillScores ?? []).map((s) => s.skill));
-        const nextSkill = COMMON_SKILLS.find((s) => !used.has(s)) ?? "";
-        return { ...e, skillScores: [...(e.skillScores ?? []), { skill: nextSkill, score: "" }] };
+        const rest = (e.skillScores ?? []).filter((s) => s.skill !== skill);
+        const next = score.trim() ? [...rest, { skill, score }] : rest;
+        next.sort((a, b) => COMMON_SKILLS.indexOf(a.skill) - COMMON_SKILLS.indexOf(b.skill));
+        return { ...e, skillScores: next };
       })
-    );
-  }
-  function updateSkillScore(testIdx: number, skillIdx: number, patch: Partial<{ skill: string; score: string }>) {
-    setEnglishTests((prev) =>
-      prev.map((e, idx) =>
-        idx !== testIdx
-          ? e
-          : { ...e, skillScores: (e.skillScores ?? []).map((s, si) => (si === skillIdx ? { ...s, ...patch } : s)) }
-      )
-    );
-  }
-  function removeSkillScore(testIdx: number, skillIdx: number) {
-    setEnglishTests((prev) =>
-      prev.map((e, idx) =>
-        idx !== testIdx ? e : { ...e, skillScores: (e.skillScores ?? []).filter((_, si) => si !== skillIdx) }
-      )
     );
   }
 
@@ -156,6 +170,18 @@ export default function DataUniversityForm() {
     const intakeStatus: Record<string, boolean> = {};
     offeredMonths.forEach((m) => { intakeStatus[m] = monthState[m].open; });
     const firstOpen = openMonths[0] ?? offeredMonths[0];
+
+    const intakeDates: NonNullable<University["intakeDates"]> = {};
+    offeredMonths.forEach((m) => {
+      const s = monthState[m];
+      if (s.applicationDeadline || s.casRequestDeadline || s.enrollmentDate) {
+        intakeDates[m] = {
+          applicationDeadline: s.applicationDeadline || undefined,
+          casRequestDeadline: s.casRequestDeadline || undefined,
+          enrollmentDate: s.enrollmentDate || undefined,
+        };
+      }
+    });
 
     const data: Omit<University, "id"> = {
       name: name.trim(),
@@ -172,21 +198,27 @@ export default function DataUniversityForm() {
       subjects: [...subjects],
       intakes: offeredMonths,
       intakeStatus,
+      intakeDates,
       openIntake: firstOpen ? `${firstOpen} ${intakeYear}` : "",
       requirements: requirements.split("\n").map((s) => s.trim()).filter(Boolean),
       accreditations: accreditations.split(",").map((s) => s.trim()).filter(Boolean),
-      scholarshipsAvailable,
-      minIELTS: Number(minIELTS) || 0,
+      scholarshipsAvailable: scholarshipsAvailable || scholarships.some((s) => s.name.trim()),
+      scholarships: scholarships.filter((s) => s.name.trim()),
+      minIELTS: Number(englishTests.find((e) => e.testName === "IELTS")?.minScore) || existing?.minIELTS || 0,
       minGPA: Number(minGPA) || 0,
       englishRequirements: englishTests
-        .filter((e) => e.minScore.trim())
         .map((e) => ({
           ...e,
-          minBand: e.minBand?.trim() || undefined,
+          minScore: e.minScore?.trim() || undefined,
           skillScores: (e.skillScores ?? []).filter((s) => s.skill.trim() && s.score.trim()),
-        })),
+        }))
+        .filter((e) => e.minScore || e.skillScores.length > 0),
       currencySymbol,
       fees: fees.filter((f) => f.label.trim()),
+      minimumDepositAmount: effectiveDepositAmount || undefined,
+      depositMode,
+      paymentDeadline: paymentDeadline || undefined,
+      depositRules: depositRules.split("\n").map((s) => s.trim()).filter(Boolean),
       campuses: campuses.filter((c) => c.name.trim()),
       courses: courses.filter((c) => c.name.trim()).map((c) => ({ ...c, subject: c.subject || getAllSubjects()[0] })),
     };
@@ -326,20 +358,53 @@ export default function DataUniversityForm() {
           <p className="text-xs text-slate-400">Toggle every month this university runs an intake, then mark which of those are currently open for applications.</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {MONTHS.map((m) => (
-              <div key={m} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2">
-                <label className="flex items-center gap-2 text-xs text-slate-700">
-                  <input type="checkbox" checked={monthState[m].offered} onChange={() => toggleMonthOffered(m)} />
-                  {m}
-                </label>
+              <div key={m} className="rounded-lg border border-slate-200 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-700">
+                    <input type="checkbox" checked={monthState[m].offered} onChange={() => toggleMonthOffered(m)} />
+                    {m}
+                  </label>
+                  {monthState[m].offered && (
+                    <button
+                      onClick={() => toggleMonthOpen(m)}
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        monthState[m].open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {monthState[m].open ? "Open" : "Closed"}
+                    </button>
+                  )}
+                </div>
                 {monthState[m].offered && (
-                  <button
-                    onClick={() => toggleMonthOpen(m)}
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      monthState[m].open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {monthState[m].open ? "Open" : "Closed"}
-                  </button>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5">
+                    <label className="block">
+                      <span className="mb-0.5 block text-[10px] text-slate-400">Application last date</span>
+                      <input
+                        type="date"
+                        value={monthState[m].applicationDeadline}
+                        onChange={(e) => updateMonthDate(m, "applicationDeadline", e.target.value)}
+                        className="w-full rounded-md border border-slate-200 px-1.5 py-1 text-[11px] text-slate-800"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-0.5 block text-[10px] text-slate-400">CAS request last date</span>
+                      <input
+                        type="date"
+                        value={monthState[m].casRequestDeadline}
+                        onChange={(e) => updateMonthDate(m, "casRequestDeadline", e.target.value)}
+                        className="w-full rounded-md border border-slate-200 px-1.5 py-1 text-[11px] text-slate-800"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-0.5 block text-[10px] text-slate-400">Enrollment date</span>
+                      <input
+                        type="date"
+                        value={monthState[m].enrollmentDate}
+                        onChange={(e) => updateMonthDate(m, "enrollmentDate", e.target.value)}
+                        className="w-full rounded-md border border-slate-200 px-1.5 py-1 text-[11px] text-slate-800"
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
             ))}
@@ -349,27 +414,53 @@ export default function DataUniversityForm() {
           </Field>
         </Section>
 
-        <Section title="Requirements">
+        <Section title="Academic Requirements">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Minimum IELTS (used for search filtering)"><Input type="number" value={minIELTS} onChange={setMinIELTS} /></Field>
             <Field label="Minimum GPA (out of 4.0)"><Input type="number" value={minGPA} onChange={setMinGPA} /></Field>
+            <Field label="Accreditations (comma separated)"><Input value={accreditations} onChange={setAccreditations} placeholder="Russell Group" /></Field>
           </div>
-          <Field label="Requirements (one per line)">
-            <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} rows={4} className={TEXTAREA_CLASS} placeholder={"IELTS 6.5 overall\nBachelor's degree, 3.0 GPA minimum"} />
+          <Field label="Academic requirements (one per line)">
+            <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} rows={4} className={TEXTAREA_CLASS} placeholder={"Bachelor's degree, 2:1 or equivalent\nStatement of purpose\nTwo academic references"} />
           </Field>
-          <Field label="Accreditations (comma separated)"><Input value={accreditations} onChange={setAccreditations} placeholder="Russell Group" /></Field>
-          <label className="mt-3 flex items-center gap-2 text-xs text-slate-700">
+        </Section>
+
+        <Section title="Scholarship Amount" action={
+          <button onClick={() => setScholarships((prev) => [...prev, blankScholarship()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
+            <Plus size={13} /> Add scholarship
+          </button>
+        }>
+          <label className="flex items-center gap-2 text-xs text-slate-700">
             <input type="checkbox" checked={scholarshipsAvailable} onChange={(e) => setScholarshipsAvailable(e.target.checked)} />
             Scholarships available
           </label>
+          {scholarships.length === 0 && <p className="text-xs text-slate-400">No named scholarships added yet — the checkbox above still shows a generic "Scholarships available" badge.</p>}
+          <div className="space-y-2">
+            {scholarships.map((s, i) => (
+              <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+                <div className="flex items-center gap-2">
+                  <Input value={s.name} onChange={(v) => updateScholarship(i, { name: v })} placeholder="Scholarship name, e.g. Vice-Chancellor's Excellence Scholarship" className="flex-1" />
+                  <Input value={s.amount} onChange={(v) => updateScholarship(i, { amount: v })} placeholder="Amount, e.g. Up to $10,000" className="w-48" />
+                  <button onClick={() => setScholarships((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove scholarship" className="shrink-0 text-slate-300 hover:text-rose-500">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <input
+                  value={s.description ?? ""}
+                  onChange={(e) => updateScholarship(i, { description: e.target.value })}
+                  placeholder="Eligibility / description (optional)"
+                  className={`${BASE_INPUT_CLASS} mt-2`}
+                />
+              </div>
+            ))}
+          </div>
         </Section>
 
-        <Section title="English Tests Accepted" action={
+        <Section title="English Requirements" action={
           <button onClick={() => setEnglishTests((prev) => [...prev, blankEnglishReq()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
             <Plus size={13} /> Add test
           </button>
         }>
-          {englishTests.length === 0 && <p className="text-xs text-slate-400">No accepted tests listed yet beyond the minimum IELTS above.</p>}
+          {englishTests.length === 0 && <p className="text-xs text-slate-400">No accepted tests listed yet.</p>}
           <div className="space-y-3">
             {englishTests.map((e, i) => (
               <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
@@ -377,30 +468,24 @@ export default function DataUniversityForm() {
                   <select value={e.testName} onChange={(ev) => updateEnglishReq(i, { testName: ev.target.value })} className={`${SELECT_CLASS} flex-1`}>
                     {TEST_NAME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <Input value={e.minScore} onChange={(v) => updateEnglishReq(i, { minScore: v })} placeholder="Min score, e.g. 6.5 or Pass" className="w-36" />
-                  <Input value={e.minBand ?? ""} onChange={(v) => updateEnglishReq(i, { minBand: v })} placeholder="No band below (optional)" className="w-40" />
+                  <Input value={e.minScore ?? ""} onChange={(v) => updateEnglishReq(i, { minScore: v })} placeholder="Overall score" className="w-32" />
                   <button onClick={() => setEnglishTests((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove test" className="shrink-0 text-slate-300 hover:text-rose-500">
                     <Trash2 size={15} />
                   </button>
                 </div>
 
-                <div className="mt-2 pl-1">
-                  {(e.skillScores ?? []).length > 0 && (
-                    <div className="mb-1.5 space-y-1.5">
-                      {e.skillScores!.map((s, si) => (
-                        <div key={si} className="flex items-center gap-2">
-                          <Input value={s.skill} onChange={(v) => updateSkillScore(i, si, { skill: v })} placeholder="Skill, e.g. Speaking" className="w-40 !py-1.5 text-xs" />
-                          <Input value={s.score} onChange={(v) => updateSkillScore(i, si, { score: v })} placeholder="Min score" className="w-28 !py-1.5 text-xs" />
-                          <button onClick={() => removeSkillScore(i, si)} aria-label="Remove skill score" className="shrink-0 text-slate-300 hover:text-rose-500">
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button onClick={() => addSkillScore(i)} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
-                    <Plus size={12} /> Add individual skill score
-                  </button>
+                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                  {COMMON_SKILLS.map((skill) => (
+                    <label key={skill} className="block">
+                      <span className="mb-0.5 block text-[10px] text-slate-400">{skill}</span>
+                      <input
+                        value={(e.skillScores ?? []).find((s) => s.skill === skill)?.score ?? ""}
+                        onChange={(ev) => setSkillScore(i, skill, ev.target.value)}
+                        placeholder="—"
+                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-800"
+                      />
+                    </label>
+                  ))}
                 </div>
               </div>
             ))}
@@ -423,6 +508,66 @@ export default function DataUniversityForm() {
               </div>
             ))}
           </div>
+        </Section>
+
+        <Section title="Minimum Fees Deposit & Deposit Rules">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label={`Minimum deposit amount (${currencySymbol})`}>
+              <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setDepositMode("custom")}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                    depositMode === "custom" ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]" : "border-slate-200 text-slate-600 hover:border-[var(--brand-300)] hover:text-[var(--brand-600)]"
+                  }`}
+                >
+                  Custom amount
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDepositMode("half")}
+                  disabled={!tuitionFeeAmount}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium disabled:opacity-40 ${
+                    depositMode === "half" ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]" : "border-slate-200 text-slate-600 hover:border-[var(--brand-300)] hover:text-[var(--brand-600)]"
+                  }`}
+                >
+                  50% of one year
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDepositMode("full")}
+                  disabled={!tuitionFeeAmount}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium disabled:opacity-40 ${
+                    depositMode === "full" ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]" : "border-slate-200 text-slate-600 hover:border-[var(--brand-300)] hover:text-[var(--brand-600)]"
+                  }`}
+                >
+                  Full payment of one year
+                </button>
+              </div>
+              {depositMode === "custom" ? (
+                <Input type="number" value={minimumDepositAmount} onChange={setMinimumDepositAmount} placeholder="e.g. 2000" className="w-40" />
+              ) : (
+                <p className="text-sm font-semibold text-slate-800">
+                  {currencySymbol}{effectiveDepositAmount.toLocaleString()}
+                  <span className="ml-1.5 text-xs font-normal text-slate-400">
+                    ({depositMode === "half" ? "50%" : "100%"} of tuition fee — updates automatically)
+                  </span>
+                </p>
+              )}
+            </Field>
+            <Field label="Last date of payment">
+              <input type="date" value={paymentDeadline} onChange={(e) => setPaymentDeadline(e.target.value)} className={`${BASE_INPUT_CLASS} w-40`} />
+            </Field>
+          </div>
+          <Field label="Deposit rules (one per line)">
+            <textarea
+              value={depositRules}
+              onChange={(e) => setDepositRules(e.target.value)}
+              rows={4}
+              className={TEXTAREA_CLASS}
+              placeholder={"Due within 14 days of accepting the offer\nNon-refundable if the visa application is refused\nDeducted from the first semester's tuition fee"}
+            />
+          </Field>
         </Section>
 
         {isNew ? (

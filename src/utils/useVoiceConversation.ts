@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSpeechRecognition, getAssistantReply, type SpeechRecognitionLike } from "./aiCounsellorEngine";
+import { getSpeechRecognition, type SpeechRecognitionLike } from "./aiCounsellorEngine";
 
 export type VoiceConversationState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
@@ -20,15 +20,27 @@ function speak(text: string, onDone: () => void) {
  * Shared hands-free conversation loop — listens, replies, speaks, then listens again
  * automatically (like ChatGPT/Gemini voice) — until `stop()` is called. Used by both the sticky
  * AI Assistant icon and the full AI Counsellor page so the two can't drift out of sync.
+ *
+ * `replyFn` is passed in rather than imported directly so this hook stays role-agnostic — the
+ * caller supplies whichever role's assistant (via `useAssistant().ask`) should handle the turn,
+ * so voice-triggered actions go through the same per-role tool-calling loop as typed chat.
  */
-export function useVoiceConversation(onExchange?: (userText: string, aiText: string) => void) {
+export function useVoiceConversation(
+  replyFn: (text: string) => Promise<string>,
+  onExchange?: (userText: string, aiText: string) => void
+) {
   const [state, setState] = useState<VoiceConversationState>("idle");
   const [caption, setCaption] = useState("");
   const [errorText, setErrorText] = useState("");
   const activeRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const replyFnRef = useRef(replyFn);
   const onExchangeRef = useRef(onExchange);
   const runListenCycleRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    replyFnRef.current = replyFn;
+  }, [replyFn]);
 
   useEffect(() => {
     onExchangeRef.current = onExchange;
@@ -55,7 +67,7 @@ export function useVoiceConversation(onExchange?: (userText: string, aiText: str
       if (!transcript) return;
       setState("thinking");
       setCaption(transcript);
-      const reply = await getAssistantReply(transcript);
+      const reply = await replyFnRef.current(transcript);
       if (!activeRef.current) return;
       onExchangeRef.current?.(transcript, reply);
       setState("speaking");

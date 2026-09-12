@@ -1,17 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Search, Bell, ChevronDown, Gem, Lightbulb, ArrowRight, X, Menu,
+  Bell, Gem, Lightbulb, ArrowRight, X,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { ROLES, COUNSELLORS } from "../data/mockData";
 import { ROLE_HOME } from "./nav";
+import { RoleBottomNav } from "./RoleBottomNav";
 import { COUNSELLOR_ID } from "../utils/counsellorData";
-import { loadAssignedStudents } from "../data/counsellorStudentsStore";
 import { unreadStaffMessageCount } from "../data/counsellorMessagesStore";
 import { loadDoneMeetingIds, loadMeetings } from "../data/counsellorMeetingsStore";
 import { loadLeads, loadLeadFollowUpStatus } from "../data/leadsStore";
+import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import type { Role } from "../types";
 
 interface NavEntry {
@@ -35,25 +36,11 @@ export default function CounsellorShell() {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const unreadMessages = unreadStaffMessageCount();
   const doneIds = loadDoneMeetingIds();
   const openTasks = loadMeetings().filter((m) => !doneIds.has(m.id)).length;
   const newLeads = loadLeads().filter((s) => loadLeadFollowUpStatus(s.id) === "New").length;
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   const navItems: NavEntry[] = [
     { label: "Dashboard", path: "/staff/counsellor", icon: LayoutGrid },
@@ -69,17 +56,6 @@ export default function CounsellorShell() {
     { label: "Resources", path: "/staff/counsellor/resources", icon: FolderOpen },
     { label: "Settings", path: "/staff/counsellor/settings", icon: Settings },
   ];
-
-  const assigned = loadAssignedStudents();
-  const results = query.trim()
-    ? assigned.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()) || s.country.toLowerCase().includes(query.trim().toLowerCase()))
-    : [];
-
-  function goToStudent(id: string) {
-    setQuery("");
-    setSearchFocused(false);
-    navigate(`/staff/counsellor/students/${id}`);
-  }
 
   function handleSwitch(next: Role) {
     setRole(next);
@@ -99,7 +75,7 @@ export default function CounsellorShell() {
               onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition ${
-                  isActive ? "bg-white text-[#0d1a33]" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  isActive ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50"
                 }`
               }
             >
@@ -112,10 +88,10 @@ export default function CounsellorShell() {
               )}
             </NavLink>
           ) : (
-            <div key={item.label} className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-white/30">
+            <div key={item.label} className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-slate-300">
               <item.icon size={16} />
               <span className="flex-1 truncate">{item.label}</span>
-              <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/40">Soon</span>
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Soon</span>
             </div>
           )
         )}
@@ -124,15 +100,15 @@ export default function CounsellorShell() {
   }
 
   return (
-    <div className="flex min-h-screen min-w-0 bg-[#f5f7fb]">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-[#0d1a33] md:flex">
+    <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
             <Gem size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight text-white">ApplyHub</p>
-            <p className="text-[11px] leading-tight text-white/50">Guide. Apply. Grow.</p>
+            <p className="text-sm font-semibold leading-tight text-slate-900">StudyOne</p>
+            <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
           </div>
         </div>
 
@@ -155,21 +131,21 @@ export default function CounsellorShell() {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-black/40" />
-          <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-[#0d1a33] pb-4">
+          <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-white pb-4">
             <div className="flex items-center justify-between gap-2.5 px-5 py-5">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
                   <Gem size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold leading-tight text-white">ApplyHub</p>
-                  <p className="text-[11px] leading-tight text-white/50">Guide. Apply. Grow.</p>
+                  <p className="text-sm font-semibold leading-tight text-slate-900">StudyOne</p>
+                  <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
                 </div>
               </div>
               <button
                 onClick={() => setMobileNavOpen(false)}
                 aria-label="Close menu"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
               >
                 <X size={16} />
               </button>
@@ -181,63 +157,14 @@ export default function CounsellorShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
-          <button
-            onClick={() => setMobileNavOpen(true)}
-            aria-label="Open menu"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
-          >
-            <Menu size={19} />
-          </button>
-
-          <div className="relative min-w-0 flex-1 max-w-xl">
-            <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
-              <Search size={15} className="shrink-0 text-slate-400" />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => window.setTimeout(() => setSearchFocused(false), 150)}
-                placeholder="Search students, applications, or universities…"
-                className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-              />
-              <span className="hidden shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 sm:block">
-                ⌘K
-              </span>
-            </div>
-            {searchFocused && query.trim() && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-                {results.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-slate-400">No students match "{query}".</p>
-                ) : (
-                  results.map((s) => (
-                    <button
-                      key={s.id}
-                      onMouseDown={() => goToStudent(s.id)}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-slate-50"
-                    >
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${s.avatarColor}`}>
-                        {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-800">{s.name}</p>
-                        <p className="truncate text-xs text-slate-400">{s.country}</p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-4">
+        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
+          <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={() => navigate("/staff/counsellor/messages")}
               aria-label="Messages"
-              className="relative text-slate-400 hover:text-slate-600"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
             >
-              <Bell size={19} />
+              <Bell size={16} />
               {unreadMessages > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
                   {unreadMessages}
@@ -246,15 +173,11 @@ export default function CounsellorShell() {
             </button>
 
             <div className="relative">
-              <button onClick={() => setSwitcherOpen((v) => !v)} className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-ink)] text-xs font-semibold text-white">
-                  {counsellor.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </div>
-                <div className="hidden text-left sm:block">
-                  <p className="text-[13px] font-semibold leading-tight text-slate-800">{counsellor.name}</p>
-                  <p className="text-[11px] leading-tight text-slate-400">{counsellor.role}</p>
-                </div>
-                <ChevronDown size={14} className="text-slate-400" />
+              <button
+                onClick={() => setSwitcherOpen((v) => !v)}
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
+              >
+                {counsellor.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </button>
 
               {switcherOpen && (
@@ -284,6 +207,8 @@ export default function CounsellorShell() {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+
+        <RoleBottomNav items={navItems} onMore={() => setMobileNavOpen(true)} />
       </div>
 
       {guideOpen && (
@@ -307,6 +232,8 @@ export default function CounsellorShell() {
           </div>
         </div>
       )}
+
+      <AIAssistantWidget raised />
     </div>
   );
 }

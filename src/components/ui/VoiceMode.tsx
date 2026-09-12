@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { MicOff, PhoneOff } from "lucide-react";
-import { useVoiceConversation } from "../../utils/useVoiceConversation";
+import { useActiveVoiceConversation } from "../../utils/useActiveVoiceConversation";
+import { useAssistant } from "../../context/AssistantContext";
 
 const STATE_LABEL: Record<string, string> = {
   listening: "Listening…",
@@ -22,7 +23,8 @@ export function VoiceModePanel({
   onExit: () => void;
   onExchange: (userText: string, aiText: string) => void;
 }) {
-  const { state, caption, errorText, start, stop } = useVoiceConversation(onExchange);
+  const { ask } = useAssistant();
+  const { state, caption, errorText, start, stop } = useActiveVoiceConversation(ask, onExchange);
   const startedOnce = useRef(false);
 
   useEffect(() => {

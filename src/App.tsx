@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { RoleProvider } from "./context/RoleContext";
+import { AssistantProvider } from "./context/AssistantContext";
 import AppLayout from "./layouts/AppLayout";
 import StudentShell from "./layouts/StudentShell";
 import CounsellorShell from "./layouts/CounsellorShell";
@@ -11,6 +12,7 @@ import StudentApplications from "./features/student/Applications";
 import StudentApplicationDetail from "./features/student/ApplicationDetail";
 import StudentDocuments from "./features/student/Documents";
 import StudentNotifications from "./features/student/Notifications";
+import StudentTasks from "./features/student/Tasks";
 import UniversitySearch from "./features/student/UniversitySearch";
 import UniversityFilters from "./features/student/UniversityFilters";
 import UniversityDetail from "./features/student/UniversityDetail";
@@ -39,6 +41,7 @@ import AgentOffers from "./features/agent/Offers";
 import AgentVisaCompliance from "./features/agent/VisaCompliance";
 import AgentCommissions from "./features/agent/Commissions";
 import AgentStatements from "./features/agent/Statements";
+import AgentTasks from "./features/agent/Tasks";
 
 import CounsellorDashboard from "./features/staff/counsellor/Dashboard";
 import CounsellorLeads from "./features/staff/counsellor/Leads";
@@ -67,10 +70,13 @@ import AdminUsersRoles from "./features/admin/UsersRoles";
 import AdminWorkflowTemplates from "./features/admin/WorkflowTemplates";
 import AdminCommissionRules from "./features/admin/CommissionRules";
 import AdminAuditLogs from "./features/admin/AuditLogs";
+import AdminTasks from "./features/admin/Tasks";
+import AdminAISettings from "./features/admin/AISettings";
 
 export default function App() {
   return (
     <RoleProvider>
+      <AssistantProvider>
       <BrowserRouter>
         <Routes>
           {/* Student — mobile app shell (no sidebar/topbar) */}
@@ -87,6 +93,7 @@ export default function App() {
             <Route path="/student/applications/:id" element={<StudentApplicationDetail />} />
             <Route path="/student/documents" element={<StudentDocuments />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
+            <Route path="/student/tasks" element={<StudentTasks />} />
             <Route path="/student/counsellor" element={<AICounsellor />} />
             <Route path="/student/cost-planner" element={<CostPlanner />} />
             <Route path="/student/messages" element={<StudentMessages />} />
@@ -130,6 +137,7 @@ export default function App() {
             <Route path="/agent/visa-compliance" element={<AgentVisaCompliance />} />
             <Route path="/agent/commissions" element={<AgentCommissions />} />
             <Route path="/agent/statements" element={<AgentStatements />} />
+            <Route path="/agent/tasks" element={<AgentTasks />} />
           </Route>
 
           <Route element={<AppLayout />}>
@@ -154,11 +162,14 @@ export default function App() {
             <Route path="/admin/workflows" element={<AdminWorkflowTemplates />} />
             <Route path="/admin/commission-rules" element={<AdminCommissionRules />} />
             <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
+            <Route path="/admin/tasks" element={<AdminTasks />} />
+            <Route path="/admin/ai-settings" element={<AdminAISettings />} />
 
             <Route path="*" element={<Navigate to="/student" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>
+      </AssistantProvider>
     </RoleProvider>
   );
 }

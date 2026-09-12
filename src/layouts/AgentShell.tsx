@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Landmark, Award, ShieldCheck, Wallet, MessageCircle,
-  BarChart3, FolderOpen, Settings, Search, Bell, ChevronDown, Compass, Globe2, ArrowRight, Menu, X,
+  BarChart3, FolderOpen, Settings, Bell, Compass, Globe2, ArrowRight, X, ListChecks,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { ROLES, AGENTS, CURRENT_AGENT_ID } from "../data/mockData";
 import { ROLE_HOME } from "./nav";
+import { RoleBottomNav } from "./RoleBottomNav";
+import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import type { Role } from "../types";
 
 interface NavEntry {
@@ -22,19 +24,6 @@ export default function AgentShell() {
   const agent = AGENTS.find((a) => a.id === CURRENT_AGENT_ID)!;
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   const navItems: NavEntry[] = [
     { label: "Dashboard", path: "/agent", icon: LayoutDashboard },
@@ -46,6 +35,7 @@ export default function AgentShell() {
     { label: "Finance", path: "/agent/commissions", icon: Wallet },
     { label: "Communication", icon: MessageCircle },
     { label: "Reports", path: "/agent/statements", icon: BarChart3 },
+    { label: "Tasks", path: "/agent/tasks", icon: ListChecks },
     { label: "Resources", icon: FolderOpen },
     { label: "Settings", icon: Settings },
   ];
@@ -68,7 +58,7 @@ export default function AgentShell() {
               onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition ${
-                  isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  isActive ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`
               }
             >
@@ -93,14 +83,14 @@ export default function AgentShell() {
   }
 
   return (
-    <div className="flex min-h-screen min-w-0 bg-[#f5f7fb]">
+    <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
             <Compass size={18} />
           </div>
           <div>
-            <p className="text-[13px] font-bold leading-tight text-slate-900">EduBridge</p>
+            <p className="text-[13px] font-bold leading-tight text-slate-900">StudyOne</p>
             <p className="text-[11px] leading-tight text-slate-400">Agent Portal</p>
           </div>
         </div>
@@ -113,7 +103,7 @@ export default function AgentShell() {
             <Globe2 size={16} />
           </div>
           <p className="mt-3 text-[14px] font-semibold leading-snug text-white">Global Education Made Possible</p>
-          <p className="mt-1 text-[11.5px] leading-snug text-white/60">Access 800+ universities worldwide with EduBridge.</p>
+          <p className="mt-1 text-[11.5px] leading-snug text-white/60">Access 800+ universities worldwide with StudyOne.</p>
           <button
             onClick={() => navigate("/agent/universities")}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-[12.5px] font-semibold text-slate-900"
@@ -129,11 +119,11 @@ export default function AgentShell() {
           <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-white pb-4">
             <div className="flex items-center justify-between gap-2.5 px-5 py-5">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
                   <Compass size={18} />
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold leading-tight text-slate-900">EduBridge</p>
+                  <p className="text-[13px] font-bold leading-tight text-slate-900">StudyOne</p>
                   <p className="text-[11px] leading-tight text-slate-400">Agent Portal</p>
                 </div>
               </div>
@@ -151,47 +141,22 @@ export default function AgentShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
-          <button
-            onClick={() => setMobileNavOpen(true)}
-            aria-label="Open menu"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
-          >
-            <Menu size={19} />
-          </button>
-
-          <div className="min-w-0 flex-1 max-w-xl">
-            <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
-              <Search size={15} className="shrink-0 text-slate-400" />
-              <input
-                ref={searchRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search students, applications, universities…"
-                className="w-full bg-transparent text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none"
-              />
-              <span className="hidden shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 sm:block">
-                ⌘K
-              </span>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-4">
-            <button aria-label="Notifications" className="relative text-slate-400 hover:text-slate-600">
-              <Bell size={19} />
+        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              aria-label="Notifications"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+            >
+              <Bell size={16} />
               <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />
             </button>
 
             <div className="relative">
-              <button onClick={() => setSwitcherOpen((v) => !v)} className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
-                  {agent.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                </div>
-                <div className="hidden text-left sm:block">
-                  <p className="text-[13px] font-semibold leading-tight text-slate-800">{agent.name}</p>
-                  <p className="text-[11px] leading-tight text-slate-400">{agent.role}</p>
-                </div>
-                <ChevronDown size={14} className="text-slate-400" />
+              <button
+                onClick={() => setSwitcherOpen((v) => !v)}
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
+              >
+                {agent.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </button>
 
               {switcherOpen && (
@@ -221,7 +186,11 @@ export default function AgentShell() {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+
+        <RoleBottomNav items={navItems} onMore={() => setMobileNavOpen(true)} />
       </div>
+
+      <AIAssistantWidget raised />
     </div>
   );
 }

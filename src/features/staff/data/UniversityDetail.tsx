@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Languages,
+  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Languages, Wallet, Award,
 } from "lucide-react";
 import { SkylineArt, Pill } from "../../../components/ui/mobile";
 import { Button } from "../../../components/ui";
 import { getUniversityById, deleteUniversity } from "../../../data/universityCatalogStore";
+import type { University } from "../../../types";
 
 const TABS = ["Overview", "Campuses", "Courses", "Requirements", "Fees"] as const;
 
@@ -115,6 +116,27 @@ export default function DataUniversityDetail() {
                   </div>
                 )}
               </div>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <Wallet size={14} /> Payment requirement information
+                </p>
+                <PaymentRequirementsBlock university={university} />
+              </div>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <CalendarDays size={14} /> Intake related information
+                </p>
+                <IntakesBlock university={university} />
+              </div>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  <Award size={14} /> Scholarship amount
+                </p>
+                <ScholarshipsBlock university={university} />
+              </div>
             </div>
           )}
 
@@ -165,9 +187,27 @@ export default function DataUniversityDetail() {
                         <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400">{c.id}</span>
                       </div>
                       <p className="truncate text-xs text-slate-400">{c.subject} · {c.level} · {c.duration}</p>
+                      {((c.intakes ?? []).length > 0 || c.campusId || c.scholarshipAvailable || (c.requirements ?? []).length > 0 || (c.englishRequirements ?? []).length > 0) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(c.intakes ?? []).length > 0 && (
+                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">{c.intakes!.join(", ")}</span>
+                          )}
+                          {c.campusId && (
+                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                              {university.campuses?.find((cp) => cp.id === c.campusId)?.name ?? "Campus"}
+                            </span>
+                          )}
+                          {c.scholarshipAvailable && (
+                            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Scholarship</span>
+                          )}
+                          {((c.requirements ?? []).length > 0 || (c.englishRequirements ?? []).length > 0) && (
+                            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Custom requirements</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-700">${c.feeUSD.toLocaleString()}/yr</span>
+                      <span className="text-xs font-semibold text-slate-700">{c.currencySymbol ?? university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
                       <ChevronRight size={15} className="text-slate-300" />
                     </div>
                   </button>
@@ -179,18 +219,30 @@ export default function DataUniversityDetail() {
 
           {tab === "Requirements" && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                {university.requirements.map((r) => (
-                  <div key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                    <CheckCircle2 size={14} className="shrink-0 text-emerald-500" /> {r}
-                  </div>
-                ))}
-                {university.requirements.length === 0 && <p className="text-xs text-slate-400">No requirements added yet.</p>}
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Academic Requirements
+                </p>
+                <div className="space-y-2">
+                  {university.requirements.map((r) => (
+                    <div key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <CheckCircle2 size={14} className="shrink-0 text-emerald-500" /> {r}
+                    </div>
+                  ))}
+                  {university.requirements.length === 0 && <p className="text-xs text-slate-400">No academic requirements added yet.</p>}
+                </div>
               </div>
 
               <div>
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  <Languages size={13} /> Accepted English Tests
+                  <Award size={13} /> Scholarship Amount
+                </p>
+                <ScholarshipsBlock university={university} />
+              </div>
+
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <Languages size={13} /> English Requirements
                 </p>
                 {(university.englishRequirements ?? []).length === 0 ? (
                   <p className="text-xs text-slate-400">Minimum IELTS {university.minIELTS} overall — no other tests listed.</p>
@@ -199,11 +251,8 @@ export default function DataUniversityDetail() {
                     {university.englishRequirements!.map((e, i) => (
                       <div key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-700">{e.testName}</span>
-                          <span className="text-right">
-                            <span className="font-semibold text-slate-800">{e.minScore}</span>
-                            {e.minBand && <span className="ml-2 text-xs text-slate-400">no band below {e.minBand}</span>}
-                          </span>
+                          <p className="font-medium text-slate-700">{e.testName}</p>
+                          {e.minScore && <span className="font-semibold text-slate-800">{e.minScore}</span>}
                         </div>
                         {(e.skillScores ?? []).length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -224,37 +273,129 @@ export default function DataUniversityDetail() {
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   <CalendarDays size={13} /> Intakes
                 </p>
-                {university.intakes.length === 0 ? (
-                  <p className="text-xs text-slate-400">No intakes added yet.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {university.intakes.map((m) => {
-                      const open = university.intakeStatus?.[m] ?? false;
-                      return (
-                        <span key={m} className={`rounded-full px-2.5 py-1 text-xs font-medium ${open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                          {m} · {open ? "Open" : "Closed"}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
+                <IntakesBlock university={university} />
               </div>
             </div>
           )}
 
           {tab === "Fees" && (
-            <div className="space-y-2">
-              {university.fees.map((f) => (
-                <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                  <span className="text-slate-600">{f.label}</span>
-                  <span className="font-semibold text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              {university.fees.length === 0 && <p className="text-xs text-slate-400">No fee line items added yet.</p>}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {university.fees.map((f) => (
+                  <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                    <span className="text-slate-600">{f.label}</span>
+                    <span className="font-semibold text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+                {university.fees.length === 0 && <p className="text-xs text-slate-400">No fee line items added yet.</p>}
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Minimum Fees Deposit & Deposit Rules</p>
+                <PaymentRequirementsBlock university={university} />
+              </div>
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function IntakesBlock({ university }: { university: University }) {
+  if (university.intakes.length === 0) {
+    return <p className="text-xs text-slate-400">No intakes added yet.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {university.intakes.map((m) => {
+        const open = university.intakeStatus?.[m] ?? false;
+        const dates = university.intakeDates?.[m];
+        const hasDates = dates && (dates.applicationDeadline || dates.casRequestDeadline || dates.enrollmentDate);
+        return (
+          <div key={m} className="rounded-lg bg-slate-50 px-3 py-2">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+              {m} · {open ? "Open" : "Closed"}
+            </span>
+            {hasDates && (
+              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                {dates!.applicationDeadline && (
+                  <span>Application last date: <span className="font-medium text-slate-700">{formatDate(dates!.applicationDeadline)}</span></span>
+                )}
+                {dates!.casRequestDeadline && (
+                  <span>CAS request last date: <span className="font-medium text-slate-700">{formatDate(dates!.casRequestDeadline)}</span></span>
+                )}
+                {dates!.enrollmentDate && (
+                  <span>Enrollment date: <span className="font-medium text-slate-700">{formatDate(dates!.enrollmentDate)}</span></span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PaymentRequirementsBlock({ university }: { university: University }) {
+  const hasAny = university.minimumDepositAmount != null || !!university.paymentDeadline || (university.depositRules ?? []).length > 0;
+  if (!hasAny) {
+    return <p className="text-xs text-slate-400">No deposit details added yet.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {university.minimumDepositAmount != null && (
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <span className="text-slate-600">Minimum deposit</span>
+          <span className="font-semibold text-slate-800">
+            {university.depositMode === "half" && "50% of first year tuition fees"}
+            {university.depositMode === "full" && "Full payment of first year tuition fees"}
+            {(!university.depositMode || university.depositMode === "custom") &&
+              `${university.currencySymbol}${university.minimumDepositAmount.toLocaleString()}`}
+          </span>
+        </div>
+      )}
+      {university.paymentDeadline && (
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <span className="text-slate-600">Last date of payment</span>
+          <span className="font-semibold text-slate-800">{formatDate(university.paymentDeadline)}</span>
+        </div>
+      )}
+      {(university.depositRules ?? []).map((r) => (
+        <div key={r} className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+          <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-500" /> {r}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScholarshipsBlock({ university }: { university: University }) {
+  const scholarships = university.scholarships ?? [];
+  if (scholarships.length === 0) {
+    return (
+      <p className="text-xs text-slate-400">
+        {university.scholarshipsAvailable ? "Scholarships available — no named awards listed yet." : "No scholarships added yet."}
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {scholarships.map((s, i) => (
+        <div key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-slate-700">{s.name}</span>
+            <span className="font-semibold text-slate-800">{s.amount}</span>
+          </div>
+          {s.description && <p className="mt-1 text-slate-500">{s.description}</p>}
+        </div>
+      ))}
     </div>
   );
 }
