@@ -7,6 +7,10 @@ export interface ToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  // Provider-specific extra data that must be echoed back verbatim on a later turn (e.g. Gemini's
+  // thoughtSignature for thinking models) — opaque here, only ever read/written by that provider's
+  // own code on the backend. The frontend just stores and resends it untouched.
+  providerMeta?: Record<string, unknown>;
 }
 
 export interface AssistantMessage {

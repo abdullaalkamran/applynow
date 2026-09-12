@@ -27,8 +27,8 @@ function envDefaults() {
     },
     gemini: {
       apiKey: process.env.GEMINI_API_KEY || "",
-      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
-      liveModel: process.env.GEMINI_LIVE_MODEL || "gemini-2.0-flash-live-001",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+      liveModel: process.env.GEMINI_LIVE_MODEL || "gemini-2.5-flash-native-audio-latest",
     },
     ollama: {
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",

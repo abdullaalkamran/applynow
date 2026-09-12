@@ -23,6 +23,24 @@ export interface RoleAssistantConfig {
 
 const MAX_TOOL_ITERATIONS = 5;
 
+// Every turn resends the whole conversation to the provider — with no cap, a long-running chat
+// keeps growing the prompt forever, and response time grows right along with it (more input
+// tokens to process every single turn, even for a one-word reply). Keeping only the last N user
+// turns bounds that — cutting only at a user-message boundary, never mid-turn, since an
+// assistant tool-call message split from its tool-result message would break the next request.
+const MAX_HISTORY_TURNS = 10;
+
+function trimHistory(history: AssistantMessage[]): AssistantMessage[] {
+  let userTurnsSeen = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === "user") {
+      userTurnsSeen++;
+      if (userTurnsSeen > MAX_HISTORY_TURNS) return history.slice(i + 1);
+    }
+  }
+  return history;
+}
+
 /**
  * One full turn: send the user's message (plus running history) to the backend, and if the model
  * wants to call a tool, run it locally against real app data and send the result back — looping
@@ -39,7 +57,7 @@ export async function runAssistantTurn(
   const systemPrompt = config.systemPrompt(ctx);
   const toolSpecs = tools.map((tool) => tool.spec);
 
-  let working: AssistantMessage[] = [...history, { role: "user", text: userText }];
+  let working: AssistantMessage[] = [...trimHistory(history), { role: "user", text: userText }];
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
     const providerReply = await sendAssistantRequest(systemPrompt, working, toolSpecs);

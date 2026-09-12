@@ -3,6 +3,8 @@ import { getAllApplications, createApplication } from "../data/applicationsStore
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
 import { addUploadedDoc } from "../data/applicationDocsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
+import { getAllSubjects } from "../data/subjectsStore";
+import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
 import { getProfileCompletion, markStepComplete, PROFILE_STEPS } from "../data/profileCompletion";
 import {
   loadPersonalInfo, savePersonalInfo,
@@ -234,27 +236,35 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         const maxBudget = args.maxBudget as number | undefined;
         const scholarshipOnly = args.scholarshipOnly as boolean | undefined;
 
-        const matches = getAllUniversities().filter((u) => {
-          if (country && !u.country.toLowerCase().includes(country.toLowerCase())) return false;
-          if (scholarshipOnly && !u.scholarshipsAvailable) return false;
-          if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
-          if (studyLevel && !u.courses.some((c) => c.level.toLowerCase().includes(studyLevel.toLowerCase()))) return false;
-          if (maxBudget && !u.courses.some((c) => c.feeUSD <= maxBudget)) return false;
-          return true;
-        });
+        const results = getAllUniversities()
+          .filter((u) => {
+            if (country && !u.country.toLowerCase().includes(country.toLowerCase())) return false;
+            if (scholarshipOnly && !u.scholarshipsAvailable) return false;
+            if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
+            return true;
+          })
+          .map((u) => ({
+            u,
+            // A single course must satisfy BOTH level and budget together — checking them as two
+            // independent `some()` calls (the previous bug) let a university pass with an
+            // expensive course covering level and an unrelated cheap course covering budget,
+            // while no course actually matched both, leaving matchingCourses empty below.
+            matchingCourses: u.courses
+              .filter((c) => !studyLevel || c.level.toLowerCase().includes(studyLevel.toLowerCase()))
+              .filter((c) => !maxBudget || c.feeUSD <= maxBudget),
+          }))
+          // Only require a real matching course when level/budget were actually specified —
+          // a plain country/subject search shouldn't demand a course match at all.
+          .filter(({ matchingCourses }) => !(studyLevel || maxBudget) || matchingCourses.length > 0);
 
-        return matches.slice(0, 8).map((u) => ({
+        return results.slice(0, 8).map(({ u, matchingCourses }) => ({
           id: u.id,
           name: u.name,
           country: u.country,
           worldRank: u.worldRank,
           employability: u.employability,
           scholarshipsAvailable: u.scholarshipsAvailable,
-          matchingCourses: u.courses
-            .filter((c) => !studyLevel || c.level.toLowerCase().includes(studyLevel.toLowerCase()))
-            .filter((c) => !maxBudget || c.feeUSD <= maxBudget)
-            .slice(0, 3)
-            .map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
+          matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
         }));
       },
     },
@@ -268,6 +278,30 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         const uni = getUniversityById(String(args.id));
         if (!uni) return { error: "No university found with that id." };
         return uni;
+      },
+    },
+    {
+      spec: {
+        name: "list_subjects",
+        description: "List every field of study/subject offered across our partner network — use this when the student doesn't already know what they want to study, before guessing a subject to search with.",
+        parameters: { type: "object", properties: {} },
+      },
+      execute: () => getAllSubjects(),
+    },
+    {
+      spec: {
+        name: "get_subject_detail",
+        description: "Get typical modules and career outcomes for a subject, plus how many partner universities currently offer it. Use an exact subject name from list_subjects.",
+        parameters: { type: "object", properties: { subject: { type: "string" } }, required: ["subject"] },
+      },
+      execute: (args) => {
+        const subject = String(args.subject);
+        const curriculum = SUBJECT_CURRICULUM[subject];
+        const universityCount = getAllUniversities().filter((u) => u.subjects.includes(subject)).length;
+        if (!curriculum && universityCount === 0) {
+          return { error: `"${subject}" doesn't match a subject in our network. Call list_subjects for the real options.` };
+        }
+        return { subject, universityCount, modules: curriculum?.modules ?? [], careers: curriculum?.careers ?? [] };
       },
     },
     {
@@ -287,29 +321,37 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
     {
       spec: {
         name: "create_application",
-        description: "Start a new application for the student to a specific university and course.",
+        description: "Start a new application for the student to a specific university and course. universityId and courseId MUST come from a real result returned by search_universities or get_university_detail in this conversation — never invent or guess an id, and never accept a university/course name from the student without first confirming it exists via search_universities.",
         parameters: {
           type: "object",
           properties: {
-            university: { type: "string" },
-            course: { type: "string" },
+            universityId: { type: "string" },
+            courseId: { type: "string" },
             intake: { type: "string" },
-            country: { type: "string" },
             campus: { type: "string" },
           },
-          required: ["university", "course", "intake", "country"],
+          required: ["universityId", "courseId", "intake"],
         },
       },
-      execute: (args) =>
-        createApplication({
+      execute: (args) => {
+        const university = getUniversityById(String(args.universityId));
+        if (!university) {
+          return { error: `No university with id "${args.universityId}" exists in our partner network. Call search_universities first and use a real id from the results — never a name the student mentioned on its own.` };
+        }
+        const course = university.courses.find((c) => c.id === String(args.courseId));
+        if (!course) {
+          return { error: `No course with id "${args.courseId}" exists at ${university.name}. Call get_university_detail("${university.id}") to see its real courses and use a real course id.` };
+        }
+        return createApplication({
           studentId,
-          university: String(args.university),
-          course: String(args.course),
+          university: university.name,
+          course: course.name,
           intake: String(args.intake),
-          country: String(args.country),
+          country: university.country,
           campus: (args.campus as string) || "Main Campus",
           source: "student",
-        }),
+        });
+      },
     },
     {
       spec: {

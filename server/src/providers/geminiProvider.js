@@ -4,6 +4,15 @@ function apiUrl(config) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`;
 }
 
+// Gemini requires functionResponse.response to be a JSON object (protobuf Struct) — a tool that
+// returns a plain string, number, boolean, or array (several of ours do, e.g.
+// explain_application_process returns a string) has to be wrapped, or Gemini rejects the whole
+// turn with "Invalid value ... type.googleapis.com/google.protobuf.Struct".
+function toGeminiFunctionResponse(value) {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) return value;
+  return { result: value ?? null };
+}
+
 // Gemini has no "assistant"/"tool" roles — model turns are role "model", and both user text and
 // tool results are sent back as role "user" (a tool result is a `functionResponse` part).
 function toGeminiContents(messages) {
@@ -11,7 +20,7 @@ function toGeminiContents(messages) {
     if (message.role === "tool") {
       return {
         role: "user",
-        parts: [{ functionResponse: { name: message.toolName, response: message.toolResult ?? {} } }],
+        parts: [{ functionResponse: { name: message.toolName, response: toGeminiFunctionResponse(message.toolResult) } }],
       };
     }
 
@@ -19,7 +28,13 @@ function toGeminiContents(messages) {
       const parts = [];
       if (message.text) parts.push({ text: message.text });
       for (const call of message.toolCalls || []) {
-        parts.push({ functionCall: { name: call.name, args: call.arguments || {} } });
+        const part = { functionCall: { name: call.name, args: call.arguments || {} } };
+        // Thinking models (e.g. gemini-3.6-flash) require the exact thoughtSignature they issued
+        // with a function call to be echoed back on the next turn, or the whole request is
+        // rejected with "Function call is missing a thought_signature" — carried through our
+        // otherwise-generic ToolCall shape via providerMeta, untouched by other providers.
+        if (call.providerMeta?.thoughtSignature) part.thoughtSignature = call.providerMeta.thoughtSignature;
+        parts.push(part);
       }
       return { role: "model", parts };
     }
@@ -74,6 +89,7 @@ async function send({ systemPrompt, messages, tools }) {
         id: `${part.functionCall.name}_${index}`,
         name: part.functionCall.name,
         arguments: part.functionCall.args || {},
+        ...(part.thoughtSignature ? { providerMeta: { thoughtSignature: part.thoughtSignature } } : {}),
       })),
       raw: data,
     };
@@ -82,4 +98,4 @@ async function send({ systemPrompt, messages, tools }) {
   return { kind: "text", text: textParts.map((part) => part.text).join("\n"), raw: data };
 }
 
-module.exports = { send, toGeminiTools };
+module.exports = { send, toGeminiTools, toGeminiFunctionResponse };

@@ -13,13 +13,21 @@ function wsUrl(): string {
   return `${protocol}//${base.host}/api/assistant/gemini-live`;
 }
 
+// Averages each block of source samples into one output sample (a simple box-filter low-pass)
+// rather than picking every Nth sample — plain decimation aliases high-frequency content into
+// audible noise, which matters far more for real mic input (with real room/hardware noise) than
+// it did for the clean synthesized test audio this pipeline was first verified against.
 function downsampleTo16k(input: Float32Array, inputSampleRate: number): Float32Array {
   if (inputSampleRate === INPUT_SAMPLE_RATE) return input;
   const ratio = inputSampleRate / INPUT_SAMPLE_RATE;
   const outLength = Math.floor(input.length / ratio);
   const output = new Float32Array(outLength);
   for (let i = 0; i < outLength; i++) {
-    output[i] = input[Math.floor(i * ratio)];
+    const start = Math.floor(i * ratio);
+    const end = Math.min(input.length, Math.floor((i + 1) * ratio));
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += input[j];
+    output[i] = end > start ? sum / (end - start) : input[start];
   }
   return output;
 }
@@ -71,6 +79,8 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const onExchangeRef = useRef(onExchange);
   useEffect(() => { onExchangeRef.current = onExchange; }, [onExchange]);
+  const pendingUserTextRef = useRef("");
+  const pendingAiTextRef = useRef("");
 
   const stopAudioPipeline = useCallback(() => {
     processorRef.current?.disconnect();
@@ -174,8 +184,15 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
           socket.send(JSON.stringify({ type: "audio", data: base64FromInt16(pcm16) }));
         };
 
+        // ScriptProcessorNode only fires onaudioprocess once it's part of a live graph reaching
+        // the destination — but connecting it directly would make the raw mic input audible
+        // (echoing your own voice out loud, which then re-enters the mic as feedback and garbles
+        // what Gemini hears). A muted gain node keeps the graph "pulled" without making any sound.
+        const silentGain = captureCtx.createGain();
+        silentGain.gain.value = 0;
         source.connect(processor);
-        processor.connect(captureCtx.destination);
+        processor.connect(silentGain);
+        silentGain.connect(captureCtx.destination);
         return;
       }
 
@@ -185,13 +202,24 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
         return;
       }
 
+      if (message.type === "input_text" && typeof message.text === "string") {
+        pendingUserTextRef.current += message.text;
+        setCaption(pendingUserTextRef.current);
+        return;
+      }
+
       if (message.type === "text" && typeof message.text === "string") {
-        setCaption(message.text);
-        onExchangeRef.current?.("(voice)", message.text);
+        pendingAiTextRef.current += message.text;
+        setCaption(pendingAiTextRef.current);
         return;
       }
 
       if (message.type === "turn_complete") {
+        if (pendingUserTextRef.current || pendingAiTextRef.current) {
+          onExchangeRef.current?.(pendingUserTextRef.current, pendingAiTextRef.current);
+          pendingUserTextRef.current = "";
+          pendingAiTextRef.current = "";
+        }
         setState("listening");
         return;
       }

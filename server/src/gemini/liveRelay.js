@@ -1,6 +1,6 @@
 const WebSocket = require("ws");
 const { getConfig } = require("../config");
-const { toGeminiTools } = require("../providers/geminiProvider");
+const { toGeminiTools, toGeminiFunctionResponse } = require("../providers/geminiProvider");
 
 const googleLiveUrl = (apiKey) =>
   `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
@@ -58,6 +58,9 @@ function attachGeminiLiveRelay(wss) {
         if (serverContent.outputTranscription?.text) {
           sendToClient({ type: "text", text: serverContent.outputTranscription.text });
         }
+        if (serverContent.inputTranscription?.text) {
+          sendToClient({ type: "input_text", text: serverContent.inputTranscription.text });
+        }
         if (serverContent.turnComplete) sendToClient({ type: "turn_complete" });
       }
 
@@ -83,18 +86,35 @@ function attachGeminiLiveRelay(wss) {
           JSON.stringify({
             setup: {
               model: `models/${config.gemini.liveModel}`,
-              generationConfig: { responseModalities: ["AUDIO"] },
+              // Native-audio models "think" before speaking by default, which is a real source of
+              // response latency in a live voice conversation — thinkingBudget: 0 disables that
+              // for the fastest turnaround (see thinkingConfig docs for gemini-2.5-* models).
+              generationConfig: { responseModalities: ["AUDIO"], thinkingConfig: { thinkingBudget: 0 } },
               systemInstruction: { parts: [{ text: init.systemPrompt || "" }] },
               tools: toGeminiTools(init.tools || []),
               outputAudioTranscription: {},
+              // Lets us see exactly what Gemini heard the user say — essential for telling apart
+              // "the tool call didn't happen" from "the transcription was wrong so it never asked".
+              inputAudioTranscription: {},
             },
           })
         );
       });
 
       googleSocket.on("message", handleGoogleMessage);
-      googleSocket.on("error", (err) => closeAll(`Gemini Live connection error: ${err.message}`));
-      googleSocket.on("close", () => closeAll());
+      googleSocket.on("error", (err) => {
+        console.error("Gemini Live upstream error:", err.message);
+        closeAll(`Gemini Live connection error: ${err.message}`);
+      });
+      googleSocket.on("close", (code, reason) => {
+        const reasonText = reason?.toString();
+        console.error("Gemini Live upstream closed:", code, reasonText);
+        if (code !== 1000) {
+          closeAll(`Gemini Live closed the connection (code ${code}${reasonText ? `: ${reasonText}` : ""}).`);
+        } else {
+          closeAll();
+        }
+      });
     }
 
     clientSocket.on("message", (raw) => {
@@ -114,7 +134,7 @@ function attachGeminiLiveRelay(wss) {
 
       if (message.type === "audio" && message.data) {
         googleSocket.send(
-          JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: message.data }] } })
+          JSON.stringify({ realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: message.data } } })
         );
         return;
       }
@@ -122,7 +142,7 @@ function attachGeminiLiveRelay(wss) {
       if (message.type === "tool_result") {
         googleSocket.send(
           JSON.stringify({
-            toolResponse: { functionResponses: [{ id: message.id, name: message.name, response: message.result ?? {} }] },
+            toolResponse: { functionResponses: [{ id: message.id, name: message.name, response: toGeminiFunctionResponse(message.result) }] },
           })
         );
         return;
