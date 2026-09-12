@@ -5,11 +5,12 @@ import {
   Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, ArrowUpRight,
 } from "lucide-react";
 import { BackButton, SkylineArt, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
-import { UNIVERSITIES, STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { countryByName } from "../../data/countries";
 import {
   emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
-  ALL_PROGRAMS, FEE_BANDS, feeBandMax, scholarshipAmountUSD, SUBJECT_OPTIONS, DESTINATION_OPTIONS,
+  allPrograms, FEE_BANDS, feeBandMax, scholarshipAmountUSD, subjectOptions, destinationOptions,
   type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -69,7 +70,7 @@ export default function UniversitySearch() {
   const showingFilters = location.pathname === "/student/search/filters";
 
   const results = useMemo(() => {
-    const filtered = applyFilters(UNIVERSITIES, filters, query);
+    const filtered = applyFilters(getAllUniversities(), filters, query);
     const sorted = [...filtered];
     if (sortBy === "rank") sorted.sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank));
     else if (sortBy === "employability") sorted.sort((a, b) => employabilityNumber(b.employability) - employabilityNumber(a.employability));
@@ -77,11 +78,11 @@ export default function UniversitySearch() {
     return sorted;
   }, [query, filters, sortBy]);
 
-  const programIntakeOptions = useMemo(() => Array.from(new Set(ALL_PROGRAMS.map((p) => p.university.openIntake))).sort(), []);
+  const programIntakeOptions = useMemo(() => Array.from(new Set(allPrograms().map((p) => p.university.openIntake))).sort(), []);
 
   const programs = useMemo(
     () =>
-      ALL_PROGRAMS.filter(({ university: u, course: c }) => {
+      allPrograms().filter(({ university: u, course: c }) => {
         if (programSubject && c.subject !== programSubject) return false;
         if (programDestination && u.country !== programDestination) return false;
         if (programIntake && u.openIntake !== programIntake) return false;
@@ -168,8 +169,8 @@ export default function UniversitySearch() {
             </div>
 
             <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-              <PillSelect label="Subject" value={programSubject} options={SUBJECT_OPTIONS} onChange={setProgramSubject} placeholder="All subjects" />
-              <PillSelect label="Destination" value={programDestination} options={DESTINATION_OPTIONS} onChange={setProgramDestination} placeholder="All destinations" />
+              <PillSelect label="Subject" value={programSubject} options={subjectOptions()} onChange={setProgramSubject} placeholder="All subjects" />
+              <PillSelect label="Destination" value={programDestination} options={destinationOptions()} onChange={setProgramDestination} placeholder="All destinations" />
               <PillSelect label="Intake" value={programIntake} options={programIntakeOptions} onChange={setProgramIntake} placeholder="Any intake" />
               <PillSelect label="Fees" value={programFeeBand} options={FEE_BANDS} onChange={setProgramFeeBand} placeholder="Any fee" />
               <PillSelect label="Scholarship" value={programScholarship} options={["Available"]} onChange={setProgramScholarship} placeholder="Any" />

@@ -31,7 +31,9 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Risk & Fraud Queue", path: "/staff/compliance" },
   ],
   data: [
-    { label: "Catalog", path: "/staff/data" },
+    { label: "Countries", path: "/staff/data" },
+    { label: "Universities", path: "/staff/data/universities" },
+    { label: "Content Catalog", path: "/staff/data/catalog" },
   ],
   finance: [
     { label: "Commission Approvals", path: "/staff/finance" },

@@ -30,7 +30,7 @@ export default function DataCatalog() {
               <td className="px-5 py-3 text-slate-500 text-xs">{r.source}</td>
               <td className="px-5 py-3 text-slate-500 text-xs">{r.verificationDate}</td>
               <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
-              <td className="px-5 py-3"><button onClick={() => setEditing(r.id)} className="text-sm font-medium text-[var(--brand-600)]">Edit</button></td>
+              <td className="px-5 py-3"><button onClick={() => setEditing(r.id)} className="text-xs font-medium text-[var(--brand-600)]">Edit</button></td>
             </tr>
           ))}
         </Table>
@@ -40,21 +40,21 @@ export default function DataCatalog() {
         <Card className="mt-6">
           <CardHeader title={`Edit — ${record.name}`} subtitle="Draft → Review → Publish. Direct-to-production edits are not permitted." />
           <CardBody className="grid grid-cols-2 gap-4">
-            <label className="text-sm">
+            <label className="text-xs">
               <span className="mb-1 block text-xs font-medium text-slate-400">Source</span>
-              <input defaultValue={record.source} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input defaultValue={record.source} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
             </label>
-            <label className="text-sm">
+            <label className="text-xs">
               <span className="mb-1 block text-xs font-medium text-slate-400">Effective date</span>
-              <input defaultValue={record.effectiveDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input defaultValue={record.effectiveDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
             </label>
-            <label className="text-sm">
+            <label className="text-xs">
               <span className="mb-1 block text-xs font-medium text-slate-400">Verification date</span>
-              <input defaultValue={record.verificationDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input defaultValue={record.verificationDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
             </label>
-            <label className="text-sm">
+            <label className="text-xs">
               <span className="mb-1 block text-xs font-medium text-slate-400">Owner</span>
-              <input defaultValue={record.owner} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input defaultValue={record.owner} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
             </label>
             <div className="col-span-2 flex justify-end gap-3 border-t border-slate-100 pt-4">
               <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>

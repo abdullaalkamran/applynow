@@ -1,54 +1,42 @@
 import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Check, ChevronDown, ChevronUp, FileCheck2, FileText, Copy, AlertCircle, Upload, Plus, X, History, ListChecks, CalendarDays,
-  User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Sparkles,
+  ArrowLeft, Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
+  Sparkles,
 } from "lucide-react";
 import { Badge, Button, ProgressBar, Modal, SearchableSelect } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
-import { UNIVERSITIES, DOCUMENTS, AGENTS } from "../../../data/mockData";
+import { ProfileStepsPanel, Detail } from "../../../components/ProfileStepsPanel";
+import { ChecklistCard } from "../../../components/ChecklistCard";
+import { ApplicationChecklistCard } from "../../../components/ApplicationChecklistCard";
+import { DocViewButton } from "../../../components/DocViewButton";
+import { DOCUMENTS, AGENTS } from "../../../data/mockData";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllApplications, updateApplicationStatus, getStatusHistory, createApplication } from "../../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../../data/applicationDocsStore";
-import { buildChecklist, buildCoreChecklist, type ChecklistRow } from "../../../utils/documentChecklist";
+import { buildChecklist, buildCoreChecklist } from "../../../utils/documentChecklist";
 import { loadStaffNote, saveStaffNote } from "../../../data/staffNotesStore";
-import { activeApplicationsFor } from "../../../utils/counsellorData";
+import { activeApplicationsFor, daysAgo } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
-import { getProfileCompletion } from "../../../data/profileCompletion";
-import { loadAcademicLevels } from "../../../data/academicProfileStore";
-import { loadPersonalInfo, loadEnglishTests, loadWorkExperience, loadPreferences } from "../../../data/studentProfileDetailsStore";
 import { ALL_APP_STATUSES } from "../../../utils/applicationStatus";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
-import { DESTINATION_OPTIONS, campusesFor } from "../../../utils/universityFilter";
+import { destinationOptions, campusesFor } from "../../../utils/universityFilter";
 import { loadCustomDocRequests, addCustomDocRequest, removeCustomDocRequest } from "../../../data/customDocRequestsStore";
 import {
   loadNextSteps, addNextStep, toggleNextStepDone, removeNextStep, setNextStepDueDate, dueDateTone as stepDueTone,
 } from "../../../data/applicationNextStepsStore";
-import { loadDocDueDate, setDocDueDate, dueDateTone as docDueTone } from "../../../data/documentDueDatesStore";
+import { loadDocDueDate, setDocDueDate } from "../../../data/documentDueDatesStore";
 import { isSeenByCounsellor, markSeenByCounsellor } from "../../../data/counsellorSeenApplicationsStore";
 import type { Student, AppStatus } from "../../../types";
 
 const RISK_TONE: Record<NonNullable<Student["riskFlag"]>, "amber" | "red"> = { watch: "amber", high: "red", none: "amber" };
 
-const STEP_ICON: Record<string, typeof User> = {
-  "personal-information": User,
-  "academic-details": GraduationCap,
-  "english-proficiency": Languages,
-  "work-experience": Briefcase,
-  "preferences": SlidersHorizontal,
-};
-
 const TABS = ["Overview", "Applications", "Documents", "Notes"] as const;
 type Tab = (typeof TABS)[number];
 
-function daysAgo(dateStr: string): string {
-  const days = Math.max(0, Math.round((Date.now() - new Date(dateStr).getTime()) / 86_400_000));
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
-}
-
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const UNIVERSITIES = getAllUniversities();
   const { id } = useParams();
   const location = useLocation();
   const navState = location.state as { tab?: Tab; appId?: string } | null;
@@ -89,15 +77,6 @@ export default function StudentProfile() {
   }, 0);
   const totalMissing = coreMissing.length + perAppMissingCount;
 
-  // Profile completion and academic history are tracked per student (seeded for the assigned
-  // caseload, empty for anyone genuinely new — e.g. just added via "Add New Student") rather than
-  // only ever reflecting whichever student happens to be signed into the student app.
-  const completion = getProfileCompletion(student.id);
-  const academicLevels = loadAcademicLevels(student.id);
-  const personalInfo = loadPersonalInfo(student.id);
-  const englishTests = loadEnglishTests(student.id);
-  const workExperience = loadWorkExperience(student.id);
-  const preferences = loadPreferences(student.id);
   const agent = student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
 
   function handleSaveNote() {
@@ -176,168 +155,8 @@ export default function StudentProfile() {
             </p>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-              <p className="text-sm font-semibold text-slate-800">Profile</p>
-              <span className="text-xs font-medium text-slate-400">{completion.percent}% complete</span>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {completion.steps.map((s) => {
-                const Icon = STEP_ICON[s.key] ?? User;
-                return (
-                  <div key={s.key} className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${s.complete ? "bg-[#E1F5F0] text-[#0F8A78]" : "bg-slate-100 text-slate-400"}`}>
-                        <Icon size={14} />
-                      </div>
-                      <p className="flex-1 text-sm text-slate-700">{s.label}</p>
-                      {s.complete ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                          <Check size={12} /> Complete
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-300">{s.required ? "Required · pending" : "Not started"}</span>
-                      )}
-                    </div>
-
-                    {s.key === "personal-information" && (
-                      personalInfo ? (
-                        <div className="ml-11 mt-2.5 space-y-3">
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
-                            <Detail label="First name" value={personalInfo.firstName} />
-                            <Detail label="Last name" value={personalInfo.lastName} />
-                            <Detail label="Email" value={personalInfo.email} />
-                            <Detail label="Phone" value={personalInfo.phone} />
-                            <Detail label="Date of birth" value={personalInfo.dob} />
-                            <Detail label="Gender" value={personalInfo.gender} />
-                            <Detail label="Nationality" value={personalInfo.nationality} />
-                            <Detail label="Marital status" value={personalInfo.maritalStatus} />
-                            <Detail label="Place of birth" value={personalInfo.placeOfBirth} />
-                            <Detail label="Father's name" value={personalInfo.fatherName} />
-                            <Detail label="Mother's name" value={personalInfo.motherName} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
-                            <Detail label="Passport number" value={personalInfo.passportNumber} />
-                            <Detail label="Personal number" value={personalInfo.personalNumber} />
-                            <Detail label="Previous passport no." value={personalInfo.previousPassportNumber || "—"} />
-                            <Detail label="Issuing authority" value={personalInfo.issuingAuthority} />
-                            <Detail label="Issue date" value={personalInfo.issueDate} />
-                            <Detail label="Expiry date" value={personalInfo.passportExpiry} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
-                            <Detail label="Permanent address" value={personalInfo.permanentAddress} />
-                            <Detail label="Present address" value={personalInfo.presentAddress} />
-                            <Detail label="City" value={personalInfo.city} />
-                            <Detail label="Country" value={personalInfo.country} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
-                            <Detail label="Emergency contact" value={personalInfo.emergencyContactName} />
-                            <Detail label="Relationship" value={personalInfo.emergencyContactRelationship} />
-                            <Detail label="Contact phone" value={personalInfo.emergencyContactPhone} />
-                            <Detail label="Contact email" value={personalInfo.emergencyContactEmail || "—"} />
-                            <Detail label="Contact address" value={personalInfo.emergencyContactAddress} />
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="ml-11 mt-1.5 text-xs text-slate-400">Not yet submitted.</p>
-                      )
-                    )}
-
-                    {s.key === "academic-details" && (
-                      academicLevels.length > 0 ? (
-                        <div className="ml-11 mt-2.5 space-y-1.5">
-                          {academicLevels.map((lvl) => (
-                            <div key={lvl.level} className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
-                              <Detail label="Level" value={lvl.level} />
-                              <Detail label="Institution" value={lvl.institution} />
-                              <Detail label="Board" value={lvl.board || "—"} />
-                              <Detail label="Group" value={lvl.group || "—"} />
-                              <Detail label="Major" value={lvl.major || "—"} />
-                              <Detail label="Grade" value={lvl.grade || "—"} />
-                              <Detail label="Passing year" value={lvl.passingYear || "—"} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="ml-11 mt-1.5 text-xs text-slate-400">No education history recorded yet.</p>
-                      )
-                    )}
-
-                    {s.key === "english-proficiency" && (
-                      englishTests.length > 0 ? (
-                        <div className="ml-11 mt-2.5 space-y-1.5">
-                          {englishTests.map((t, i) => (
-                            <div key={`${t.testName}-${i}`} className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-4">
-                              <Detail label="Test" value={t.testName} />
-                              <Detail label="Test type" value={t.testType || "—"} />
-                              <Detail label="Overall score" value={t.overallScore} />
-                              <Detail label="Listening" value={t.listening || "—"} />
-                              <Detail label="Reading" value={t.reading || "—"} />
-                              <Detail label="Writing" value={t.writing || "—"} />
-                              <Detail label="Speaking" value={t.speaking || "—"} />
-                              <Detail label="Test date" value={t.testDate} />
-                              <Detail label="Expiry" value={t.expiryDate || "No expiry"} />
-                              <Detail label="Report number" value={t.reportNumber || "—"} />
-                              <Detail label="Issuing institution" value={t.issuingInstitution || "—"} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="ml-11 mt-1.5 text-xs text-slate-400">Not yet submitted.</p>
-                      )
-                    )}
-
-                    {s.key === "work-experience" && (
-                      workExperience.length > 0 ? (
-                        <div className="ml-11 mt-2.5 space-y-1.5">
-                          {workExperience.map((w, i) => (
-                            <div key={`${w.company}-${i}`} className="rounded-xl bg-slate-50 p-3 text-xs">
-                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
-                                <Detail label="Type" value={w.type} />
-                                <Detail label="Company" value={w.company} />
-                                <Detail label="Title" value={w.title} />
-                                <Detail label="Industry" value={w.industry} />
-                                <Detail label="Start date" value={w.startDate} />
-                                <Detail label="End date" value={w.currentlyWorking ? "Present" : w.endDate || "—"} />
-                              </div>
-                              {w.description && <p className="mt-2 text-slate-500">{w.description}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="ml-11 mt-1.5 text-xs text-slate-400">Not yet submitted.</p>
-                      )
-                    )}
-
-                    {s.key === "preferences" && (
-                      preferences ? (
-                        <div className="ml-11 mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-4">
-                          <Detail label="Study level" value={preferences.studyLevel} />
-                          <Detail label="Intake" value={preferences.intake} />
-                          <Detail label="Budget" value={preferences.budget} />
-                          <Detail label="Accommodation" value={preferences.accommodation} />
-                          <Detail label="Destinations" value={preferences.destinations.join(", ")} />
-                          <Detail label="Fields of interest" value={preferences.fields.join(", ")} />
-                          <Detail label="Scholarship interest" value={preferences.scholarshipInterest ? "Yes" : "No"} />
-                          <Detail label="Contact language" value={preferences.contactLanguage} />
-                          <Detail
-                            label="Notification channels"
-                            value={[
-                              preferences.emailUpdates && "Email",
-                              preferences.smsUpdates && "SMS",
-                              preferences.whatsappUpdates && "WhatsApp",
-                              preferences.pushUpdates && "Push",
-                            ].filter(Boolean).join(", ") || "None"}
-                          />
-                        </div>
-                      ) : (
-                        <p className="ml-11 mt-1.5 text-xs text-slate-400">Not yet submitted.</p>
-                      )
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="mt-4">
+            <ProfileStepsPanel studentId={student.id} />
           </div>
         </>
       )}
@@ -435,8 +254,7 @@ export default function StudentProfile() {
                           dueDate={loadDocDueDate(a.id, r.type)}
                           onSetDueDate={(date) => { setDocDueDate(a.id, r.type, date); forceTick((t) => t + 1); }}
                           onUpload={(file) => {
-                            const isImage = file.type.startsWith("image/");
-                            addUploadedDoc(a.id, r.type, isImage ? URL.createObjectURL(file) : undefined);
+                            addUploadedDoc(a.id, r.type, URL.createObjectURL(file));
                             forceTick((t) => t + 1);
                           }}
                           onRemoveRequest={
@@ -597,6 +415,13 @@ export default function StudentProfile() {
                               <div key={d.id} className="flex items-center gap-2 text-[12px]">
                                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                                 <span className="min-w-0 flex-1 truncate text-slate-700">{d.name}</span>
+                                {"previewUrl" in d && d.previewUrl && (
+                                  <DocViewButton
+                                    name={d.name}
+                                    previewUrl={d.previewUrl}
+                                    className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 hover:bg-slate-200"
+                                  />
+                                )}
                                 <span className="shrink-0 text-[11px] text-slate-400">{d.uploadedAt}</span>
                               </div>
                             ))}
@@ -659,128 +484,10 @@ export default function StudentProfile() {
   );
 }
 
-/** Read-only variant of the same own/reused/missing states the student's own Documents and
- * Application Detail pages use (DocChecklistRow), so a counsellor sees the identical picture. */
-function ChecklistCard({ row }: { row: ChecklistRow }) {
-  if (row.own) {
-    return (
-      <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
-          <FileText size={14} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className="truncate text-[11px] text-slate-400">{row.own.name}</p>
-        </div>
-        <span className="shrink-0 text-[11px] font-medium capitalize text-emerald-600">{row.own.status}</span>
-      </div>
-    );
-  }
-  if (row.reused) {
-    return (
-      <div className="flex items-center gap-3 rounded-xl border border-[#B9E2D4] bg-[#EAF9F2] p-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#12805A]/10 text-[#12805A]">
-          <Copy size={14} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className="truncate text-[11px] text-[#12805A]">Reused from {row.reused.sourceUniversity ?? "a previous application"}</p>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-        <AlertCircle size={14} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-        <p className="text-[11px] text-slate-400">Not uploaded yet</p>
-      </div>
-    </div>
-  );
-}
-
-/** Same own/reused states as ChecklistCard, but a "Missing" item gets a real upload control — a
- * counsellor can supply a required document on the student's behalf directly from here, using the
- * exact same store the student's own upload flow writes to. */
-function ApplicationChecklistCard({
-  row, onUpload, onRemoveRequest, dueDate, onSetDueDate,
-}: {
-  row: ChecklistRow; onUpload: (file: File) => void; onRemoveRequest?: () => void;
-  dueDate?: string; onSetDueDate: (date: string) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  if (row.own || row.reused) {
-    return <ChecklistCard row={row} />;
-  }
-
-  const tone = docDueTone(dueDate);
-  const dueClass = tone === "overdue" ? "text-rose-600" : tone === "soon" ? "text-amber-600" : "text-slate-500";
-
-  return (
-    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/40 p-3">
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-          <AlertCircle size={14} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className="text-[11px] text-slate-400">Required — not uploaded yet</p>
-        </div>
-        {onRemoveRequest && (
-          <button onClick={onRemoveRequest} aria-label={`Remove request for ${row.type}`} className="shrink-0 text-slate-300 hover:text-slate-500">
-            <X size={13} />
-          </button>
-        )}
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-[var(--sd-ink)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
-        >
-          <Upload size={11} /> Upload
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,.pdf"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-            e.target.value = "";
-          }}
-        />
-      </div>
-      <div className="mt-2 flex items-center gap-1.5 pl-11">
-        <CalendarDays size={11} className={dueClass} />
-        <label className={`text-[10.5px] font-medium ${dueClass}`}>
-          {tone === "overdue" ? "Overdue" : tone === "soon" ? "Due soon" : "Due"}
-        </label>
-        <input
-          type="date"
-          value={dueDate ?? ""}
-          onChange={(e) => onSetDueDate(e.target.value)}
-          className={`rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10.5px] ${dueClass}`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-0.5 font-medium text-slate-700">{value}</p>
-    </div>
-  );
-}
-
 function NewApplicationModal({
   student, onClose, onCreated,
 }: { student: Student; onClose: () => void; onCreated: () => void }) {
+  const UNIVERSITIES = getAllUniversities();
   const [country, setCountry] = useState(UNIVERSITIES[0]?.country ?? "");
   const universitiesInCountry = UNIVERSITIES.filter((u) => u.country === country);
   const [universityId, setUniversityId] = useState(universitiesInCountry[0]?.id ?? "");
@@ -812,7 +519,7 @@ function NewApplicationModal({
             }}
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
           >
-            {DESTINATION_OPTIONS.map((d) => (
+            {destinationOptions().map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>

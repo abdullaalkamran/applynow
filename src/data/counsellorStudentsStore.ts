@@ -20,9 +20,15 @@ function persist(list: Student[]) {
   window.localStorage.setItem(KEY, JSON.stringify(list));
 }
 
-/** All students assigned to the demo counsellor — the seeded set plus any added this session. */
+/** All students the demo counsellor should see — those directly assigned to them, plus any
+ * agent-referred student who hasn't been claimed by a counsellor yet (so referral leads and
+ * applications from an agent partner are visible to work, not stuck waiting on an assignment
+ * step this demo doesn't model) — plus anyone added this session. */
 export function loadAssignedStudents(): Student[] {
-  return [...STUDENTS.filter((s) => s.counsellorId === COUNSELLOR_ID), ...loadCreated()];
+  return [
+    ...STUDENTS.filter((s) => s.counsellorId === COUNSELLOR_ID || (!s.counsellorId && !!s.agentId)),
+    ...loadCreated(),
+  ];
 }
 
 export function addStudent(name: string, email: string, country: string): Student {

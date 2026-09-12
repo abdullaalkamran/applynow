@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -264,6 +264,68 @@ export function SearchableSelect({
               </button>
             ))
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A compact "label: value" filter button that opens a small popover of options with counts —
+ * for filters with more options than comfortably fit as a row of pills (country, source, etc.). */
+export function FilterMenu({
+  label, icon, value, onChange, options, counts,
+}: {
+  label: string; icon?: ReactNode; value: string; onChange: (v: string) => void; options: string[]; counts: Record<string, number>;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isFiltered = value !== "All";
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+          isFiltered
+            ? "border-[var(--sd-ink)]/30 bg-[var(--sd-ink)]/[0.06] text-[var(--sd-ink)]"
+            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+        }`}
+      >
+        {icon}
+        <span className="text-slate-400">{label}</span>
+        <span className="font-semibold">{value}</span>
+        {isFiltered && (
+          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--sd-ink)]/10 px-1 text-[10px] font-semibold">
+            {counts[value] ?? 0}
+          </span>
+        )}
+        <ChevronDown size={12} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 z-20 mt-1.5 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          {options.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => { onChange(o); setOpen(false); }}
+              className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-slate-50 ${
+                o === value ? "font-semibold text-[var(--sd-ink)]" : "text-slate-700"
+              }`}
+            >
+              {o}
+              <span className="text-[10px] text-slate-400">{counts[o] ?? 0}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>

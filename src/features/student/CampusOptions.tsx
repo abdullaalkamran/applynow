@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { BookOpen, Wallet, CalendarDays, GraduationCap, ChevronRight } from "lucide-react";
 import { MobileHeader, SkylineArt } from "../../components/ui/mobile";
-import { UNIVERSITIES } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipAmountUSD, campusesFor } from "../../utils/universityFilter";
 
 export default function CampusOptions() {
@@ -9,6 +9,7 @@ export default function CampusOptions() {
   const navigate = useNavigate();
   const location = useLocation();
   const courseName = (location.state as { courseName?: string } | null)?.courseName;
+  const UNIVERSITIES = getAllUniversities();
   const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
   const course = university.courses.find((c) => c.name === courseName) ?? university.courses[0];
   const campuses = campusesFor(university, course.feeUSD);

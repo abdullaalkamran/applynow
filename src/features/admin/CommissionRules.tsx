@@ -1,25 +1,92 @@
-import { Card, CardBody, CardHeader, PageHeader, Button, Badge } from "../../components/ui";
-
-const RULES = [
-  { name: "UK Postgraduate — Standard", type: "Percentage", value: "15% of tuition (yr 1)", scope: "All UK universities unless overridden" },
-  { name: "Australia — Tiered", type: "Tiered", value: "12% (0-20 students) / 15% (21+)", scope: "Per agent agreement" },
-  { name: "Referral Bonus", type: "Fixed", value: "$150 per successful referral", scope: "Student & agent referral program" },
-];
+import { useState } from "react";
+import { Card, CardHeader, CardBody, PageHeader, Badge, Button } from "../../components/ui";
+import { AGENTS } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
+import { getCommissionRate, setCommissionRate } from "../../data/commissionRatesStore";
+import { loadAllInvoices, markInvoicePaid } from "../../data/agentInvoicesStore";
 
 export default function AdminCommissionRules() {
+  const [, forceTick] = useState(0);
+  const UNIVERSITIES = getAllUniversities();
+  const invoices = [...loadAllInvoices(AGENTS.map((a) => a.id))].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
   return (
     <div>
-      <PageHeader title="Commission Rules" subtitle="A rules engine, never a hard-coded percentage." action={<Button>+ New rule</Button>} />
+      <PageHeader
+        title="Commission Rules"
+        subtitle="Set the commission rate each university pays on tuition, plus any platform-sponsored bonus — agents see these live on their Finance page."
+      />
+
+      <div className="mb-8 space-y-3">
+        {UNIVERSITIES.map((u) => {
+          const rate = getCommissionRate(u.id);
+          return (
+            <Card key={u.id}>
+              <CardHeader
+                title={u.name}
+                subtitle={`${u.city}, ${u.country}`}
+                action={<Badge tone="blue">{rate.ratePercent + rate.bonusPercent}% effective</Badge>}
+              />
+              <CardBody>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <label className="block text-xs font-medium text-slate-500">
+                    Base rate (% of tuition)
+                    <input
+                      type="number" min={0} max={100} value={rate.ratePercent}
+                      onChange={(e) => { setCommissionRate(u.id, { ...rate, ratePercent: Number(e.target.value) || 0 }); forceTick((t) => t + 1); }}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-500">
+                    Bonus (% extra)
+                    <input
+                      type="number" min={0} max={100} value={rate.bonusPercent}
+                      onChange={(e) => { setCommissionRate(u.id, { ...rate, bonusPercent: Number(e.target.value) || 0 }); forceTick((t) => t + 1); }}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-500">
+                    Bonus campaign label
+                    <input
+                      type="text" value={rate.bonusLabel} placeholder="e.g. Spring Intake Push"
+                      onChange={(e) => { setCommissionRate(u.id, { ...rate, bonusLabel: e.target.value }); forceTick((t) => t + 1); }}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                    />
+                  </label>
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
+      </div>
+
+      <PageHeader title="Agent Invoices" subtitle="Invoices agents have generated from confirmed enrolments, across all agents." />
       <div className="space-y-3">
-        {RULES.map((r) => (
-          <Card key={r.name}>
-            <CardHeader title={r.name} action={<Badge tone="blue">{r.type}</Badge>} />
-            <CardBody className="text-sm text-slate-600">
-              <p><span className="text-slate-400">Value: </span>{r.value}</p>
-              <p className="mt-1"><span className="text-slate-400">Scope: </span>{r.scope}</p>
-            </CardBody>
-          </Card>
-        ))}
+        {invoices.map((inv) => {
+          const agent = AGENTS.find((a) => a.id === inv.agentId);
+          return (
+            <Card key={inv.id}>
+              <CardBody className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-slate-800">{inv.id}</p>
+                  <p className="text-sm text-slate-500">{agent?.name ?? inv.agentId} · {agent?.organization} · {inv.createdAt} · {inv.lines.length} line{inv.lines.length === 1 ? "" : "s"}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-slate-900">${inv.totalAmount.toLocaleString()}</span>
+                  <Badge tone={inv.status === "Paid" ? "green" : "amber"}>{inv.status}</Badge>
+                  {inv.status === "Issued" && (
+                    <Button onClick={() => { markInvoicePaid(inv.agentId, inv.id); forceTick((t) => t + 1); }}>Mark Paid</Button>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
+        {invoices.length === 0 && (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+            No invoices have been generated by any agent yet.
+          </p>
+        )}
       </div>
     </div>
   );

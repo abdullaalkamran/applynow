@@ -126,7 +126,7 @@ export function studentDocumentVault(studentId: string, excludeApplicationId?: s
 
 export interface ChecklistRow {
   type: string;
-  own?: { name: string; status: string };
+  own?: { name: string; status: string; previewUrl?: string };
   reused?: ChecklistDoc;
 }
 
@@ -139,7 +139,7 @@ export function buildChecklist(
   university: University,
   studentId: string,
   applicationId: string,
-  ownDocs: { name: string; status: string }[]
+  ownDocs: { name: string; status: string; previewUrl?: string }[]
 ): ChecklistRow[] {
   const vault = studentDocumentVault(studentId, applicationId);
   const customTypes = loadCustomDocRequests(applicationId).map((r) => r.type);
@@ -160,7 +160,7 @@ export function buildCoreChecklist(studentId: string): ChecklistRow[] {
     .filter((a) => a.studentId === studentId)
     .flatMap((a) => loadUploadedDocs(a.id));
   const core = loadCoreDocs();
-  const allOwn: { name: string; status: string }[] = [...core, ...legacyDocs, ...perApplicationUploads];
+  const allOwn: { name: string; status: string; previewUrl?: string }[] = [...core, ...legacyDocs, ...perApplicationUploads];
 
   return coreDocTypes(studentId).map((type) => ({ type, own: allOwn.find((d) => docMatchesType(d.name, type)) }));
 }

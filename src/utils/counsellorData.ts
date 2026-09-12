@@ -68,3 +68,12 @@ export function pipelineBucketFor(status: AppStatus): PipelineBucket | null {
 }
 
 export const VISA_BUCKET_STATUSES = VISA_STATUSES;
+
+/** "today" / "yesterday" / "N days ago" relative to now — used anywhere a counsellor-facing page
+ * shows when something last changed. */
+export function daysAgo(dateStr: string): string {
+  const days = Math.max(0, Math.round((Date.now() - new Date(dateStr).getTime()) / 86_400_000));
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}

@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, UserPlus, ArrowUpRight } from "lucide-react";
-import { ProgressBar } from "../../../components/ui";
+import { Search, UserPlus, ArrowUpRight, Briefcase, ChevronDown, ChevronUp } from "lucide-react";
+import { ProgressBar, Badge } from "../../../components/ui";
+import { ProfileStepsPanel } from "../../../components/ProfileStepsPanel";
 import { loadLeads, loadLeadFollowUpStatus, setLeadFollowUpStatus } from "../../../data/leadsStore";
 import { getProfileCompletion } from "../../../data/profileCompletion";
 import { loadPreferences } from "../../../data/studentProfileDetailsStore";
 import { formatStudentId } from "../../../utils/displayId";
+import { AGENTS } from "../../../data/mockData";
 import type { LeadFollowUpStatus } from "../../../types";
 
 const STATUS_TABS: (LeadFollowUpStatus | "All")[] = ["All", "New", "Contacted", "Nurturing", "Not Interested"];
@@ -15,6 +17,7 @@ export default function Leads() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<(typeof STATUS_TABS)[number]>("All");
   const [query, setQuery] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [, forceTick] = useState(0);
 
   const leads = loadLeads().map((student) => ({
@@ -22,9 +25,10 @@ export default function Leads() {
     status: loadLeadFollowUpStatus(student.id),
     completion: getProfileCompletion(student.id),
     preferences: loadPreferences(student.id),
+    agent: student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined,
   }));
 
-  const filtered = leads.filter(({ student, status }) => {
+  const filtered = leads.filter(({ student, status, agent }) => {
     if (tab !== "All" && status !== tab) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -32,7 +36,8 @@ export default function Leads() {
       student.name.toLowerCase().includes(q) ||
       student.email.toLowerCase().includes(q) ||
       student.country.toLowerCase().includes(q) ||
-      formatStudentId(student.id).toLowerCase().includes(q)
+      formatStudentId(student.id).toLowerCase().includes(q) ||
+      (agent?.name.toLowerCase().includes(q) ?? false)
     );
   });
 
@@ -72,7 +77,7 @@ export default function Leads() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name, email, country, or ID…"
+          placeholder="Search name, email, country, agent, or ID…"
           className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
         />
       </div>
@@ -84,6 +89,7 @@ export default function Leads() {
               <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
                 <th className="px-5 py-3 font-medium">Student ID</th>
                 <th className="px-5 py-3 font-medium">Name</th>
+                <th className="px-5 py-3 font-medium">Source</th>
                 <th className="px-5 py-3 font-medium">Interested in</th>
                 <th className="px-5 py-3 font-medium">Profile completion</th>
                 <th className="px-5 py-3 font-medium">Follow-up status</th>
@@ -91,70 +97,95 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(({ student, status, completion, preferences }) => (
-                <tr
-                  key={student.id}
-                  onClick={() => navigate(`/staff/counsellor/students/${student.id}`)}
-                  className="cursor-pointer hover:bg-slate-50"
-                >
-                  <td className="px-5 py-3">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-slate-500">
-                      {formatStudentId(student.id)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-slate-800">{student.name}</p>
-                    <p className="text-xs text-slate-400">{student.email} · {student.country}</p>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {preferences && (preferences.fields.length > 0 || preferences.destinations.length > 0) ? (
-                      <>
-                        {preferences.fields.join(", ") || "Any subject"}
-                        {preferences.destinations.length > 0 && ` — ${preferences.destinations.join(", ")}`}
-                      </>
-                    ) : (
-                      <span className="text-slate-300">Not set yet</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3" style={{ minWidth: 140 }}>
-                    <div className="flex items-center gap-2">
-                      <ProgressBar value={completion.percent} size="sm" />
-                      <span className="shrink-0 text-[11px] text-slate-400">{completion.percent}%</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <select
-                      value={status}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700"
+              {filtered.map(({ student, status, completion, preferences, agent }) => {
+                const expanded = expandedId === student.id;
+                return (
+                  <Fragment key={student.id}>
+                    <tr
+                      onClick={() => setExpandedId(expanded ? null : student.id)}
+                      className={`cursor-pointer ${expanded ? "bg-slate-50" : "hover:bg-slate-50"}`}
                     >
-                      {EDITABLE_STATUSES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex flex-col items-start gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/staff/counsellor/students/${student.id}`); }}
-                        className="flex items-center gap-1 text-xs font-medium text-[#2955C4]"
-                      >
-                        View profile <ArrowUpRight size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/staff/counsellor/students/${student.id}`, { state: { tab: "Applications" } });
-                        }}
-                        className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                      >
-                        Start application <ArrowUpRight size={12} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      <td className="px-5 py-3">
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-slate-500">
+                          {formatStudentId(student.id)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {expanded ? <ChevronUp size={14} className="shrink-0 text-slate-400" /> : <ChevronDown size={14} className="shrink-0 text-slate-400" />}
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-800">{student.name}</p>
+                            <p className="text-xs text-slate-400">{student.email} · {student.country}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        {agent ? (
+                          <Badge tone="violet">
+                            <Briefcase size={11} /> {agent.name}
+                          </Badge>
+                        ) : (
+                          <Badge tone="neutral">Direct</Badge>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-slate-600">
+                        {preferences && (preferences.fields.length > 0 || preferences.destinations.length > 0) ? (
+                          <>
+                            {preferences.fields.join(", ") || "Any subject"}
+                            {preferences.destinations.length > 0 && ` — ${preferences.destinations.join(", ")}`}
+                          </>
+                        ) : (
+                          <span className="text-slate-300">Not set yet</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3" style={{ minWidth: 140 }}>
+                        <div className="flex items-center gap-2">
+                          <ProgressBar value={completion.percent} size="sm" />
+                          <span className="shrink-0 text-[11px] text-slate-400">{completion.percent}%</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <select
+                          value={status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700"
+                        >
+                          {EDITABLE_STATUSES.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/staff/counsellor/students/${student.id}`); }}
+                            className="flex items-center gap-1 text-xs font-medium text-[#2955C4]"
+                          >
+                            Full profile <ArrowUpRight size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/staff/counsellor/students/${student.id}`, { state: { tab: "Applications" } });
+                            }}
+                            className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                          >
+                            Start application <ArrowUpRight size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr>
+                        <td colSpan={7} className="border-t-0 bg-slate-50/60 px-5 py-4">
+                          <ProfileStepsPanel studentId={student.id} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

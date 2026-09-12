@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, ArrowUpRight } from "lucide-react";
 import { LogoBadge, PillSelect } from "../../components/ui/mobile";
-import { UNIVERSITIES } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { matchingCourse, scholarshipAmountUSD, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted as isProgramShortlisted, toggleShortlisted } from "../../data/shortlistStore";
@@ -27,9 +27,9 @@ export default function SubjectDetail() {
 
   const allOfferings = useMemo(
     () =>
-      UNIVERSITIES.filter((u) => u.subjects.includes(subject))
+      getAllUniversities().filter((u) => u.subjects.includes(subject))
         .map((u) => ({ university: u, course: matchingCourse(u, subject) }))
-        .filter((o): o is { university: (typeof UNIVERSITIES)[number]; course: NonNullable<typeof o.course> } => !!o.course),
+        .filter((o): o is { university: University; course: NonNullable<typeof o.course> } => !!o.course),
     [subject]
   );
 

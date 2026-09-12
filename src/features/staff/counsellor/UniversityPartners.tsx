@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Search, GraduationCap, Award } from "lucide-react";
 import { LogoBadge } from "../../../components/ui/mobile";
-import { UNIVERSITIES } from "../../../data/mockData";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 
 export default function CounsellorUniversityPartners() {
   const [query, setQuery] = useState("");
+  const UNIVERSITIES = getAllUniversities();
   const assigned = loadAssignedStudents();
   const allActiveApps = assigned.flatMap((s) => activeApplicationsFor(s.id));
 

@@ -169,17 +169,37 @@ export interface University {
   studentCount: string;
   description: string;
   highlights: string[];
-  courses: { name: string; level: string; duration: string; subject: string; feeUSD: number }[];
+  courses: { id: string; name: string; level: string; duration: string; subject: string; feeUSD: number }[];
+  // Real per-campus data, where the university has told us about more than one — falls back to a
+  // synthetic "Main Campus" + one generated variant (see campusesFor) when this is absent, so
+  // seeded universities that predate this field still show something on the Campus Options page.
+  campuses?: { id: string; name: string; city: string; feeUSD?: number }[];
   requirements: string[];
   fees: { label: string; amount: number }[];
   currencySymbol: string;
   minIELTS: number;
   minGPA: number;
+  // Every English test the university accepts, each with its own minimum overall score/band —
+  // distinct from `minIELTS`, which stays the single figure existing search filtering compares
+  // against. `minBand` is a single "no section below X" floor applied to every skill; `skillScores`
+  // lets a data manager instead (or additionally) set a distinct minimum per named skill, e.g.
+  // Speaking 7.0 while Listening/Reading/Writing stay at 6.5 — both are optional since not every
+  // test publishes per-section floors, and not every university requires them.
+  englishRequirements?: {
+    testName: string;
+    minScore: string;
+    minBand?: string;
+    skillScores?: { skill: string; score: string }[];
+  }[];
   accreditations: string[];
   scholarshipsAvailable: boolean;
   // The intake currently open for applications, e.g. "September 2026" — distinct from `intakes`,
   // which lists every intake session the university runs each year.
   openIntake: string;
+  // Per-month open/closed status for every month in `intakes` — lets a university mark more than
+  // one intake open at once even though `openIntake` (above) only ever displays the first for
+  // backward compatibility with pages that show a single "currently open" value.
+  intakeStatus?: Record<string, boolean>;
   // Official public domain, e.g. "manchester.ac.uk" — no scheme/path.
   website: string;
   tone: "violet" | "amber" | "teal" | "rose";

@@ -4,8 +4,8 @@ import { Globe2, GraduationCap, Wallet } from "lucide-react";
 import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, SuggestInput, inputClass } from "../../components/ui/mobile";
 import { COUNTRIES } from "../../data/countries";
 import {
-  DESTINATION_OPTIONS, DURATION_OPTIONS, LEVEL_OPTIONS, SUBJECT_OPTIONS, COURSE_OPTIONS,
-  UNIVERSITY_OPTIONS, TEST_NAME_OPTIONS, INTAKE_OPTIONS,
+  destinationOptions, durationOptions, levelOptions, subjectOptions, courseOptions,
+  universityOptions, TEST_NAME_OPTIONS, intakeOptions,
   FEE_MIN_USD, FEE_MAX_USD, FEE_STEP_USD, citiesForDestination,
   emptyFilters, type UniversityFilterState,
 } from "../../utils/universityFilter";
@@ -67,7 +67,7 @@ export default function UniversityFilters() {
                   className={inputClass}
                 >
                   <option value="">Any</option>
-                  {DESTINATION_OPTIONS.map((d) => (
+                  {destinationOptions().map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
@@ -89,7 +89,7 @@ export default function UniversityFilters() {
             <SuggestInput
               value={filters.universityQuery}
               onChange={(v) => update("universityQuery", v)}
-              options={UNIVERSITY_OPTIONS}
+              options={universityOptions()}
               placeholder="Start typing a university name"
             />
 
@@ -97,7 +97,7 @@ export default function UniversityFilters() {
             <SuggestInput
               value={filters.courseQuery}
               onChange={(v) => update("courseQuery", v)}
-              options={COURSE_OPTIONS}
+              options={courseOptions()}
               placeholder="e.g. Data Science, MBA, Architecture"
             />
 
@@ -106,7 +106,7 @@ export default function UniversityFilters() {
                 <SubLabel>Duration</SubLabel>
                 <select value={filters.duration} onChange={(e) => update("duration", e.target.value)} className={inputClass}>
                   <option value="">Any</option>
-                  {DURATION_OPTIONS.map((d) => (
+                  {durationOptions().map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
@@ -115,7 +115,7 @@ export default function UniversityFilters() {
                 <SubLabel>Level</SubLabel>
                 <select value={filters.level} onChange={(e) => update("level", e.target.value)} className={inputClass}>
                   <option value="">Any</option>
-                  {LEVEL_OPTIONS.map((l) => (
+                  {levelOptions().map((l) => (
                     <option key={l} value={l}>{l}</option>
                   ))}
                 </select>
@@ -126,14 +126,14 @@ export default function UniversityFilters() {
             <SuggestInput
               value={filters.subjectQuery}
               onChange={(v) => update("subjectQuery", v)}
-              options={SUBJECT_OPTIONS}
+              options={subjectOptions()}
               placeholder="e.g. Engineering, Law, Data Science"
             />
 
             <div className="mt-3.5">
               <DropdownChips
                 label="Intake"
-                options={INTAKE_OPTIONS}
+                options={intakeOptions()}
                 selected={filters.intakes}
                 onToggle={(v) => toggleSetValue("intakes", v)}
                 open={intakeOpen}

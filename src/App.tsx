@@ -3,6 +3,7 @@ import { RoleProvider } from "./context/RoleContext";
 import AppLayout from "./layouts/AppLayout";
 import StudentShell from "./layouts/StudentShell";
 import CounsellorShell from "./layouts/CounsellorShell";
+import AgentShell from "./layouts/AgentShell";
 
 import StudentOnboarding from "./features/student/Onboarding";
 import StudentDashboard from "./features/student/Dashboard";
@@ -27,7 +28,15 @@ import Preferences from "./features/student/Preferences";
 
 import AgentDashboard from "./features/agent/Dashboard";
 import AgentStudents from "./features/agent/Students";
+import AgentStudentProfile from "./features/agent/StudentProfile";
+import AgentCreateStudentProfile from "./features/agent/CreateStudentProfile";
 import AgentApplications from "./features/agent/Applications";
+import AgentUniversities from "./features/agent/Universities";
+import AgentUniversityDetail from "./features/agent/UniversityDetail";
+import AgentCampusOptions from "./features/agent/CampusOptions";
+import AgentSubjectDetail from "./features/agent/SubjectDetail";
+import AgentOffers from "./features/agent/Offers";
+import AgentVisaCompliance from "./features/agent/VisaCompliance";
 import AgentCommissions from "./features/agent/Commissions";
 import AgentStatements from "./features/agent/Statements";
 
@@ -47,6 +56,11 @@ import CounsellorSettings from "./features/staff/counsellor/Settings";
 import AdmissionSubmissionQueue from "./features/staff/admission/SubmissionQueue";
 import ComplianceRiskQueue from "./features/staff/compliance/RiskQueue";
 import DataCatalog from "./features/staff/data/Catalog";
+import DataCountries from "./features/staff/data/Countries";
+import DataUniversities from "./features/staff/data/Universities";
+import DataUniversityDetail from "./features/staff/data/UniversityDetail";
+import DataUniversityForm from "./features/staff/data/UniversityForm";
+import DataCourseForm from "./features/staff/data/CourseForm";
 import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
 
 import AdminUsersRoles from "./features/admin/UsersRoles";
@@ -101,20 +115,38 @@ export default function App() {
             <Route path="/staff/counsellor/settings" element={<CounsellorSettings />} />
           </Route>
 
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/student/onboarding" replace />} />
-
-            {/* Agent */}
+          {/* Agent — dedicated EduBridge-branded shell, separate from the shared staff/admin shell */}
+          <Route element={<AgentShell />}>
             <Route path="/agent" element={<AgentDashboard />} />
             <Route path="/agent/students" element={<AgentStudents />} />
+            <Route path="/agent/students/new" element={<AgentCreateStudentProfile />} />
+            <Route path="/agent/students/:id" element={<AgentStudentProfile />} />
             <Route path="/agent/applications" element={<AgentApplications />} />
+            <Route path="/agent/universities" element={<AgentUniversities />} />
+            <Route path="/agent/universities/:id" element={<AgentUniversityDetail />} />
+            <Route path="/agent/universities/:id/campuses" element={<AgentCampusOptions />} />
+            <Route path="/agent/subjects/:subject" element={<AgentSubjectDetail />} />
+            <Route path="/agent/offers" element={<AgentOffers />} />
+            <Route path="/agent/visa-compliance" element={<AgentVisaCompliance />} />
             <Route path="/agent/commissions" element={<AgentCommissions />} />
             <Route path="/agent/statements" element={<AgentStatements />} />
+          </Route>
+
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<Navigate to="/student/onboarding" replace />} />
 
             {/* Staff */}
             <Route path="/staff/admission" element={<AdmissionSubmissionQueue />} />
             <Route path="/staff/compliance" element={<ComplianceRiskQueue />} />
-            <Route path="/staff/data" element={<DataCatalog />} />
+            <Route path="/staff/data" element={<DataCountries />} />
+            <Route path="/staff/data/countries/:country" element={<DataUniversities />} />
+            <Route path="/staff/data/universities" element={<DataUniversities />} />
+            <Route path="/staff/data/universities/new" element={<DataUniversityForm />} />
+            <Route path="/staff/data/universities/:id" element={<DataUniversityDetail />} />
+            <Route path="/staff/data/universities/:id/edit" element={<DataUniversityForm />} />
+            <Route path="/staff/data/universities/:id/courses/new" element={<DataCourseForm />} />
+            <Route path="/staff/data/universities/:id/courses/:courseId" element={<DataCourseForm />} />
+            <Route path="/staff/data/catalog" element={<DataCatalog />} />
             <Route path="/staff/finance" element={<FinanceCommissionApprovals />} />
 
             {/* Admin */}

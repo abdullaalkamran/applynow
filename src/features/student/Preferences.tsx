@@ -4,14 +4,13 @@ import { MobileHeader, Toggle, Chip, Section, SubLabel, ChipRow } from "../../co
 import { COUNTRIES } from "../../data/countries";
 import { markStepComplete } from "../../data/profileCompletion";
 import { savePreferences } from "../../data/studentProfileDetailsStore";
-import { FIELDS_OF_STUDY } from "../../data/fields";
+import { getAllSubjects } from "../../data/subjectsStore";
 
 const STUDY_LEVELS = ["Bachelor's", "Master's", "PhD", "Diploma"];
 const INTAKES = ["January", "May", "September", "Any"];
 const BUDGETS = ["Under £20k", "£20k – £30k", "£30k – £40k", "£40k+"];
 const ACCOMMODATIONS = ["University Halls", "Private Rental", "Homestay", "No preference"];
 const LANGUAGES = ["English", "Bengali"];
-const FIELDS = [...FIELDS_OF_STUDY, "Other"];
 
 const DESTINATION_CODES = ["GB", "US", "CA", "AU", "IE", "DE", "AE"];
 const DESTINATIONS = DESTINATION_CODES
@@ -22,6 +21,7 @@ const DEFAULT_DESTINATIONS = new Set(["GB", "AU", "CA"]);
 const DEFAULT_FIELDS = new Set(["Data Science & AI", "Computer Science & IT"]);
 
 export default function Preferences() {
+  const FIELDS = [...getAllSubjects(), "Other"];
   const [destinations, setDestinations] = useState<Set<string>>(new Set(DEFAULT_DESTINATIONS));
   const [studyLevel, setStudyLevel] = useState("Master's");
   const [fields, setFields] = useState<Set<string>>(new Set(DEFAULT_FIELDS));

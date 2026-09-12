@@ -5,7 +5,7 @@ import {
   Clock, Users, ChevronRight, ArrowUpRight, ExternalLink,
 } from "lucide-react";
 import { SkylineArt, Pill } from "../../components/ui/mobile";
-import { UNIVERSITIES } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { curriculumFor } from "../../data/subjectCurriculum";
 import { ApplyModal } from "./ApplyModal";
@@ -22,6 +22,7 @@ export default function UniversityDetail() {
   const location = useLocation();
   const navState = location.state as { selectedCourseName?: string; subject?: string } | null;
   const originSubject = navState?.subject;
+  const UNIVERSITIES = getAllUniversities();
   const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
 
   // No course selected on entry (reached via the Universities tab) → show the university's overall

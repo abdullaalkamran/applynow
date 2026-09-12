@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Search, Bell, ChevronDown, Gem, Lightbulb, ArrowRight, X,
+  Search, Bell, ChevronDown, Gem, Lightbulb, ArrowRight, X, Menu,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { ROLES, COUNSELLORS } from "../data/mockData";
@@ -34,6 +34,7 @@ export default function CounsellorShell() {
   const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -86,6 +87,42 @@ export default function CounsellorShell() {
     navigate(ROLE_HOME[next]);
   }
 
+  function renderNavList(onNavigate?: () => void) {
+    return (
+      <nav className="flex-1 space-y-0.5 px-3">
+        {navItems.map((item) =>
+          item.path ? (
+            <NavLink
+              key={item.label}
+              to={item.path}
+              end
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition ${
+                  isActive ? "bg-white text-[#0d1a33]" : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
+              <item.icon size={16} />
+              <span className="flex-1 truncate">{item.label}</span>
+              {!!item.badge && (
+                <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                  {item.badge}
+                </span>
+              )}
+            </NavLink>
+          ) : (
+            <div key={item.label} className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-white/30">
+              <item.icon size={16} />
+              <span className="flex-1 truncate">{item.label}</span>
+              <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/40">Soon</span>
+            </div>
+          )
+        )}
+      </nav>
+    );
+  }
+
   return (
     <div className="flex min-h-screen min-w-0 bg-[#f5f7fb]">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-[#0d1a33] md:flex">
@@ -99,36 +136,7 @@ export default function CounsellorShell() {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5 px-3">
-          {navItems.map((item) =>
-            item.path ? (
-              <NavLink
-                key={item.label}
-                to={item.path}
-                end
-                className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition ${
-                    isActive ? "bg-white text-[#0d1a33]" : "text-white/70 hover:bg-white/10 hover:text-white"
-                  }`
-                }
-              >
-                <item.icon size={16} />
-                <span className="flex-1 truncate">{item.label}</span>
-                {!!item.badge && (
-                  <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
-            ) : (
-              <div key={item.label} className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-white/30">
-                <item.icon size={16} />
-                <span className="flex-1 truncate">{item.label}</span>
-                <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/40">Soon</span>
-              </div>
-            )
-          )}
-        </nav>
+        {renderNavList()}
 
         <div className="m-3 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white">
@@ -144,8 +152,44 @@ export default function CounsellorShell() {
         </div>
       </aside>
 
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          <div onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-black/40" />
+          <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-[#0d1a33] pb-4">
+            <div className="flex items-center justify-between gap-2.5 px-5 py-5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-white">
+                  <Gem size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold leading-tight text-white">ApplyHub</p>
+                  <p className="text-[11px] leading-tight text-white/50">Guide. Apply. Grow.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                aria-label="Close menu"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {renderNavList(() => setMobileNavOpen(false))}
+          </aside>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="relative flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3.5">
+        <header className="relative flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open menu"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
+          >
+            <Menu size={19} />
+          </button>
+
           <div className="relative min-w-0 flex-1 max-w-xl">
             <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
               <Search size={15} className="shrink-0 text-slate-400" />

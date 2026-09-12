@@ -1,22 +1,43 @@
-import { UNIVERSITIES } from "../data/mockData";
-import { FIELDS_OF_STUDY } from "../data/fields";
+import { getAllUniversities } from "../data/universityCatalogStore";
+import { getAllSubjects } from "../data/subjectsStore";
 import { countryByIso2 } from "../data/countries";
 import type { University } from "../types";
 
-export const DESTINATION_OPTIONS = Array.from(new Set(UNIVERSITIES.map((u) => u.country)));
-export const CITY_OPTIONS = Array.from(new Set(UNIVERSITIES.map((u) => u.city))).sort();
-export const UNIVERSITY_OPTIONS = UNIVERSITIES.map((u) => u.name);
-export const COURSE_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.courses.map((c) => c.name)))).sort();
-export const DURATION_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.courses.map((c) => c.duration)))).sort(
-  (a, b) => parseFloat(a) - parseFloat(b)
-);
-export const LEVEL_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.courses.map((c) => c.level))));
-export const SUBJECT_OPTIONS = FIELDS_OF_STUDY;
+// These were once module-load-time constants derived from a static array. They're now functions
+// so a university or course added through Data Management shows up immediately — a plain const
+// computed once at import time would never see it without a full page reload.
+export function destinationOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().map((u) => u.country)));
+}
+export function cityOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().map((u) => u.city))).sort();
+}
+export function universityOptions(): string[] {
+  return getAllUniversities().map((u) => u.name);
+}
+export function courseOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.name)))).sort();
+}
+export function durationOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.duration)))).sort(
+    (a, b) => parseFloat(a) - parseFloat(b)
+  );
+}
+export function levelOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.level))));
+}
+export function subjectOptions(): string[] {
+  return getAllSubjects();
+}
 const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-export const INTAKE_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.intakes))).sort(
-  (a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b)
-);
-export const ACCREDITATION_OPTIONS = Array.from(new Set(UNIVERSITIES.flatMap((u) => u.accreditations))).sort();
+export function intakeOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.intakes))).sort(
+    (a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b)
+  );
+}
+export function accreditationOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.accreditations))).sort();
+}
 
 export const FEE_MIN_USD = 0;
 export const FEE_MAX_USD = 100000;
@@ -35,16 +56,35 @@ export interface ProgramOffering {
 
 // Every course at every university, flattened into one list — the raw data behind the "all
 // programs" list on Explore's Subjects view and the per-subject listing page.
-export const ALL_PROGRAMS: ProgramOffering[] = UNIVERSITIES.flatMap((u) => u.courses.map((course) => ({ university: u, course })));
+export function allPrograms(): ProgramOffering[] {
+  return getAllUniversities().flatMap((u) => u.courses.map((course) => ({ university: u, course })));
+}
 
 // English test name options and their raw score scales, used to convert whatever test/score
 // the student enters into an IELTS-equivalent for comparison against each university's minIELTS.
-export const TEST_NAME_OPTIONS = ["IELTS", "TOEFL iBT", "PTE Academic", "Duolingo English Test", "Other"] as const;
+export const TEST_NAME_OPTIONS = [
+  "IELTS",
+  "TOEFL iBT",
+  "TOEFL Essentials",
+  "PTE Academic",
+  "Duolingo English Test",
+  "Cambridge C1 Advanced (CAE)",
+  "Cambridge C2 Proficiency (CPE)",
+  "Oxford ELLT",
+  "LanguageCert Academic",
+  "MOI (Medium of Instruction)",
+  "Other",
+] as const;
 const TEST_SCALES: Record<string, { min: number; max: number }> = {
   "IELTS": { min: 0, max: 9 },
   "TOEFL iBT": { min: 0, max: 120 },
+  "TOEFL Essentials": { min: 1, max: 12 },
   "PTE Academic": { min: 10, max: 90 },
   "Duolingo English Test": { min: 10, max: 160 },
+  "Cambridge C1 Advanced (CAE)": { min: 142, max: 210 },
+  "Cambridge C2 Proficiency (CPE)": { min: 162, max: 230 },
+  "Oxford ELLT": { min: 1, max: 9 },
+  "LanguageCert Academic": { min: 0, max: 9 },
   "Other": { min: 0, max: 9 },
 };
 
@@ -98,10 +138,14 @@ export interface Campus {
   feeUSD: number;
 }
 
-// Real per-campus fee data isn't in the model — these are clearly-generic, deterministic variants
-// on the main course fee so a university with a single modelled city still offers a real choice,
-// without inventing specific real-world satellite-campus names for a real institution.
+// Prefers the university's own real campus records when Data Management has entered any — falls
+// back to generic, deterministic variants on the main course fee so a university that predates
+// real campus data (or that genuinely only has one city) still offers a real choice, without
+// inventing specific real-world satellite-campus names for it.
 export function campusesFor(u: University, feeUSD: number): Campus[] {
+  if (u.campuses && u.campuses.length > 0) {
+    return u.campuses.map((c) => ({ name: c.name, city: c.city, feeUSD: c.feeUSD ?? feeUSD }));
+  }
   return [
     { name: "Main Campus", city: u.city, feeUSD },
     { name: `${u.city} City Campus`, city: u.city, feeUSD: Math.round((feeUSD * 0.98) / 100) * 100 },
@@ -117,20 +161,24 @@ export interface SubjectStat {
 
 // One row per field of study, used to render the "Subjects" tab on Explore — counts how many
 // universities offer it and the USD fee range across their matching courses.
-export const SUBJECT_STATS: SubjectStat[] = FIELDS_OF_STUDY.map((subject) => {
-  const offeringUniversities = UNIVERSITIES.filter((u) => u.subjects.includes(subject));
-  const fees = UNIVERSITIES.flatMap((u) => u.courses.filter((c) => c.subject === subject).map((c) => c.feeUSD));
-  return {
-    name: subject,
-    universityCount: offeringUniversities.length,
-    minFeeUSD: fees.length ? Math.min(...fees) : 0,
-    maxFeeUSD: fees.length ? Math.max(...fees) : 0,
-  };
-}).filter((s) => s.universityCount > 0);
+export function subjectStats(): SubjectStat[] {
+  const universities = getAllUniversities();
+  return getAllSubjects().map((subject) => {
+    const offeringUniversities = universities.filter((u) => u.subjects.includes(subject));
+    const fees = universities.flatMap((u) => u.courses.filter((c) => c.subject === subject).map((c) => c.feeUSD));
+    return {
+      name: subject,
+      universityCount: offeringUniversities.length,
+      minFeeUSD: fees.length ? Math.min(...fees) : 0,
+      maxFeeUSD: fees.length ? Math.max(...fees) : 0,
+    };
+  }).filter((s) => s.universityCount > 0);
+}
 
 export function citiesForDestination(destination: string): string[] {
-  if (!destination) return CITY_OPTIONS;
-  return Array.from(new Set(UNIVERSITIES.filter((u) => u.country === destination).map((u) => u.city))).sort();
+  const universities = getAllUniversities();
+  if (!destination) return Array.from(new Set(universities.map((u) => u.city))).sort();
+  return Array.from(new Set(universities.filter((u) => u.country === destination).map((u) => u.city))).sort();
 }
 
 // Some university.country values are short forms ("UK") that don't match the full country
