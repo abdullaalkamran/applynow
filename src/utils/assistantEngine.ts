@@ -50,7 +50,8 @@ export async function runAssistantTurn(
   config: RoleAssistantConfig,
   ctx: AssistantUserContext,
   history: AssistantMessage[],
-  userText: string
+  userText: string,
+  token: string
 ): Promise<{ reply: string; updatedHistory: AssistantMessage[] }> {
   const tools = config.tools(ctx);
   const toolsByName = new Map(tools.map((tool) => [tool.spec.name, tool]));
@@ -60,7 +61,21 @@ export async function runAssistantTurn(
   let working: AssistantMessage[] = [...trimHistory(history), { role: "user", text: userText }];
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
-    const providerReply = await sendAssistantRequest(systemPrompt, working, toolSpecs);
+    let providerReply;
+    try {
+      providerReply = await sendAssistantRequest(systemPrompt, working, toolSpecs, token);
+    } catch (err) {
+      // Without this, a failed request (rate limit, network error, provider outage) left the
+      // whole turn unresolved — the caller's `await ask(...)` never returned, so the UI just sat
+      // there indefinitely with no error, which looks exactly like "taking forever to respond".
+      const message = err instanceof Error ? err.message : String(err);
+      const rateLimited = /429|RESOURCE_EXHAUSTED|quota/i.test(message);
+      const reply = rateLimited
+        ? "I'm being rate-limited by the AI provider right now (too many requests too quickly) — please wait a moment and try again."
+        : "Sorry, I couldn't reach the AI service just now — please try again in a moment.";
+      working = [...working, { role: "assistant", text: reply }];
+      return { reply, updatedHistory: working };
+    }
 
     if (providerReply.kind === "text") {
       working = [...working, { role: "assistant", text: providerReply.text }];

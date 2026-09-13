@@ -2,8 +2,15 @@
 // automatically from an application's next steps or a missing document (see utils/taskBoard.ts for
 // those). This is the only store where a Task is actually persisted; assignment is one-directional
 // per utils/taskAssignment.ts (e.g. an agent can assign to a student, not the other way round).
+//
+// Also doubles as the Application → Enrolment workflow's task system (the PDF spec's
+// `application_tasks`) via the optional applicationId/stageType/taskType/priority fields below,
+// rather than a second parallel task store — utils/taskBoard.ts already merges manual tasks with
+// application-next-step and missing-document tasks into one board per role, which is the exact
+// generalization a stage-linked task needs.
+import type { StageType } from "../types/journey";
 
-export type TaskRole = "student" | "agent" | "counsellor" | "admin";
+export type TaskRole = "student" | "agent" | "counsellor" | "admin" | "admission";
 
 export interface TaskPerson {
   id: string;
@@ -22,6 +29,15 @@ export interface Task {
   createdAt: string; // ISO datetime
   studentId?: string;
   studentName?: string;
+  // Application-workflow linkage — all optional so every existing manually-assigned task (with
+  // none of these) keeps working unchanged.
+  applicationId?: string;
+  stageType?: StageType;
+  taskType?: string;
+  priority?: "low" | "medium" | "high";
+  // For an owner that isn't a StudyOne account at all (e.g. "the university"), since TaskPerson
+  // requires a role/id pair that only makes sense for real platform accounts.
+  externalOwner?: string;
 }
 
 const RAFIQ: TaskPerson = { id: "a1", role: "agent", name: "Rafiq Hossain" };
@@ -108,6 +124,11 @@ export function addTask(input: {
   dueDate?: string;
   studentId?: string;
   studentName?: string;
+  applicationId?: string;
+  stageType?: StageType;
+  taskType?: string;
+  priority?: "low" | "medium" | "high";
+  externalOwner?: string;
 }): Task {
   const task: Task = {
     id: `tk-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`,
@@ -120,12 +141,17 @@ export function addTask(input: {
     createdAt: new Date().toISOString(),
     studentId: input.studentId,
     studentName: input.studentName,
+    applicationId: input.applicationId,
+    stageType: input.stageType,
+    taskType: input.taskType,
+    priority: input.priority,
+    externalOwner: input.externalOwner,
   };
   saveCreated([...loadCreated(), task]);
   return task;
 }
 
-function patchTask(id: string, patch: Partial<Task>) {
+export function patchTask(id: string, patch: Partial<Task>) {
   if (loadCreated().some((t) => t.id === id)) {
     saveCreated(loadCreated().map((t) => (t.id === id ? { ...t, ...patch } : t)));
     return;

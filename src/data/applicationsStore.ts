@@ -1,5 +1,8 @@
 import { APPLICATIONS, stages } from "./mockData";
-import type { Application, AppStatus } from "../types";
+import { recordActivity } from "./applicationActivityStore";
+import type { Application, AppStatus, Role } from "../types";
+
+type Actor = { id: string; role: Role; name: string };
 
 const STORAGE_KEY = "sd-created-applications";
 
@@ -20,7 +23,7 @@ function saveCreated(apps: Application[]) {
 
 // Staff-editable fields layered on top of an application (seeded or created) without mutating the
 // static seed data directly — keyed by application id, merged in on every read.
-type ApplicationOverride = Partial<Pick<Application, "status" | "nextAction" | "waitingOn" | "updatedAt">>;
+type ApplicationOverride = Partial<Pick<Application, "status" | "nextAction" | "waitingOn" | "updatedAt" | "responsibleCounsellorId" | "responsibleAdmissionOfficerId">>;
 const OVERRIDES_KEY = "sd-application-overrides";
 
 function loadOverrides(): Record<string, ApplicationOverride> {
@@ -45,9 +48,33 @@ export function getAllApplications(): Application[] {
   return [...APPLICATIONS, ...loadCreated()].map((a) => (overrides[a.id] ? { ...a, ...overrides[a.id] } : a));
 }
 
+/** A comparable "when was this actually created" number — real `createdAt` when present (every
+ * app created via createApplication has one); for older seed data (which predates that field and
+ * will never have it) falls back to parsing a creation order out of the id itself, so "oldest
+ * first" numbering still works without needing to backfill every seed row. Seeded ids ("app1",
+ * "app2"...) sort as small integers, always before any real millisecond timestamp — i.e. before
+ * anything created later through the running app. */
+function applicationSortKey(a: Application): number {
+  if (a.createdAt) return new Date(a.createdAt).getTime();
+  const seedMatch = a.id.match(/^app(\d+)$/);
+  if (seedMatch) return parseInt(seedMatch[1], 10);
+  const customMatch = a.id.match(/^app-custom-(\d+)$/);
+  if (customMatch) return parseInt(customMatch[1], 10);
+  return 0;
+}
+
+/** The same applications, oldest-created first — the ordering "application #1, #2, ..." numbering
+ * should use, since progress/updatedAt change constantly and would reshuffle the numbers. */
+export function sortByCreatedAscending(apps: Application[]): Application[] {
+  return [...apps].sort((a, b) => applicationSortKey(a) - applicationSortKey(b));
+}
+
 /** A counsellor moving an application to a new status — also lets them update the next action
- * shown to the student, since the two usually change together. */
-export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string) {
+ * shown to the student, since the two usually change together. `actor` is optional (existing call
+ * sites predate the activity timeline) but should be passed by any new caller so the change is
+ * properly attributed in the audit log. */
+export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string, actor?: Actor) {
+  const previousStatus = getAllApplications().find((a) => a.id === applicationId)?.status;
   const overrides = loadOverrides();
   overrides[applicationId] = {
     ...overrides[applicationId],
@@ -57,6 +84,27 @@ export function updateApplicationStatus(applicationId: string, status: AppStatus
   };
   saveOverrides(overrides);
   recordStatusChange(applicationId, status);
+  if (actor) {
+    recordActivity({ applicationId, action: "status_changed", oldValue: previousStatus, newValue: status, performedBy: actor });
+  }
+}
+
+/** Platform-assigned responsible counsellor for this specific application. */
+export function assignCounsellor(applicationId: string, counsellorId: string, actor: Actor) {
+  const overrides = loadOverrides();
+  const previous = overrides[applicationId]?.responsibleCounsellorId;
+  overrides[applicationId] = { ...overrides[applicationId], responsibleCounsellorId: counsellorId };
+  saveOverrides(overrides);
+  recordActivity({ applicationId, action: "counsellor_assigned", oldValue: previous, newValue: counsellorId, performedBy: actor });
+}
+
+/** Counsellor-assigned responsible admission officer for this specific application. */
+export function assignAdmissionOfficer(applicationId: string, officerId: string, actor: Actor) {
+  const overrides = loadOverrides();
+  const previous = overrides[applicationId]?.responsibleAdmissionOfficerId;
+  overrides[applicationId] = { ...overrides[applicationId], responsibleAdmissionOfficerId: officerId };
+  saveOverrides(overrides);
+  recordActivity({ applicationId, action: "admission_officer_assigned", oldValue: previous, newValue: officerId, performedBy: actor });
 }
 
 export interface StatusHistoryEntry {
@@ -121,6 +169,7 @@ export function createApplication(input: NewApplicationInput): Application {
     stages: stages(2),
     updatedAt: new Date().toISOString().slice(0, 10),
     source: input.source ?? "counsellor",
+    createdAt: new Date().toISOString(),
   };
   const created = loadCreated();
   created.push(application);

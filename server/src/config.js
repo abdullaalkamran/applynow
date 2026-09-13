@@ -3,7 +3,21 @@
 // admin saves through the Admin AI Settings page (settingsStore.js) overrides them, live, without
 // a restart. The admin token itself is deliberately env-only — nothing reachable through the
 // settings API can change the key that locks the settings API.
+const crypto = require("crypto");
 const { readSettings } = require("./settingsStore");
+
+// Generated once per process (not per getConfig() call, which would invalidate every token on the
+// very next request) if JWT_SECRET isn't set — fine for local dev, but every restart invalidates
+// existing sessions, so production should always set a real JWT_SECRET explicitly.
+let generatedJwtSecret = null;
+function jwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (!generatedJwtSecret) {
+    generatedJwtSecret = crypto.randomBytes(32).toString("hex");
+    console.warn("JWT_SECRET is not set — using a random secret for this process only. Logins will be invalidated on every restart. Set JWT_SECRET before deploying.");
+  }
+  return generatedJwtSecret;
+}
 
 function envDefaults() {
   return {
@@ -14,6 +28,7 @@ function envDefaults() {
       .map((origin) => origin.trim())
       .filter(Boolean),
     adminToken: process.env.ADMIN_SETTINGS_TOKEN || "",
+    jwtSecret: jwtSecret(),
     anthropic: {
       apiKey: process.env.ANTHROPIC_API_KEY || "",
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",

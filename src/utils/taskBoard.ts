@@ -3,7 +3,7 @@
 // missing required documents (documentChecklist) — the latter two stay derived from their existing
 // source of truth rather than being duplicated into tasksStore, so there's nothing to keep in sync.
 
-import { loadTasks, toggleTaskDone, removeTask, type TaskPerson } from "../data/tasksStore";
+import { loadTasks, toggleTaskDone, removeTask, type Task, type TaskPerson } from "../data/tasksStore";
 import { loadNextSteps, toggleNextStepDone, dueDateTone as nextStepTone } from "../data/applicationNextStepsStore";
 import { buildCoreChecklist, buildChecklist } from "./documentChecklist";
 import { loadDocDueDate, dueDateTone as docTone } from "../data/documentDueDatesStore";
@@ -33,22 +33,35 @@ export interface DisplayTask {
   onDelete?: () => void;
 }
 
+function toDisplayTask(t: Task): DisplayTask {
+  return {
+    id: t.id,
+    title: t.title,
+    subtitle: t.studentName ? `For ${t.studentName}` : undefined,
+    dueDate: t.dueDate,
+    done: t.done,
+    source: "manual",
+    tone: nextStepTone(t.dueDate, t.done),
+    assignedByName: t.assignedBy.name,
+    studentId: t.studentId,
+    applicationId: t.applicationId,
+    onToggle: () => toggleTaskDone(t.id),
+    onDelete: () => removeTask(t.id),
+  };
+}
+
 function manualTasksFor(personId: string): DisplayTask[] {
   return loadTasks()
     .filter((t) => t.assignedTo.id === personId)
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      subtitle: t.studentName ? `For ${t.studentName}` : undefined,
-      dueDate: t.dueDate,
-      done: t.done,
-      source: "manual" as const,
-      tone: nextStepTone(t.dueDate, t.done),
-      assignedByName: t.assignedBy.name,
-      studentId: t.studentId,
-      onToggle: () => toggleTaskDone(t.id),
-      onDelete: () => removeTask(t.id),
-    }));
+    .map(toDisplayTask);
+}
+
+/** Every manually assigned task scoped to one application — for the journey panel to show tasks
+ * without a second data path from the one already rendered on every role's Tasks page. */
+export function getApplicationTasks(applicationId: string): DisplayTask[] {
+  return loadTasks()
+    .filter((t) => t.applicationId === applicationId)
+    .map(toDisplayTask);
 }
 
 function nextStepTasksFor(students: Student[], apps: Application[]): DisplayTask[] {

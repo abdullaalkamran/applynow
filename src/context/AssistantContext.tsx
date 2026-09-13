@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRole } from "./RoleContext";
+import { useAuth } from "./AuthContext";
 import { ROLE_ASSISTANT_CONFIGS } from "../utils/roleAssistantConfigs";
 import { runAssistantTurn } from "../utils/assistantEngine";
 import type { AssistantMessage } from "../utils/assistantTypes";
@@ -20,6 +21,7 @@ const AssistantContext = createContext<AssistantContextValue | undefined>(undefi
  */
 export function AssistantProvider({ children }: { children: ReactNode }) {
   const { role, currentUser } = useRole();
+  const { token } = useAuth();
   const [history, setHistory] = useState<AssistantMessage[]>([]);
   const [voiceEngine, setVoiceEngine] = useState<VoiceConfig["voiceEngine"]>("browser");
 
@@ -40,13 +42,14 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
 
   const ask = useCallback(
     async (text: string) => {
+      if (!token) return "You've been signed out — please log in again to keep chatting.";
       const config = ROLE_ASSISTANT_CONFIGS[role];
       const ctx = { userId: currentUser.id, userName: currentUser.name };
-      const { reply, updatedHistory } = await runAssistantTurn(config, ctx, history, text);
+      const { reply, updatedHistory } = await runAssistantTurn(config, ctx, history, text, token);
       setHistory(updatedHistory);
       return reply;
     },
-    [role, currentUser, history]
+    [role, currentUser, history, token]
   );
 
   const suggestions = ROLE_ASSISTANT_CONFIGS[role].suggestions;

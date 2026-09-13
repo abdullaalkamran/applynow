@@ -6,6 +6,7 @@ const healthRoute = require("./routes/health");
 const adminSettingsRoute = require("./routes/adminSettings");
 const transcribeRoute = require("./routes/transcribe");
 const speakRoute = require("./routes/speak");
+const authRoute = require("./routes/auth");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -22,6 +23,7 @@ app.use("/api/assistant", assistantRoute);
 app.use("/api/assistant/transcribe", transcribeRoute);
 app.use("/api/assistant/speak", speakRoute);
 app.use("/api/admin/settings", adminSettingsRoute);
+app.use("/api/auth", authRoute);
 
 app.use(errorHandler);
 

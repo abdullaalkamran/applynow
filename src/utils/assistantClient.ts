@@ -6,11 +6,12 @@ const API_URL = `${BACKEND_BASE}/api/assistant`;
 export async function sendAssistantRequest(
   systemPrompt: string,
   messages: AssistantMessage[],
-  tools: ToolSpec[]
+  tools: ToolSpec[],
+  token: string
 ): Promise<ProviderReply> {
   const response = await fetch(API_URL, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ systemPrompt, messages, tools }),
   });
 

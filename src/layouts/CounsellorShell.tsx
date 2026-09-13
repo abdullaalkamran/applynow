@@ -2,18 +2,15 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Bell, Gem, Lightbulb, ArrowRight, X,
+  Bell, Gem, Lightbulb, ArrowRight, X, LogOut,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
-import { ROLES, COUNSELLORS } from "../data/mockData";
-import { ROLE_HOME } from "./nav";
+import { useAuth } from "../context/AuthContext";
 import { RoleBottomNav } from "./RoleBottomNav";
-import { COUNSELLOR_ID } from "../utils/counsellorData";
 import { unreadStaffMessageCount } from "../data/counsellorMessagesStore";
 import { loadDoneMeetingIds, loadMeetings } from "../data/counsellorMeetingsStore";
 import { loadLeads, loadLeadFollowUpStatus } from "../data/leadsStore";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
-import type { Role } from "../types";
 
 interface NavEntry {
   label: string;
@@ -31,9 +28,9 @@ const GUIDE_TIPS = [
 
 export default function CounsellorShell() {
   const navigate = useNavigate();
-  const { role, setRole } = useRole();
-  const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
-  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const { currentUser } = useRole();
+  const { logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -57,10 +54,10 @@ export default function CounsellorShell() {
     { label: "Settings", path: "/staff/counsellor/settings", icon: Settings },
   ];
 
-  function handleSwitch(next: Role) {
-    setRole(next);
-    setSwitcherOpen(false);
-    navigate(ROLE_HOME[next]);
+  function handleLogout() {
+    setMenuOpen(false);
+    logout();
+    navigate("/login", { replace: true });
   }
 
   function renderNavList(onNavigate?: () => void) {
@@ -174,30 +171,24 @@ export default function CounsellorShell() {
 
             <div className="relative">
               <button
-                onClick={() => setSwitcherOpen((v) => !v)}
+                onClick={() => setMenuOpen((v) => !v)}
                 className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
               >
-                {counsellor.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                {currentUser.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </button>
 
-              {switcherOpen && (
-                <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-                  <p className="px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Demo role switcher</p>
-                  {(["Student", "Agent", "Staff", "Admin"] as const).map((group) => (
-                    <div key={group} className="mb-1">
-                      {ROLES.filter((r) => r.group === group).map((r) => (
-                        <button
-                          key={r.id}
-                          onClick={() => handleSwitch(r.id)}
-                          className={`flex w-full flex-col rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50 ${
-                            r.id === role ? "bg-[var(--brand-50)] text-[var(--brand-700)]" : "text-slate-700"
-                          }`}
-                        >
-                          <span className="font-medium">{r.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
+              {menuOpen && (
+                <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium text-slate-800">{currentUser.name}</p>
+                    <p className="text-[11px] text-slate-400">Counsellor</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    <LogOut size={14} /> Log out
+                  </button>
                 </div>
               )}
             </div>

@@ -80,6 +80,17 @@ export interface Application {
   // Who confirmed the application — absent on seeded demo data. A "student" application the
   // counsellor hasn't opened yet is flagged as new on the counsellor's Applications page.
   source?: "student" | "counsellor";
+  // Per-application responsible staff — distinct from Student.agentId/counsellorId (the student's
+  // overall relationship) since a student's applications can, in principle, be split across
+  // counsellors, and admission-officer coverage is assigned per application, not per student.
+  // Platform-assigned; counsellor-assigned respectively — see data/applicationsStore.ts's
+  // assignCounsellor()/assignAdmissionOfficer().
+  responsibleCounsellorId?: string;
+  responsibleAdmissionOfficerId?: string;
+  // Absent on seeded demo data (none of it predates this field) — applicationSortKey() in
+  // applicationsStore.ts falls back to parsing a creation order out of the id itself for those,
+  // so ordering "oldest first" still works app-wide without needing to backfill every seed row.
+  createdAt?: string;
 }
 
 export interface DocumentItem {

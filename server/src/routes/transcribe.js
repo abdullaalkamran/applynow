@@ -1,6 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const { getConfig } = require("../config");
+const requireAuth = require("../middleware/requireAuth");
 
 // Turn-based real voice input: the browser records a clip (MediaRecorder) and posts it here as
 // multipart/form-data; we forward it to OpenAI's Whisper endpoint and hand back plain text, which
@@ -8,7 +9,9 @@ const { getConfig } = require("../config");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 const router = express.Router();
 
-router.post("/", upload.single("audio"), async (req, res, next) => {
+// requireAuth runs before multer — reject an unauthenticated request before spending effort
+// parsing its (potentially large) body, and before it can spend real Whisper API cost.
+router.post("/", requireAuth, upload.single("audio"), async (req, res, next) => {
   try {
     const config = getConfig();
     if (!config.openai.apiKey) {

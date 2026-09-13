@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BACKEND_BASE } from "./backendBase";
 import { useRole } from "../context/RoleContext";
+import { useAuth } from "../context/AuthContext";
 import { ROLE_ASSISTANT_CONFIGS } from "./roleAssistantConfigs";
 import type { VoiceConversationState } from "./useVoiceConversation";
 
@@ -66,6 +67,7 @@ function int16FromBase64(base64: string): Int16Array {
  */
 export function useGeminiLiveConversation(onExchange?: (userText: string, aiText: string) => void) {
   const { role, currentUser } = useRole();
+  const { token } = useAuth();
   const [state, setState] = useState<VoiceConversationState>("idle");
   const [caption, setCaption] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -126,6 +128,12 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
   }, [stopAudioPipeline]);
 
   const start = useCallback(async () => {
+    if (!token) {
+      setState("error");
+      setErrorText("You've been signed out — please log in again.");
+      return;
+    }
+
     activeRef.current = true;
     setState("listening");
     setCaption("Connecting…");
@@ -155,7 +163,7 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
     socketRef.current = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: "init", systemPrompt: config.systemPrompt(ctx), tools: tools.map((t) => t.spec) }));
+      socket.send(JSON.stringify({ type: "init", token, systemPrompt: config.systemPrompt(ctx), tools: tools.map((t) => t.spec) }));
     };
 
     socket.onmessage = async (event) => {
@@ -259,7 +267,7 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
         setState("idle");
       }
     };
-  }, [role, currentUser, playChunk, stopAudioPipeline]);
+  }, [role, currentUser, token, playChunk, stopAudioPipeline]);
 
   useEffect(() => {
     return () => {

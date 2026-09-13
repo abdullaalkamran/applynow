@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeAudio, synthesizeSpeech } from "./voiceClient";
+import { useAuth } from "../context/AuthContext";
 import type { VoiceConversationState } from "./useVoiceConversation";
 
 const SILENCE_RMS_THRESHOLD = 0.02;
@@ -17,6 +18,7 @@ export function useRealVoiceConversation(
   replyFn: (text: string) => Promise<string>,
   onExchange?: (userText: string, aiText: string) => void
 ) {
+  const { token } = useAuth();
   const [state, setState] = useState<VoiceConversationState>("idle");
   const [caption, setCaption] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -24,6 +26,8 @@ export function useRealVoiceConversation(
   const activeRef = useRef(false);
   const replyFnRef = useRef(replyFn);
   const onExchangeRef = useRef(onExchange);
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
   const streamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -118,7 +122,8 @@ export function useRealVoiceConversation(
       setState("thinking");
       setCaption("Thinking…");
       try {
-        const transcript = await transcribeAudio(blob);
+        if (!tokenRef.current) throw new Error("You've been signed out — please log in again.");
+        const transcript = await transcribeAudio(blob, tokenRef.current);
         if (!activeRef.current) return;
         if (!transcript.trim()) {
           runCycleRef.current();
@@ -131,7 +136,8 @@ export function useRealVoiceConversation(
 
         setState("speaking");
         setCaption(reply);
-        const speechBlob = await synthesizeSpeech(reply);
+        if (!tokenRef.current) throw new Error("You've been signed out — please log in again.");
+        const speechBlob = await synthesizeSpeech(reply, tokenRef.current);
         if (!activeRef.current) return;
         const url = URL.createObjectURL(speechBlob);
         const audioEl = new Audio(url);

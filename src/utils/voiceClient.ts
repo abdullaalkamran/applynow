@@ -13,10 +13,14 @@ export async function fetchVoiceConfig(): Promise<VoiceConfig> {
 }
 
 /** Sends a recorded audio clip to the backend's Whisper-backed transcription endpoint. */
-export async function transcribeAudio(blob: Blob): Promise<string> {
+export async function transcribeAudio(blob: Blob, token: string): Promise<string> {
   const form = new FormData();
   form.append("audio", blob, "audio.webm");
-  const response = await fetch(`${BACKEND_BASE}/api/assistant/transcribe`, { method: "POST", body: form });
+  const response = await fetch(`${BACKEND_BASE}/api/assistant/transcribe`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+  });
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail.error || `Transcription failed (${response.status})`);
@@ -26,10 +30,10 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
 }
 
 /** Turns text into spoken audio via the backend's OpenAI-TTS-backed endpoint. */
-export async function synthesizeSpeech(text: string): Promise<Blob> {
+export async function synthesizeSpeech(text: string, token: string): Promise<Blob> {
   const response = await fetch(`${BACKEND_BASE}/api/assistant/speak`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ text }),
   });
   if (!response.ok) {

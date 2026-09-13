@@ -50,8 +50,13 @@ export const AGENTS: SupportContact[] = [
 
 // Pooled review-team roles (not assigned 1:1 per student like Counsellor/Agent) — whoever is
 // currently handling submission and compliance review across applications.
+// More than one seeded officer so per-application assignment (Application.responsibleAdmissionOfficerId)
+// is actually demonstrable — previously a single-element array meant every application showed the
+// same hardcoded officer everywhere, with no real assignment possible.
 export const ADMISSION_OFFICERS: SupportContact[] = [
   { id: "ad1", name: "Aisha Rahman", role: "Admission Officer", phone: "+44 7700 900654", avatarColor: "bg-indigo-500" },
+  { id: "ad2", name: "Tanvir Ahmed", role: "Admission Officer", phone: "+44 7700 900321", avatarColor: "bg-sky-600" },
+  { id: "ad3", name: "Priya Sharma", role: "Admission Officer", phone: "+44 7700 900432", avatarColor: "bg-violet-600" },
 ];
 
 export const COMPLIANCE_OFFICERS: SupportContact[] = [

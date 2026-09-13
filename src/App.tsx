@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { RoleProvider } from "./context/RoleContext";
-import { AssistantProvider } from "./context/AssistantContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { RequireAuth } from "./layouts/RequireAuth";
+import { ROLE_HOME } from "./layouts/nav";
+import Login from "./features/auth/Login";
 import AppLayout from "./layouts/AppLayout";
 import StudentShell from "./layouts/StudentShell";
 import CounsellorShell from "./layouts/CounsellorShell";
@@ -73,13 +75,22 @@ import AdminAuditLogs from "./features/admin/AuditLogs";
 import AdminTasks from "./features/admin/Tasks";
 import AdminAISettings from "./features/admin/AISettings";
 
+// Where "/" and any unmatched path should land — depends on which role is actually logged in,
+// not a fixed guess, since this app now has more than one possible home.
+function RoleHomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user ? ROLE_HOME[user.role] : "/login"} replace />;
+}
+
 export default function App() {
   return (
-    <RoleProvider>
-      <AssistantProvider>
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+
           {/* Student — mobile app shell (no sidebar/topbar) */}
+          <Route element={<RequireAuth roles={["student"]} />}>
           <Route element={<StudentShell />}>
             <Route path="/student/onboarding" element={<StudentOnboarding />} />
             <Route path="/student" element={<StudentDashboard />} />
@@ -104,8 +115,10 @@ export default function App() {
             <Route path="/student/profile/work-experience" element={<WorkExperience />} />
             <Route path="/student/profile/preferences" element={<Preferences />} />
           </Route>
+          </Route>
 
           {/* Counsellor — dedicated ApplyHub-branded shell, separate from the shared staff/admin shell */}
+          <Route element={<RequireAuth roles={["counsellor"]} />}>
           <Route element={<CounsellorShell />}>
             <Route path="/staff/counsellor" element={<CounsellorDashboard />} />
             <Route path="/staff/counsellor/leads" element={<CounsellorLeads />} />
@@ -121,8 +134,10 @@ export default function App() {
             <Route path="/staff/counsellor/resources" element={<CounsellorResources />} />
             <Route path="/staff/counsellor/settings" element={<CounsellorSettings />} />
           </Route>
+          </Route>
 
           {/* Agent — dedicated EduBridge-branded shell, separate from the shared staff/admin shell */}
+          <Route element={<RequireAuth roles={["agent"]} />}>
           <Route element={<AgentShell />}>
             <Route path="/agent" element={<AgentDashboard />} />
             <Route path="/agent/students" element={<AgentStudents />} />
@@ -139,9 +154,11 @@ export default function App() {
             <Route path="/agent/statements" element={<AgentStatements />} />
             <Route path="/agent/tasks" element={<AgentTasks />} />
           </Route>
+          </Route>
 
+          <Route element={<RequireAuth roles={["admission", "compliance", "data", "finance", "admin"]} />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/student/onboarding" replace />} />
+            <Route path="/" element={<RoleHomeRedirect />} />
 
             {/* Staff */}
             <Route path="/staff/admission" element={<AdmissionSubmissionQueue />} />
@@ -165,11 +182,11 @@ export default function App() {
             <Route path="/admin/tasks" element={<AdminTasks />} />
             <Route path="/admin/ai-settings" element={<AdminAISettings />} />
 
-            <Route path="*" element={<Navigate to="/student" replace />} />
+            <Route path="*" element={<RoleHomeRedirect />} />
+          </Route>
           </Route>
         </Routes>
       </BrowserRouter>
-      </AssistantProvider>
-    </RoleProvider>
+    </AuthProvider>
   );
 }

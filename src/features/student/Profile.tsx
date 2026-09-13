@@ -3,6 +3,7 @@ import { Settings, User, GraduationCap, Languages, Briefcase, SlidersHorizontal,
 import { MobileHeader } from "../../components/ui/mobile";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getProfileCompletion } from "../../data/profileCompletion";
+import { useAuth } from "../../context/AuthContext";
 
 const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
 const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
@@ -18,8 +19,14 @@ const SETTINGS = [
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { percent, steps } = getProfileCompletion();
   const completeByKey = new Map(steps.map((s) => [s.key, s.complete]));
+
+  function handleLogout() {
+    logout();
+    navigate("/login", { replace: true });
+  }
 
   return (
     <div className="min-h-full pb-8">
@@ -67,7 +74,7 @@ export default function Profile() {
         </div>
 
         <button
-          onClick={() => navigate("/student/onboarding")}
+          onClick={handleLogout}
           className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">

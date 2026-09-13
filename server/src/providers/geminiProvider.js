@@ -69,6 +69,12 @@ async function send({ systemPrompt, messages, tools }) {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: toGeminiContents(messages),
       tools: toGeminiTools(tools),
+      // gemini-3.6-flash is a thinking model — without this it reasons internally before every
+      // single reply *and* every intermediate tool-call step, and a multi-tool turn (e.g. check
+      // profile, then search universities) pays that cost multiple times in one request.
+      // Gemini 3.x models use thinkingLevel (2.5-generation models used thinkingBudget instead,
+      // e.g. the Live relay's native-audio model) — thinkingBudget is rejected outright here.
+      generationConfig: { thinkingConfig: { thinkingLevel: "minimal" } },
     }),
   });
 

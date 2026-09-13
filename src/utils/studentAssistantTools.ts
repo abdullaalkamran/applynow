@@ -15,6 +15,7 @@ import {
 import { loadAcademicLevels, saveAcademicLevels } from "../data/academicProfileStore";
 import { sendMessage, type MessageParticipant } from "../data/messagesStore";
 import { buildAnswer } from "./aiCounsellorEngine";
+import { getApplicationSummary, getNextAction, getMissingDocuments, getDeadlines, getBlockers } from "./applicationJourneyTools";
 import type { ToolDefinition, AssistantUserContext } from "./assistantEngine";
 
 // Students don't use taskAssignment.recipientsFor here — that map is one-directional for *task
@@ -36,6 +37,34 @@ function resolveCounterpart(studentId: string): MessageParticipant | null {
 
 const stringProps = (keys: string[]) =>
   Object.fromEntries(keys.map((key) => [key, { type: "string" }]));
+
+// A student's journey tools must never let them read another student's application by id — this
+// scoping check is the equivalent of counsellorAssistantTools.ts's own-caseload guard.
+function assertOwnApplication(studentId: string, applicationId: string): { error: string } | null {
+  const application = getAllApplications().find((a) => a.id === applicationId);
+  if (!application || application.studentId !== studentId) {
+    return { error: `No application with id "${applicationId}" belongs to this student.` };
+  }
+  return null;
+}
+
+// Our catalog stores abbreviated/short country names ("UK", "United States") but a student
+// speaking naturally (and the model relaying it) says the full name — a plain one-directional
+// substring check meant "united kingdom" could never match stored "UK", making a real partner
+// university look nonexistent. Checking both directions, plus a couple of common aliases our
+// short forms don't cover on their own, fixes that without needing a full country database.
+const COUNTRY_ALIASES: Record<string, string[]> = {
+  uk: ["united kingdom", "britain", "great britain", "england"],
+  usa: ["united states", "america", "us"],
+  uae: ["united arab emirates"],
+};
+
+function countryMatches(storedCountry: string, query: string): boolean {
+  const stored = storedCountry.toLowerCase();
+  const q = query.toLowerCase();
+  if (stored.includes(q) || q.includes(stored)) return true;
+  return (COUNTRY_ALIASES[stored] ?? []).some((alias) => alias.includes(q) || q.includes(alias));
+}
 
 export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
   const studentId = ctx.userId;
@@ -238,7 +267,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
 
         const results = getAllUniversities()
           .filter((u) => {
-            if (country && !u.country.toLowerCase().includes(country.toLowerCase())) return false;
+            if (country && !countryMatches(u.country, country)) return false;
             if (scholarshipOnly && !u.scholarshipsAvailable) return false;
             if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
             return true;
@@ -408,6 +437,46 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         });
         return { sent: true, to: to.name, message };
       },
+    },
+    {
+      spec: {
+        name: "get_application_summary",
+        description: "Get the current stage, status, progress, blockers, and next action for one of the student's own applications. Call list_my_applications first if you don't already have the applicationId.",
+        parameters: { type: "object", properties: { applicationId: { type: "string" } }, required: ["applicationId"] },
+      },
+      execute: (args) => assertOwnApplication(studentId, String(args.applicationId)) ?? getApplicationSummary(String(args.applicationId)),
+    },
+    {
+      spec: {
+        name: "get_next_action",
+        description: "Get the single next thing the student needs to do on one of their applications, and who it's actually waiting on.",
+        parameters: { type: "object", properties: { applicationId: { type: "string" } }, required: ["applicationId"] },
+      },
+      execute: (args) => assertOwnApplication(studentId, String(args.applicationId)) ?? getNextAction(String(args.applicationId)),
+    },
+    {
+      spec: {
+        name: "get_missing_documents",
+        description: "List documents still needed (requested or rejected) for one of the student's applications.",
+        parameters: { type: "object", properties: { applicationId: { type: "string" } }, required: ["applicationId"] },
+      },
+      execute: (args) => assertOwnApplication(studentId, String(args.applicationId)) ?? getMissingDocuments(String(args.applicationId)),
+    },
+    {
+      spec: {
+        name: "get_deadlines",
+        description: "Get every real known deadline date across one of the student's applications (offer expiry, deposit, visa appointment, enrolment, etc).",
+        parameters: { type: "object", properties: { applicationId: { type: "string" } }, required: ["applicationId"] },
+      },
+      execute: (args) => assertOwnApplication(studentId, String(args.applicationId)) ?? getDeadlines(String(args.applicationId)),
+    },
+    {
+      spec: {
+        name: "get_blockers",
+        description: "Get everything currently blocking one of the student's applications from progressing.",
+        parameters: { type: "object", properties: { applicationId: { type: "string" } }, required: ["applicationId"] },
+      },
+      execute: (args) => assertOwnApplication(studentId, String(args.applicationId)) ?? getBlockers(String(args.applicationId)),
     },
   ];
 }

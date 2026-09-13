@@ -1,4 +1,5 @@
 const WebSocket = require("ws");
+const jwt = require("jsonwebtoken");
 const { getConfig } = require("../config");
 const { toGeminiTools, toGeminiFunctionResponse } = require("../providers/geminiProvider");
 
@@ -74,6 +75,17 @@ function attachGeminiLiveRelay(wss) {
 
     function startGoogleSession(init) {
       const config = getConfig();
+
+      // Opening this session spends real Gemini API cost — same gate as the REST assistant
+      // endpoints (requireAuth), just applied to a WebSocket's first message instead of a header,
+      // since a browser WebSocket can't set a custom Authorization header on the handshake.
+      try {
+        jwt.verify(init.token || "", config.jwtSecret);
+      } catch {
+        closeAll("Not authenticated — please log in again.");
+        return;
+      }
+
       if (!config.gemini.apiKey) {
         closeAll("GEMINI_API_KEY is not set on the server.");
         return;

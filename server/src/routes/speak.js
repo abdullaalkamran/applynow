@@ -1,11 +1,12 @@
 const express = require("express");
 const { getConfig } = require("../config");
+const requireAuth = require("../middleware/requireAuth");
 
 // The other half of turn-based real voice: takes the assistant's final text reply and returns
 // spoken audio (mp3) from OpenAI's TTS endpoint, for the frontend to play instead of speechSynthesis.
 const router = express.Router();
 
-router.post("/", async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   try {
     const config = getConfig();
     const { text } = req.body || {};

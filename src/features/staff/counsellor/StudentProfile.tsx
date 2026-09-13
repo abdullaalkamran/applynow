@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
-  Sparkles,
+  Sparkles, ClipboardList, Layers, type LucideIcon,
 } from "lucide-react";
 import { Badge, Button, ProgressBar, Modal, SearchableSelect } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
@@ -12,13 +12,12 @@ import { ApplicationChecklistCard } from "../../../components/ApplicationCheckli
 import { DocViewButton } from "../../../components/DocViewButton";
 import { DOCUMENTS, AGENTS } from "../../../data/mockData";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
-import { getAllApplications, updateApplicationStatus, getStatusHistory, createApplication } from "../../../data/applicationsStore";
+import { getAllApplications, getStatusHistory, createApplication, sortByCreatedAscending } from "../../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../../utils/documentChecklist";
 import { loadStaffNote, saveStaffNote } from "../../../data/staffNotesStore";
 import { activeApplicationsFor, daysAgo } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
-import { ALL_APP_STATUSES } from "../../../utils/applicationStatus";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
 import { destinationOptions, campusesFor } from "../../../utils/universityFilter";
 import { loadCustomDocRequests, addCustomDocRequest, removeCustomDocRequest } from "../../../data/customDocRequestsStore";
@@ -27,15 +26,44 @@ import {
 } from "../../../data/applicationNextStepsStore";
 import { loadDocDueDate, setDocDueDate } from "../../../data/documentDueDatesStore";
 import { isSeenByCounsellor, markSeenByCounsellor } from "../../../data/counsellorSeenApplicationsStore";
-import type { Student, AppStatus } from "../../../types";
+import {
+  StageStatusStrip, JourneyStepper, JourneyStageEditor, ResponsibleStaffCard, ApplicationTasksCard, ApplicationActivityCard,
+} from "../../../components/ApplicationJourneyPanel";
+import { useAuth } from "../../../context/AuthContext";
+import { loadJourney, updateStage } from "../../../data/applicationJourneyStore";
+import type { Student } from "../../../types";
 
 const RISK_TONE: Record<NonNullable<Student["riskFlag"]>, "amber" | "red"> = { watch: "amber", high: "red", none: "amber" };
 
+// Defensive display fallback — a handful of applications created before create_application's
+// university/course validation was added stored the literal string "undefined" (not a real JS
+// `undefined`, which React would just skip rendering). Shows a plain dash instead of that text
+// wherever an application field turns out to be missing or corrupted.
+function safeText(value: string | undefined | null): string {
+  if (!value || value === "undefined" || value === "null") return "—";
+  return value;
+}
+
 const TABS = ["Overview", "Applications", "Documents", "Notes"] as const;
+
+// Consistent icon-badge header for each of the 4 application-detail columns, so they read as
+// distinct, scannable panels instead of loosely stacked cards under a plain gray label.
+function ColumnHeader({ icon: Icon, label, tone }: { icon: LucideIcon; label: string; tone: string }) {
+  return (
+    <p className="flex items-center gap-2 text-[11.5px] font-semibold text-slate-600">
+      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${tone}`}>
+        <Icon size={11} className="text-white" />
+      </span>
+      {label}
+    </p>
+  );
+}
 type Tab = (typeof TABS)[number];
 
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const actor = user ? { id: user.roleUserId, role: user.role, name: user.name } : undefined;
   const UNIVERSITIES = getAllUniversities();
   const { id } = useParams();
   const location = useLocation();
@@ -163,6 +191,8 @@ export default function StudentProfile() {
 
       {tab === "Applications" && (
         <div className="mt-4 space-y-3">
+          {/* Application list — numbered oldest (#1) to most recent, since progress/status change
+              constantly and would reshuffle numbers based on anything else. */}
           <div className="flex justify-end">
             <Button onClick={() => setNewAppOpen(true)}>
               <Plus size={14} /> New application
@@ -171,9 +201,9 @@ export default function StudentProfile() {
           {apps.length === 0 && (
             <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-[12.5px] text-slate-400">
               No applications yet for {student.name}.
-            </p>
-          )}
-          {apps.map((a) => {
+              </p>
+            )}
+            {sortByCreatedAscending(apps).map((a, appIndex) => {
             const university = UNIVERSITIES.find((u) => u.name === a.university);
             const docs = university
               ? [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)]
@@ -184,6 +214,7 @@ export default function StudentProfile() {
             const uploadHistory = [...docs].sort((x, y) => y.uploadedAt.localeCompare(x.uploadedAt));
             const nextSteps = loadNextSteps(a.id);
             const expanded = expandedAppId === a.id;
+            const journey = loadJourney(a.id);
             return (
               <div key={a.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
                 <button
@@ -196,10 +227,16 @@ export default function StudentProfile() {
                   className="flex w-full flex-col gap-3 p-4 text-left sm:flex-row sm:items-center"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <LogoBadge name={a.university} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0" />
+                    <span
+                      title="Order applied — #1 is the oldest application"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500"
+                    >
+                      {appIndex + 1}
+                    </span>
+                    <LogoBadge name={safeText(a.university)} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-sm font-semibold text-slate-800">{a.university}</p>
+                        <p className="truncate text-sm font-semibold text-slate-800">{safeText(a.university)}</p>
                         <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide text-slate-500">
                           {formatApplicationId(a.id)}
                         </span>
@@ -209,23 +246,17 @@ export default function StudentProfile() {
                           </span>
                         )}
                       </div>
-                      <p className="truncate text-xs text-slate-400">{a.course} · {a.intake} · {a.campus ?? "Main Campus"}</p>
+                      <p className="truncate text-xs text-slate-400">{safeText(a.course)} · {safeText(a.intake)} · {safeText(a.campus) === "—" ? "Main Campus" : a.campus}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:flex sm:shrink-0 sm:items-center">
-                    <select
-                      value={a.status}
+                    <span
+                      title="Automatically derived from the journey stage below — update the journey to change this."
+                      className="cursor-default rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11.5px] font-medium text-slate-600"
                       onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        updateApplicationStatus(a.id, e.target.value as AppStatus);
-                        forceTick((t) => t + 1);
-                      }}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700"
                     >
-                      {ALL_APP_STATUSES.map((st) => (
-                        <option key={st} value={st}>{st}</option>
-                      ))}
-                    </select>
+                      {a.status}
+                    </span>
                     <div className="flex w-28 items-center gap-2">
                       <ProgressBar value={a.progress} size="sm" />
                       <span className="shrink-0 text-[11px] text-slate-400">{a.progress}%</span>
@@ -234,199 +265,237 @@ export default function StudentProfile() {
                   </div>
                 </button>
 
+                {/* Every stage's status, at a glance, without expanding the card. */}
+                <div className="border-t border-slate-100 px-4 py-2.5">
+                  <StageStatusStrip journey={journey} dense />
+                </div>
+
                 {expanded && (
                   <div className="border-t border-slate-100 bg-slate-50/60 p-4">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl border border-slate-100 bg-white p-3 text-xs sm:grid-cols-4">
-                      <Detail label="Country" value={a.country} />
-                      <Detail label="Waiting on" value={a.waitingOn} />
-                      <Detail label="Updated" value={daysAgo(a.updatedAt)} />
-                      <Detail label="Next action" value={a.nextAction} />
-                    </div>
-
-                    <p className="mb-2 mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                      <FileCheck2 size={13} /> Document checklist
-                    </p>
-                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                      {checklist.map((r) => (
-                        <ApplicationChecklistCard
-                          key={r.type}
-                          row={r}
-                          dueDate={loadDocDueDate(a.id, r.type)}
-                          onSetDueDate={(date) => { setDocDueDate(a.id, r.type, date); forceTick((t) => t + 1); }}
-                          onUpload={(file) => {
-                            addUploadedDoc(a.id, r.type, URL.createObjectURL(file));
-                            forceTick((t) => t + 1);
-                          }}
-                          onRemoveRequest={
-                            !r.own && !r.reused && customTypes.includes(r.type)
-                              ? () => { removeCustomDocRequest(a.id, r.type); forceTick((t) => t + 1); }
-                              : undefined
-                          }
-                        />
-                      ))}
-                      {checklist.length === 0 && <p className="text-[12.5px] text-slate-400">No checklist items for this application.</p>}
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-slate-100 bg-white p-3">
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                        <ListChecks size={13} /> Next steps
-                      </p>
-                      {nextSteps.length > 0 && (
-                        <div className="mb-2.5 space-y-1.5">
-                          {nextSteps.map((ns) => {
-                            const tone = stepDueTone(ns.dueDate, ns.done);
-                            const dueClass = tone === "overdue" ? "text-rose-600" : tone === "soon" ? "text-amber-600" : "text-slate-400";
-                            return (
-                              <div key={ns.id} className="flex flex-wrap items-center gap-2.5">
-                                <button
-                                  onClick={() => { toggleNextStepDone(a.id, ns.id); forceTick((t) => t + 1); }}
-                                  aria-label={ns.done ? `Mark "${ns.title}" not done` : `Mark "${ns.title}" done`}
-                                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                                    ns.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"
-                                  }`}
-                                >
-                                  {ns.done && <Check size={11} />}
-                                </button>
-                                <span className={`flex-1 text-[12.5px] ${ns.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{ns.title}</span>
-                                <span className="shrink-0 text-[11px] text-slate-400">{ns.createdAt}</span>
-                                <span className="flex shrink-0 items-center gap-1">
-                                  <CalendarDays size={11} className={dueClass} />
-                                  <input
-                                    type="date"
-                                    value={ns.dueDate ?? ""}
-                                    onChange={(e) => { setNextStepDueDate(a.id, ns.id, e.target.value); forceTick((t) => t + 1); }}
-                                    aria-label={`Due date for "${ns.title}"`}
-                                    className={`rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10.5px] ${dueClass}`}
-                                  />
-                                </span>
-                                <button
-                                  onClick={() => { removeNextStep(a.id, ns.id); forceTick((t) => t + 1); }}
-                                  aria-label={`Remove step "${ns.title}"`}
-                                  className="shrink-0 text-slate-300 hover:text-slate-500"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            );
-                          })}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-slate-200">
+                      {/* Column 1 — Application */}
+                      <div className="space-y-3 lg:pr-4">
+                        <ColumnHeader icon={ClipboardList} label="Application" tone="bg-slate-500" />
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border border-slate-100 bg-white p-3 text-xs">
+                          <Detail label="Country" value={a.country} />
+                          <Detail label="Waiting on" value={a.waitingOn} />
+                          <Detail label="Updated" value={daysAgo(a.updatedAt)} />
+                          <Detail label="Next action" value={a.nextAction} />
                         </div>
-                      )}
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                          value={nextStepDraft}
-                          onChange={(e) => setNextStepDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter" || !nextStepDraft.trim()) return;
-                            addNextStep(a.id, nextStepDraft, nextStepDue);
-                            setNextStepDraft("");
-                            setNextStepDue("");
-                            forceTick((t) => t + 1);
-                          }}
-                          placeholder="e.g. Book visa biometrics appointment"
-                          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-[var(--sd-ink)] focus:outline-none"
-                        />
-                        <input
-                          type="date"
-                          value={nextStepDue}
-                          onChange={(e) => setNextStepDue(e.target.value)}
-                          aria-label="Next step due date"
-                          className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-[12.5px] text-slate-700 focus:border-[var(--sd-ink)] focus:outline-none"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!nextStepDraft.trim()) return;
-                            addNextStep(a.id, nextStepDraft, nextStepDue);
-                            setNextStepDraft("");
-                            setNextStepDue("");
-                            forceTick((t) => t + 1);
-                          }}
-                          disabled={!nextStepDraft.trim()}
-                          className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
-                        >
-                          Add step
-                        </button>
+                        <ResponsibleStaffCard applicationId={a.id} journey={journey} actor={actor} onChanged={() => forceTick((t) => t + 1)} />
                       </div>
-                      <p className="mt-1.5 text-[11px] text-slate-400">Also appears on your To Do List until checked off.</p>
-                    </div>
 
-                    <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                        <Plus size={13} /> Request a document from the student
-                      </p>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                          value={requestDocType}
-                          onChange={(e) => setRequestDocType(e.target.value)}
-                          placeholder="e.g. Bank Guarantee Letter"
-                          className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-[var(--sd-ink)] focus:outline-none"
-                        />
-                        <input
-                          type="date"
-                          value={requestDocDue}
-                          onChange={(e) => setRequestDocDue(e.target.value)}
-                          aria-label="Requested document due date"
-                          className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-[12.5px] text-slate-700 focus:border-[var(--sd-ink)] focus:outline-none"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!requestDocType.trim()) return;
-                            addCustomDocRequest(a.id, requestDocType);
-                            if (requestDocDue) setDocDueDate(a.id, requestDocType.trim(), requestDocDue);
-                            setRequestDocType("");
-                            setRequestDocDue("");
-                            forceTick((t) => t + 1);
-                          }}
-                          disabled={!requestDocType.trim()}
-                          className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
-                        >
-                          Add to checklist
-                        </button>
-                      </div>
-                      <p className="mt-1.5 text-[11px] text-slate-400">
-                        Appears immediately on the student's own Documents tab for this application, with an upload option.
-                      </p>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-slate-100 bg-white p-3">
-                        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <History size={13} /> Status history
-                        </p>
-                        <div className="space-y-2">
-                          {statusHistory.map((h, i) => (
-                            <div key={`${h.status}-${h.changedAt}-${i}`} className="flex items-center gap-2 text-[12px]">
-                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-[var(--sd-ink)]" : "bg-slate-300"}`} />
-                              <span className={`flex-1 ${i === 0 ? "font-medium text-slate-800" : "text-slate-500"}`}>{h.status}</span>
-                              <span className="shrink-0 text-[11px] text-slate-400">{h.changedAt}</span>
-                            </div>
+                      {/* Column 2 — Documents */}
+                      <div className="space-y-3 lg:px-4">
+                        <ColumnHeader icon={FileCheck2} label="Documents" tone="bg-blue-500" />
+                        <div className="space-y-1.5">
+                          {checklist.map((r) => (
+                            <ApplicationChecklistCard
+                              key={r.type}
+                              row={r}
+                              dueDate={loadDocDueDate(a.id, r.type)}
+                              onSetDueDate={(date) => { setDocDueDate(a.id, r.type, date); forceTick((t) => t + 1); }}
+                              onUpload={(file) => {
+                                addUploadedDoc(a.id, r.type, URL.createObjectURL(file));
+                                forceTick((t) => t + 1);
+                              }}
+                              onRemoveRequest={
+                                !r.own && !r.reused && customTypes.includes(r.type)
+                                  ? () => { removeCustomDocRequest(a.id, r.type); forceTick((t) => t + 1); }
+                                  : undefined
+                              }
+                            />
                           ))}
+                          {checklist.length === 0 && <p className="text-[12.5px] text-slate-400">No checklist items for this application.</p>}
+                        </div>
+
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-3">
+                          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                            <Plus size={13} /> Request a document
+                          </p>
+                          <div className="space-y-2">
+                            <input
+                              value={requestDocType}
+                              onChange={(e) => setRequestDocType(e.target.value)}
+                              placeholder="e.g. Bank Guarantee Letter"
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-[var(--sd-ink)] focus:outline-none"
+                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={requestDocDue}
+                                onChange={(e) => setRequestDocDue(e.target.value)}
+                                aria-label="Requested document due date"
+                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-2 text-[12.5px] text-slate-700 focus:border-[var(--sd-ink)] focus:outline-none"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (!requestDocType.trim()) return;
+                                  addCustomDocRequest(a.id, requestDocType);
+                                  if (requestDocDue) setDocDueDate(a.id, requestDocType.trim(), requestDocDue);
+                                  setRequestDocType("");
+                                  setRequestDocDue("");
+                                  forceTick((t) => t + 1);
+                                }}
+                                disabled={!requestDocType.trim()}
+                                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-slate-400">Appears on the student's Documents tab immediately.</p>
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-slate-100 bg-white p-3">
-                        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <FileText size={13} /> Document upload history
-                        </p>
-                        {uploadHistory.length === 0 ? (
-                          <p className="text-[12px] text-slate-400">No documents uploaded for this application yet.</p>
-                        ) : (
+                      {/* Column 3 — Status (the 9-stage journey) */}
+                      <div className="space-y-3 lg:px-4">
+                        <ColumnHeader icon={Layers} label="Status" tone="bg-violet-500" />
+                        <JourneyStepper journey={journey} showStrip={false} />
+                        <JourneyStageEditor
+                          journey={journey}
+                          onPatch={(stageType, patch) => {
+                            if (actor) updateStage(a.id, stageType, patch, actor);
+                            forceTick((t) => t + 1);
+                          }}
+                          readOnly={!actor}
+                        />
+                      </div>
+
+                      {/* Column 4 — Tasks (scoped to this application) */}
+                      <div className="space-y-3 lg:pl-4">
+                        <ColumnHeader icon={ListChecks} label="Tasks" tone="bg-emerald-500" />
+                        <ApplicationTasksCard applicationId={a.id} />
+
+                        <div className="rounded-xl border border-slate-100 bg-white p-3">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Next steps</p>
+                          {nextSteps.length > 0 && (
+                            <div className="mb-2.5 space-y-1.5">
+                              {nextSteps.map((ns) => {
+                                const tone = stepDueTone(ns.dueDate, ns.done);
+                                const dueClass = tone === "overdue" ? "text-rose-600" : tone === "soon" ? "text-amber-600" : "text-slate-400";
+                                return (
+                                  <div key={ns.id} className="flex flex-wrap items-center gap-2">
+                                    <button
+                                      onClick={() => { toggleNextStepDone(a.id, ns.id); forceTick((t) => t + 1); }}
+                                      aria-label={ns.done ? `Mark "${ns.title}" not done` : `Mark "${ns.title}" done`}
+                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                        ns.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"
+                                      }`}
+                                    >
+                                      {ns.done && <Check size={11} />}
+                                    </button>
+                                    <span className={`flex-1 text-[12.5px] ${ns.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{ns.title}</span>
+                                    <span className="flex shrink-0 items-center gap-1">
+                                      <CalendarDays size={11} className={dueClass} />
+                                      <input
+                                        type="date"
+                                        value={ns.dueDate ?? ""}
+                                        onChange={(e) => { setNextStepDueDate(a.id, ns.id, e.target.value); forceTick((t) => t + 1); }}
+                                        aria-label={`Due date for "${ns.title}"`}
+                                        className={`rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10.5px] ${dueClass}`}
+                                      />
+                                    </span>
+                                    <button
+                                      onClick={() => { removeNextStep(a.id, ns.id); forceTick((t) => t + 1); }}
+                                      aria-label={`Remove step "${ns.title}"`}
+                                      className="shrink-0 text-slate-300 hover:text-slate-500"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                           <div className="space-y-2">
-                            {uploadHistory.map((d) => (
-                              <div key={d.id} className="flex items-center gap-2 text-[12px]">
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                                <span className="min-w-0 flex-1 truncate text-slate-700">{d.name}</span>
-                                {"previewUrl" in d && d.previewUrl && (
-                                  <DocViewButton
-                                    name={d.name}
-                                    previewUrl={d.previewUrl}
-                                    className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 hover:bg-slate-200"
-                                  />
-                                )}
-                                <span className="shrink-0 text-[11px] text-slate-400">{d.uploadedAt}</span>
+                            <input
+                              value={nextStepDraft}
+                              onChange={(e) => setNextStepDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter" || !nextStepDraft.trim()) return;
+                                addNextStep(a.id, nextStepDraft, nextStepDue);
+                                setNextStepDraft("");
+                                setNextStepDue("");
+                                forceTick((t) => t + 1);
+                              }}
+                              placeholder="e.g. Book visa biometrics appointment"
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-[var(--sd-ink)] focus:outline-none"
+                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={nextStepDue}
+                                onChange={(e) => setNextStepDue(e.target.value)}
+                                aria-label="Next step due date"
+                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-2 text-[12.5px] text-slate-700 focus:border-[var(--sd-ink)] focus:outline-none"
+                              />
+                              <button
+                                onClick={() => {
+                                  if (!nextStepDraft.trim()) return;
+                                  addNextStep(a.id, nextStepDraft, nextStepDue);
+                                  setNextStepDraft("");
+                                  setNextStepDue("");
+                                  forceTick((t) => t + 1);
+                                }}
+                                disabled={!nextStepDraft.trim()}
+                                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-slate-400">Also appears on your To Do List until checked off.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* History — full width below the columns */}
+                    <div className="mt-4 border-t border-slate-200 pt-4">
+                      <div className="mb-2">
+                        <ColumnHeader icon={History} label="History" tone="bg-amber-500" />
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <ApplicationActivityCard applicationId={a.id} />
+
+                        <div className="rounded-xl border border-slate-100 bg-white p-3">
+                          <p className="mb-2 text-xs font-semibold text-slate-600">Status history</p>
+                          <div className="space-y-2">
+                            {statusHistory.map((h, i) => (
+                              <div key={`${h.status}-${h.changedAt}-${i}`} className="flex items-center gap-2 text-[12px]">
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-[var(--sd-ink)]" : "bg-slate-300"}`} />
+                                <span className={`flex-1 ${i === 0 ? "font-medium text-slate-800" : "text-slate-500"}`}>{h.status}</span>
+                                <span className="shrink-0 text-[11px] text-slate-400">{h.changedAt}</span>
                               </div>
                             ))}
                           </div>
-                        )}
+                        </div>
+
+                        <div className="rounded-xl border border-slate-100 bg-white p-3">
+                          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                            <FileText size={13} /> Document upload history
+                          </p>
+                          {uploadHistory.length === 0 ? (
+                            <p className="text-[12px] text-slate-400">No documents uploaded for this application yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {uploadHistory.map((d) => (
+                                <div key={d.id} className="flex items-center gap-2 text-[12px]">
+                                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                  <span className="min-w-0 flex-1 truncate text-slate-700">{d.name}</span>
+                                  {"previewUrl" in d && d.previewUrl && (
+                                    <DocViewButton
+                                      name={d.name}
+                                      previewUrl={d.previewUrl}
+                                      className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-600 hover:bg-slate-200"
+                                    />
+                                  )}
+                                  <span className="shrink-0 text-[11px] text-slate-400">{d.uploadedAt}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

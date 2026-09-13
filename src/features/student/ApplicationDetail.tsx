@@ -15,6 +15,7 @@ import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { docMatchesType, buildChecklist, coreDocTypes } from "../../utils/documentChecklist";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
+import { ApplicationJourneyPanel } from "../../components/ApplicationJourneyPanel";
 
 const TABS = ["Overview", "Documents", "Updates", "Notes"] as const;
 
@@ -239,6 +240,10 @@ export default function ApplicationDetail() {
                       </div>
                     );
                   })}
+                </div>
+
+                <div className="mb-5">
+                  <ApplicationJourneyPanel applicationId={application.id} mode="student" />
                 </div>
 
                 {nextSteps.length > 0 && (
