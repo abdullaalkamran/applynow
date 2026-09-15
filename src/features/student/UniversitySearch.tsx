@@ -11,13 +11,13 @@ import { countryByName } from "../../data/countries";
 import {
   emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
   allPrograms, FEE_BANDS, feeBandMax, scholarshipAmountUSD, subjectOptions, destinationOptions,
-  type UniversityFilterState,
+  countryStats, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
 
-type Tab = "universities" | "subjects";
+type Tab = "universities" | "subjects" | "countries";
 
 type SortBy = "best" | "rank" | "employability" | "name";
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
@@ -153,9 +153,39 @@ export default function UniversitySearch() {
           >
             Subjects
           </button>
+          <button
+            onClick={() => setTab("countries")}
+            className={`rounded-lg px-6 py-2 text-[13px] font-medium transition-colors lg:flex-none ${
+              tab === "countries" ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-500"
+            } flex-1`}
+          >
+            Countries
+          </button>
         </div>
 
-        {tab === "subjects" ? (
+        {tab === "countries" ? (
+          <div className="mt-4">
+            <p className="text-[13px] text-slate-500">{countryStats().length} destination{countryStats().length === 1 ? "" : "s"} to explore.</p>
+            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+              {countryStats().map((c) => (
+                <button
+                  key={c.name}
+                  onClick={() => navigate(`/student/countries/${encodeURIComponent(c.name)}`)}
+                  className="flex flex-col items-start gap-1 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                >
+                  <p className="text-[14px] font-semibold text-slate-900">{c.name}</p>
+                  <p className="text-[11.5px] text-slate-500">{c.universityCount} universit{c.universityCount === 1 ? "y" : "ies"}</p>
+                  <p className="text-[11.5px] text-slate-500">{c.courseCount} course{c.courseCount === 1 ? "" : "s"}</p>
+                </button>
+              ))}
+              {countryStats().length === 0 && (
+                <div className="col-span-full rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                  <p className="text-sm font-medium text-slate-700">No destinations yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : tab === "subjects" ? (
           <div className="mt-4">
             <div className="flex items-center justify-between">
               <p className="text-[13px] text-slate-500">

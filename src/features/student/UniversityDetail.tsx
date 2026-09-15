@@ -8,10 +8,14 @@ import { SkylineArt, Pill } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { curriculumFor } from "../../data/subjectCurriculum";
+import { getCountryByName } from "../../data/countryRegistry";
+import { CostCalculator } from "../../components/CostCalculator";
+import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
+import { CountryGuideSection } from "../../components/CountryGuideSection";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 
-const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees"] as const;
+const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
 
 type Course = University["courses"][number];
@@ -29,12 +33,23 @@ export default function UniversityDetail() {
   // profile with a course list to choose from. A course chosen there, or arriving pre-selected from
   // a Subject listing, switches to the single-course detail view.
   const [activeCourseName, setActiveCourseName] = useState<string | null>(navState?.selectedCourseName ?? null);
-  const course = university.courses.find((c) => c.name === activeCourseName);
+  const course = university?.courses.find((c) => c.name === activeCourseName);
 
   const [uniTab, setUniTab] = useState<(typeof UNIVERSITY_TABS)[number]>("Overview");
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
+
+  if (!university) {
+    return (
+      <div className="px-5 py-6">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+          <ArrowLeft size={14} /> Back
+        </button>
+        <p className="text-xs text-slate-400">University not found.</p>
+      </div>
+    );
+  }
 
   const actions = course ? (
     <div className="w-full space-y-2">
@@ -250,6 +265,7 @@ function UniversityView({
   onSelectCourse: (name: string) => void;
 }) {
   const navigate = useNavigate();
+  const country = getCountryByName(university.country);
   return (
     <>
       <h1 className="text-[22px] font-bold leading-tight text-slate-900 lg:text-[26px]">{university.name}</h1>
@@ -331,21 +347,27 @@ function UniversityView({
         )}
 
         {tab === "Fees" && (
-          <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-            {university.fees.map((f) => (
-              <div key={f.label} className="flex items-center justify-between border-b border-slate-50 py-2.5 last:border-0">
-                <span className="text-[13px] text-slate-500">{f.label}</span>
-                <span className="text-[13px] font-medium text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
-              </div>
-            ))}
-            <button
-              onClick={() => navigate("/student/cost-planner")}
-              className="mt-3 w-full rounded-xl bg-slate-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
-            >
-              Open full Cost Planner
-            </button>
+          <div className="space-y-3">
+            <CostCalculator university={university} recommendedFundsUSD={country?.recommendedFundsUSD} />
+            {country?.visaCostConfig && <VisaCostBreakdown university={university} config={country.visaCostConfig} />}
+            <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              {university.fees.map((f) => (
+                <div key={f.label} className="flex items-center justify-between border-b border-slate-50 py-2.5 last:border-0">
+                  <span className="text-[13px] text-slate-500">{f.label}</span>
+                  <span className="text-[13px] font-medium text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
+                </div>
+              ))}
+              <button
+                onClick={() => navigate("/student/cost-planner")}
+                className="mt-3 w-full rounded-xl bg-slate-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
+              >
+                Open full Cost Planner
+              </button>
+            </div>
           </div>
         )}
+
+        {tab === "Country Guide" && <CountryGuideSection country={country} />}
       </div>
     </>
   );

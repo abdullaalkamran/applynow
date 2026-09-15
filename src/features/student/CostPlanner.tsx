@@ -7,7 +7,7 @@ const AVAILABLE_FUNDS = 35000;
 
 export default function CostPlanner() {
   const [duration, setDuration] = useState<"1st Year" | "Full Duration">("1st Year");
-  const fees = UNIVERSITIES[0].fees;
+  const fees = UNIVERSITIES[0]?.fees ?? [];
   const total = fees.reduce((sum, f) => sum + f.amount, 0);
   const gap = Math.max(0, total - AVAILABLE_FUNDS);
 

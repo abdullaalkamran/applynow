@@ -10,7 +10,7 @@ import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
 
 export default function AppLayout() {
-  useCacheSync();
+  const cacheTick = useCacheSync();
   const { role, currentUser } = useRole();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -113,7 +113,7 @@ export default function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <Outlet key={cacheTick} />
         </main>
 
         {nav.length > 1 && <RoleBottomNav items={nav} />}

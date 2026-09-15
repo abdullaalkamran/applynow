@@ -175,6 +175,28 @@ export function subjectStats(): SubjectStat[] {
   }).filter((s) => s.universityCount > 0);
 }
 
+export interface CountryStat {
+  name: string;
+  universityCount: number;
+  courseCount: number;
+}
+
+// One row per destination country, used to render the "Countries" tab on Explore — the card-grid
+// entry point into browsing by destination, same shape as subjectStats() above but for country.
+export function countryStats(): CountryStat[] {
+  const universities = getAllUniversities();
+  const byCountry = new Map<string, University[]>();
+  universities.forEach((u) => {
+    const list = byCountry.get(u.country) ?? [];
+    list.push(u);
+    byCountry.set(u.country, list);
+  });
+  return Array.from(byCountry.entries())
+    .map(([name, list]) => ({ name, universityCount: list.length, courseCount: list.reduce((sum, u) => sum + u.courses.length, 0) }))
+    .filter((c) => c.universityCount > 0)
+    .sort((a, b) => b.universityCount - a.universityCount);
+}
+
 export function citiesForDestination(destination: string): string[] {
   const universities = getAllUniversities();
   if (!destination) return Array.from(new Set(universities.map((u) => u.city))).sort();

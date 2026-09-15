@@ -12,6 +12,18 @@ export default function AgentCampusOptions() {
 
   const UNIVERSITIES = getAllUniversities();
   const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
+
+  if (!university) {
+    return (
+      <div className="max-w-2xl">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+          <ArrowLeft size={14} /> Back
+        </button>
+        <p className="text-xs text-slate-400">University not found.</p>
+      </div>
+    );
+  }
+
   const course = university.courses.find((c) => c.name === navState?.courseName) ?? university.courses[0];
   const campuses = course ? campusesFor(university, course.feeUSD) : [];
 

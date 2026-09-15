@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Search, Plus, Trash2, Globe2, GraduationCap, BookOpen } from "lucide-react";
+import { ArrowLeft, Search, Plus, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase } from "lucide-react";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { getAllUniversities, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
+import { getAllApplications } from "../../../data/applicationsStore";
+import { getAllStudents } from "../../../data/allStudentsStore";
+import { loadStaff } from "../../../data/staffStore";
 
 export default function DataUniversities() {
   const navigate = useNavigate();
@@ -17,6 +20,16 @@ export default function DataUniversities() {
   const countries = Array.from(new Set(universities.map((u) => u.country))).sort();
   const totalCourses = universities.reduce((sum, u) => sum + u.courses.length, 0);
   const effectiveCountry = scopedCountry ?? country;
+
+  // Students with an application to this destination country, and the agents representing them —
+  // shown on the country's own page so Data Management can see who a catalog change actually affects.
+  const allStudents = getAllStudents();
+  const studentIdsInCountry = scopedCountry
+    ? new Set(getAllApplications().filter((a) => a.country.toLowerCase() === scopedCountry.toLowerCase()).map((a) => a.studentId))
+    : new Set<string>();
+  const studentsInCountry = allStudents.filter((s) => studentIdsInCountry.has(s.id));
+  const agentIdsInCountry = new Set(studentsInCountry.map((s) => s.agentId).filter((id): id is string => !!id));
+  const agentsInCountry = loadStaff().filter((s) => s.role === "agent" && agentIdsInCountry.has(s.id));
 
   const filtered = universities.filter((u) => {
     if (effectiveCountry !== "All" && u.country !== effectiveCountry) return false;
@@ -51,11 +64,53 @@ export default function DataUniversities() {
         action={<Button onClick={() => navigate(addUniversityHref)}><Plus size={15} /> Add University</Button>}
       />
 
+      {scopedCountry && <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Country Overview</p>}
       <div className="mb-6 flex flex-wrap gap-4">
         <StatTile label="Universities" value={String(filtered.length)} />
         <StatTile label="Courses" value={String(scopedCountry ? filtered.reduce((s, u) => s + u.courses.length, 0) : totalCourses)} />
         {!scopedCountry && <StatTile label="Countries" value={String(countries.length)} />}
+        {scopedCountry && <StatTile label="Students" value={String(studentsInCountry.length)} />}
+        {scopedCountry && <StatTile label="Agents" value={String(agentsInCountry.length)} />}
       </div>
+
+      {scopedCountry && (studentsInCountry.length > 0 || agentsInCountry.length > 0) && (
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-800"><Users size={13} /> Students applying here</p>
+            {studentsInCountry.length === 0 ? (
+              <p className="text-xs text-slate-400">No students yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {studentsInCountry.map((s) => (
+                  <li key={s.id} className="flex items-center gap-2 text-xs text-slate-600">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${s.avatarColor}`}>
+                      {s.name.slice(0, 1)}
+                    </span>
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-800"><Briefcase size={13} /> Agents active here</p>
+            {agentsInCountry.length === 0 ? (
+              <p className="text-xs text-slate-400">No agents yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {agentsInCountry.map((a) => (
+                  <li key={a.id} className="flex items-center gap-2 text-xs text-slate-600">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${a.avatarColor}`}>
+                      {a.name.slice(0, 1)}
+                    </span>
+                    {a.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 sm:max-w-sm">

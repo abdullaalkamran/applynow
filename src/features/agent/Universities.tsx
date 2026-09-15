@@ -4,7 +4,7 @@ import { Search, MapPin } from "lucide-react";
 import { PillSelect, LogoBadge } from "../../components/ui/mobile";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import {
-  allPrograms, destinationOptions, subjectOptions, intakeOptions, FEE_BANDS, feeBandMax,
+  allPrograms, destinationOptions, subjectOptions, intakeOptions, FEE_BANDS, feeBandMax, countryStats,
 } from "../../utils/universityFilter";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { ProgramRow } from "./ProgramRow";
@@ -12,7 +12,7 @@ import { CreateApplicationModal } from "./CreateApplicationModal";
 import type { University } from "../../types";
 
 type Course = University["courses"][number];
-const TABS = ["Programs", "Universities"] as const;
+const TABS = ["Programs", "Universities", "Countries"] as const;
 
 export default function AgentUniversities() {
   const navigate = useNavigate();
@@ -164,6 +164,27 @@ export default function AgentUniversities() {
             ))}
             {filteredUniversities.length === 0 && (
               <p className="col-span-full py-10 text-center text-xs text-slate-400">No universities match this search.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "Countries" && (
+        <div>
+          <p className="mb-3 text-xs text-slate-500">{countryStats().length} destination{countryStats().length === 1 ? "" : "s"} across your partner universities.</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {countryStats().map((c) => (
+              <button
+                key={c.name}
+                onClick={() => navigate(`/agent/countries/${encodeURIComponent(c.name)}`)}
+                className="flex flex-col items-start gap-1 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)]"
+              >
+                <p className="text-xs font-semibold text-slate-800">{c.name}</p>
+                <p className="text-[11px] text-slate-500">{c.universityCount} universit{c.universityCount === 1 ? "y" : "ies"} · {c.courseCount} course{c.courseCount === 1 ? "" : "s"}</p>
+              </button>
+            ))}
+            {countryStats().length === 0 && (
+              <p className="col-span-full py-10 text-center text-xs text-slate-400">No destinations yet.</p>
             )}
           </div>
         </div>

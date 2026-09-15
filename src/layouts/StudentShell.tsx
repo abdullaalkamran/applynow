@@ -28,9 +28,12 @@ function hasStickyActionBar(pathname: string): boolean {
 }
 
 export default function StudentShell() {
-  useCacheSync();
+  const cacheTick = useCacheSync();
   const location = useLocation();
-  const showTabs = TAB_ROOTS.has(location.pathname) || location.pathname.startsWith("/student/subjects/");
+  const showTabs =
+    TAB_ROOTS.has(location.pathname) ||
+    location.pathname.startsWith("/student/subjects/") ||
+    location.pathname.startsWith("/student/countries/");
   const raiseFab = showTabs || hasStickyActionBar(location.pathname);
 
   return (
@@ -41,7 +44,7 @@ export default function StudentShell() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="no-scrollbar flex-1 overflow-y-auto">
-          <Outlet />
+          <Outlet key={cacheTick} />
         </div>
         {showTabs && (
           <div className="lg:hidden">

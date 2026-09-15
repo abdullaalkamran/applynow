@@ -9,10 +9,14 @@ import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { curriculumFor } from "../../data/subjectCurriculum";
+import { getCountryByName } from "../../data/countryRegistry";
+import { CostCalculator } from "../../components/CostCalculator";
+import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
+import { CountryGuideSection } from "../../components/CountryGuideSection";
 import { ShortlistButton } from "./ShortlistButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
 
-const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees"] as const;
+const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
 
 export default function AgentUniversityDetail() {
@@ -29,7 +33,19 @@ export default function AgentUniversityDetail() {
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
   const [applyOpen, setApplyOpen] = useState(false);
 
+  if (!university) {
+    return (
+      <div className="max-w-4xl">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+          <ArrowLeft size={14} /> Back
+        </button>
+        <p className="text-xs text-slate-400">University not found.</p>
+      </div>
+    );
+  }
+
   const course = university.courses.find((c) => c.name === activeCourseName) ?? null;
+  const country = getCountryByName(university.country);
 
   return (
     <div className="max-w-4xl">
@@ -198,15 +214,20 @@ export default function AgentUniversityDetail() {
                 </ul>
               )}
               {uniTab === "Fees" && (
-                <div className="space-y-2">
-                  {university.fees.map((f) => (
-                    <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                      <span className="text-slate-600">{f.label}</span>
-                      <span className="font-semibold text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  <CostCalculator university={university} recommendedFundsUSD={country?.recommendedFundsUSD} />
+                  {country?.visaCostConfig && <VisaCostBreakdown university={university} config={country.visaCostConfig} />}
+                  <div className="space-y-2">
+                    {university.fees.map((f) => (
+                      <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                        <span className="text-slate-600">{f.label}</span>
+                        <span className="font-semibold text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
+              {uniTab === "Country Guide" && <CountryGuideSection country={country} />}
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4">

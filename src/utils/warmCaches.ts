@@ -7,6 +7,7 @@ import { refreshTasks } from "../data/tasksStore";
 import { refreshStaff } from "../data/staffStore";
 import { refreshAgentStudents } from "../data/agentStudentsStore";
 import { refreshAssignedStudents } from "../data/counsellorStudentsStore";
+import { refreshAllStudents } from "../data/allStudentsStore";
 
 export function warmCaches() {
   refreshApplications().catch((err) => console.warn("Failed to warm applications cache:", err));
@@ -14,4 +15,5 @@ export function warmCaches() {
   refreshStaff().catch((err) => console.warn("Failed to warm staff cache:", err));
   refreshAgentStudents().catch((err) => console.warn("Failed to warm agent-students cache:", err));
   refreshAssignedStudents().catch((err) => console.warn("Failed to warm counsellor-students cache:", err));
+  refreshAllStudents().catch((err) => console.warn("Failed to warm all-students cache:", err));
 }

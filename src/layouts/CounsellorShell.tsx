@@ -28,7 +28,7 @@ const GUIDE_TIPS = [
 ];
 
 export default function CounsellorShell() {
-  useCacheSync();
+  const cacheTick = useCacheSync();
   const navigate = useNavigate();
   const { currentUser } = useRole();
   const { logout } = useAuth();
@@ -203,7 +203,7 @@ export default function CounsellorShell() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <Outlet key={cacheTick} />
         </main>
 
         <RoleBottomNav items={navItems} onMore={() => setMobileNavOpen(true)} />

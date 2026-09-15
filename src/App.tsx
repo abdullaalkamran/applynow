@@ -21,6 +21,7 @@ import UniversityFilters from "./features/student/UniversityFilters";
 import UniversityDetail from "./features/student/UniversityDetail";
 import CampusOptions from "./features/student/CampusOptions";
 import SubjectDetail from "./features/student/SubjectDetail";
+import CountryDetail from "./features/student/CountryDetail";
 import AICounsellor from "./features/student/AICounsellor";
 import CostPlanner from "./features/student/CostPlanner";
 import StudentMessages from "./features/student/Messages";
@@ -40,6 +41,7 @@ import AgentUniversities from "./features/agent/Universities";
 import AgentUniversityDetail from "./features/agent/UniversityDetail";
 import AgentCampusOptions from "./features/agent/CampusOptions";
 import AgentSubjectDetail from "./features/agent/SubjectDetail";
+import AgentCountryDetail from "./features/agent/CountryDetail";
 import AgentOffers from "./features/agent/Offers";
 import AgentVisaCompliance from "./features/agent/VisaCompliance";
 import AgentCommissions from "./features/agent/Commissions";
@@ -66,6 +68,7 @@ import DataCountries from "./features/staff/data/Countries";
 import DataUniversities from "./features/staff/data/Universities";
 import DataUniversityDetail from "./features/staff/data/UniversityDetail";
 import DataUniversityForm from "./features/staff/data/UniversityForm";
+import DataCountryForm from "./features/staff/data/CountryForm";
 import DataCourseForm from "./features/staff/data/CourseForm";
 import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
 
@@ -107,6 +110,7 @@ export default function App() {
             <Route path="/student/universities/:id" element={<UniversityDetail />} />
             <Route path="/student/universities/:id/campuses" element={<CampusOptions />} />
             <Route path="/student/subjects/:subject" element={<SubjectDetail />} />
+            <Route path="/student/countries/:country" element={<CountryDetail />} />
             <Route path="/student/applications" element={<StudentApplications />} />
             <Route path="/student/applications/:id" element={<StudentApplicationDetail />} />
             <Route path="/student/documents" element={<StudentDocuments />} />
@@ -155,6 +159,7 @@ export default function App() {
             <Route path="/agent/universities/:id" element={<AgentUniversityDetail />} />
             <Route path="/agent/universities/:id/campuses" element={<AgentCampusOptions />} />
             <Route path="/agent/subjects/:subject" element={<AgentSubjectDetail />} />
+            <Route path="/agent/countries/:country" element={<AgentCountryDetail />} />
             <Route path="/agent/offers" element={<AgentOffers />} />
             <Route path="/agent/visa-compliance" element={<AgentVisaCompliance />} />
             <Route path="/agent/commissions" element={<AgentCommissions />} />
@@ -171,7 +176,9 @@ export default function App() {
             <Route path="/staff/admission" element={<AdmissionSubmissionQueue />} />
             <Route path="/staff/compliance" element={<ComplianceRiskQueue />} />
             <Route path="/staff/data" element={<DataCountries />} />
+            <Route path="/staff/data/countries/new" element={<DataCountryForm />} />
             <Route path="/staff/data/countries/:country" element={<DataUniversities />} />
+            <Route path="/staff/data/countries/:country/edit" element={<DataCountryForm />} />
             <Route path="/staff/data/universities" element={<DataUniversities />} />
             <Route path="/staff/data/universities/new" element={<DataUniversityForm />} />
             <Route path="/staff/data/universities/:id" element={<DataUniversityDetail />} />

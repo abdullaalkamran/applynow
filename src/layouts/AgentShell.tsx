@@ -18,7 +18,7 @@ interface NavEntry {
 }
 
 export default function AgentShell() {
-  useCacheSync();
+  const cacheTick = useCacheSync();
   const navigate = useNavigate();
   const { currentUser } = useRole();
   const { logout } = useAuth();
@@ -183,7 +183,7 @@ export default function AgentShell() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <Outlet key={cacheTick} />
         </main>
 
         <RoleBottomNav items={navItems} onMore={() => setMobileNavOpen(true)} />

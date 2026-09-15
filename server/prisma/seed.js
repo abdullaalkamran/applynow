@@ -5,7 +5,6 @@
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const { buildInitialStages } = require("../src/journeyLogic");
-const { workflowStages } = require("../src/workflowStages");
 
 const prisma = new PrismaClient();
 
@@ -37,16 +36,9 @@ const STAFF = [
   { id: "co1", name: "R. Fernandez", email: "r.fernandez@studyone.dev", role: "compliance", phone: "+44 7700 900987", avatarColor: "bg-rose-500" },
 ];
 
-const APPLICATIONS = [
-  { id: "app1", studentId: "s1", university: "University of Manchester", course: "MSc Data Science", intake: "Jan 2027", country: "UK", status: "UniversityReview", progress: 62, nextAction: "Awaiting university decision", waitingOn: "university", stages: workflowStages(3), updatedAt: "2026-09-02" },
-  { id: "app2", studentId: "s1", university: "University of Melbourne", course: "Master of Data Science", intake: "Feb 2027", country: "Australia", status: "DocumentsPending", progress: 28, nextAction: "Upload bank statement", waitingOn: "student", stages: workflowStages(1), updatedAt: "2026-09-05" },
-  { id: "app3", studentId: "s2", university: "University of Toronto", course: "MBA", intake: "Sep 2027", country: "Canada", status: "AdditionalDocumentsRequested", progress: 45, nextAction: "Submit updated IELTS score", waitingOn: "student", stages: workflowStages(2), updatedAt: "2026-09-01" },
-  { id: "app4", studentId: "s3", university: "University of Auckland", course: "MSc Data Science", intake: "Jul 2027", country: "New Zealand", status: "OfferReceived", progress: 78, nextAction: "Accept offer & pay deposit", waitingOn: "student", stages: workflowStages(4), updatedAt: "2026-08-28" },
-  { id: "app5", studentId: "s4", university: "University of Leeds", course: "BSc Business", intake: "Jan 2027", country: "UK", status: "ComplianceHold", progress: 38, nextAction: "Compliance review of financial documents", waitingOn: "staff", stages: workflowStages(1, 1), updatedAt: "2026-09-06" },
-  { id: "app6", studentId: "s5", university: "University of Melbourne", course: "MSc Finance", intake: "Feb 2027", country: "Australia", status: "DepositPaid", progress: 88, nextAction: "Awaiting CAS/COE issuance", waitingOn: "university", stages: workflowStages(5), updatedAt: "2026-09-04" },
-  { id: "app7", studentId: "s9", university: "University of Birmingham", course: "MSc Mechanical Engineering", intake: "Sep 2027", country: "UK", status: "Submitted", progress: 15, nextAction: "Awaiting university confirmation of receipt", waitingOn: "university", stages: workflowStages(2), updatedAt: "2026-09-09", source: "counsellor" },
-  { id: "app8", studentId: "s10", university: "University of Edinburgh", course: "MSc Artificial Intelligence", intake: "Sep 2027", country: "UK", status: "DocumentsPending", progress: 32, nextAction: "Upload English test score", waitingOn: "student", stages: workflowStages(1), updatedAt: "2026-09-07", source: "student" },
-];
+// Demo applications intentionally removed from the seed — the catalog/application data starts
+// empty now; real applications are created through the app once real universities exist.
+const APPLICATIONS = [];
 
 const RAFIQ = { id: "a1", role: "agent", name: "Rafiq Hossain" };
 const MARIA = { id: "c1", role: "counsellor", name: "Maria Fernandez" };
