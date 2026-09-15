@@ -45,6 +45,10 @@ export interface Student {
   id: string;
   name: string;
   email: string;
+  // Basic contact number captured at signup — distinct from the (possibly more current, OTP-
+  // verified) phone recorded in Personal Information during onboarding. A lead has this from the
+  // moment their account exists, well before they'd have completed that later step.
+  phone?: string;
   country: string;
   agentId?: string;
   counsellorId?: string;
@@ -164,6 +168,9 @@ export interface SupportContact {
   role: string;
   organization?: string;
   phone: string;
+  // For status-change email notifications — absent means this contact just doesn't get emailed
+  // (WhatsApp still works off `phone` alone).
+  email?: string;
   avatarColor: string;
 }
 

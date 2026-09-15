@@ -39,7 +39,7 @@ export function ApplicationChecklistCard({
         )}
         <button
           onClick={() => inputRef.current?.click()}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-[var(--sd-ink)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-[image:var(--sd-gradient)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
         >
           <Upload size={11} /> Upload
         </button>

@@ -199,7 +199,7 @@ export default function ApplicationDetail() {
                 className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
               >
                 {t}
-                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[var(--sd-ink)]" />}
+                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
               </button>
             ))}
           </div>
@@ -225,7 +225,7 @@ export default function ApplicationDetail() {
                         <div className="flex flex-col items-center">
                           <div
                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                              done ? "bg-[var(--sd-teal)] text-white" : current ? "bg-[var(--sd-ink)] text-white" : "bg-slate-100"
+                              done ? "bg-[var(--sd-teal)] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
                             }`}
                           >
                             {done ? <Check size={14} /> : current ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
@@ -433,7 +433,7 @@ export default function ApplicationDetail() {
           {university && (
             <button
               onClick={() => navigate(`/student/universities/${university.id}`, { state: { selectedCourseName: application.course } })}
-              className="flex flex-[1.3] items-center justify-center gap-1.5 rounded-full bg-[var(--sd-ink)] py-3 text-[13px] font-semibold text-white"
+              className="flex flex-[1.3] items-center justify-center gap-1.5 rounded-full bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
             >
               View Program <ExternalLink size={14} />
             </button>

@@ -1,16 +1,17 @@
-// One structured, 9-stage journey record per application — the heart of this feature. Same
-// localStorage convention as every other store here. `loadJourney` lazily initializes a journey
-// from the Requirement Engine the first time an existing (seeded or created) application is looked
-// at, so nothing needs a separate manual "provisioning" pass across the seed data.
+// Postgres-backed via /api/applications/:id/journey (server/src/routes/applications.js), same
+// synchronous-cache pattern as applicationsStore.ts. `loadJourney` returns a locally-computed
+// fallback (the same Requirement-Engine init logic used before this migration) the first time an
+// application is looked at, then swaps in the server's canonical copy once the background fetch
+// resolves — the local computation and the server's are built from the same rules, so they agree
+// in the overwhelming majority of cases; only genuinely already-edited server-side state can differ.
 import type { Role } from "../types";
-import { getAllApplications, updateApplicationStatus } from "./applicationsStore";
+import { getAllApplications, applyLocalStatusUpdate, refreshApplicationFromServer } from "./applicationsStore";
 import { getCountryId } from "./countryRegistry";
 import { resolveImmigrationDocType, resolveHoldingPeriodDays } from "./requirementRules";
 import { recordActivity } from "./applicationActivityStore";
-// deriveAppStatus/computeNextAction are pure functions over an already-built ApplicationJourney —
-// safe to import here since applicationJourneyEngine.ts no longer imports anything back from this
-// file (currentStageOf lives there now), so there's no import cycle between store and engine.
 import { deriveAppStatus, computeNextAction } from "../utils/applicationJourneyEngine";
+import { apiGet, apiPatch } from "../utils/apiClient";
+import { notifyCacheChange } from "../utils/syncCache";
 import {
   type ApplicationJourney, type StageType, type StageRecord,
   type ApplicationStageStatus, type ApplicationStageData,
@@ -24,7 +25,7 @@ import {
   type EnrolmentStageStatus, type EnrolmentStageData,
 } from "../types/journey";
 
-const STORAGE_PREFIX = "sd-application-journey:";
+const cache: Record<string, ApplicationJourney> = {};
 
 // The status a stage is considered "done" at — used to auto-set completedAt on transition.
 const STAGE_TERMINAL_STATUS: Record<StageType, string[]> = {
@@ -39,30 +40,14 @@ const STAGE_TERMINAL_STATUS: Record<StageType, string[]> = {
   enrolment: ["Enrolled"],
 };
 
-function readRaw(applicationId: string): ApplicationJourney | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + applicationId);
-    return raw ? (JSON.parse(raw) as ApplicationJourney) : null;
-  } catch {
-    return null;
-  }
-}
-
-function persist(journey: ApplicationJourney) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_PREFIX + journey.applicationId, JSON.stringify(journey));
-}
-
 function stage<TStatus extends string, TData>(
   stageType: StageType, applicable: boolean, required: boolean, status: TStatus, data: TData
 ): StageRecord<TStatus, TData> {
   return { stageType, applicable, required, status, data };
 }
 
-/** Builds a fresh journey from the Requirement Engine — the country resolves which immigration
- * document type and financial holding period apply, so nothing here is a hardcoded per-country
- * branch. */
+/** Builds a fresh journey from the Requirement Engine — used as the instant local value before
+ * the server's canonical copy has loaded, and as the request body's implicit shape reference. */
 export function initializeJourney(
   applicationId: string,
   scope: { countryId?: string; universityId?: string; courseId?: string }
@@ -92,35 +77,49 @@ export function initializeJourney(
     },
   };
 
-  persist(journey);
+  cache[applicationId] = journey;
   return journey;
 }
 
-/** Reads a journey, lazily initializing one from the real application's country if none exists yet
- * — so every seeded/created application has a coherent journey without a separate migration step. */
-export function loadJourney(applicationId: string): ApplicationJourney {
-  const existing = readRaw(applicationId);
-  if (existing) return existing;
+/** Background fetch that swaps the local/cached journey for the server's canonical copy. */
+function refreshFromServer(applicationId: string) {
+  apiGet<ApplicationJourney>(`/api/applications/${applicationId}/journey`)
+    .then((journey) => {
+      cache[applicationId] = journey;
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to load journey from server:", err));
+}
 
-  const application = getAllApplications().find((a) => a.id === applicationId);
-  const countryId = application ? getCountryId(application.country) : undefined;
-  return initializeJourney(applicationId, { countryId });
+/** Reads a journey, synchronously — instant local init (or the last-known cached/server copy) if
+ * nothing has loaded from the server yet for this application, with a background fetch kicked off
+ * to reconcile with the canonical copy. */
+export function loadJourney(applicationId: string): ApplicationJourney {
+  if (!cache[applicationId]) {
+    const application = getAllApplications().find((a) => a.id === applicationId);
+    const countryId = application ? getCountryId(application.country) : undefined;
+    initializeJourney(applicationId, { countryId });
+    refreshFromServer(applicationId);
+  }
+  return cache[applicationId];
 }
 
 /** Merges a patch into one stage's data, auto-stamping startedAt/completedAt off the new status,
- * and recording an activity event — every stage write goes through here so "status changes
- * automatically create dates and audit events" happens once, not at every call site. */
+ * recording an activity event, and deriving+applying the resulting flat AppStatus — mirrors the
+ * pre-migration behavior exactly, just against the cache instead of localStorage. The real
+ * persistence (and the server-side notification dispatch that comes with it) happens via the
+ * background PATCH; the local update is what makes the UI feel instant. */
 export function updateStage<TData>(
   applicationId: string,
   stageType: StageType,
   patch: Partial<TData> & { status?: string; blocked?: boolean; blockedReason?: string },
-  actor: { id: string; role: Role; name: string }
+  actor: { id: string; role: Role; name: string },
+  _token?: string
 ): ApplicationJourney {
   const journey = loadJourney(applicationId);
   const current = journey.stages[stageType];
   const oldStatus = current?.status;
   const nextData = { ...(current?.data ?? {}), ...patch };
-  // status/blocked/blockedReason live on the record itself, not inside `data` — strip them back out.
   const { status: nextStatus, blocked, blockedReason, ...dataOnly } = nextData as Record<string, unknown>;
 
   const updated: StageRecord<string, unknown> = {
@@ -140,7 +139,8 @@ export function updateStage<TData>(
   }
 
   const nextJourney: ApplicationJourney = { ...journey, stages: { ...journey.stages, [stageType]: updated } };
-  persist(nextJourney);
+  cache[applicationId] = nextJourney;
+  notifyCacheChange();
 
   recordActivity({
     applicationId,
@@ -153,7 +153,15 @@ export function updateStage<TData>(
 
   const derivedStatus = deriveAppStatus(nextJourney);
   const derivedNextAction = computeNextAction(nextJourney)?.title ?? "Every stage of the journey is complete.";
-  updateApplicationStatus(applicationId, derivedStatus, derivedNextAction, actor);
+  applyLocalStatusUpdate(applicationId, derivedStatus, derivedNextAction);
+
+  apiPatch<ApplicationJourney>(`/api/applications/${applicationId}/journey/${stageType}`, patch)
+    .then((serverJourney) => {
+      cache[applicationId] = serverJourney;
+      notifyCacheChange();
+      void refreshApplicationFromServer(applicationId);
+    })
+    .catch((err) => console.warn("Failed to persist journey stage update:", err));
 
   return nextJourney;
 }

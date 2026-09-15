@@ -43,7 +43,7 @@ export default function UniversityDetail() {
           onClick={() => setSaved((v) => !v)}
           aria-label="Shortlist"
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border py-3 text-[13px] font-semibold ${
-            saved ? "border-[var(--sd-ink)] bg-[var(--sd-ink)] text-white" : "border-slate-200 bg-[var(--sd-card)] text-slate-700"
+            saved ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-slate-200 bg-[var(--sd-card)] text-slate-700"
           }`}
         >
           <Bookmark size={16} className={saved ? "fill-white" : ""} />
@@ -65,7 +65,7 @@ export default function UniversityDetail() {
       </div>
       <button
         onClick={() => setApplying(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sd-ink)] py-3 text-[13px] font-semibold text-white"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
       >
         Apply Now <ArrowLeft size={14} className="rotate-180" />
       </button>
@@ -77,7 +77,7 @@ export default function UniversityDetail() {
       </button>
       <button
         onClick={() => setUniTab("Courses")}
-        className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl bg-[var(--sd-ink)] py-3 text-[13px] font-semibold text-white"
+        className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
       >
         View Courses <ArrowLeft size={14} className="rotate-180" />
       </button>
@@ -187,7 +187,7 @@ function CourseView({
             className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
           >
             {t}
-            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[var(--sd-ink)]" />}
+            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
           </button>
         ))}
       </div>
@@ -268,7 +268,7 @@ function UniversityView({
             className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
           >
             {t}
-            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[var(--sd-ink)]" />}
+            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
           </button>
         ))}
       </div>

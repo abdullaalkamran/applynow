@@ -50,7 +50,7 @@ export default function Applications() {
             </button>
             <button
               onClick={() => navigate("/student/profile")}
-              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--sd-ink)] text-xs font-semibold text-white"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[image:var(--sd-gradient)] text-xs font-semibold text-white"
             >
               {initials}
             </button>
@@ -66,7 +66,7 @@ export default function Applications() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-medium transition-colors ${
-                tab === t.key ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+                tab === t.key ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
               }`}
             >
               {t.label}

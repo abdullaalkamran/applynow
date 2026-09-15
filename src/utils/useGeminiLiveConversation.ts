@@ -5,6 +5,11 @@ import { useAuth } from "../context/AuthContext";
 import { ROLE_ASSISTANT_CONFIGS } from "./roleAssistantConfigs";
 import type { VoiceConversationState } from "./useVoiceConversation";
 
+// Sent as a synthetic user turn the moment the session is ready, so Gemini opens with a spoken
+// greeting instead of silently waiting for the caller to speak first.
+const GREETING_PROMPT =
+  "(The voice assistant was just opened. Greet me by name in one short, warm sentence and ask how you can help — don't wait for me to speak first.)";
+
 const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 
@@ -83,6 +88,7 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
   useEffect(() => { onExchangeRef.current = onExchange; }, [onExchange]);
   const pendingUserTextRef = useRef("");
   const pendingAiTextRef = useRef("");
+  const isGreetingTurnRef = useRef(false);
 
   const stopAudioPipeline = useCallback(() => {
     processorRef.current?.disconnect();
@@ -201,6 +207,9 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
         source.connect(processor);
         processor.connect(silentGain);
         silentGain.connect(captureCtx.destination);
+
+        isGreetingTurnRef.current = true;
+        socket.send(JSON.stringify({ type: "greet", text: GREETING_PROMPT }));
         return;
       }
 
@@ -223,11 +232,15 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
       }
 
       if (message.type === "turn_complete") {
-        if (pendingUserTextRef.current || pendingAiTextRef.current) {
+        if (isGreetingTurnRef.current) {
+          // The synthetic "greet me first" turn has no real user text — skip logging it as an
+          // exchange (that would show up as a blank user bubble in the chat transcript).
+          isGreetingTurnRef.current = false;
+        } else if (pendingUserTextRef.current || pendingAiTextRef.current) {
           onExchangeRef.current?.(pendingUserTextRef.current, pendingAiTextRef.current);
-          pendingUserTextRef.current = "";
-          pendingAiTextRef.current = "";
         }
+        pendingUserTextRef.current = "";
+        pendingAiTextRef.current = "";
         setState("listening");
         return;
       }

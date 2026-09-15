@@ -8,6 +8,7 @@ import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
 import { RoleBottomNav } from "./RoleBottomNav";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
+import { useCacheSync } from "../utils/syncCache";
 
 interface NavEntry {
   label: string;
@@ -17,6 +18,7 @@ interface NavEntry {
 }
 
 export default function AgentShell() {
+  useCacheSync();
   const navigate = useNavigate();
   const { currentUser } = useRole();
   const { logout } = useAuth();
@@ -55,17 +57,22 @@ export default function AgentShell() {
               end
               onClick={onNavigate}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition ${
-                  isActive ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                `relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors ${
+                  isActive ? "bg-[var(--brand-50)] text-[var(--sd-ink)]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`
               }
             >
-              <item.icon size={16} />
-              <span className="flex-1 truncate">{item.label}</span>
-              {!!item.badge && (
-                <span className="flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-                  {item.badge}
-                </span>
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[image:var(--sd-gradient)]" />}
+                  <item.icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {!!item.badge && (
+                    <span className={`flex h-4.5 min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${isActive ? "bg-white text-[var(--sd-ink)]" : "bg-rose-500 text-white"}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </>
               )}
             </NavLink>
           ) : (
@@ -84,7 +91,7 @@ export default function AgentShell() {
     <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
             <Compass size={18} />
           </div>
           <div>
@@ -117,7 +124,7 @@ export default function AgentShell() {
           <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-white pb-4">
             <div className="flex items-center justify-between gap-2.5 px-5 py-5">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
                   <Compass size={18} />
                 </div>
                 <div>

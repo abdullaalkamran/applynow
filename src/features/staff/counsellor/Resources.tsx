@@ -1,5 +1,6 @@
 import { Award, FileText, Globe2 } from "lucide-react";
 import { UNIVERSITIES } from "../../../data/mockData";
+import { BackButton } from "../../../components/ui";
 
 const GUIDES = [
   {
@@ -25,6 +26,7 @@ export default function CounsellorResources() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Resources</h1>
         <p className="mt-1 text-sm text-slate-500">Reference guidance and a live scholarship directory.</p>

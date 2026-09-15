@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { RequireAuth } from "./layouts/RequireAuth";
 import { ROLE_HOME } from "./layouts/nav";
@@ -74,6 +75,7 @@ import AdminCommissionRules from "./features/admin/CommissionRules";
 import AdminAuditLogs from "./features/admin/AuditLogs";
 import AdminTasks from "./features/admin/Tasks";
 import AdminAISettings from "./features/admin/AISettings";
+import AdminNotifications from "./features/admin/Notifications";
 
 // Where "/" and any unmatched path should land — depends on which role is actually logged in,
 // not a fixed guess, since this app now has more than one possible home.
@@ -82,8 +84,13 @@ function RoleHomeRedirect() {
   return <Navigate to={user ? ROLE_HOME[user.role] : "/login"} replace />;
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 15_000, retry: 1 } },
+});
+
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -181,6 +188,7 @@ export default function App() {
             <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
             <Route path="/admin/tasks" element={<AdminTasks />} />
             <Route path="/admin/ai-settings" element={<AdminAISettings />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
 
             <Route path="*" element={<RoleHomeRedirect />} />
           </Route>
@@ -188,5 +196,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </QueryClientProvider>
   );
 }

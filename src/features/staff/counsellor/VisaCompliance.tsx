@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
-import { StatusBadge } from "../../../components/ui";
+import { StatusBadge, BackButton } from "../../../components/ui";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, VISA_BUCKET_STATUSES } from "../../../utils/counsellorData";
 
@@ -18,6 +18,7 @@ export default function CounsellorVisaCompliance() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Visa & Compliance</h1>
         <p className="mt-1 text-sm text-slate-500">Applications in a visa stage or under compliance review.</p>

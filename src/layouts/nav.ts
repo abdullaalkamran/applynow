@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, FileText, Folder, Compass, MessageCircle, User, Users, Wallet, BarChart3,
   ClipboardList, ShieldAlert, Globe2, Landmark, BookOpen, Percent, ScrollText, GitBranch, ListChecks,
-  Sparkles, type LucideIcon,
+  Sparkles, Bell, type LucideIcon,
 } from "lucide-react";
 import type { Role } from "../types";
 
@@ -51,6 +51,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Audit Logs", path: "/admin/audit-logs", icon: ScrollText },
     { label: "Tasks", path: "/admin/tasks", icon: ListChecks },
     { label: "AI Settings", path: "/admin/ai-settings", icon: Sparkles },
+    { label: "Notifications", path: "/admin/notifications", icon: Bell },
   ],
 };
 

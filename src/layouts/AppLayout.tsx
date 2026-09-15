@@ -7,8 +7,10 @@ import { ROLES } from "../data/mockData";
 import { NAV } from "./nav";
 import { RoleBottomNav } from "./RoleBottomNav";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
+import { useCacheSync } from "../utils/syncCache";
 
 export default function AppLayout() {
+  useCacheSync();
   const { role, currentUser } = useRole();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -27,7 +29,7 @@ export default function AppLayout() {
       {/* Sidebar (hidden on small screens) */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sd-ink)] text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={18} />
           </div>
           <div>
@@ -43,13 +45,18 @@ export default function AppLayout() {
               to={item.path}
               end
               className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition max-w-full truncate ${
-                  isActive ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50"
+                `relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors max-w-full truncate ${
+                  isActive ? "bg-[var(--brand-50)] text-[var(--sd-ink)]" : "text-slate-600 hover:bg-slate-50"
                 }`
               }
             >
-              <item.icon size={17} className="shrink-0" />
-              <span className="truncate block">{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  {isActive && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[image:var(--sd-gradient)]" />}
+                  <item.icon size={17} className="shrink-0" strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span className="truncate block">{item.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>

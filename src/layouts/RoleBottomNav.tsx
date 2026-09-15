@@ -31,10 +31,10 @@ export function RoleBottomNav({ items, onMore }: { items: BottomNavEntry[]; onMo
         >
           {({ isActive }) => (
             <>
-              <span className="relative">
-                <item.icon size={21} strokeWidth={isActive ? 2.4 : 2} />
+              <span className={`relative flex h-8 w-8 items-center justify-center rounded-xl ${isActive ? "bg-[image:var(--sd-gradient)] text-white" : ""}`}>
+                <item.icon size={19} strokeWidth={isActive ? 2.4 : 2} />
                 {!!item.badge && (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
                     {item.badge}
                   </span>
                 )}

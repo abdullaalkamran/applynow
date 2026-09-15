@@ -110,9 +110,9 @@ export function CreateApplicationModal({
         <Button
           className="w-full justify-center"
           disabled={!canSubmit}
-          onClick={() => {
+          onClick={async () => {
             if (!student || !university) return;
-            createApplication({
+            await createApplication({
               studentId: student.id, university: university.name, course: courseName,
               intake, country: university.country, campus,
             });

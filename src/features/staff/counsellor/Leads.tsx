@@ -1,11 +1,10 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, UserPlus, ArrowUpRight, Briefcase, ChevronDown, ChevronUp } from "lucide-react";
-import { ProgressBar, Badge } from "../../../components/ui";
+import { Search, UserPlus, ArrowUpRight, Briefcase, ChevronDown, ChevronUp, Phone } from "lucide-react";
+import { Badge, BackButton } from "../../../components/ui";
 import { ProfileStepsPanel } from "../../../components/ProfileStepsPanel";
 import { loadLeads, loadLeadFollowUpStatus, setLeadFollowUpStatus } from "../../../data/leadsStore";
-import { getProfileCompletion } from "../../../data/profileCompletion";
-import { loadPreferences } from "../../../data/studentProfileDetailsStore";
+import { loadPreferences, loadPersonalInfo } from "../../../data/studentProfileDetailsStore";
 import { formatStudentId } from "../../../utils/displayId";
 import { AGENTS } from "../../../data/mockData";
 import type { LeadFollowUpStatus } from "../../../types";
@@ -23,8 +22,8 @@ export default function Leads() {
   const leads = loadLeads().map((student) => ({
     student,
     status: loadLeadFollowUpStatus(student.id),
-    completion: getProfileCompletion(student.id),
     preferences: loadPreferences(student.id),
+    phone: student.phone || loadPersonalInfo(student.id)?.phone || undefined,
     agent: student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined,
   }));
 
@@ -48,6 +47,7 @@ export default function Leads() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Leads</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -61,7 +61,7 @@ export default function Leads() {
             key={t}
             onClick={() => setTab(t)}
             className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
-              tab === t ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              tab === t ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             {t}
@@ -82,115 +82,110 @@ export default function Leads() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3 font-medium">Student ID</th>
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Source</th>
-                <th className="px-5 py-3 font-medium">Interested in</th>
-                <th className="px-5 py-3 font-medium">Profile completion</th>
-                <th className="px-5 py-3 font-medium">Follow-up status</th>
-                <th className="px-5 py-3 font-medium" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map(({ student, status, completion, preferences, agent }) => {
-                const expanded = expandedId === student.id;
-                return (
-                  <Fragment key={student.id}>
-                    <tr
-                      onClick={() => setExpandedId(expanded ? null : student.id)}
-                      className={`cursor-pointer ${expanded ? "bg-slate-50" : "hover:bg-slate-50"}`}
-                    >
-                      <td className="px-5 py-3">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-slate-500">
-                          {formatStudentId(student.id)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1.5">
-                          {expanded ? <ChevronUp size={14} className="shrink-0 text-slate-400" /> : <ChevronDown size={14} className="shrink-0 text-slate-400" />}
-                          <div className="min-w-0">
-                            <p className="font-medium text-slate-800">{student.name}</p>
-                            <p className="text-xs text-slate-400">{student.email} · {student.country}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        {agent ? (
-                          <Badge tone="violet">
-                            <Briefcase size={11} /> {agent.name}
-                          </Badge>
-                        ) : (
-                          <Badge tone="neutral">Direct</Badge>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {preferences && (preferences.fields.length > 0 || preferences.destinations.length > 0) ? (
-                          <>
-                            {preferences.fields.join(", ") || "Any subject"}
-                            {preferences.destinations.length > 0 && ` — ${preferences.destinations.join(", ")}`}
-                          </>
-                        ) : (
-                          <span className="text-slate-300">Not set yet</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3" style={{ minWidth: 140 }}>
-                        <div className="flex items-center gap-2">
-                          <ProgressBar value={completion.percent} size="sm" />
-                          <span className="shrink-0 text-[11px] text-slate-400">{completion.percent}%</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <select
-                          value={status}
+      <div className="space-y-3">
+        {filtered.map(({ student, status, preferences, phone, agent }) => {
+          const expanded = expandedId === student.id;
+          return (
+            <div key={student.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+              <div
+                onClick={() => setExpandedId(expanded ? null : student.id)}
+                className={`flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 ${expanded ? "bg-slate-50" : "hover:bg-slate-50"}`}
+              >
+                <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                  {expanded ? <ChevronUp size={14} className="mt-0.5 shrink-0 text-slate-400" /> : <ChevronDown size={14} className="mt-0.5 shrink-0 text-slate-400" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="truncate font-medium text-slate-800">{student.name}</p>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-semibold tracking-wide text-slate-500">
+                        {formatStudentId(student.id)}
+                      </span>
+                      {agent ? (
+                        <Badge tone="violet">
+                          <Briefcase size={11} /> {agent.name}
+                        </Badge>
+                      ) : (
+                        <Badge tone="neutral">Direct</Badge>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-slate-400">{student.email} · {student.country}</p>
+                    <p className="mt-0.5 text-xs">
+                      {phone ? (
+                        <a
+                          href={`tel:${phone.replace(/[^+\d]/g, "")}`}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700"
+                          className="font-medium text-slate-600 hover:text-[#2955C4]"
                         >
-                          {EDITABLE_STATUSES.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex flex-col items-start gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/staff/counsellor/students/${student.id}`); }}
-                            className="flex items-center gap-1 text-xs font-medium text-[#2955C4]"
-                          >
-                            Full profile <ArrowUpRight size={12} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/staff/counsellor/students/${student.id}`, { state: { tab: "Applications" } });
-                            }}
-                            className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                          >
-                            Start application <ArrowUpRight size={12} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr>
-                        <td colSpan={7} className="border-t-0 bg-slate-50/60 px-5 py-4">
-                          <ProfileStepsPanel studentId={student.id} />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          {phone}
+                        </a>
+                      ) : (
+                        <span className="text-slate-300">No phone on file</span>
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {preferences && (preferences.fields.length > 0 || preferences.destinations.length > 0) ? (
+                        <>
+                          {preferences.fields.join(", ") || "Any subject"}
+                          {preferences.destinations.length > 0 && ` — ${preferences.destinations.join(", ")}`}
+                        </>
+                      ) : (
+                        <span className="text-slate-300">Interests not set yet</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:w-auto sm:shrink-0 sm:gap-3">
+                  {phone && (
+                    <a
+                      href={`tel:${phone.replace(/[^+\d]/g, "")}`}
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Call ${phone}`}
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11.5px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <Phone size={13} /> Call
+                    </a>
+                  )}
+                  <select
+                    value={status}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700 sm:w-auto"
+                  >
+                    {EDITABLE_STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 px-4 py-2.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/staff/counsellor/students/${student.id}`); }}
+                  className="flex items-center gap-1 text-xs font-medium text-[#2955C4]"
+                >
+                  Full profile <ArrowUpRight size={12} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/staff/counsellor/students/${student.id}`, { state: { tab: "Applications" } });
+                  }}
+                  className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+                >
+                  Start application <ArrowUpRight size={12} />
+                </button>
+              </div>
+
+              {expanded && (
+                <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4">
+                  <ProfileStepsPanel studentId={student.id} editable />
+                </div>
+              )}
+            </div>
+          );
+        })}
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-100 bg-white py-12 text-center shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <UserPlus size={22} className="text-slate-300" />
             <p className="text-sm text-slate-400">No leads match this view.</p>
           </div>

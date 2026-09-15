@@ -151,6 +151,13 @@ function attachGeminiLiveRelay(wss) {
         return;
       }
 
+      if (message.type === "greet" && typeof message.text === "string") {
+        googleSocket.send(
+          JSON.stringify({ clientContent: { turns: [{ role: "user", parts: [{ text: message.text }] }], turnComplete: true } })
+        );
+        return;
+      }
+
       if (message.type === "tool_result") {
         googleSocket.send(
           JSON.stringify({

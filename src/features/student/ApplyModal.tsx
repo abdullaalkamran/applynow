@@ -21,9 +21,9 @@ export function ApplyModal({
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const campuses = campusesFor(university, course.feeUSD);
 
-  function confirm() {
+  async function confirm() {
     if (!intake || !campus) return;
-    const application = createApplication({
+    const application = await createApplication({
       studentId: student.id,
       university: university.name,
       course: course.name,
@@ -59,7 +59,7 @@ export function ApplyModal({
               </button>
               <button
                 onClick={() => navigate(`/student/applications/${confirmedId}`)}
-                className="flex flex-[1.3] items-center justify-center rounded-xl bg-[var(--sd-ink)] py-3 text-[13px] font-semibold text-white"
+                className="flex flex-[1.3] items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
               >
                 View Application
               </button>
@@ -94,7 +94,7 @@ export function ApplyModal({
             <button
               onClick={confirm}
               disabled={!intake || !campus}
-              className="mt-5 w-full rounded-xl bg-[var(--sd-ink)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
+              className="mt-5 w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
             >
               Confirm Application
             </button>

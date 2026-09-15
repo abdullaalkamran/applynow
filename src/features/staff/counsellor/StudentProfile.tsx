@@ -1,22 +1,22 @@
 import { useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
-  Sparkles, ClipboardList, Layers, type LucideIcon,
+  Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
+  Sparkles, Layers, type LucideIcon,
 } from "lucide-react";
-import { Badge, Button, ProgressBar, Modal, SearchableSelect } from "../../../components/ui";
+import { Badge, Button, ProgressBar, Modal, SearchableSelect, BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { ProfileStepsPanel, Detail } from "../../../components/ProfileStepsPanel";
 import { ChecklistCard } from "../../../components/ChecklistCard";
 import { ApplicationChecklistCard } from "../../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../../components/DocViewButton";
-import { DOCUMENTS, AGENTS } from "../../../data/mockData";
+import { DOCUMENTS, AGENTS, COUNSELLORS, ADMISSION_OFFICERS } from "../../../data/mockData";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllApplications, getStatusHistory, createApplication, sortByCreatedAscending } from "../../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../../utils/documentChecklist";
 import { loadStaffNote, saveStaffNote } from "../../../data/staffNotesStore";
-import { activeApplicationsFor, daysAgo } from "../../../utils/counsellorData";
+import { activeApplicationsFor } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
 import { destinationOptions, campusesFor } from "../../../utils/universityFilter";
@@ -61,8 +61,7 @@ function ColumnHeader({ icon: Icon, label, tone }: { icon: LucideIcon; label: st
 type Tab = (typeof TABS)[number];
 
 export default function StudentProfile() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const actor = user ? { id: user.roleUserId, role: user.role, name: user.name } : undefined;
   const UNIVERSITIES = getAllUniversities();
   const { id } = useParams();
@@ -84,9 +83,7 @@ export default function StudentProfile() {
   if (!student) {
     return (
       <div>
-        <button onClick={() => navigate("/staff/counsellor/students")} className="mb-4 flex items-center gap-1.5 text-sm font-medium text-[#2955C4]">
-          <ArrowLeft size={14} /> Back to My Students
-        </button>
+        <BackButton fallback="/staff/counsellor/students" />
         <p className="text-sm text-slate-400">Student not found.</p>
       </div>
     );
@@ -116,9 +113,7 @@ export default function StudentProfile() {
 
   return (
     <div className="max-w-5xl">
-      <button onClick={() => navigate("/staff/counsellor/students")} className="mb-4 flex items-center gap-1.5 text-sm font-medium text-[#2955C4]">
-        <ArrowLeft size={14} /> Back to My Students
-      </button>
+      <BackButton fallback="/staff/counsellor/students" />
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
         <div className="flex items-start justify-between gap-3">
@@ -154,11 +149,11 @@ export default function StudentProfile() {
               >
                 {t}
                 {count !== null && count > 0 && (
-                  <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] ${tab === t ? "bg-[var(--sd-ink)] text-white" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] ${tab === t ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100 text-slate-500"}`}>
                     {count}
                   </span>
                 )}
-                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[var(--sd-ink)]" />}
+                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
               </button>
             );
           })}
@@ -184,7 +179,7 @@ export default function StudentProfile() {
           </div>
 
           <div className="mt-4">
-            <ProfileStepsPanel studentId={student.id} />
+            <ProfileStepsPanel studentId={student.id} editable />
           </div>
         </>
       )}
@@ -215,6 +210,8 @@ export default function StudentProfile() {
             const nextSteps = loadNextSteps(a.id);
             const expanded = expandedAppId === a.id;
             const journey = loadJourney(a.id);
+            const assignedCounsellor = COUNSELLORS.find((c) => c.id === journey.stages.application?.data.responsibleCounsellorId);
+            const assignedAdmissionOfficer = ADMISSION_OFFICERS.find((o) => o.id === journey.stages.application?.data.responsibleAdmissionOfficerId);
             return (
               <div key={a.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
                 <button
@@ -246,7 +243,11 @@ export default function StudentProfile() {
                           </span>
                         )}
                       </div>
-                      <p className="truncate text-xs text-slate-400">{safeText(a.course)} · {safeText(a.intake)} · {safeText(a.campus) === "—" ? "Main Campus" : a.campus}</p>
+                      <p className="truncate text-xs text-slate-400">{safeText(a.course)} · {safeText(a.intake)} · {safeText(a.campus) === "—" ? "Main Campus" : a.campus} · {safeText(a.country)}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-400">
+                        Counsellor: <span className={assignedCounsellor ? "font-medium text-slate-600" : ""}>{assignedCounsellor?.name ?? "Unassigned"}</span>
+                        {" · "}Admission: <span className={assignedAdmissionOfficer ? "font-medium text-slate-600" : ""}>{assignedAdmissionOfficer?.name ?? "Unassigned"}</span>
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:flex sm:shrink-0 sm:items-center">
@@ -272,21 +273,9 @@ export default function StudentProfile() {
 
                 {expanded && (
                   <div className="border-t border-slate-100 bg-slate-50/60 p-4">
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-slate-200">
-                      {/* Column 1 — Application */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-slate-200">
+                      {/* Column 1 — Documents */}
                       <div className="space-y-3 lg:pr-4">
-                        <ColumnHeader icon={ClipboardList} label="Application" tone="bg-slate-500" />
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border border-slate-100 bg-white p-3 text-xs">
-                          <Detail label="Country" value={a.country} />
-                          <Detail label="Waiting on" value={a.waitingOn} />
-                          <Detail label="Updated" value={daysAgo(a.updatedAt)} />
-                          <Detail label="Next action" value={a.nextAction} />
-                        </div>
-                        <ResponsibleStaffCard applicationId={a.id} journey={journey} actor={actor} onChanged={() => forceTick((t) => t + 1)} />
-                      </div>
-
-                      {/* Column 2 — Documents */}
-                      <div className="space-y-3 lg:px-4">
                         <ColumnHeader icon={FileCheck2} label="Documents" tone="bg-blue-500" />
                         <div className="space-y-1.5">
                           {checklist.map((r) => (
@@ -338,7 +327,7 @@ export default function StudentProfile() {
                                   forceTick((t) => t + 1);
                                 }}
                                 disabled={!requestDocType.trim()}
-                                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
+                                className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
                               >
                                 Add
                               </button>
@@ -348,21 +337,22 @@ export default function StudentProfile() {
                         </div>
                       </div>
 
-                      {/* Column 3 — Status (the 9-stage journey) */}
+                      {/* Column 2 — Status (the 9-stage journey + responsible staff) */}
                       <div className="space-y-3 lg:px-4">
                         <ColumnHeader icon={Layers} label="Status" tone="bg-violet-500" />
                         <JourneyStepper journey={journey} showStrip={false} />
+                        <ResponsibleStaffCard applicationId={a.id} journey={journey} actor={actor} onChanged={() => forceTick((t) => t + 1)} />
                         <JourneyStageEditor
                           journey={journey}
                           onPatch={(stageType, patch) => {
-                            if (actor) updateStage(a.id, stageType, patch, actor);
+                            if (actor) updateStage(a.id, stageType, patch, actor, token ?? undefined);
                             forceTick((t) => t + 1);
                           }}
                           readOnly={!actor}
                         />
                       </div>
 
-                      {/* Column 4 — Tasks (scoped to this application) */}
+                      {/* Column 3 — Tasks (scoped to this application) */}
                       <div className="space-y-3 lg:pl-4">
                         <ColumnHeader icon={ListChecks} label="Tasks" tone="bg-emerald-500" />
                         <ApplicationTasksCard applicationId={a.id} />
@@ -439,7 +429,7 @@ export default function StudentProfile() {
                                   forceTick((t) => t + 1);
                                 }}
                                 disabled={!nextStepDraft.trim()}
-                                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
+                                className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3.5 py-2 text-[12.5px] font-semibold text-white disabled:opacity-40"
                               >
                                 Add
                               </button>
@@ -463,7 +453,7 @@ export default function StudentProfile() {
                           <div className="space-y-2">
                             {statusHistory.map((h, i) => (
                               <div key={`${h.status}-${h.changedAt}-${i}`} className="flex items-center gap-2 text-[12px]">
-                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-[var(--sd-ink)]" : "bg-slate-300"}`} />
+                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-[image:var(--sd-gradient)]" : "bg-slate-300"}`} />
                                 <span className={`flex-1 ${i === 0 ? "font-medium text-slate-800" : "text-slate-500"}`}>{h.status}</span>
                                 <span className="shrink-0 text-[11px] text-slate-400">{h.changedAt}</span>
                               </div>
@@ -655,9 +645,9 @@ function NewApplicationModal({
         <Button
           className="w-full justify-center"
           disabled={!canSubmit}
-          onClick={() => {
+          onClick={async () => {
             if (!university) return;
-            createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus });
+            await createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus });
             onCreated();
             onClose();
           }}

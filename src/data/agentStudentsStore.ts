@@ -1,40 +1,37 @@
-import { STUDENTS, CURRENT_AGENT_ID } from "./mockData";
+// Postgres-backed via /api/students?agentId=... (server/src/routes/students.js) — same
+// synchronous-cache pattern as applicationsStore.ts.
+import { CURRENT_AGENT_ID } from "./mockData";
+import { apiGet, apiPost } from "../utils/apiClient";
+import { notifyCacheChange } from "../utils/syncCache";
 import type { Student } from "../types";
 
-const KEY = "agent-created-students";
-const AVATAR_COLORS = ["bg-sky-500", "bg-rose-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-indigo-500", "bg-teal-500"];
+let cache: Student[] = [];
 
-function loadCreated(): Student[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Student[]) : [];
-  } catch {
-    return [];
-  }
+export async function refreshAgentStudents(): Promise<void> {
+  cache = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+  notifyCacheChange();
 }
 
-function persist(list: Student[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(list));
-}
-
-/** All students referred by the demo agent — the seeded set plus any registered this session. */
+/** All students referred by the demo agent, as of the last successful fetch/mutation. */
 export function loadAgentStudents(): Student[] {
-  return [...STUDENTS.filter((s) => s.agentId === CURRENT_AGENT_ID), ...loadCreated()];
+  return cache;
 }
 
 export function addAgentStudent(name: string, email: string, country: string): Student {
-  const created = loadCreated();
-  const student: Student = {
+  const optimistic: Student = {
     id: `ast-${Date.now().toString(36)}`,
-    name,
-    email,
-    country,
+    name, email, country,
     agentId: CURRENT_AGENT_ID,
-    avatarColor: AVATAR_COLORS[(STUDENTS.length + created.length) % AVATAR_COLORS.length],
+    avatarColor: "bg-sky-500",
     riskFlag: "none",
   };
-  persist([...created, student]);
-  return student;
+  cache = [...cache, optimistic];
+  notifyCacheChange();
+  apiPost<Student>("/api/students", { name, email, country })
+    .then((student) => {
+      cache = cache.map((s) => (s.id === optimistic.id ? student : s));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist new student:", err));
+  return optimistic;
 }

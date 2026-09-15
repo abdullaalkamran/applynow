@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Search, GraduationCap, Award } from "lucide-react";
 import { LogoBadge } from "../../../components/ui/mobile";
+import { BackButton } from "../../../components/ui";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
@@ -19,6 +20,7 @@ export default function CounsellorUniversityPartners() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">University Partners</h1>
         <p className="mt-1 text-sm text-slate-500">{UNIVERSITIES.length} partner universities on the platform.</p>

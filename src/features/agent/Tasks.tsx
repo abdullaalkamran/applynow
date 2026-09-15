@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
-import { getAgentTasks } from "../../utils/taskBoard";
+import type { GetTaskTarget } from "../../components/tasks/TaskListSection";
+import { getAgentTasks, staffTaskTarget } from "../../utils/taskBoard";
 import { AGENTS, CURRENT_AGENT_ID } from "../../data/mockData";
+
+const getTaskTarget: GetTaskTarget = (task) => staffTaskTarget(task, "/agent/students");
 
 export default function AgentTasks() {
   const [, forceTick] = useState(0);
@@ -20,6 +23,7 @@ export default function AgentTasks() {
         tasks={tasks}
         from={{ id: agent.id, role: "agent", name: agent.name }}
         onChanged={() => forceTick((t) => t + 1)}
+        getTaskTarget={getTaskTarget}
       />
     </div>
   );

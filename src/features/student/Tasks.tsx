@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
+import type { GetTaskTarget } from "../../components/tasks/TaskListSection";
 import { getStudentTasks } from "../../utils/taskBoard";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+
+const getTaskTarget: GetTaskTarget = (task) => {
+  if (task.applicationId) return { path: `/student/applications/${task.applicationId}` };
+  if (task.source === "document") return { path: "/student/documents" };
+  return undefined;
+};
 
 export default function StudentTasks() {
   const [, forceTick] = useState(0);
@@ -19,6 +26,7 @@ export default function StudentTasks() {
           tasks={tasks}
           from={{ id: student.id, role: "student", name: student.name }}
           onChanged={() => forceTick((t) => t + 1)}
+          getTaskTarget={getTaskTarget}
         />
       </div>
     </div>

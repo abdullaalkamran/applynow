@@ -41,7 +41,7 @@ export function VoiceModePanel({
   }
 
   const orbTone =
-    state === "listening" ? "bg-[#2955C4]" : state === "thinking" ? "bg-[#6D3FBF]" : state === "speaking" ? "bg-[var(--sd-ink)]" : "bg-slate-400";
+    state === "listening" ? "bg-[#2955C4]" : state === "thinking" ? "bg-[#6D3FBF]" : state === "speaking" ? "bg-[image:var(--sd-gradient)]" : "bg-slate-400";
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-6">

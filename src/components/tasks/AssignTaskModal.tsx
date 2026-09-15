@@ -8,16 +8,25 @@ export function AssignTaskModal({
   from,
   onClose,
   onCreated,
+  initialDueDate,
 }: {
   from: TaskPerson;
   onClose: () => void;
   onCreated: () => void;
+  // Pre-fills the due date when opened from a specific calendar column, so assigning a task for
+  // that day doesn't also require re-picking the date that's already implied by where you clicked.
+  initialDueDate?: string;
 }) {
-  const recipients = recipientsFor(from);
+  // recipientsFor is deliberately "who you can delegate to" and never includes yourself — but
+  // this modal also opens from your own calendar's own "+", where defaulting to some student
+  // (recipients[0]) meant the new task never showed up on the page you just clicked "+" on. A
+  // task assigned to yourself is a completely normal thing to want, so it's always the first,
+  // default option here regardless of who else you could otherwise assign it to.
+  const recipients = [from, ...recipientsFor(from)];
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState(recipients[0]?.id ?? "");
-  const [dueDate, setDueDate] = useState("");
+  const [assigneeId, setAssigneeId] = useState(from.id);
+  const [dueDate, setDueDate] = useState(initialDueDate ?? "");
 
   const assignee = recipients.find((r) => r.id === assigneeId);
   const canSubmit = title.trim() && !!assignee;
@@ -75,9 +84,8 @@ export function AssignTaskModal({
                 onChange={(e) => setAssigneeId(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
               >
-                {recipients.length === 0 && <option value="">No one available</option>}
                 {recipients.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name} ({r.role})</option>
+                  <option key={r.id} value={r.id}>{r.id === from.id ? "Myself" : `${r.name} (${r.role})`}</option>
                 ))}
               </select>
             </label>

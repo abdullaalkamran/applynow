@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, ChevronRight, ListChecks } from "lucide-react";
 import { COUNSELLORS } from "../../../data/mockData";
 import { SkylineArt } from "../../../components/ui/mobile";
+import { BackButton } from "../../../components/ui";
 import { COUNSELLOR_ID, activeApplicationsFor, missingDocsCountFor } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import {
@@ -43,6 +44,7 @@ export default function CounsellorCaseQueue() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="relative mb-6 overflow-hidden rounded-3xl border border-slate-100 bg-[var(--sd-card)] p-6 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
         <div className="pointer-events-none absolute -right-8 -top-8 hidden h-40 w-40 overflow-hidden rounded-full opacity-90 sm:block">
           <SkylineArt tone="violet" className="h-full w-full" />

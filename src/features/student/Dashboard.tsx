@@ -188,7 +188,7 @@ export default function Dashboard() {
                               {current && <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[var(--sd-ink)]/40" />}
                               <div
                                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${
-                                  done ? "bg-[#2955C4] text-white" : current ? "bg-[var(--sd-ink)] text-white" : "bg-slate-100"
+                                  done ? "bg-[#2955C4] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
                                 }`}
                               >
                                 {done ? <Check size={12} /> : current ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { loadStoredAuth, saveAuth, clearAuth, login as loginRequest, fetchMe, type AuthUser } from "../utils/authClient";
+import { warmCaches } from "../utils/warmCaches";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((freshUser) => {
         setUser(freshUser);
         saveAuth(initial.token, freshUser);
+        warmCaches();
       })
       .catch(() => {
         clearAuth();
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
+    warmCaches();
     return newUser;
   }
 

@@ -29,7 +29,7 @@ export default function CostPlanner() {
               key={d}
               onClick={() => setDuration(d)}
               className={`flex-1 rounded-xl py-2.5 text-[13px] font-medium transition ${
-                duration === d ? "bg-[var(--sd-ink)] text-white" : "text-slate-500"
+                duration === d ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-500"
               }`}
             >
               {d}

@@ -20,7 +20,7 @@ export function AIAssistantWidget({ raised = false }: { raised?: boolean }) {
   const active = state !== "idle";
 
   const orbTone =
-    state === "listening" ? "bg-[#2955C4]" : state === "thinking" ? "bg-[#6D3FBF]" : state === "speaking" ? "bg-[var(--sd-ink)]" : "bg-[var(--sd-ink)]";
+    state === "listening" ? "bg-[#2955C4]" : state === "thinking" ? "bg-[#6D3FBF]" : state === "speaking" ? "bg-[image:var(--sd-gradient)]" : "bg-[image:var(--sd-gradient)]";
 
   const fabBottom = raised ? "bottom-[calc(72px+env(safe-area-inset-bottom))]" : "bottom-5";
   const captionBottom = raised ? "bottom-[calc(140px+env(safe-area-inset-bottom))]" : "bottom-[88px]";

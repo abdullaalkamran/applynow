@@ -142,7 +142,7 @@ export default function SubjectDetail() {
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); setApplyTarget({ university: u, course: c }); }}
-                      className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
+                      className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
                     >
                       Apply Now
                     </button>

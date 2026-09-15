@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, FileText, PlaneTakeoff, AlertCircle, ArrowUp, ArrowDown, ListChecks,
-  Zap, UserPlus, FilePlus2, CalendarPlus, Send, Mail as MailIcon, ChevronRight, GraduationCap, CalendarDays,
+  Zap, UserPlus, FilePlus2, CalendarPlus, Send, Mail as MailIcon, ChevronRight, GraduationCap,
 } from "lucide-react";
 import { Modal, Button } from "../../../components/ui";
 import { SkylineArt } from "../../../components/ui/mobile";
@@ -24,6 +24,21 @@ function greeting(): string {
   return "Good evening";
 }
 
+function isSameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
+}
+
+// 3 days back through 10 days ahead — enough that the strip genuinely needs the horizontal
+// scroll on mobile rather than always fitting on screen.
+function buildDateStrip(): Date[] {
+  const today = new Date();
+  return Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - 3 + i);
+    return d;
+  });
+}
+
 const TONE_CLASS: Record<string, string> = {
   green: "bg-emerald-50 text-emerald-700",
   rose: "bg-rose-50 text-rose-600",
@@ -35,15 +50,15 @@ function StatCard({
   icon, tone, value, label, trend,
 }: { icon: React.ReactNode; tone: string; value: number; label: string; trend: number | null }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>{icon}</div>
-      <p className="mt-3 text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs text-slate-500">{label}</p>
+    <div className="flex flex-col items-center rounded-xl border border-slate-100 bg-white p-2.5 text-center shadow-[0_0_10px_rgba(0,0,0,0.05)]">
+      <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${tone}`}>{icon}</div>
+      <p className="mt-2 text-lg font-bold text-slate-900">{value}</p>
+      <p className="w-full truncate text-[11px] text-slate-500">{label}</p>
       {trend === null ? (
-        <p className="mt-1 text-[11px] font-medium text-slate-300">New</p>
+        <p className="mt-0.5 text-[10px] font-medium text-slate-300">New</p>
       ) : (
-        <p className={`mt-1 flex items-center gap-1 text-[11px] font-medium ${trend >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-          {trend >= 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />} {Math.abs(trend)}% vs yesterday
+        <p className={`mt-0.5 flex items-center justify-center gap-1 text-[10px] font-medium ${trend >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          {trend >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />} {Math.abs(trend)}%
         </p>
       )}
     </div>
@@ -58,6 +73,8 @@ export default function CounsellorDashboard() {
   const [createAppOpen, setCreateAppOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [sendMessageOpen, setSendMessageOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [dateStrip] = useState(buildDateStrip);
 
   const assigned = loadAssignedStudents();
   const allActiveApps = assigned.flatMap((s) => activeApplicationsFor(s.id));
@@ -71,8 +88,17 @@ export default function CounsellorDashboard() {
     pending: pendingCount,
   });
 
-  const meetings = loadMeetings();
   const doneIds = loadDoneMeetingIds();
+  // Not-done items first (most urgent — overdue, then happening now, then soonest — at the top),
+  // completed ones pushed to the bottom instead of sitting wherever their original time slot falls.
+  const TONE_RANK: Record<string, number> = { rose: 0, green: 1, slate: 2, neutral: 3 };
+  const meetings = [...loadMeetings()].sort((a, b) => {
+    const doneDiff = Number(doneIds.has(a.id)) - Number(doneIds.has(b.id));
+    if (doneDiff !== 0) return doneDiff;
+    const rankDiff = TONE_RANK[meetingStatus(a, doneIds).tone] - TONE_RANK[meetingStatus(b, doneIds).tone];
+    if (rankDiff !== 0) return rankDiff;
+    return a.time.localeCompare(b.time);
+  });
   const messages = getStaffMessages();
 
   function runMeetingAction(m: Meeting) {
@@ -118,20 +144,22 @@ export default function CounsellorDashboard() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={<Users size={18} className="text-[#2955C4]" />} tone="bg-[#E7EEFC]" value={assigned.length} label="My Students" trend={trends.students} />
-        <StatCard icon={<FileText size={18} className="text-[#0F9D6D]" />} tone="bg-[#E1F5F0]" value={allActiveApps.length} label="Active Applications" trend={trends.applications} />
-        <StatCard icon={<PlaneTakeoff size={18} className="text-[#6D3FBF]" />} tone="bg-[#F1EAFB]" value={visaCount} label="Visa in Process" trend={trends.visa} />
-        <StatCard icon={<AlertCircle size={18} className="text-[#B8791C]" />} tone="bg-[#FDF0DC]" value={pendingCount} label="Pending Actions" trend={trends.pending} />
+      <div className="mb-4 grid grid-cols-4 gap-1.5 sm:gap-2.5">
+        <StatCard icon={<Users size={14} className="text-[#2955C4]" />} tone="bg-[#E7EEFC]" value={assigned.length} label="My Students" trend={trends.students} />
+        <StatCard icon={<FileText size={14} className="text-[#0F9D6D]" />} tone="bg-[#E1F5F0]" value={allActiveApps.length} label="Active Applications" trend={trends.applications} />
+        <StatCard icon={<PlaneTakeoff size={14} className="text-[#6D3FBF]" />} tone="bg-[#F1EAFB]" value={visaCount} label="Visa in Process" trend={trends.visa} />
+        <StatCard icon={<AlertCircle size={14} className="text-[#B8791C]" />} tone="bg-[#FDF0DC]" value={pendingCount} label="Pending Actions" trend={trends.pending} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)] lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <ListChecks size={15} className="text-slate-400" />
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Today's Focus</p>
+              <ListChecks size={15} className="shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">
+                  Today's Task <span className="font-normal text-slate-400">— {selectedDate.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>
+                </p>
                 <p className="text-xs text-slate-400">Your scheduled tasks and important follow-ups.</p>
               </div>
             </div>
@@ -139,27 +167,67 @@ export default function CounsellorDashboard() {
               View All Tasks <ChevronRight size={12} />
             </button>
           </div>
-          <div className="divide-y divide-slate-50">
-            {meetings.slice(0, 5).map((m) => {
-              const status = meetingStatus(m, doneIds);
+
+          {/* Horizontal, scrollable date strip — pick any nearby day; only today has real data. */}
+          <div className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-5 py-3 no-scrollbar">
+            {dateStrip.map((d) => {
+              const active = isSameDay(d, selectedDate);
+              const isToday = isSameDay(d, new Date());
               return (
-                <div key={m.id} className="flex items-center gap-4 px-5 py-3">
-                  <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800">{m.title}</p>
-                    <p className="truncate text-xs text-slate-400">{m.subtitle}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
-                  <button
-                    onClick={() => runMeetingAction(m)}
-                    disabled={doneIds.has(m.id)}
-                    className="w-20 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-center text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-default disabled:opacity-40"
-                  >
-                    {doneIds.has(m.id) ? "Done" : m.action}
-                  </button>
-                </div>
+                <button
+                  key={d.toDateString()}
+                  onClick={() => setSelectedDate(d)}
+                  className={`flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[11px] ${
+                    active ? "bg-[image:var(--sd-gradient)] text-white" : isToday ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="font-medium">{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                  <span className={`font-semibold ${active ? "text-white" : "text-slate-700"}`}>{d.getDate()}</span>
+                </button>
               );
             })}
+          </div>
+
+          <div className="max-h-80 divide-y divide-slate-50 overflow-y-auto">
+            {isSameDay(selectedDate, new Date()) ? (
+              meetings.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-slate-400">Nothing scheduled today.</p>
+              ) : (
+                meetings.map((m) => {
+                  const status = meetingStatus(m, doneIds);
+                  const openable = !!m.studentId;
+                  const done = doneIds.has(m.id);
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={openable ? () => navigate(`/staff/counsellor/students/${m.studentId}`) : undefined}
+                      className={`flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-4 ${done ? "opacity-60" : ""} ${openable ? "cursor-pointer hover:bg-slate-50" : ""}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                        <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-800">{m.title}</p>
+                          <p className="truncate text-xs text-slate-400">{m.subtitle}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center justify-between gap-2 pl-[76px] sm:justify-end sm:pl-0">
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
+                        {!done && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); runMeetingAction(m); }}
+                            className="w-20 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-center text-xs font-medium text-slate-600 hover:bg-slate-50"
+                          >
+                            {m.action}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            ) : (
+              <p className="px-5 py-6 text-sm text-slate-400">No tasks scheduled for this day yet.</p>
+            )}
           </div>
         </div>
 
@@ -206,8 +274,10 @@ export default function CounsellorDashboard() {
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${s.avatarColor}`}>
                     {s.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                   </div>
-                  <p className="w-40 shrink-0 truncate text-sm font-medium text-slate-800">{s.name}</p>
-                  <p className="min-w-0 flex-1 truncate text-sm text-slate-500">{primary!.nextAction}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{s.name}</p>
+                    <p className="truncate text-xs text-slate-500">{primary!.nextAction}</p>
+                  </div>
                   <ChevronRight size={14} className="shrink-0 text-slate-300" />
                 </button>
               ))}
@@ -218,8 +288,6 @@ export default function CounsellorDashboard() {
         </div>
 
         <div className="space-y-4">
-          <WeekCalendarCard meetings={meetings} doneIds={doneIds} onOpenTasks={() => navigate("/staff/counsellor/tasks")} />
-
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <p className="mb-3 text-sm font-semibold text-slate-800">Recent Messages</p>
             <div className="space-y-3">
@@ -256,81 +324,6 @@ export default function CounsellorDashboard() {
       {createAppOpen && <CreateApplicationModal assigned={assigned} onClose={() => setCreateAppOpen(false)} onCreated={() => forceTick((t) => t + 1)} />}
       {scheduleOpen && <ScheduleMeetingModal assigned={assigned} onClose={() => setScheduleOpen(false)} onAdded={() => forceTick((t) => t + 1)} />}
       {sendMessageOpen && <SendMessageModal assigned={assigned} onClose={() => setSendMessageOpen(false)} />}
-    </div>
-  );
-}
-
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function WeekCalendarCard({
-  meetings, doneIds, onOpenTasks,
-}: { meetings: Meeting[]; doneIds: Set<string>; onOpenTasks: () => void }) {
-  const today = new Date();
-  const mondayOffset = (today.getDay() + 6) % 7;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - mondayOffset);
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-  const [selected, setSelected] = useState(today.toDateString());
-  const isToday = selected === today.toDateString();
-
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={15} className="text-slate-400" />
-          <p className="text-sm font-semibold text-slate-800">
-            {new Date(selected).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
-          </p>
-        </div>
-        <button onClick={onOpenTasks} className="flex items-center gap-1 text-xs font-medium text-[#2955C4]">
-          View Tasks <ChevronRight size={12} />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1.5">
-        {weekDays.map((d, i) => {
-          const active = d.toDateString() === selected;
-          const isTodayCol = d.toDateString() === today.toDateString();
-          return (
-            <button
-              key={d.toDateString()}
-              onClick={() => setSelected(d.toDateString())}
-              className={`flex flex-col items-center gap-1 rounded-lg py-1.5 text-[11px] ${
-                active ? "bg-[var(--sd-ink)] text-white" : isTodayCol ? "bg-slate-100 text-slate-800" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <span className="font-medium">{DAY_LABELS[i]}</span>
-              <span className={`font-semibold ${active ? "text-white" : "text-slate-700"}`}>{d.getDate()}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-4 space-y-2.5">
-        {isToday ? (
-          meetings.length === 0 ? (
-            <p className="text-xs text-slate-400">Nothing scheduled today.</p>
-          ) : (
-            meetings.map((m) => (
-              <div key={m.id} className="flex items-center gap-2.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${doneIds.has(m.id) ? "bg-slate-300" : "bg-[#2955C4]"}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium text-slate-700">
-                    <span className="text-slate-400">{formatMeetingTime(m.time)}</span> · {m.title}
-                  </p>
-                  <p className="truncate text-[11px] text-slate-400">{m.subtitle}</p>
-                </div>
-              </div>
-            ))
-          )
-        ) : (
-          <p className="text-xs text-slate-400">No meetings scheduled for this day yet.</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -401,9 +394,9 @@ function CreateApplicationModal({
         <Button
           className="w-full justify-center"
           disabled={!canSubmit}
-          onClick={() => {
+          onClick={async () => {
             if (!student || !university) return;
-            createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus: "Main Campus" });
+            await createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus: "Main Campus" });
             onCreated();
             onClose();
           }}

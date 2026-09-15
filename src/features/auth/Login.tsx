@@ -44,7 +44,7 @@ export default function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-6 py-10">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--sd-ink)] text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={18} />
           </div>
           <span className="text-[17px] font-semibold text-[var(--sd-ink)]">StudyOne</span>
@@ -83,7 +83,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-[var(--sd-ink)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>

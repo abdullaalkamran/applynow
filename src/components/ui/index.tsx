@@ -1,5 +1,25 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Check, ChevronDown } from "lucide-react";
+
+/** Real browser-history back, with a safe fallback for when there's nothing in-app to go back to
+ * (a direct link or a freshly opened tab) — `location.key === "default"` is how react-router
+ * marks that case. Every page reached from more than one place should use this instead of a
+ * hardcoded destination, since a fixed target silently sends people to the wrong page whenever
+ * they didn't arrive from the one place that button assumed. */
+export function BackButton({ fallback, label = "Back" }: { fallback: string; label?: string }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  function goBack() {
+    if (location.key === "default") navigate(fallback);
+    else navigate(-1);
+  }
+  return (
+    <button onClick={goBack} className="mb-4 flex items-center gap-1.5 text-sm font-medium text-[#2955C4]">
+      <ArrowLeft size={14} /> {label}
+    </button>
+  );
+}
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (

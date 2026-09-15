@@ -175,4 +175,22 @@ export function getAdminTasks(personId: string): DisplayTask[] {
   return sortTasks(manualTasksFor(personId));
 }
 
+export interface TaskTarget {
+  path: string;
+  state?: unknown;
+}
+
+/** Where clicking a task on a staff role's (counsellor/agent) Tasks page should land — the exact
+ * application when the task is actually about one (a next-step, or a per-application document
+ * requirement — both carry `applicationId`), the Documents tab when it's a core-document task with
+ * no application of its own, or otherwise the student's own profile (a "lead" with no application
+ * yet is still a real student record, so their Overview tab is "that lead's page"). */
+export function staffTaskTarget(task: DisplayTask, studentsBasePath: string): TaskTarget | undefined {
+  if (!task.studentId) return undefined;
+  const path = `${studentsBasePath}/${task.studentId}`;
+  if (task.applicationId) return { path, state: { tab: "Applications", appId: task.applicationId } };
+  if (task.source === "document") return { path, state: { tab: "Documents" } };
+  return { path, state: { tab: "Overview" } };
+}
+
 export type { TaskPerson };

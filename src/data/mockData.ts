@@ -22,30 +22,30 @@ export const STUDENTS: Student[] = [
   { id: "s5", name: "Fatima Al-Sayed", email: "fatima.a@example.com", country: "Egypt", agentId: "a1", counsellorId: "c2", avatarColor: "bg-violet-500", riskFlag: "none" },
   // Signed up on the website and started their profile, but haven't submitted an application yet —
   // these are what show up on the counsellor's Leads page (no matching entry in APPLICATIONS).
-  { id: "s6", name: "Amara Chukwu", email: "amara.chukwu@example.com", country: "Nigeria", counsellorId: "c1", avatarColor: "bg-indigo-500", riskFlag: "none" },
-  { id: "s7", name: "Carlos Mendes", email: "carlos.mendes@example.com", country: "Brazil", counsellorId: "c1", avatarColor: "bg-teal-500", riskFlag: "none" },
+  { id: "s6", name: "Amara Chukwu", email: "amara.chukwu@example.com", phone: "+234 803 555 0142", country: "Nigeria", counsellorId: "c1", avatarColor: "bg-indigo-500", riskFlag: "none" },
+  { id: "s7", name: "Carlos Mendes", email: "carlos.mendes@example.com", phone: "+55 11 98765 4321", country: "Brazil", counsellorId: "c1", avatarColor: "bg-teal-500", riskFlag: "none" },
   // Referred by an agent partner but not yet claimed by a specific counsellor — still shows up on
   // the counsellor's Leads/Applications pages so an agent referral never sits invisible.
-  { id: "s8", name: "Grace Mensah", email: "grace.mensah@example.com", country: "Ghana", agentId: "a2", avatarColor: "bg-rose-400", riskFlag: "none" },
-  { id: "s9", name: "Youssef Ibrahim", email: "youssef.ibrahim@example.com", country: "Egypt", agentId: "a1", avatarColor: "bg-sky-400", riskFlag: "none" },
+  { id: "s8", name: "Grace Mensah", email: "grace.mensah@example.com", phone: "+233 24 555 0198", country: "Ghana", agentId: "a2", avatarColor: "bg-rose-400", riskFlag: "none" },
+  { id: "s9", name: "Youssef Ibrahim", email: "youssef.ibrahim@example.com", phone: "+20 100 555 0176", country: "Egypt", agentId: "a1", avatarColor: "bg-sky-400", riskFlag: "none" },
   // Signed up and applied entirely on their own, no agent involved — a genuine "Platform" applicant.
-  { id: "s10", name: "Ana Torres", email: "ana.torres@example.com", country: "Mexico", counsellorId: "c1", avatarColor: "bg-emerald-400", riskFlag: "none" },
+  { id: "s10", name: "Ana Torres", email: "ana.torres@example.com", phone: "+52 55 5555 0163", country: "Mexico", counsellorId: "c1", avatarColor: "bg-emerald-400", riskFlag: "none" },
   // Fresh enquiries with the agent — registered interest but haven't started an application yet
   // (the "Enquiry" stage of the agent's pipeline).
-  { id: "s11", name: "Rafid Tajwar", email: "rafid.tajwar@example.com", country: "Bangladesh", agentId: "a1", avatarColor: "bg-sky-500", riskFlag: "none" },
-  { id: "s12", name: "Meher Nabila", email: "meher.nabila@example.com", country: "Bangladesh", agentId: "a1", avatarColor: "bg-rose-400", riskFlag: "none" },
+  { id: "s11", name: "Rafid Tajwar", email: "rafid.tajwar@example.com", phone: "+880 1812-345678", country: "Bangladesh", agentId: "a1", avatarColor: "bg-sky-500", riskFlag: "none" },
+  { id: "s12", name: "Meher Nabila", email: "meher.nabila@example.com", phone: "+880 1912-987654", country: "Bangladesh", agentId: "a1", avatarColor: "bg-rose-400", riskFlag: "none" },
 ];
 
 export const CURRENT_STUDENT_ID = "s1";
 
 export const COUNSELLORS: SupportContact[] = [
-  { id: "c1", name: "Maria Fernandez", role: "Study Counsellor", phone: "+44 7700 900123", avatarColor: "bg-sky-500" },
-  { id: "c2", name: "David Osei", role: "Study Counsellor", phone: "+44 7700 900456", avatarColor: "bg-emerald-500" },
+  { id: "c1", name: "Maria Fernandez", role: "Study Counsellor", phone: "+44 7700 900123", email: "maria.fernandez@studyone.dev", avatarColor: "bg-sky-500" },
+  { id: "c2", name: "David Osei", role: "Study Counsellor", phone: "+44 7700 900456", email: "david.osei@studyone.dev", avatarColor: "bg-emerald-500" },
 ];
 
 export const AGENTS: SupportContact[] = [
-  { id: "a1", name: "Rafiq Hossain", role: "Education Agent", organization: "Global Pathways Consultants", phone: "+880 1811-223344", avatarColor: "bg-amber-500" },
-  { id: "a2", name: "Nusrat Jahan", role: "Education Agent", organization: "BrightFuture Education", phone: "+880 1911-556677", avatarColor: "bg-violet-500" },
+  { id: "a1", name: "Rafiq Hossain", role: "Education Agent", organization: "Global Pathways Consultants", phone: "+880 1811-223344", email: "rafiq.hossain@globalpathways.example", avatarColor: "bg-amber-500" },
+  { id: "a2", name: "Nusrat Jahan", role: "Education Agent", organization: "BrightFuture Education", phone: "+880 1911-556677", email: "nusrat.jahan@brightfuture.example", avatarColor: "bg-violet-500" },
 ];
 
 // Pooled review-team roles (not assigned 1:1 per student like Counsellor/Agent) — whoever is
@@ -54,9 +54,9 @@ export const AGENTS: SupportContact[] = [
 // is actually demonstrable — previously a single-element array meant every application showed the
 // same hardcoded officer everywhere, with no real assignment possible.
 export const ADMISSION_OFFICERS: SupportContact[] = [
-  { id: "ad1", name: "Aisha Rahman", role: "Admission Officer", phone: "+44 7700 900654", avatarColor: "bg-indigo-500" },
-  { id: "ad2", name: "Tanvir Ahmed", role: "Admission Officer", phone: "+44 7700 900321", avatarColor: "bg-sky-600" },
-  { id: "ad3", name: "Priya Sharma", role: "Admission Officer", phone: "+44 7700 900432", avatarColor: "bg-violet-600" },
+  { id: "ad1", name: "Aisha Rahman", role: "Admission Officer", phone: "+44 7700 900654", email: "aisha.rahman@studyone.dev", avatarColor: "bg-indigo-500" },
+  { id: "ad2", name: "Tanvir Ahmed", role: "Admission Officer", phone: "+44 7700 900321", email: "tanvir.ahmed@studyone.dev", avatarColor: "bg-sky-600" },
+  { id: "ad3", name: "Priya Sharma", role: "Admission Officer", phone: "+44 7700 900432", email: "priya.sharma@studyone.dev", avatarColor: "bg-violet-600" },
 ];
 
 export const COMPLIANCE_OFFICERS: SupportContact[] = [

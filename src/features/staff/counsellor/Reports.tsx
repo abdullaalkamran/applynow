@@ -1,6 +1,7 @@
 import { BarChart3, FileCheck2 } from "lucide-react";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, pipelineBucketFor, docCompletionFor, type PipelineBucket } from "../../../utils/counsellorData";
+import { BackButton } from "../../../components/ui";
 import type { Student } from "../../../types";
 
 const BUCKET_COLORS: Record<PipelineBucket, string> = {
@@ -46,6 +47,7 @@ export default function CounsellorReports() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
         <p className="mt-1 text-sm text-slate-500">Computed live from your current caseload — no history to fabricate, so every number here is real today.</p>

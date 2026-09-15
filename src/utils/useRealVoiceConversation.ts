@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeAudio, synthesizeSpeech } from "./voiceClient";
 import { useAuth } from "../context/AuthContext";
+import { useRole } from "../context/RoleContext";
+import { greetingFor } from "./voiceGreeting";
 import type { VoiceConversationState } from "./useVoiceConversation";
 
 const SILENCE_RMS_THRESHOLD = 0.02;
@@ -19,6 +21,7 @@ export function useRealVoiceConversation(
   onExchange?: (userText: string, aiText: string) => void
 ) {
   const { token } = useAuth();
+  const { currentUser } = useRole();
   const [state, setState] = useState<VoiceConversationState>("idle");
   const [caption, setCaption] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -165,10 +168,31 @@ export function useRealVoiceConversation(
 
   useEffect(() => { runCycleRef.current = runRecordCycle; }, [runRecordCycle]);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     activeRef.current = true;
-    runRecordCycle();
-  }, [runRecordCycle]);
+    const greeting = greetingFor(currentUser.name);
+    setState("speaking");
+    setCaption(greeting);
+    try {
+      if (!tokenRef.current) throw new Error("You've been signed out — please log in again.");
+      const speechBlob = await synthesizeSpeech(greeting, tokenRef.current);
+      if (!activeRef.current) return;
+      const url = URL.createObjectURL(speechBlob);
+      const audioEl = new Audio(url);
+      audioElRef.current = audioEl;
+      const proceed = () => {
+        URL.revokeObjectURL(url);
+        window.setTimeout(() => activeRef.current && runCycleRef.current(), 200);
+      };
+      audioEl.onended = proceed;
+      audioEl.onerror = proceed;
+      await audioEl.play();
+    } catch {
+      // Greeting playback failing (no credentials, network hiccup) shouldn't block the actual
+      // conversation from starting.
+      if (activeRef.current) runRecordCycle();
+    }
+  }, [currentUser.name, runRecordCycle]);
 
   const stop = useCallback(() => {
     activeRef.current = false;

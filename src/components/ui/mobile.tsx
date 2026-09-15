@@ -58,7 +58,9 @@ export function BottomNav() {
         const Icon = t.icon;
         return (
           <NavLink key={t.path} to={t.path} className="flex flex-1 flex-col items-center gap-1 py-1">
-            <Icon size={21} className={active ? "text-[var(--sd-ink)]" : "text-slate-400"} strokeWidth={active ? 2.4 : 2} />
+            <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${active ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-400"}`}>
+              <Icon size={19} strokeWidth={active ? 2.4 : 2} />
+            </span>
             <span className={`text-[10px] font-medium ${active ? "text-[var(--sd-ink)]" : "text-slate-400"}`}>{t.label}</span>
           </NavLink>
         );
@@ -73,7 +75,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-dvh w-64 shrink-0 flex-col border-r border-black/5 bg-[var(--sd-card)] px-4 py-6">
       <div className="flex items-center gap-2.5 px-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--sd-ink)] text-white">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
           <GraduationCap size={18} />
         </div>
         <div className="min-w-0">
@@ -90,11 +92,12 @@ export function Sidebar() {
             <NavLink
               key={t.path}
               to={t.path}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-colors ${
-                active ? "bg-[var(--sd-ink)] text-white" : "text-slate-600 hover:bg-slate-50"
+              className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-colors ${
+                active ? "bg-[var(--brand-50)] text-[var(--sd-ink)]" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+              {active && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[image:var(--sd-gradient)]" />}
+              <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
               {t.label}
             </NavLink>
           );
@@ -111,7 +114,7 @@ const pillTones: Record<string, string> = {
   rose: "bg-[#FCEAF0] text-[#C23D6B]",
   amber: "bg-[#FDF0DC] text-[#B8791C]",
   violet: "bg-[#F1EAFB] text-[#6D3FBF]",
-  navy: "bg-[var(--sd-ink)] text-white",
+  navy: "bg-[image:var(--sd-gradient)] text-white",
   gray: "bg-slate-100 text-slate-500",
 };
 
@@ -239,7 +242,7 @@ export function Chip({
     <button
       onClick={onClick}
       className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
-        selected ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+        selected ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
       }`}
     >
       {icon}
@@ -457,7 +460,7 @@ export function PillSelect({
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-medium transition-colors ${
-          isSet || active ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+          isSet || active ? "bg-[var(--brand-500)] text-[var(--ink-900)]" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
         }`}
       >
         {isSet ? value : label}
@@ -526,7 +529,7 @@ export function SupportRow({ contact, onChat }: { contact: SupportContact; onCha
         <a
           href={`tel:+${digits}`}
           aria-label={`Call ${contact.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--sd-ink)] text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white"
         >
           <Phone size={14} />
         </a>

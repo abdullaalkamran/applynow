@@ -1,59 +1,44 @@
-import { APPLICATIONS, stages } from "./mockData";
+// Postgres-backed via the new /api/applications routes (server/src/routes/applications.js) —
+// see the migration plan for the "synchronous cache backed by a real API" pattern this follows.
+// Reads stay synchronous (an in-memory cache warmed after login and kept current after every
+// write) so the dozens of existing call sites — including plain, non-React functions like the AI
+// tool registry and taskBoard.ts, which can't use hooks — need no changes. Status history
+// (`getStatusHistory`) and the append-only activity timeline (`applicationActivityStore.ts`) stay
+// localStorage-backed for now — a deferred-phase migration, not part of this cutover.
 import { recordActivity } from "./applicationActivityStore";
+import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
+import { notifyCacheChange } from "../utils/syncCache";
 import type { Application, AppStatus, Role } from "../types";
 
 type Actor = { id: string; role: Role; name: string };
 
-const STORAGE_KEY = "sd-created-applications";
+let cache: Application[] = [];
 
-function loadCreated(): Application[] {
-  if (typeof window === "undefined") return [];
+/** Fetches every application the caller's account can see and replaces the cache — call once
+ * after login (see utils/warmCaches.ts) and after this store isn't the source of a write itself
+ * (e.g. nothing needed here beyond the initial warm-up, since mutations update the cache directly). */
+export async function refreshApplications(): Promise<void> {
+  cache = await apiGet<Application[]>("/api/applications");
+  notifyCacheChange();
+}
+
+/** Re-fetches one application and merges it into the cache — used to reconcile after a journey
+ * stage update on the server has recomputed status/progress/nextAction server-side. */
+async function refreshOne(applicationId: string): Promise<void> {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Application[]) : [];
-  } catch {
-    return [];
+    const updated = await apiGet<Application>(`/api/applications/${applicationId}`);
+    cache = cache.map((a) => (a.id === applicationId ? updated : a));
+    notifyCacheChange();
+  } catch (err) {
+    console.warn("Failed to refresh application from server:", err);
   }
 }
 
-function saveCreated(apps: Application[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-}
-
-// Staff-editable fields layered on top of an application (seeded or created) without mutating the
-// static seed data directly — keyed by application id, merged in on every read.
-type ApplicationOverride = Partial<Pick<Application, "status" | "nextAction" | "waitingOn" | "updatedAt" | "responsibleCounsellorId" | "responsibleAdmissionOfficerId">>;
-const OVERRIDES_KEY = "sd-application-overrides";
-
-function loadOverrides(): Record<string, ApplicationOverride> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(OVERRIDES_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, ApplicationOverride>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveOverrides(overrides: Record<string, ApplicationOverride>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
-}
-
-/** Every application — the seeded demo set plus any the student has applied to this session,
- * with any staff-made status changes applied on top. */
+/** Every application visible to the current session, as of the last successful fetch/mutation. */
 export function getAllApplications(): Application[] {
-  const overrides = loadOverrides();
-  return [...APPLICATIONS, ...loadCreated()].map((a) => (overrides[a.id] ? { ...a, ...overrides[a.id] } : a));
+  return cache;
 }
 
-/** A comparable "when was this actually created" number — real `createdAt` when present (every
- * app created via createApplication has one); for older seed data (which predates that field and
- * will never have it) falls back to parsing a creation order out of the id itself, so "oldest
- * first" numbering still works without needing to backfill every seed row. Seeded ids ("app1",
- * "app2"...) sort as small integers, always before any real millisecond timestamp — i.e. before
- * anything created later through the running app. */
 function applicationSortKey(a: Application): number {
   if (a.createdAt) return new Date(a.createdAt).getTime();
   const seedMatch = a.id.match(/^app(\d+)$/);
@@ -63,48 +48,61 @@ function applicationSortKey(a: Application): number {
   return 0;
 }
 
-/** The same applications, oldest-created first — the ordering "application #1, #2, ..." numbering
- * should use, since progress/updatedAt change constantly and would reshuffle the numbers. */
 export function sortByCreatedAscending(apps: Application[]): Application[] {
   return [...apps].sort((a, b) => applicationSortKey(a) - applicationSortKey(b));
 }
 
-/** A counsellor moving an application to a new status — also lets them update the next action
- * shown to the student, since the two usually change together. `actor` is optional (existing call
- * sites predate the activity timeline) but should be passed by any new caller so the change is
- * properly attributed in the audit log. */
-export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string, actor?: Actor) {
-  const previousStatus = getAllApplications().find((a) => a.id === applicationId)?.status;
-  const overrides = loadOverrides();
-  overrides[applicationId] = {
-    ...overrides[applicationId],
-    status,
-    ...(nextAction !== undefined ? { nextAction } : {}),
-    updatedAt: new Date().toISOString().slice(0, 10),
-  };
-  saveOverrides(overrides);
-  recordStatusChange(applicationId, status);
+/** Cache-only status/nextAction update, no server round trip — used by applicationJourneyStore.ts
+ * after its own journey PATCH has already persisted the derived status server-side, so the
+ * applications cache reflects it immediately without a second, redundant status PATCH (which
+ * would also double-send the status-change notification). */
+export function applyLocalStatusUpdate(applicationId: string, status: AppStatus, nextAction?: string) {
+  cache = cache.map((a) =>
+    a.id === applicationId
+      ? { ...a, status, ...(nextAction !== undefined ? { nextAction } : {}), updatedAt: new Date().toISOString().slice(0, 10) }
+      : a
+  );
+  notifyCacheChange();
+}
+
+/** A counsellor moving an application to a new status directly (outside the 9-stage journey UI).
+ * Optimistically updates the cache so callers see the change immediately, then persists to the
+ * server — which also writes the status-history/activity rows and fires the WhatsApp/email
+ * notification itself (see server/src/routes/applications.js), so nothing further is needed here
+ * for that side effect. `token` is accepted for call-site compatibility but no longer used
+ * client-side. */
+export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string, actor?: Actor, _token?: string) {
+  const previousStatus = cache.find((a) => a.id === applicationId)?.status;
+  applyLocalStatusUpdate(applicationId, status, nextAction);
   if (actor) {
     recordActivity({ applicationId, action: "status_changed", oldValue: previousStatus, newValue: status, performedBy: actor });
   }
+  apiPatch<Application>(`/api/applications/${applicationId}/status`, { status, nextAction })
+    .then((updated) => {
+      cache = cache.map((a) => (a.id === applicationId ? updated : a));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist status update:", err));
 }
 
-/** Platform-assigned responsible counsellor for this specific application. */
 export function assignCounsellor(applicationId: string, counsellorId: string, actor: Actor) {
-  const overrides = loadOverrides();
-  const previous = overrides[applicationId]?.responsibleCounsellorId;
-  overrides[applicationId] = { ...overrides[applicationId], responsibleCounsellorId: counsellorId };
-  saveOverrides(overrides);
+  const previous = cache.find((a) => a.id === applicationId)?.responsibleCounsellorId;
+  cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleCounsellorId: counsellorId } : a));
+  notifyCacheChange();
   recordActivity({ applicationId, action: "counsellor_assigned", oldValue: previous, newValue: counsellorId, performedBy: actor });
+  apiPatch(`/api/applications/${applicationId}/assign-counsellor`, { counsellorId }).catch((err) =>
+    console.warn("Failed to persist counsellor assignment:", err)
+  );
 }
 
-/** Counsellor-assigned responsible admission officer for this specific application. */
 export function assignAdmissionOfficer(applicationId: string, officerId: string, actor: Actor) {
-  const overrides = loadOverrides();
-  const previous = overrides[applicationId]?.responsibleAdmissionOfficerId;
-  overrides[applicationId] = { ...overrides[applicationId], responsibleAdmissionOfficerId: officerId };
-  saveOverrides(overrides);
+  const previous = cache.find((a) => a.id === applicationId)?.responsibleAdmissionOfficerId;
+  cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleAdmissionOfficerId: officerId } : a));
+  notifyCacheChange();
   recordActivity({ applicationId, action: "admission_officer_assigned", oldValue: previous, newValue: officerId, performedBy: actor });
+  apiPatch(`/api/applications/${applicationId}/assign-admission-officer`, { officerId }).catch((err) =>
+    console.warn("Failed to persist admission officer assignment:", err)
+  );
 }
 
 export interface StatusHistoryEntry {
@@ -124,17 +122,10 @@ function loadRawHistory(applicationId: string): StatusHistoryEntry[] {
   }
 }
 
-function recordStatusChange(applicationId: string, status: AppStatus) {
-  if (typeof window === "undefined") return;
-  const history = loadRawHistory(applicationId);
-  history.push({ status, changedAt: new Date().toISOString().slice(0, 10) });
-  window.localStorage.setItem(HISTORY_PREFIX + applicationId, JSON.stringify(history));
-}
-
-/** Full status timeline for an application — its original seeded/created status first, then every
- * real change a counsellor has made since, oldest to newest. */
+/** Deferred: still localStorage-backed (see server's own ApplicationStatusHistory table for the
+ * authoritative copy, not yet read from here). */
 export function getStatusHistory(applicationId: string): StatusHistoryEntry[] {
-  const base = [...APPLICATIONS, ...loadCreated()].find((a) => a.id === applicationId);
+  const base = cache.find((a) => a.id === applicationId);
   const seedEntry: StatusHistoryEntry[] = base ? [{ status: base.status, changedAt: base.updatedAt }] : [];
   return [...seedEntry, ...loadRawHistory(applicationId)];
 }
@@ -146,33 +137,17 @@ export interface NewApplicationInput {
   intake: string;
   country: string;
   campus: string;
-  // Who confirmed it — defaults to "counsellor" (the caller already knows about it). Pass
-  // "student" from the student's own Apply flow so it surfaces as new on the counsellor side.
   source?: "student" | "counsellor";
 }
 
-// A freshly confirmed application starts already past Profile/Documents (the student's profile is
-// assumed current) and sitting in the Application stage, awaiting the university's acknowledgement.
-export function createApplication(input: NewApplicationInput): Application {
-  const application: Application = {
-    id: `app-custom-${Date.now()}`,
-    studentId: input.studentId,
-    university: input.university,
-    course: input.course,
-    intake: input.intake,
-    country: input.country,
-    campus: input.campus,
-    status: "Submitted",
-    progress: 15,
-    nextAction: "Awaiting university confirmation of receipt",
-    waitingOn: "university",
-    stages: stages(2),
-    updatedAt: new Date().toISOString().slice(0, 10),
-    source: input.source ?? "counsellor",
-    createdAt: new Date().toISOString(),
-  };
-  const created = loadCreated();
-  created.push(application);
-  saveCreated(created);
+/** Genuinely needs the server round trip (id + journey are assigned there) — every existing call
+ * site is either a UI event handler or an AI tool's `execute` (already Promise-tolerant), so this
+ * is the one function in this store that became async rather than staying cache-only. */
+export async function createApplication(input: NewApplicationInput): Promise<Application> {
+  const application = await apiPost<Application>("/api/applications", input);
+  cache = [...cache, application];
+  notifyCacheChange();
   return application;
 }
+
+export { refreshOne as refreshApplicationFromServer };

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, LogOut } from "lucide-react";
 import { Toggle } from "../../../components/ui/mobile";
+import { BackButton } from "../../../components/ui";
 import { COUNSELLORS } from "../../../data/mockData";
 import { COUNSELLOR_ID } from "../../../utils/counsellorData";
 import { loadCounsellorSettings, saveCounsellorSettings } from "../../../data/counsellorSettingsStore";
@@ -22,6 +23,7 @@ export default function CounsellorSettings() {
 
   return (
     <div className="max-w-2xl">
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">Your account and notification preferences.</p>
@@ -29,7 +31,7 @@ export default function CounsellorSettings() {
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--sd-ink)] text-sm font-semibold text-white">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-sm font-semibold text-white">
             {counsellor.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
           </div>
           <div>

@@ -9,7 +9,7 @@ export default function Onboarding() {
     <div className="flex min-h-full flex-col bg-[var(--sd-bg)]">
       <div className="flex items-center justify-between px-6 pt-6">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--sd-ink)] text-white">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={15} />
           </div>
           <span className="text-[15px] font-semibold text-[var(--sd-ink)]">StudyOne</span>

@@ -6,6 +6,7 @@ import {
   loadMeetings, loadDoneMeetingIds, markMeetingDone, meetingStatus, formatMeetingTime,
 } from "../../../data/counsellorMeetingsStore";
 import { loadStaffNote } from "../../../data/staffNotesStore";
+import { BackButton } from "../../../components/ui";
 
 const TONE_CLASS: Record<string, string> = {
   green: "bg-emerald-50 text-emerald-700",
@@ -23,6 +24,7 @@ export default function CounsellorCounseling() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Counseling</h1>
         <p className="mt-1 text-sm text-slate-500">{sessions.length} session{sessions.length === 1 ? "" : "s"} scheduled today, grouped by student.</p>
@@ -52,18 +54,22 @@ export default function CounsellorCounseling() {
                   {studentSessions.map((m) => {
                     const status = meetingStatus(m, doneIds);
                     return (
-                      <div key={m.id} className="flex items-center gap-3 px-5 py-3">
-                        <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
-                        <p className="flex-1 truncate text-sm text-slate-700">{m.title}</p>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
-                        {!doneIds.has(m.id) && (
-                          <button
-                            onClick={() => { markMeetingDone(m.id); forceTick((t) => t + 1); }}
-                            className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
-                          >
-                            Mark done
-                          </button>
-                        )}
+                      <div key={m.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-3">
+                        <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                          <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
+                          <p className="min-w-0 flex-1 truncate text-sm text-slate-700">{m.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center justify-between gap-2 pl-[76px] sm:justify-end sm:pl-0">
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
+                          {!doneIds.has(m.id) && (
+                            <button
+                              onClick={() => { markMeetingDone(m.id); forceTick((t) => t + 1); }}
+                              className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Mark done
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

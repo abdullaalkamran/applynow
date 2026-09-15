@@ -140,7 +140,7 @@ export default function UniversitySearch() {
           <button
             onClick={() => setTab("universities")}
             className={`rounded-lg px-6 py-2 text-[13px] font-medium transition-colors lg:flex-none ${
-              tab === "universities" ? "bg-[var(--sd-ink)] text-white" : "text-slate-500"
+              tab === "universities" ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-500"
             } flex-1`}
           >
             Universities
@@ -148,7 +148,7 @@ export default function UniversitySearch() {
           <button
             onClick={() => setTab("subjects")}
             className={`rounded-lg px-6 py-2 text-[13px] font-medium transition-colors lg:flex-none ${
-              tab === "subjects" ? "bg-[var(--sd-ink)] text-white" : "text-slate-500"
+              tab === "subjects" ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-500"
             } flex-1`}
           >
             Subjects
@@ -222,7 +222,7 @@ export default function UniversitySearch() {
                         </span>
                         <button
                           onClick={(e) => { e.stopPropagation(); setApplyTarget({ university: u, course: c }); }}
-                          className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
+                          className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
                         >
                           Apply Now
                         </button>
@@ -267,7 +267,7 @@ export default function UniversitySearch() {
                 <button
                   onClick={() => navigate("/student/search/filters")}
                   className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-[13px] font-medium lg:flex-none ${
-                    activeFilterCount > 0 ? "bg-[var(--sd-ink)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+                    activeFilterCount > 0 ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
                   }`}
                 >
                   <SlidersHorizontal size={14} /> Filters
@@ -280,7 +280,7 @@ export default function UniversitySearch() {
                 <button
                   onClick={() => setSortOpen((v) => !v)}
                   className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
-                    sortOpen ? "bg-[var(--sd-ink)] text-white" : "bg-[var(--sd-card)] text-slate-500"
+                    sortOpen ? "bg-[image:var(--sd-gradient)] text-white" : "bg-[var(--sd-card)] text-slate-500"
                   }`}
                   aria-label="Sort"
                 >

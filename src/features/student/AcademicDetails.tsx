@@ -234,7 +234,7 @@ export default function AcademicDetails() {
         )}
         <button
           onClick={handleSave}
-          className="w-full rounded-xl bg-[var(--sd-ink)] py-3.5 text-[13px] font-semibold text-white"
+          className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white"
         >
           Save Changes
         </button>

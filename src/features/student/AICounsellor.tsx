@@ -84,7 +84,7 @@ export default function AICounsellor() {
                 )}
                 <div
                   className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                    m.from === "me" ? "rounded-tr-sm bg-[var(--sd-ink)] text-white" : "rounded-tl-sm bg-[var(--sd-card)] text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                    m.from === "me" ? "rounded-tr-sm bg-[image:var(--sd-gradient)] text-white" : "rounded-tl-sm bg-[var(--sd-card)] text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.11)]"
                   }`}
                 >
                   {m.text}
@@ -125,7 +125,7 @@ export default function AICounsellor() {
               </button>
               <button
                 onClick={() => send(input)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--sd-ink)] text-white"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white"
               >
                 <Send size={14} />
               </button>

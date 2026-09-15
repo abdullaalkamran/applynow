@@ -5,7 +5,7 @@ import {
   FileCheck2, PlaneTakeoff, CheckCircle2, MoreVertical, Copy, Check, ChevronLeft, Briefcase,
   ListChecks, AlertCircle, CalendarDays, Upload,
 } from "lucide-react";
-import { StatusBadge, Modal, Button, SearchableSelect, FilterMenu } from "../../../components/ui";
+import { StatusBadge, Modal, Button, SearchableSelect, FilterMenu, BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, pipelineBucketFor, daysAgo, type PipelineBucket } from "../../../utils/counsellorData";
@@ -113,6 +113,7 @@ export default function CounsellorApplications() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Applications</h1>
@@ -176,7 +177,7 @@ export default function CounsellorApplications() {
               >
                 {counts[t]}
               </span>
-              {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--sd-ink)]" />}
+              {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[image:var(--sd-gradient)]" />}
             </button>
           );
         })}
@@ -315,7 +316,7 @@ export default function CounsellorApplications() {
                         )}
                         <label
                           onClick={(e) => e.stopPropagation()}
-                          className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-[var(--sd-ink)] px-2 py-1 text-[10.5px] font-semibold text-white"
+                          className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-[image:var(--sd-gradient)] px-2 py-1 text-[10.5px] font-semibold text-white"
                         >
                           <Upload size={10} /> Upload
                           <input
@@ -364,7 +365,7 @@ export default function CounsellorApplications() {
                 >
                   <ChevronLeft size={13} />
                 </button>
-                <span className="flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[var(--sd-ink)] px-1.5 text-[11px] font-semibold text-white">
+                <span className="flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] px-1.5 text-[11px] font-semibold text-white">
                   {clampedPage}
                 </span>
                 <span className="text-[11px] text-slate-400">of {totalPages}</span>
@@ -541,9 +542,9 @@ function CreateApplicationModal({
         <Button
           className="w-full justify-center"
           disabled={!canSubmit}
-          onClick={() => {
+          onClick={async () => {
             if (!student || !university) return;
-            createApplication({
+            await createApplication({
               studentId: student.id, university: university.name, course: courseName,
               intake, country: university.country, campus,
             });

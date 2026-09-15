@@ -49,6 +49,22 @@ function envDefaults() {
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
       model: process.env.OLLAMA_MODEL || "llama3.1",
     },
+    whatsappProvider: (process.env.WHATSAPP_PROVIDER || "stub").toLowerCase(),
+    emailProvider: (process.env.EMAIL_PROVIDER || "stub").toLowerCase(),
+    whatsappMeta: {
+      accessToken: process.env.WHATSAPP_META_TOKEN || "",
+      phoneNumberId: process.env.WHATSAPP_META_PHONE_ID || "",
+    },
+    whatsappTwilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID || "",
+      authToken: process.env.TWILIO_AUTH_TOKEN || "",
+      fromNumber: process.env.TWILIO_WHATSAPP_NUMBER || "",
+    },
+    email: {
+      apiKey: process.env.SENDGRID_API_KEY || "",
+      fromAddress: process.env.EMAIL_FROM_ADDRESS || "",
+      fromName: process.env.EMAIL_FROM_NAME || "StudyOne",
+    },
   };
 }
 
@@ -63,6 +79,11 @@ function getConfig() {
     openai: { ...base.openai, ...(saved.openai || {}) },
     gemini: { ...base.gemini, ...(saved.gemini || {}) },
     ollama: { ...base.ollama, ...(saved.ollama || {}) },
+    whatsappProvider: saved.whatsappProvider || base.whatsappProvider,
+    emailProvider: saved.emailProvider || base.emailProvider,
+    whatsappMeta: { ...base.whatsappMeta, ...(saved.whatsappMeta || {}) },
+    whatsappTwilio: { ...base.whatsappTwilio, ...(saved.whatsappTwilio || {}) },
+    email: { ...base.email, ...(saved.email || {}) },
   };
 }
 

@@ -229,7 +229,7 @@ export default function UniversityFilters() {
         </button>
         <button
           onClick={() => navigate("/student/search")}
-          className="flex-1 rounded-xl bg-[var(--sd-ink)] py-3.5 text-[13px] font-semibold text-white"
+          className="flex-1 rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white"
         >
           Show {resultCount} {resultCount === 1 ? "result" : "results"}
         </button>

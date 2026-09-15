@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSpeechRecognition, type SpeechRecognitionLike } from "./aiCounsellorEngine";
+import { useRole } from "../context/RoleContext";
+import { greetingFor } from "./voiceGreeting";
 
 export type VoiceConversationState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
@@ -29,6 +31,7 @@ export function useVoiceConversation(
   replyFn: (text: string) => Promise<string>,
   onExchange?: (userText: string, aiText: string) => void
 ) {
+  const { currentUser } = useRole();
   const [state, setState] = useState<VoiceConversationState>("idle");
   const [caption, setCaption] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -104,8 +107,13 @@ export function useVoiceConversation(
 
   const start = useCallback(() => {
     activeRef.current = true;
-    runListenCycle();
-  }, [runListenCycle]);
+    setState("speaking");
+    const greeting = greetingFor(currentUser.name);
+    setCaption(greeting);
+    speak(greeting, () => {
+      window.setTimeout(() => activeRef.current && runListenCycleRef.current(), 200);
+    });
+  }, [currentUser.name]);
 
   const stop = useCallback(() => {
     activeRef.current = false;

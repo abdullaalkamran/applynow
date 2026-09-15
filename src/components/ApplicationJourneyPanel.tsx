@@ -35,6 +35,7 @@ interface Props {
   applicationId: string;
   mode: "staff" | "student";
   actor?: Actor; // required in staff mode to attribute edits; unused in student (read-only) mode
+  token?: string; // lets a real status change fire the WhatsApp/email notification
 }
 
 /**
@@ -43,14 +44,14 @@ interface Props {
  * its own multi-column layout, since one long vertical stack stopped being readable once this
  * grew to cover all 9 stages plus tasks/activity/staff assignment.
  */
-export function ApplicationJourneyPanel({ applicationId, mode, actor }: Props) {
+export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: Props) {
   const [, forceTick] = useState(0);
   const journey = loadJourney(applicationId);
   const currentStage = computeCurrentStage(journey);
 
   function patch(stageType: StageType, fieldPatch: Record<string, unknown>) {
     if (!actor) return;
-    updateStage(applicationId, stageType, fieldPatch, actor);
+    updateStage(applicationId, stageType, fieldPatch, actor, token);
     forceTick((t) => t + 1);
   }
 
@@ -235,7 +236,7 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
   const data = record.data as Record<string, unknown>;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100 bg-white">
+    <div className="@container overflow-hidden rounded-xl border border-slate-100 bg-white">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
         <span className="text-[13px] font-medium text-slate-800">{STAGE_LABEL[stageType]}</span>
         <span className="flex items-center gap-1.5 text-[11.5px] text-slate-400">
@@ -244,7 +245,13 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
         </span>
       </button>
       {open && (
-        <div className="grid grid-cols-1 gap-2.5 border-t border-slate-100 p-3 sm:grid-cols-2">
+        // A container query, not a viewport one — this card renders both in a wide single-column
+        // student page and squeezed into a narrow desktop column on the counsellor's page, and a
+        // plain `sm:` breakpoint reacts to the whole viewport, not the actual space available here.
+        // At counsellor-column widths that misfired into a 2-up split so tight (~83px/field) that
+        // each field's fixed-width label alone exceeded it, collapsing the input to 0 width —
+        // unclickable, looking like "the status form doesn't work".
+        <div className="grid grid-cols-1 gap-2.5 border-t border-slate-100 p-3 @sm:grid-cols-2">
           {FULL_DEPTH_STAGES.has(stageType) ? (
             <FullDepthFields stageType={stageType} data={data} status={record.status} onPatch={onPatch} readOnly={readOnly} />
           ) : (
@@ -261,7 +268,7 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
 // to how little space the actual field needs.
 const fieldRowClass = "flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-[var(--sd-ink)]";
 const fieldLabelClass = "w-[74px] shrink-0 truncate text-[10px] text-slate-400";
-const fieldInputClass = "w-full min-w-0 bg-transparent text-[12.5px] text-slate-700 focus:outline-none disabled:text-slate-400";
+const fieldInputClass = "min-w-0 flex-1 bg-transparent text-[12.5px] text-slate-700 focus:outline-none disabled:text-slate-400";
 
 function Field({ label, value, onChange, type = "text", readOnly }: { label: string; value: unknown; onChange: (v: string) => void; type?: string; readOnly: boolean }) {
   return (

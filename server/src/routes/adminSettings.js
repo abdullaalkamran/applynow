@@ -31,11 +31,40 @@ router.get("/", requireAdmin, (_req, res) => {
       apiKeyMasked: mask(cfg.gemini.apiKey),
     },
     ollama: { baseUrl: cfg.ollama.baseUrl, model: cfg.ollama.model },
+    whatsappProvider: cfg.whatsappProvider,
+    emailProvider: cfg.emailProvider,
+    whatsappMeta: {
+      phoneNumberId: cfg.whatsappMeta.phoneNumberId,
+      accessTokenSet: !!cfg.whatsappMeta.accessToken,
+      accessTokenMasked: mask(cfg.whatsappMeta.accessToken),
+    },
+    whatsappTwilio: {
+      accountSid: cfg.whatsappTwilio.accountSid,
+      fromNumber: cfg.whatsappTwilio.fromNumber,
+      authTokenSet: !!cfg.whatsappTwilio.authToken,
+      authTokenMasked: mask(cfg.whatsappTwilio.authToken),
+    },
+    email: {
+      fromAddress: cfg.email.fromAddress,
+      fromName: cfg.email.fromName,
+      apiKeySet: !!cfg.email.apiKey,
+      apiKeyMasked: mask(cfg.email.apiKey),
+    },
   });
 });
 
-// Only overwrites an apiKey when a non-empty value is actually sent, so a form re-submitting its
-// own masked placeholder (or an untouched field) never wipes out a previously saved key.
+// Each provider object's own secret field name — stripped from the incoming patch when blank, so
+// a form re-submitting its own masked placeholder (or an untouched field) never wipes a saved key.
+const SECRET_FIELD = {
+  anthropic: "apiKey",
+  openai: "apiKey",
+  gemini: "apiKey",
+  ollama: null,
+  whatsappMeta: "accessToken",
+  whatsappTwilio: "authToken",
+  email: "apiKey",
+};
+
 router.put("/", requireAdmin, (req, res) => {
   const body = req.body || {};
   const current = readSettings();
@@ -43,11 +72,14 @@ router.put("/", requireAdmin, (req, res) => {
 
   if (typeof body.provider === "string") patch.provider = body.provider;
   if (typeof body.voiceEngine === "string") patch.voiceEngine = body.voiceEngine;
+  if (typeof body.whatsappProvider === "string") patch.whatsappProvider = body.whatsappProvider;
+  if (typeof body.emailProvider === "string") patch.emailProvider = body.emailProvider;
 
-  for (const key of ["anthropic", "openai", "gemini", "ollama"]) {
+  for (const key of Object.keys(SECRET_FIELD)) {
     if (body[key] && typeof body[key] === "object") {
       const incoming = { ...body[key] };
-      if ("apiKey" in incoming && !incoming.apiKey) delete incoming.apiKey;
+      const secretField = SECRET_FIELD[key];
+      if (secretField && secretField in incoming && !incoming[secretField]) delete incoming[secretField];
       patch[key] = { ...(current[key] || {}), ...incoming };
     }
   }

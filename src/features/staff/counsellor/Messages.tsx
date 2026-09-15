@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { STUDENTS } from "../../../data/mockData";
 import { getStaffMessages, markMessageRead, type StaffMessage } from "../../../data/counsellorMessagesStore";
+import { BackButton } from "../../../components/ui";
 
 export default function CounsellorMessages() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function CounsellorMessages() {
 
   return (
     <div>
+      <BackButton fallback="/staff/counsellor" />
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Messages</h1>
         <p className="mt-1 text-sm text-slate-500">Recent activity from your students.</p>

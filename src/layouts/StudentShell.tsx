@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { BottomNav, Sidebar } from "../components/ui/mobile";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
+import { useCacheSync } from "../utils/syncCache";
 
 const TAB_ROOTS = new Set([
   "/student",
@@ -27,6 +28,7 @@ function hasStickyActionBar(pathname: string): boolean {
 }
 
 export default function StudentShell() {
+  useCacheSync();
   const location = useLocation();
   const showTabs = TAB_ROOTS.has(location.pathname) || location.pathname.startsWith("/student/subjects/");
   const raiseFab = showTabs || hasStickyActionBar(location.pathname);

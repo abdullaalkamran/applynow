@@ -1,0 +1,752 @@
+// StudyOne — Postgres schema (Prisma). See /Users/mdabdullaalkamran/.claude/plans/my-ami-is-this-shimmering-hamster.md
+// for the migration plan this implements. Phase 1 models (User, Student, Staff, Application,
+// ApplicationJourney, ApplicationStatusHistory, ApplicationActivity, Task, Message) have full
+// routes + frontend wiring. Everything else here is schema designed ahead of time for a later
+// phase — table shape is settled now so later migrations don't require schema surgery, but no
+// routes exist for them yet.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  student
+  agent
+  counsellor
+  admission
+  compliance
+  data
+  finance
+  admin
+}
+
+enum RiskFlag {
+  none
+  watch
+  high
+}
+
+enum StaffStatus {
+  Active
+  Invited
+  Inactive
+}
+
+enum AppStatus {
+  Draft
+  ProfileIncomplete            @map("Profile Incomplete")
+  DocumentsPending             @map("Documents Pending")
+  ReadyForReview               @map("Ready for Review")
+  EligibilityReview            @map("Eligibility Review")
+  ApplicationPreparing         @map("Application Preparing")
+  ReadyToSubmit                @map("Ready to Submit")
+  Submitted
+  UniversityReview             @map("University Review")
+  AdditionalDocumentsRequested @map("Additional Documents Requested")
+  OfferReceived                @map("Offer Received")
+  OfferConditionsPending       @map("Offer Conditions Pending")
+  DepositPending               @map("Deposit Pending")
+  DepositPaid                  @map("Deposit Paid")
+  CasCoePending                @map("CAS/COE Pending")
+  CasCoeIssued                 @map("CAS/COE Issued")
+  VisaPreparation              @map("Visa Preparation")
+  VisaSubmitted                @map("Visa Submitted")
+  VisaDecision                 @map("Visa Decision")
+  Enrolled
+  Deferred
+  Withdrawn
+  Rejected
+  ComplianceHold               @map("Compliance Hold")
+}
+
+enum WaitingOn {
+  student
+  staff
+  university
+  none
+}
+
+enum ApplicationSource {
+  student
+  counsellor
+}
+
+enum StageType {
+  application
+  offer
+  financial_readiness
+  payment
+  interview
+  university_document
+  visa
+  evisa
+  enrolment
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+// ============================================================
+// PHASE 1 — full routes + frontend wiring
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  // -> Student.id (role=student) or Staff.id (every other role). Polymorphic app-level reference,
+  // not a DB FK (Prisma can't target two tables from one FK column) — enforced by the seed script
+  // and any future staff-invite flow.
+  roleUserId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Student {
+  id           String    @id
+  name         String
+  email        String    @unique
+  phone        String?
+  country      String
+  agentId      String?
+  agent        Staff?    @relation("AgentStudents", fields: [agentId], references: [id])
+  counsellorId String?
+  counsellor   Staff?    @relation("CounsellorStudents", fields: [counsellorId], references: [id])
+  avatarColor  String
+  riskFlag     RiskFlag?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  applications Application[]
+  tasks        Task[]
+  documents    Document[]
+}
+
+model Staff {
+  id           String      @id
+  name         String
+  email        String      @unique
+  role         Role
+  status       StaffStatus @default(Active)
+  organization String?
+  phone        String?
+  avatarColor  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  studentsAsAgent                Student[]      @relation("AgentStudents")
+  studentsAsCounsellor           Student[]      @relation("CounsellorStudents")
+  applicationsAsCounsellor       Application[]  @relation("CounsellorApplications")
+  applicationsAsAdmissionOfficer Application[]  @relation("AdmissionOfficerApplications")
+  commissions                    CommissionTx[]
+  invoices                       AgentInvoice[]
+
+  @@index([role])
+}
+
+model Application {
+  id                            String             @id
+  studentId                     String
+  student                       Student            @relation(fields: [studentId], references: [id])
+  university                    String
+  course                        String
+  intake                        String
+  country                       String
+  campus                        String?
+  status                        AppStatus
+  progress                      Int
+  nextAction                    String
+  waitingOn                     WaitingOn
+  stages                        Json // legacy WorkflowStage[] display strip, superseded by journey but kept for UI compat
+  source                        ApplicationSource?
+  responsibleCounsellorId       String?
+  responsibleCounsellor         Staff?             @relation("CounsellorApplications", fields: [responsibleCounsellorId], references: [id])
+  responsibleAdmissionOfficerId String?
+  responsibleAdmissionOfficer   Staff?             @relation("AdmissionOfficerApplications", fields: [responsibleAdmissionOfficerId], references: [id])
+  createdAt                     DateTime           @default(now())
+  updatedAt                     DateTime           @updatedAt
+
+  journey             ApplicationJourney?
+  statusHistory       ApplicationStatusHistory[]
+  activity            ApplicationActivity[]
+  tasks               Task[]
+  documents           Document[]
+  documentDueDates    DocumentDueDate[]
+  invoiceLines        InvoiceLine[]
+  ApplicationNextStep ApplicationNextStep[]
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model ApplicationJourney {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+  stages        Json // ApplicationJourney["stages"] from src/types/journey.ts, whole-blob read/write
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model ApplicationStatusHistory {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  status        AppStatus
+  changedAt     DateTime    @default(now())
+
+  @@index([applicationId, changedAt])
+}
+
+model ApplicationActivity {
+  id              String      @id @default(cuid())
+  applicationId   String
+  application     Application @relation(fields: [applicationId], references: [id])
+  timestamp       DateTime    @default(now())
+  stageType       StageType?
+  action          String
+  oldValue        Json?
+  newValue        Json?
+  performedById   String
+  performedByRole Role
+  performedByName String
+
+  @@index([applicationId, timestamp])
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  assignedToId   String
+  assignedToRole Role
+  assignedToName String
+  assignedById   String
+  assignedByRole Role
+  assignedByName String
+  dueDate        DateTime?    @db.Date
+  done           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  studentId      String?
+  student        Student?     @relation(fields: [studentId], references: [id])
+  studentName    String?
+  applicationId  String?
+  application    Application? @relation(fields: [applicationId], references: [id])
+  stageType      StageType?
+  taskType       String?
+  priority       Priority?
+  externalOwner  String?
+
+  @@index([assignedToId, assignedToRole])
+  @@index([applicationId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  fromId    String
+  fromRole  Role
+  fromName  String
+  toId      String
+  toRole    Role
+  toName    String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+// ============================================================
+// DEFERRED — schema designed now, routes/frontend migration later (see plan file §"Deferred")
+// ============================================================
+
+enum DocumentStatus {
+  pending
+  requested
+  uploaded
+  under_review
+  verified
+  rejected
+  flagged
+  expired
+}
+
+enum DocumentScope {
+  core
+  application
+  stage
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  studentId       String
+  student         Student        @relation(fields: [studentId], references: [id])
+  applicationId   String?
+  application     Application?   @relation(fields: [applicationId], references: [id])
+  stageType       StageType?
+  scope           DocumentScope
+  name            String
+  type            String
+  status          DocumentStatus @default(pending)
+  fileUrl         String?
+  custom          Boolean        @default(false)
+  note            String?
+  rejectionReason String?
+  issuedDate      DateTime?      @db.Date
+  expiryDate      DateTime?      @db.Date
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([applicationId, stageType])
+  @@index([studentId])
+}
+
+model DocumentDueDate {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  docType       String
+  dueDate       DateTime    @db.Date
+
+  @@unique([applicationId, docType])
+}
+
+enum CommissionStatus {
+  NotEligible
+  Expected
+  Pending
+  Approved
+  Invoiced
+  Paid
+  Disputed
+  ClawedBack
+}
+
+enum InvoiceStatus {
+  Issued
+  Paid
+}
+
+model CommissionTx {
+  id         String           @id @default(cuid())
+  agentId    String
+  agent      Staff            @relation(fields: [agentId], references: [id])
+  studentId  String
+  university String
+  amount     Float
+  currency   String
+  status     CommissionStatus
+  milestone  String
+  updatedAt  DateTime         @updatedAt
+}
+
+model CommissionRate {
+  id           String @id @default(cuid())
+  universityId String @unique
+  ratePercent  Int
+  bonusPercent Int    @default(0)
+  bonusLabel   String @default("")
+}
+
+model AgentInvoice {
+  id          String        @id
+  agentId     String
+  agent       Staff         @relation(fields: [agentId], references: [id])
+  createdAt   DateTime      @default(now())
+  totalAmount Float
+  status      InvoiceStatus @default(Issued)
+  lines       InvoiceLine[]
+}
+
+model InvoiceLine {
+  id            String       @id @default(cuid())
+  invoiceId     String
+  invoice       AgentInvoice @relation(fields: [invoiceId], references: [id])
+  applicationId String
+  application   Application  @relation(fields: [applicationId], references: [id])
+  studentName   String
+  university    String
+  course        String
+  amount        Float
+}
+
+enum SubjectType {
+  Student
+  Agent
+  Document
+  Application
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+enum ComplianceStatus {
+  Open
+  Investigating
+  Frozen
+  Cleared
+  Escalated
+}
+
+model ComplianceCase {
+  id          String           @id @default(cuid())
+  subjectType SubjectType
+  subjectName String
+  reason      String
+  riskLevel   RiskLevel
+  status      ComplianceStatus
+  openedAt    DateTime         @default(now())
+  evidence    String[]
+}
+
+enum CatalogRecordType {
+  University
+  Course
+  Intake
+  Requirement
+  Scholarship
+}
+
+enum CatalogRecordStatus {
+  Draft
+  InReview
+  Published
+  Stale
+}
+
+model CatalogRecord {
+  id               String              @id @default(cuid())
+  type             CatalogRecordType
+  name             String
+  country          String
+  source           String
+  effectiveDate    DateTime            @db.Date
+  verificationDate DateTime            @db.Date
+  status           CatalogRecordStatus
+  owner            String
+}
+
+enum WorkflowTemplateStatus {
+  Active
+  Draft
+  Archived
+}
+
+model WorkflowTemplate {
+  id          String                 @id @default(cuid())
+  name        String
+  country     String
+  version     String
+  stages      Int
+  status      WorkflowTemplateStatus
+  lastUpdated DateTime               @updatedAt
+}
+
+model AuditLogEntry {
+  id        String   @id @default(cuid())
+  actor     String
+  role      Role
+  action    String
+  target    String
+  timestamp DateTime @default(now())
+}
+
+enum RequirementType {
+  document
+  financial_holding_period
+  immigration_document_type
+}
+
+model RequirementRule {
+  id              String          @id
+  countryId       String?
+  universityId    String?
+  courseId        String?
+  stageType       StageType
+  requirementType RequirementType
+  name            String
+  isRequired      Boolean
+  configuration   Json?
+  active          Boolean         @default(true)
+}
+
+model Country {
+  id   String @id
+  name String @unique
+}
+
+model Subject {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  custom Boolean @default(false)
+}
+
+enum DepositMode {
+  custom
+  half
+  full
+}
+
+enum UniversityTone {
+  violet
+  amber
+  teal
+  rose
+}
+
+model University {
+  id                    String         @id
+  name                  String
+  city                  String
+  country               String
+  tags                  String[]
+  subjects              String[]
+  intakes               String[]
+  worldRank             String
+  employability         String
+  studentCount          String
+  description           String
+  highlights            String[]
+  campuses              Json?
+  requirements          String[]
+  fees                  Json
+  minimumDepositAmount  Float?
+  depositMode           DepositMode?
+  paymentDeadline       String?
+  depositRules          String[]
+  currencySymbol        String
+  minIELTS              Float
+  minGPA                Float
+  englishRequirements   Json?
+  accreditations        String[]
+  scholarshipsAvailable Boolean
+  scholarships          Json?
+  openIntake            String
+  intakeStatus          Json?
+  intakeDates           Json?
+  website               String
+  tone                  UniversityTone
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  courses               Course[]
+}
+
+model Course {
+  id                   String     @id
+  universityId         String
+  university           University @relation(fields: [universityId], references: [id])
+  name                 String
+  level                String
+  duration             String
+  subject              String
+  feeUSD               Float
+  intakes              String[]
+  applicationDeadline  String?
+  requirements         String[]
+  englishRequirements  Json?
+  scholarshipAvailable Boolean?
+  scholarshipInfo      String?
+  currencySymbol       String?
+  campusId             String?
+}
+
+model NotificationRead {
+  id             String   @id @default(cuid())
+  userId         String
+  notificationId String
+  readAt         DateTime @default(now())
+
+  @@unique([userId, notificationId])
+}
+
+model LeadFollowUp {
+  studentId String   @id
+  status    String
+  updatedAt DateTime @updatedAt
+}
+
+model ProfileStepCompletion {
+  id          String    @id @default(cuid())
+  studentId   String
+  stepKey     String
+  complete    Boolean   @default(false)
+  completedAt DateTime?
+
+  @@unique([studentId, stepKey])
+}
+
+model TeamLead {
+  role    Role   @id
+  staffId String @unique
+}
+
+model StaffNote {
+  studentId String   @id
+  note      String
+  updatedAt DateTime @updatedAt
+}
+
+model StaffStatsSnapshot {
+  namespace String   @id
+  date      DateTime @db.Date
+  values    Json
+}
+
+model CounsellorSettings {
+  staffId            String  @id
+  emailNotifications Boolean @default(true)
+  taskReminders      Boolean @default(true)
+  weeklyDigest       Boolean @default(false)
+}
+
+model CounsellorSeenApplication {
+  staffId       String
+  applicationId String
+  seenAt        DateTime @default(now())
+
+  @@id([staffId, applicationId])
+}
+
+enum MeetingAction {
+  Join
+  Email
+  Prepare
+  View
+}
+
+enum MeetingKind {
+  session
+  task
+}
+
+model Meeting {
+  id        String        @id @default(cuid())
+  staffId   String
+  time      String
+  title     String
+  subtitle  String
+  studentId String?
+  action    MeetingAction
+  kind      MeetingKind
+  done      Boolean       @default(false)
+}
+
+model StudentProfile {
+  studentId                    String   @id
+  firstName                    String?
+  lastName                     String?
+  phone                        String?
+  dob                          String?
+  gender                       String?
+  nationality                  String?
+  fatherName                   String?
+  motherName                   String?
+  maritalStatus                String?
+  passportNumber               String?
+  personalNumber               String?
+  previousPassportNumber       String?
+  placeOfBirth                 String?
+  issuingAuthority             String?
+  issueDate                    String?
+  passportExpiry               String?
+  permanentAddress             String?
+  presentAddress               String?
+  city                         String?
+  emergencyContactName         String?
+  emergencyContactRelationship String?
+  emergencyContactAddress      String?
+  emergencyContactPhone        String?
+  emergencyContactEmail        String?
+  destinations                 String[]
+  studyLevel                   String?
+  fields                       String[]
+  intake                       String?
+  budget                       String?
+  accommodation                String?
+  scholarshipInterest          Boolean?
+  emailUpdates                 Boolean?
+  smsUpdates                   Boolean?
+  whatsappUpdates              Boolean?
+  pushUpdates                  Boolean?
+  contactLanguage              String?
+  updatedAt                    DateTime @updatedAt
+}
+
+model StudentEnglishTest {
+  id                 String @id @default(cuid())
+  studentId          String
+  testName           String
+  testType           String
+  overallScore       String
+  listening          String
+  reading            String
+  writing            String
+  speaking           String
+  testDate           String
+  expiryDate         String
+  reportNumber       String
+  issuingInstitution String
+}
+
+model StudentWorkExperience {
+  id               String  @id @default(cuid())
+  studentId        String
+  type             String
+  company          String
+  title            String
+  industry         String
+  startDate        String
+  endDate          String?
+  currentlyWorking Boolean
+  description      String
+}
+
+model StudentAcademicLevel {
+  id          String  @id @default(cuid())
+  studentId   String
+  orderIndex  Int
+  level       String
+  institution String
+  board       String?
+  group       String?
+  major       String?
+  grade       String?
+  passingYear String?
+}
+
+model Shortlist {
+  id             String   @id @default(cuid())
+  studentId      String
+  universityId   String
+  universityName String
+  courseName     String
+  addedByRole    Role
+  addedAt        DateTime @default(now())
+
+  @@unique([studentId, universityId, courseName])
+}
+
+model ApplicationNextStep {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  title         String
+  createdAt     DateTime    @default(now())
+  done          Boolean     @default(false)
+  dueDate       DateTime?   @db.Date
+}

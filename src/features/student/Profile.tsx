@@ -36,7 +36,7 @@ export default function Profile() {
 
       <div className="px-5 lg:mx-auto lg:w-full lg:max-w-2xl lg:px-10">
         <div className="flex flex-col items-center pb-2 pt-2 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--sd-ink)] text-xl font-semibold text-white">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-xl font-semibold text-white">
             {initials}
           </div>
           <p className="mt-3 text-[16px] font-bold text-slate-900">{student.name}</p>

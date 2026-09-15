@@ -1,7 +1,10 @@
-// Minimal append-only per-thread message log — deliberately not a full inbox (no read receipts,
-// no attachments). Exists so the assistant can actually send a message on a user's behalf; a
-// thread id is deterministic from its two participants so the same pair always lands in one thread.
+// Postgres-backed via /api/messages (server/src/routes/messages.js) — same synchronous-cache
+// pattern as applicationsStore.ts. Minimal append-only per-thread message log, used today by the
+// student AI assistant's "send a message" tool; the full staff/student Messages inbox UI still
+// runs on its own separate store (counsellorMessagesStore.ts), a deferred migration.
 import type { Role } from "../types";
+import { apiGet, apiPost } from "../utils/apiClient";
+import { notifyCacheChange } from "../utils/syncCache";
 
 export interface MessageParticipant {
   role: Role;
@@ -18,7 +21,7 @@ export interface Message {
   createdAt: string;
 }
 
-const STORAGE_PREFIX = "sd-messages:";
+const cache: Record<string, Message[]> = {};
 
 export function threadIdFor(a: { role: Role; id: string }, b: { role: Role; id: string }): string {
   const left = `${a.role}:${a.id}`;
@@ -26,19 +29,21 @@ export function threadIdFor(a: { role: Role; id: string }, b: { role: Role; id: 
   return [left, right].sort().join("__");
 }
 
-export function loadMessages(threadId: string): Message[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + threadId);
-    return raw ? (JSON.parse(raw) as Message[]) : [];
-  } catch {
-    return [];
-  }
+function refreshThread(threadId: string) {
+  apiGet<Message[]>(`/api/messages/${threadId}`)
+    .then((messages) => {
+      cache[threadId] = messages;
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to load messages from server:", err));
 }
 
-function persist(threadId: string, messages: Message[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_PREFIX + threadId, JSON.stringify(messages));
+export function loadMessages(threadId: string): Message[] {
+  if (!cache[threadId]) {
+    cache[threadId] = [];
+    refreshThread(threadId);
+  }
+  return cache[threadId];
 }
 
 export function sendMessage(input: Omit<Message, "id" | "createdAt" | "threadId">): Message {
@@ -49,6 +54,13 @@ export function sendMessage(input: Omit<Message, "id" | "createdAt" | "threadId"
     threadId,
     createdAt: new Date().toISOString(),
   };
-  persist(threadId, [...loadMessages(threadId), message]);
+  cache[threadId] = [...(cache[threadId] ?? []), message];
+  notifyCacheChange();
+  apiPost<Message>("/api/messages", input)
+    .then((serverMessage) => {
+      cache[threadId] = (cache[threadId] ?? []).map((m) => (m.id === message.id ? serverMessage : m));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist message:", err));
   return message;
 }

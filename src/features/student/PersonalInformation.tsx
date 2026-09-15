@@ -255,7 +255,7 @@ export default function PersonalInformation() {
       <div className="px-5">
         <div className="flex flex-col items-center pb-3 pt-1">
           <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--sd-ink)] text-xl font-semibold text-white">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-xl font-semibold text-white">
               {initials}
             </div>
             <button
@@ -340,7 +340,7 @@ export default function PersonalInformation() {
                 <button
                   onClick={confirmOtp}
                   disabled={phoneStatus === "sending" || phoneStatus === "verifying" || otp.length < 4}
-                  className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40"
+                  className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40"
                 >
                   {phoneStatus === "verifying" ? <Loader2 size={13} className="animate-spin" /> : "Confirm"}
                 </button>
@@ -580,7 +580,7 @@ export default function PersonalInformation() {
         )}
         <button
           onClick={handleSave}
-          className="w-full rounded-xl bg-[var(--sd-ink)] py-3.5 text-[13px] font-semibold text-white"
+          className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white"
         >
           Save Changes
         </button>
@@ -609,7 +609,7 @@ function PhoneVerifyButton({ status, onClick }: { status: PhoneStatus; onClick: 
     <button
       onClick={onClick}
       disabled={status === "sending" || status === "code-sent" || status === "verifying"}
-      className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-2.5 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
+      className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-2.5 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
     >
       {status === "sending" ? <Loader2 size={13} className="animate-spin" /> : status === "code-sent" || status === "verifying" ? "Sent" : "Verify"}
     </button>
