@@ -5,10 +5,21 @@ import { useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui";
-import { getCountryByName, getCountryId, updateCountryDetails, type RequiredDocument, type VisaCostConfig } from "../../../data/countryRegistry";
+import {
+  getCountryByName, getCountryId, updateCountryDetails,
+  type RequiredDocument, type VisaCostConfig, type WhyStudyHighlight, type UsefulLink,
+} from "../../../data/countryRegistry";
 
 function blankDocument(): RequiredDocument {
   return { id: `doc-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, name: "" };
+}
+
+function blankHighlight(): WhyStudyHighlight {
+  return { id: `wsh-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, title: "", description: "" };
+}
+
+function blankLink(): UsefulLink {
+  return { id: `link-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, label: "", url: "" };
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -35,6 +46,24 @@ export default function DataCountryForm() {
   const [visaProcedure, setVisaProcedure] = useState(existing?.visaProcedure ?? "");
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
+  // Country Overview page content (see CountryOverview.tsx) — the hero, "Why Study Here", "Key
+  // Information", and "Useful Links" sections shown on the student/agent/counsellor Country Detail
+  // page's Overview tab.
+  const [photoUrl, setPhotoUrl] = useState(existing?.photoUrl ?? "");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [tagline, setTagline] = useState(existing?.tagline ?? "");
+  const [internationalStudentStat, setInternationalStudentStat] = useState(existing?.internationalStudentStat ?? "");
+  const [highlights, setHighlights] = useState<WhyStudyHighlight[]>(existing?.whyStudyHighlights ?? []);
+  const [links, setLinks] = useState<UsefulLink[]>(existing?.usefulLinks ?? []);
+  const ki = existing?.keyInfo;
+  const [popularIntakes, setPopularIntakes] = useState(ki?.popularIntakes ?? "");
+  const [avgTuitionFeeRange, setAvgTuitionFeeRange] = useState(ki?.avgTuitionFeeRange ?? "");
+  const [costOfLivingRange, setCostOfLivingRange] = useState(ki?.costOfLivingRange ?? "");
+  const [postStudyWorkVisa, setPostStudyWorkVisa] = useState(ki?.postStudyWorkVisa ?? "");
+  const [dependentsAllowed, setDependentsAllowed] = useState(ki?.dependentsAllowed ?? "");
+  const [partTimeWork, setPartTimeWork] = useState(ki?.partTimeWork ?? "");
+  const [applicationProcessingTime, setApplicationProcessingTime] = useState(ki?.applicationProcessingTime ?? "");
+
   // Visa & Bank Statement cost breakdown (see countryRegistry.ts's VisaCostConfig) — numbers kept
   // as strings while editing, same pattern as recommendedFunds above.
   const [casPaymentPercent, setCasPaymentPercent] = useState(vc ? String(vc.casPaymentPercent) : "");
@@ -53,6 +82,24 @@ export default function DataCountryForm() {
 
   function updateDocument(i: number, patch: Partial<RequiredDocument>) {
     setDocuments((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  }
+
+  function updateHighlight(i: number, patch: Partial<WhyStudyHighlight>) {
+    setHighlights((prev) => prev.map((h, idx) => (idx === i ? { ...h, ...patch } : h)));
+  }
+
+  function updateLink(i: number, patch: Partial<UsefulLink>) {
+    setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  async function handlePhotoPicked(file: File | undefined) {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      setPhotoUrl(await readFileAsDataUrl(file));
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function handleFilePicked(i: number, file: File | undefined) {
@@ -88,6 +135,17 @@ export default function DataCountryForm() {
         }
       : undefined;
 
+    const keyInfo = {
+      popularIntakes: popularIntakes.trim() || undefined,
+      avgTuitionFeeRange: avgTuitionFeeRange.trim() || undefined,
+      costOfLivingRange: costOfLivingRange.trim() || undefined,
+      postStudyWorkVisa: postStudyWorkVisa.trim() || undefined,
+      dependentsAllowed: dependentsAllowed.trim() || undefined,
+      partTimeWork: partTimeWork.trim() || undefined,
+      applicationProcessingTime: applicationProcessingTime.trim() || undefined,
+    };
+    const hasKeyInfo = Object.values(keyInfo).some(Boolean);
+
     const patch = {
       name: trimmedName,
       whyThisCountry: whyThisCountry.trim() || undefined,
@@ -96,6 +154,12 @@ export default function DataCountryForm() {
       requiredDocuments: documents.filter((d) => d.name.trim()),
       applicationProcedure: applicationProcedure.trim() || undefined,
       visaProcedure: visaProcedure.trim() || undefined,
+      photoUrl: photoUrl || undefined,
+      tagline: tagline.trim() || undefined,
+      internationalStudentStat: internationalStudentStat.trim() || undefined,
+      whyStudyHighlights: highlights.filter((h) => h.title.trim()),
+      keyInfo: hasKeyInfo ? keyInfo : undefined,
+      usefulLinks: links.filter((l) => l.label.trim() && l.url.trim()),
     };
 
     const id = existing ? existing.id : getCountryId(trimmedName);
@@ -124,6 +188,73 @@ export default function DataCountryForm() {
           <Field label="Description">
             <Textarea value={whyThisCountry} onChange={setWhyThisCountry} placeholder="What makes this country a great study destination?" rows={4} />
           </Field>
+        </Section>
+
+        <Section title="Overview Page">
+          <p className="text-[11px] text-slate-400">
+            The hero banner shown at the top of the country's Overview tab, above the "Why This Country" text already entered.
+          </p>
+          <Field label="Cover photo">
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                {photoUrl && <img src={photoUrl} alt="Country cover preview" className="h-full w-full object-cover" />}
+              </div>
+              <div className="flex flex-col items-start gap-1.5">
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-slate-600 hover:border-slate-300">
+                  <Upload size={12} />
+                  {uploadingPhoto ? "Uploading…" : photoUrl ? "Replace photo" : "Upload photo"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoPicked(e.target.files?.[0])} />
+                </label>
+                {photoUrl && (
+                  <button onClick={() => setPhotoUrl("")} className="text-[11px] font-medium text-rose-500">Remove photo</button>
+                )}
+                {!photoUrl && <p className="text-[11px] text-slate-400">Falls back to an abstract illustration until one is uploaded.</p>}
+              </div>
+            </div>
+          </Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Tagline"><Input value={tagline} onChange={setTagline} placeholder="e.g. World-class education. Global opportunities." /></Field>
+            <Field label="International students stat"><Input value={internationalStudentStat} onChange={setInternationalStudentStat} placeholder="e.g. 680,000+" /></Field>
+          </div>
+        </Section>
+
+        <Section
+          title="Why Study Here?"
+          action={
+            <button onClick={() => setHighlights((prev) => [...prev, blankHighlight()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
+              <Plus size={13} /> Add highlight
+            </button>
+          }
+        >
+          {highlights.length === 0 && <p className="text-xs text-slate-400">No highlights added yet — shown as icon bullets on the Overview tab.</p>}
+          <div className="space-y-3">
+            {highlights.map((h, i) => (
+              <div key={h.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input value={h.title} onChange={(v) => updateHighlight(i, { title: v })} placeholder="Title, e.g. Post-study work opportunities" className="min-w-[200px] flex-1" />
+                  <button onClick={() => setHighlights((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove highlight" className="shrink-0 text-slate-300 hover:text-rose-500">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <Input value={h.description} onChange={(v) => updateHighlight(i, { description: v })} placeholder="Description, e.g. 2 years Graduate Route" className="w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Key Information">
+          <p className="text-[11px] text-slate-400">Shown as a quick-facts table on the Overview tab. Leave any field blank to hide that row.</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Popular intakes"><Input value={popularIntakes} onChange={setPopularIntakes} placeholder="e.g. September, January, May (limited)" /></Field>
+            <Field label="Average tuition fees"><Input value={avgTuitionFeeRange} onChange={setAvgTuitionFeeRange} placeholder="e.g. £10,000 - £25,000 per year" /></Field>
+            <Field label="Cost of living"><Input value={costOfLivingRange} onChange={setCostOfLivingRange} placeholder="e.g. £1,023 - £1,334 per month" /></Field>
+            <Field label="Post study work visa"><Input value={postStudyWorkVisa} onChange={setPostStudyWorkVisa} placeholder="e.g. 2 years (Graduate Route)" /></Field>
+            <Field label="Dependents allowed"><Input value={dependentsAllowed} onChange={setDependentsAllowed} placeholder="e.g. Yes (for most courses)" /></Field>
+            <Field label="Part-time work"><Input value={partTimeWork} onChange={setPartTimeWork} placeholder="e.g. 20 hours per week" /></Field>
+            <Field label="Application processing time"><Input value={applicationProcessingTime} onChange={setApplicationProcessingTime} placeholder="e.g. 3 - 6 weeks" /></Field>
+          </div>
         </Section>
 
         <Section title="Cost Calculation">
@@ -196,6 +327,28 @@ export default function DataCountryForm() {
           <Field label="Steps (one per line)">
             <Textarea value={visaProcedure} onChange={setVisaProcedure} placeholder={"Receive your offer letter\nApply for a student visa\nAttend a biometrics appointment"} rows={4} />
           </Field>
+        </Section>
+
+        <Section
+          title="Useful Links"
+          action={
+            <button onClick={() => setLinks((prev) => [...prev, blankLink()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
+              <Plus size={13} /> Add link
+            </button>
+          }
+        >
+          {links.length === 0 && <p className="text-xs text-slate-400">No links added yet — shown as external-link chips on the Overview tab.</p>}
+          <div className="space-y-3">
+            {links.map((l, i) => (
+              <div key={l.id} className="flex flex-wrap items-center gap-2">
+                <Input value={l.label} onChange={(v) => updateLink(i, { label: v })} placeholder="Label, e.g. UCAS" className="min-w-[140px] flex-1" />
+                <Input value={l.url} onChange={(v) => updateLink(i, { url: v })} placeholder="https://…" className="min-w-[200px] flex-[2]" />
+                <button onClick={() => setLinks((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove link" className="shrink-0 text-slate-300 hover:text-rose-500">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
         </Section>
       </div>
 

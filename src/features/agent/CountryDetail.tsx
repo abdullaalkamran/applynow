@@ -1,39 +1,57 @@
-// Mirrors SubjectDetail.tsx (agent) — country is the fixed dimension instead of subject, and the
-// "Destination" pill is dropped since it would just re-filter down to the same one country.
+// Mirrors UniversityDetail.tsx (agent)'s tabbed layout — country is the fixed dimension, with a
+// persistent hero (CountryHero) above three tabs: "Overview" (the rich country profile),
+// "Universities" (a clean per-university directory — program/course browsing belongs on the
+// "Subjects" tab instead, so this tab isn't showing the same course list twice under two different
+// names), and "Subjects" (every distinct field of study offered here).
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { PillSelect } from "../../components/ui/mobile";
+import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Plus, Share2 } from "lucide-react";
+import { LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
+import { getCountryByName } from "../../data/countryRegistry";
+import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
+import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { subjectOptions, intakeOptions, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
-import { ProgramRow } from "./ProgramRow";
 import { CreateApplicationModal } from "./CreateApplicationModal";
-import type { University } from "../../types";
 
-type Course = University["courses"][number];
+const TABS = ["Overview", "Universities", "Subjects"] as const;
 
 export default function AgentCountryDetail() {
   const navigate = useNavigate();
   const { country: countryParam } = useParams();
   const students = loadAgentStudents();
-  const [subject, setSubject] = useState("");
-  const [intake, setIntake] = useState("");
-  const [feeBand, setFeeBand] = useState("");
-  const [applyTarget, setApplyTarget] = useState<{ university: University; course: Course } | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function openUniversityProfile(universityId: string) {
+    navigate(`/agent/universities/${universityId}`);
+  }
+
+  async function shareWithStudent() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard access denied — nothing more useful to do than leave the button unchanged
+    }
+  }
 
   const country = countryParam ? decodeURIComponent(countryParam) : "";
   const universities = getAllUniversities().filter((u) => u.country === country);
-  const programs = universities
-    .flatMap((university) => university.courses.map((course) => ({ university, course })))
-    .filter(({ university, course }) => {
-      if (subject && course.subject !== subject) return false;
-      if (intake && !university.intakes.includes(intake)) return false;
-      if (feeBand && course.feeUSD > feeBandMax(feeBand)) return false;
-      return true;
-    });
+  const countryDetails = getCountryByName(country);
+  const totalCourses = universities.reduce((sum, u) => sum + u.courses.length, 0);
 
-  const hasFilters = !!(subject || intake || feeBand);
+  const subjectCounts = (() => {
+    const counts = new Map<string, number>();
+    universities.forEach((u) => u.courses.forEach((c) => counts.set(c.subject, (counts.get(c.subject) ?? 0) + 1)));
+    return Array.from(counts.entries()).map(([subjectName, count]) => ({ subject: subjectName, count })).sort((a, b) => b.count - a.count);
+  })();
+
+  function openSubject(subjectName: string) {
+    navigate(`/agent/subjects/${encodeURIComponent(subjectName)}`, { state: { destination: country } });
+  }
 
   return (
     <div>
@@ -41,51 +59,117 @@ export default function AgentCountryDetail() {
         <ArrowLeft size={14} /> Back to Universities
       </button>
 
-      <h1 className="text-lg font-semibold text-slate-900">{country}</h1>
-      <p className="mt-1 text-xs text-slate-500">
-        {universities.length} universit{universities.length === 1 ? "y" : "ies"} · {programs.length} program{programs.length === 1 ? "" : "s"}
+      <CountryHero
+        country={country}
+        countryDetails={countryDetails}
+        actions={
+          <>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              <Plus size={13} /> Create Application
+            </button>
+            <button
+              onClick={shareWithStudent}
+              className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-white/90"
+            >
+              <Share2 size={13} /> {copied ? "Link Copied!" : "Share with Student"}
+            </button>
+          </>
+        }
+      />
+      <p className="mt-3 text-xs text-slate-500">
+        {universities.length} universit{universities.length === 1 ? "y" : "ies"} · {totalCourses} program{totalCourses === 1 ? "" : "s"}
       </p>
 
-      <div className="my-4 -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <PillSelect label="Subject" value={subject} onChange={setSubject} options={subjectOptions()} />
-        <PillSelect label="Intake" value={intake} onChange={setIntake} options={intakeOptions()} />
-        <PillSelect label="Fees" value={feeBand} onChange={setFeeBand} options={[...FEE_BANDS]} />
-        {hasFilters && (
-          <button onClick={() => { setSubject(""); setIntake(""); setFeeBand(""); }} className="shrink-0 text-[11px] font-medium text-blue-600">
-            Clear
+      <div className="mt-4 flex items-center gap-5 overflow-x-auto border-b border-slate-100">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${tab === t ? "text-blue-700" : "text-slate-400"}`}
+          >
+            {t}
+            {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
           </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {programs.map(({ university, course }) => (
-          <ProgramRow
-            key={`${university.id}-${course.name}`}
-            university={university}
-            course={course}
-            students={students}
-            onApply={(u, c) => setApplyTarget({ university: u, course: c })}
-          />
         ))}
       </div>
-      {programs.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-          <p className="text-xs text-slate-400">No programs match this view.</p>
-          {hasFilters && (
-            <button onClick={() => { setSubject(""); setIntake(""); setFeeBand(""); }} className="mt-2 text-[11px] font-medium text-blue-600">
-              Reset filters
+
+      {tab === "Overview" ? (
+        <div className="mt-4">
+          <CountryOverviewCards
+            country={country}
+            countryDetails={countryDetails}
+            universities={universities}
+            subjectCounts={subjectCounts}
+            onOpenUniversity={openUniversityProfile}
+            onViewAllUniversities={() => setTab("Universities")}
+            onViewAllSubjects={() => setTab("Subjects")}
+          />
+          <div className="mt-5">
+            <CountryGuideDisclosure country={countryDetails} />
+          </div>
+        </div>
+      ) : tab === "Subjects" ? (
+        <div className="mt-4 space-y-2.5">
+          {subjectCounts.map(({ subject: subjectName, count }) => (
+            <button
+              key={subjectName}
+              onClick={() => openSubject(subjectName)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                  <BookOpen size={15} />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800">{subjectName}</p>
+                  <p className="text-xs text-slate-400">{count} program{count === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-slate-300" />
             </button>
+          ))}
+          {subjectCounts.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+              <p className="text-xs text-slate-400">No subjects listed yet.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {universities.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => openUniversityProfile(u.id)}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
+            >
+              <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
+                <p className="truncate text-xs text-slate-400">{u.city}, {u.country}</p>
+                <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1"><GraduationCap size={11} /> {u.worldRank}</span>
+                  <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
+                </div>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-slate-300" />
+            </button>
+          ))}
+          {universities.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+              <p className="text-xs text-slate-400">No universities in {country} yet.</p>
+            </div>
           )}
         </div>
       )}
 
-      {applyTarget && (
+      {showCreateModal && (
         <CreateApplicationModal
           students={students}
-          initialUniversityId={applyTarget.university.id}
-          initialCourseName={applyTarget.course.name}
-          onClose={() => setApplyTarget(null)}
-          onCreated={() => setApplyTarget(null)}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => setShowCreateModal(false)}
         />
       )}
     </div>

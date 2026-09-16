@@ -33,6 +33,31 @@ export interface VisaCostConfig {
   foreignToLocalRate: number; // e.g. 165 — 1 unit of the university's currency in the local currency
 }
 
+export interface WhyStudyHighlight {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface UsefulLink {
+  id: string;
+  label: string;
+  url: string;
+}
+
+// Free-text on purpose, same as VisaCostConfig's neighbors — a real range like "£10,000 - £25,000"
+// or "2 years (Graduate Route)" doesn't parse into a number cleanly, and country pages don't need
+// to compute against these the way the Fees tab computes against VisaCostConfig.
+export interface CountryKeyInfo {
+  popularIntakes?: string;
+  avgTuitionFeeRange?: string;
+  costOfLivingRange?: string;
+  postStudyWorkVisa?: string;
+  dependentsAllowed?: string;
+  partTimeWork?: string;
+  applicationProcessingTime?: string;
+}
+
 export interface CountryRecord {
   id: string;
   name: string;
@@ -42,16 +67,36 @@ export interface CountryRecord {
   requiredDocuments?: RequiredDocument[];
   applicationProcedure?: string; // one step per line
   visaProcedure?: string; // one step per line
+  // Country Overview page content (see CountryOverview.tsx) — everything here is optional and
+  // each section hides on its own when empty, same convention as the fields above.
+  tagline?: string; // short hero subhead, e.g. "World-class education. Global opportunities."
+  internationalStudentStat?: string; // e.g. "680,000+"
+  whyStudyHighlights?: WhyStudyHighlight[];
+  keyInfo?: CountryKeyInfo;
+  usefulLinks?: UsefulLink[];
+  // Uploaded via Data Management (data: URL — base64-embedded, small files only, same as
+  // RequiredDocument's sample uploads above). CountryHero falls back to its abstract SkylineArt
+  // illustration wherever this is absent.
+  photoUrl?: string;
 }
 
 const STORAGE_KEY = "data-mgmt-country-registry";
 const DELETED_KEY = "data-mgmt-deleted-country-ids";
 const OVERRIDES_KEY = "data-mgmt-country-overrides";
 
-// Demo seed countries removed — the registry now starts empty and fills in only from real
-// countries entered via Data Management (Add Country, or naming a country while adding a
-// university, which auto-registers it through getCountryId() below).
-const SEED_COUNTRIES: CountryRecord[] = [];
+// Stable ids for the countries requirementRules.ts's RULES table references by name at module
+// load time (getCountryId("UK"), etc.) — every other country is real, entered via Data Management
+// (Add Country, or naming a country while adding a university, which auto-registers it through
+// getCountryId() below). These four must keep a fixed id and must never be silently re-created:
+// getCountryId() below special-cases a name match against this list (see its comment) so that
+// deleting one from Data Management keeps it deleted instead of resurrecting it with a new id the
+// next time requirementRules.ts runs.
+const SEED_COUNTRIES: CountryRecord[] = [
+  { id: "co-seed-uk", name: "UK" },
+  { id: "co-seed-australia", name: "Australia" },
+  { id: "co-seed-canada", name: "Canada" },
+  { id: "co-seed-united-states", name: "United States" },
+];
 
 function nextId(): string {
   return `co-custom-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
@@ -127,7 +172,13 @@ function saveOverrides(map: Record<string, Partial<CountryRecord>>) {
 export function getAllCountries(): CountryRecord[] {
   const deleted = loadDeleted();
   const overrides = loadOverrides();
-  return [...SEED_COUNTRIES, ...loadCustom()]
+  const seedNames = new Set(SEED_COUNTRIES.map((c) => c.name.toLowerCase()));
+  // A browser that used this app before SEED_COUNTRIES gained fixed ids may still have one of
+  // these four names saved as an old-style custom record (created by the pre-fix getCountryId(),
+  // which minted a fresh id for them same as any other new country). Drop those in favor of the
+  // seed record with the same name so they don't show up twice.
+  const custom = loadCustom().filter((c) => !seedNames.has(c.name.toLowerCase()));
+  return [...SEED_COUNTRIES, ...custom]
     .filter((c) => !deleted.has(c.id))
     .map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
 }
@@ -150,9 +201,16 @@ export function deleteCountry(id: string) {
 }
 
 /** Looks up a country's id by name, registering it with a brand-new stable id the first time it's
- * seen (e.g. a data manager typing a country that's never appeared in the catalog before). */
+ * seen (e.g. a data manager typing a country that's never appeared in the catalog before).
+ *
+ * Matches against SEED_COUNTRIES first, *before* filtering by deletion status, so that one of
+ * requirementRules.ts's four hardcoded lookups can never mint a fresh duplicate id for a country
+ * Data Management has deleted — it just keeps returning that country's fixed seed id, deleted or
+ * not, exactly like every other read in this file already does for seed vs. custom records. */
 export function getCountryId(name: string): string {
   const trimmed = name.trim();
+  const seedMatch = SEED_COUNTRIES.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+  if (seedMatch) return seedMatch.id;
   const existing = getAllCountries().find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
   if (existing) return existing.id;
   const record: CountryRecord = { id: nextId(), name: trimmed };

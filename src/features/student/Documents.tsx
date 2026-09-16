@@ -133,7 +133,7 @@ export default function Documents() {
                   onClick={() => toggleExpanded(app.id)}
                   className={`flex w-full items-center gap-3 p-4 text-left ${isOpen ? "border-b border-slate-50" : ""}`}
                 >
-                  <LogoBadge name={app.university} tone={university.tone} className="h-10 w-10 shrink-0" />
+                  <LogoBadge name={app.university} tone={university.tone} logoUrl={university.logoUrl} className="h-10 w-10 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-semibold text-slate-900">{app.university}</p>
                     <p className="truncate text-xs text-slate-400">{app.course}</p>

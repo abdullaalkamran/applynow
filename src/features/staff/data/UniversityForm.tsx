@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Plus, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui";
 import { getAllSubjects, addSubject } from "../../../data/subjectsStore";
 import { getAllCountries } from "../../../data/countryRegistry";
@@ -8,17 +8,22 @@ import { getUniversityById, addUniversity, updateUniversity } from "../../../dat
 import { TEST_NAME_OPTIONS } from "../../../utils/universityFilter";
 import type { University } from "../../../types";
 
-type Course = University["courses"][number];
 type Fee = University["fees"][number];
 type Campus = NonNullable<University["campuses"]>[number];
-type EnglishReq = NonNullable<University["englishRequirements"]>[number];
+type EnglishReq = NonNullable<University["englishRequirements"]>["undergraduate"][number];
 type Scholarship = NonNullable<University["scholarships"]>[number];
 const TONES: University["tone"][] = ["violet", "amber", "teal", "rose"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-function blankCourse(): Course {
-  return { id: `crs-custom-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, name: "", level: "Postgraduate", duration: "1 year", subject: getAllSubjects()[0], feeUSD: 20000 };
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
+
 function blankFee(): Fee {
   return { label: "Tuition Fee", amount: 0 };
 }
@@ -28,10 +33,67 @@ function blankCampus(city: string): Campus {
 function blankEnglishReq(): EnglishReq {
   return { testName: TEST_NAME_OPTIONS[0], minScore: "", skillScores: [] };
 }
+function cleanEnglishTests(tests: EnglishReq[]): EnglishReq[] {
+  return tests
+    .map((e) => ({ ...e, minScore: e.minScore?.trim() || undefined, skillScores: (e.skillScores ?? []).filter((s) => s.skill.trim() && s.score.trim()) }))
+    .filter((e) => e.minScore || e.skillScores.length > 0);
+}
 function blankScholarship(): Scholarship {
   return { name: "", amount: "" };
 }
 const COMMON_SKILLS = ["Listening", "Reading", "Writing", "Speaking"];
+
+/** One level's (undergraduate or postgraduate) list of accepted English tests — used twice, once
+ * per level, since a university's Bachelor's and Postgraduate English requirements are rarely the
+ * same (same reason Academic Requirements below is split the same way). */
+function EnglishTestsEditor({ tests, onChange }: { tests: EnglishReq[]; onChange: (next: EnglishReq[]) => void }) {
+  function updateReq(i: number, patch: Partial<EnglishReq>) {
+    onChange(tests.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+  }
+  function setSkillScore(testIdx: number, skill: string, score: string) {
+    onChange(
+      tests.map((e, idx) => {
+        if (idx !== testIdx) return e;
+        const rest = (e.skillScores ?? []).filter((s) => s.skill !== skill);
+        const next = score.trim() ? [...rest, { skill, score }] : rest;
+        next.sort((a, b) => COMMON_SKILLS.indexOf(a.skill) - COMMON_SKILLS.indexOf(b.skill));
+        return { ...e, skillScores: next };
+      })
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {tests.length === 0 && <p className="text-xs text-slate-400">No accepted tests listed yet.</p>}
+      {tests.map((e, i) => (
+        <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+          <div className="flex items-center gap-2">
+            <select value={e.testName} onChange={(ev) => updateReq(i, { testName: ev.target.value })} className={`${SELECT_CLASS} flex-1`}>
+              {TEST_NAME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <Input value={e.minScore ?? ""} onChange={(v) => updateReq(i, { minScore: v })} placeholder="Overall score" className="w-32" />
+            <button onClick={() => onChange(tests.filter((_, idx) => idx !== i))} aria-label="Remove test" className="shrink-0 text-slate-300 hover:text-rose-500">
+              <Trash2 size={15} />
+            </button>
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-1.5">
+            {COMMON_SKILLS.map((skill) => (
+              <label key={skill} className="block">
+                <span className="mb-0.5 block text-[10px] text-slate-400">{skill}</span>
+                <input
+                  value={(e.skillScores ?? []).find((s) => s.skill === skill)?.score ?? ""}
+                  onChange={(ev) => setSkillScore(i, skill, ev.target.value)}
+                  placeholder="—"
+                  className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-800"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type MonthState = Record<
   string,
@@ -73,16 +135,20 @@ export default function DataUniversityForm() {
   const [, forceTick] = useState(0);
   const [website, setWebsite] = useState(existing?.website ?? "");
   const [tone, setTone] = useState<University["tone"]>(existing?.tone ?? "violet");
+  const [logoUrl, setLogoUrl] = useState(existing?.logoUrl ?? "");
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState(existing?.coverPhotoUrl ?? "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [worldRank, setWorldRank] = useState(existing?.worldRank ?? "#100");
   const [employability, setEmployability] = useState(existing?.employability ?? "85%");
   const [studentCount, setStudentCount] = useState(existing?.studentCount ?? "20,000+");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [highlights, setHighlights] = useState((existing?.highlights ?? []).join("\n"));
   const [tags, setTags] = useState((existing?.tags ?? []).join(", "));
-  const [subjects, setSubjects] = useState<Set<string>>(new Set(existing?.subjects ?? []));
   const [monthState, setMonthState] = useState<MonthState>(() => initMonthState(existing));
   const [intakeYear, setIntakeYear] = useState(() => existing?.openIntake?.split(" ")[1] ?? String(new Date().getFullYear() + 1));
-  const [requirements, setRequirements] = useState((existing?.requirements ?? []).join("\n"));
+  const [undergraduateRequirements, setUndergraduateRequirements] = useState((existing?.requirements?.undergraduate ?? []).join("\n"));
+  const [postgraduateRequirements, setPostgraduateRequirements] = useState((existing?.requirements?.postgraduate ?? []).join("\n"));
   const [accreditations, setAccreditations] = useState((existing?.accreditations ?? []).join(", "));
   const [scholarshipsAvailable, setScholarshipsAvailable] = useState(existing?.scholarshipsAvailable ?? false);
   const [scholarships, setScholarships] = useState<Scholarship[]>(existing?.scholarships ?? []);
@@ -98,30 +164,45 @@ export default function DataUniversityForm() {
     depositMode === "half" ? Math.round(tuitionFeeAmount * 0.5)
     : depositMode === "full" ? tuitionFeeAmount
     : Number(minimumDepositAmount) || 0;
-  const [courses, setCourses] = useState<Course[]>(existing?.courses ?? [blankCourse()]);
+  // Courses are only ever added/edited from an already-created university's own Courses tab (see
+  // the "Courses" section below) — a brand-new university has none yet, which is fine: `courses`
+  // is only read here (for the derived subjects preview and the payload), never written.
+  const courses = existing?.courses ?? [];
   const [campuses, setCampuses] = useState<Campus[]>(existing?.campuses ?? []);
-  const [englishTests, setEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements ?? []);
+  const [undergraduateEnglishTests, setUndergraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.undergraduate ?? []);
+  const [postgraduateEnglishTests, setPostgraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.postgraduate ?? []);
 
   const canSubmit = name.trim() && city.trim() && country.trim() && courses.every((c) => c.name.trim());
   const backTarget = existing
     ? `/staff/data/universities/${existing.id}`
     : country.trim() ? `/staff/data/countries/${encodeURIComponent(country.trim())}` : "/staff/data";
 
-  function toggleSubject(s: string) {
-    setSubjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s); else next.add(s);
-      return next;
-    });
-  }
-
   function handleAddSubject() {
     const trimmed = newSubject.trim();
     if (!trimmed) return;
     const created = addSubject(trimmed);
-    setSubjects((prev) => new Set(prev).add(trimmed));
     setNewSubject("");
     if (created) forceTick((t) => t + 1);
+  }
+
+  async function handleLogoPicked(file: File | undefined) {
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      setLogoUrl(await readFileAsDataUrl(file));
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function handleCoverPicked(file: File | undefined) {
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      setCoverPhotoUrl(await readFileAsDataUrl(file));
+    } finally {
+      setUploadingCover(false);
+    }
   }
 
   function toggleMonthOffered(month: string) {
@@ -137,9 +218,6 @@ export default function DataUniversityForm() {
     setMonthState((prev) => ({ ...prev, [month]: { ...prev[month], [field]: value } }));
   }
 
-  function updateCourse(i: number, patch: Partial<Course>) {
-    setCourses((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
-  }
   function updateFee(i: number, patch: Partial<Fee>) {
     setFees((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
   }
@@ -149,21 +227,6 @@ export default function DataUniversityForm() {
   function updateScholarship(i: number, patch: Partial<Scholarship>) {
     setScholarships((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
-  function updateEnglishReq(i: number, patch: Partial<EnglishReq>) {
-    setEnglishTests((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
-  }
-  function setSkillScore(testIdx: number, skill: string, score: string) {
-    setEnglishTests((prev) =>
-      prev.map((e, idx) => {
-        if (idx !== testIdx) return e;
-        const rest = (e.skillScores ?? []).filter((s) => s.skill !== skill);
-        const next = score.trim() ? [...rest, { skill, score }] : rest;
-        next.sort((a, b) => COMMON_SKILLS.indexOf(a.skill) - COMMON_SKILLS.indexOf(b.skill));
-        return { ...e, skillScores: next };
-      })
-    );
-  }
-
   function handleSubmit() {
     const offeredMonths = MONTHS.filter((m) => monthState[m].offered);
     const openMonths = offeredMonths.filter((m) => monthState[m].open);
@@ -189,30 +252,35 @@ export default function DataUniversityForm() {
       country: country.trim(),
       website: website.trim(),
       tone,
+      logoUrl: logoUrl || undefined,
+      coverPhotoUrl: coverPhotoUrl || undefined,
       worldRank,
       employability,
       studentCount,
       description: description.trim(),
       highlights: highlights.split("\n").map((s) => s.trim()).filter(Boolean),
       tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
-      subjects: [...subjects],
+      subjects: Array.from(new Set(courses.map((c) => c.subject).filter(Boolean))),
       intakes: offeredMonths,
       intakeStatus,
       intakeDates,
       openIntake: firstOpen ? `${firstOpen} ${intakeYear}` : "",
-      requirements: requirements.split("\n").map((s) => s.trim()).filter(Boolean),
+      requirements: {
+        undergraduate: undergraduateRequirements.split("\n").map((s) => s.trim()).filter(Boolean),
+        postgraduate: postgraduateRequirements.split("\n").map((s) => s.trim()).filter(Boolean),
+      },
       accreditations: accreditations.split(",").map((s) => s.trim()).filter(Boolean),
       scholarshipsAvailable: scholarshipsAvailable || scholarships.some((s) => s.name.trim()),
       scholarships: scholarships.filter((s) => s.name.trim()),
-      minIELTS: Number(englishTests.find((e) => e.testName === "IELTS")?.minScore) || existing?.minIELTS || 0,
+      minIELTS:
+        Number(undergraduateEnglishTests.find((e) => e.testName === "IELTS")?.minScore) ||
+        Number(postgraduateEnglishTests.find((e) => e.testName === "IELTS")?.minScore) ||
+        existing?.minIELTS || 0,
       minGPA: Number(minGPA) || 0,
-      englishRequirements: englishTests
-        .map((e) => ({
-          ...e,
-          minScore: e.minScore?.trim() || undefined,
-          skillScores: (e.skillScores ?? []).filter((s) => s.skill.trim() && s.score.trim()),
-        }))
-        .filter((e) => e.minScore || e.skillScores.length > 0),
+      englishRequirements: {
+        undergraduate: cleanEnglishTests(undergraduateEnglishTests),
+        postgraduate: cleanEnglishTests(postgraduateEnglishTests),
+      },
       currencySymbol,
       fees: fees.filter((f) => f.label.trim()),
       minimumDepositAmount: effectiveDepositAmount || undefined,
@@ -278,6 +346,41 @@ export default function DataUniversityForm() {
             </Field>
             <Field label="Currency symbol"><Input value={currencySymbol} onChange={setCurrencySymbol} placeholder="e.g. £, $, €, A$, C$" /></Field>
           </div>
+
+          <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Logo">
+              <div className="flex items-center gap-3">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                  {logoUrl && <img src={logoUrl} alt="Logo preview" className="h-full w-full object-cover" />}
+                </div>
+                <div className="flex flex-col items-start gap-1.5">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-slate-600 hover:border-slate-300">
+                    <Upload size={12} />
+                    {uploadingLogo ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoPicked(e.target.files?.[0])} />
+                  </label>
+                  {logoUrl && <button onClick={() => setLogoUrl("")} className="text-[11px] font-medium text-rose-500">Remove logo</button>}
+                  {!logoUrl && <p className="text-[11px] text-slate-400">Falls back to initials on a colored badge.</p>}
+                </div>
+              </div>
+            </Field>
+            <Field label="Cover photo">
+              <div className="flex items-center gap-3">
+                <div className="h-14 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                  {coverPhotoUrl && <img src={coverPhotoUrl} alt="Cover preview" className="h-full w-full object-cover" />}
+                </div>
+                <div className="flex flex-col items-start gap-1.5">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-slate-600 hover:border-slate-300">
+                    <Upload size={12} />
+                    {uploadingCover ? "Uploading…" : coverPhotoUrl ? "Replace photo" : "Upload photo"}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCoverPicked(e.target.files?.[0])} />
+                  </label>
+                  {coverPhotoUrl && <button onClick={() => setCoverPhotoUrl("")} className="text-[11px] font-medium text-rose-500">Remove photo</button>}
+                  {!coverPhotoUrl && <p className="text-[11px] text-slate-400">Falls back to an abstract illustration.</p>}
+                </div>
+              </div>
+            </Field>
+          </div>
         </Section>
 
         <Section title="Campuses" action={
@@ -329,19 +432,21 @@ export default function DataUniversityForm() {
         </Section>
 
         <Section title="Subjects offered">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {getAllSubjects().map((s) => (
-              <label key={s} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
-                <input type="checkbox" checked={subjects.has(s)} onChange={() => toggleSubject(s)} />
-                {s}
-              </label>
+          <p className="text-[11px] text-slate-400">
+            Detected automatically from the subject picked for each course below — this university shows up when a student or agent
+            browses by subject only once a course here carries it. Add a new option to the picklist below if the one you need isn't there yet.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from(new Set(courses.map((c) => c.subject).filter(Boolean))).map((s) => (
+              <span key={s} className="rounded-full bg-[var(--brand-50)] px-2.5 py-1 text-xs font-medium text-[var(--brand-700)]">{s}</span>
             ))}
+            {courses.every((c) => !c.subject) && <p className="text-xs text-slate-400">No courses with a subject yet.</p>}
           </div>
           <div className="flex items-center gap-2 pt-1">
             <Input
               value={newSubject}
               onChange={setNewSubject}
-              placeholder="Add a new subject, e.g. Environmental Science"
+              placeholder="Add a new subject to the picklist, e.g. Environmental Science"
               className="flex-1"
             />
             <button
@@ -419,9 +524,27 @@ export default function DataUniversityForm() {
             <Field label="Minimum GPA (out of 4.0)"><Input type="number" value={minGPA} onChange={setMinGPA} /></Field>
             <Field label="Accreditations (comma separated)"><Input value={accreditations} onChange={setAccreditations} placeholder="Russell Group" /></Field>
           </div>
-          <Field label="Academic requirements (one per line)">
-            <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} rows={4} className={TEXTAREA_CLASS} placeholder={"Bachelor's degree, 2:1 or equivalent\nStatement of purpose\nTwo academic references"} />
-          </Field>
+          <p className="text-[11px] text-slate-400">Bachelor's and Postgraduate admissions criteria are rarely the same — enter each separately.</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Bachelor's (Undergraduate) requirements — one per line">
+              <textarea
+                value={undergraduateRequirements}
+                onChange={(e) => setUndergraduateRequirements(e.target.value)}
+                rows={4}
+                className={TEXTAREA_CLASS}
+                placeholder={"High school diploma, 80% average\nPersonal statement\nOne academic reference"}
+              />
+            </Field>
+            <Field label="Postgraduate requirements — one per line">
+              <textarea
+                value={postgraduateRequirements}
+                onChange={(e) => setPostgraduateRequirements(e.target.value)}
+                rows={4}
+                className={TEXTAREA_CLASS}
+                placeholder={"Bachelor's degree, 2:1 or equivalent\nStatement of purpose\nTwo academic references"}
+              />
+            </Field>
+          </div>
         </Section>
 
         <Section title="Scholarship Amount" action={
@@ -455,40 +578,33 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="English Requirements" action={
-          <button onClick={() => setEnglishTests((prev) => [...prev, blankEnglishReq()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
-            <Plus size={13} /> Add test
-          </button>
-        }>
-          {englishTests.length === 0 && <p className="text-xs text-slate-400">No accepted tests listed yet.</p>}
-          <div className="space-y-3">
-            {englishTests.map((e, i) => (
-              <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
-                <div className="flex items-center gap-2">
-                  <select value={e.testName} onChange={(ev) => updateEnglishReq(i, { testName: ev.target.value })} className={`${SELECT_CLASS} flex-1`}>
-                    {TEST_NAME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <Input value={e.minScore ?? ""} onChange={(v) => updateEnglishReq(i, { minScore: v })} placeholder="Overall score" className="w-32" />
-                  <button onClick={() => setEnglishTests((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove test" className="shrink-0 text-slate-300 hover:text-rose-500">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-
-                <div className="mt-2 grid grid-cols-4 gap-1.5">
-                  {COMMON_SKILLS.map((skill) => (
-                    <label key={skill} className="block">
-                      <span className="mb-0.5 block text-[10px] text-slate-400">{skill}</span>
-                      <input
-                        value={(e.skillScores ?? []).find((s) => s.skill === skill)?.score ?? ""}
-                        onChange={(ev) => setSkillScore(i, skill, ev.target.value)}
-                        placeholder="—"
-                        className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-800"
-                      />
-                    </label>
-                  ))}
-                </div>
+        <Section title="English Requirements">
+          <p className="text-[11px] text-slate-400">Accepted tests and minimum scores, entered separately for each degree level.</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-700">Bachelor's (Undergraduate)</p>
+                <button
+                  onClick={() => setUndergraduateEnglishTests((prev) => [...prev, blankEnglishReq()])}
+                  className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]"
+                >
+                  <Plus size={13} /> Add test
+                </button>
               </div>
-            ))}
+              <EnglishTestsEditor tests={undergraduateEnglishTests} onChange={setUndergraduateEnglishTests} />
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-700">Postgraduate</p>
+                <button
+                  onClick={() => setPostgraduateEnglishTests((prev) => [...prev, blankEnglishReq()])}
+                  className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]"
+                >
+                  <Plus size={13} /> Add test
+                </button>
+              </div>
+              <EnglishTestsEditor tests={postgraduateEnglishTests} onChange={setPostgraduateEnglishTests} />
+            </div>
           </div>
         </Section>
 
@@ -571,36 +687,9 @@ export default function DataUniversityForm() {
         </Section>
 
         {isNew ? (
-          <Section title="Courses" action={
-            <button onClick={() => setCourses((prev) => [...prev, blankCourse()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
-              <Plus size={13} /> Add course
-            </button>
-          }>
-            <div className="space-y-3">
-              {courses.map((c, i) => (
-                <div key={i} className="rounded-lg border border-slate-200 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Course {i + 1}</p>
-                    <button onClick={() => setCourses((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove course ${i + 1}`} className="text-slate-300 hover:text-rose-500">
-                      <X size={15} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Input value={c.name} onChange={(v) => updateCourse(i, { name: v })} placeholder="Course name, e.g. MSc Data Science" className="w-full sm:col-span-2" />
-                    <select value={c.subject} onChange={(e) => updateCourse(i, { subject: e.target.value })} className={SELECT_CLASS}>
-                      {getAllSubjects().map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={c.level} onChange={(e) => updateCourse(i, { level: e.target.value })} className={SELECT_CLASS}>
-                      <option>Undergraduate</option>
-                      <option>Postgraduate</option>
-                    </select>
-                    <Input value={c.duration} onChange={(v) => updateCourse(i, { duration: v })} placeholder="Duration, e.g. 1 year" />
-                    <Input type="number" value={String(c.feeUSD)} onChange={(v) => updateCourse(i, { feeUSD: Number(v) || 0 })} placeholder="Annual fee (USD)" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-500">
+            Courses are added from the university's own page once it's created — save this university first, then add courses from its Courses tab.
+          </div>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-500">
             Courses are now managed from the university's own page — go to{" "}

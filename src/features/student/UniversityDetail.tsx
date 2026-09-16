@@ -4,7 +4,7 @@ import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
   Clock, Users, ChevronRight, ArrowUpRight, ExternalLink,
 } from "lucide-react";
-import { SkylineArt, Pill } from "../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { curriculumFor } from "../../data/subjectCurriculum";
@@ -12,6 +12,7 @@ import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
+import { EntryRequirementsView } from "../../components/EntryRequirementsView";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 
@@ -105,7 +106,11 @@ export default function UniversityDetail() {
         {/* Left rail on desktop: hero photo + actions — stays put while the right column scrolls */}
         <div className="lg:sticky lg:top-8">
           <div className="relative h-[330px] shrink-0 lg:h-72 lg:overflow-hidden lg:rounded-3xl">
-            <SkylineArt tone={university.tone} className="h-full w-full" />
+            {university.coverPhotoUrl ? (
+              <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
+            ) : (
+              <SkylineArt tone={university.tone} className="h-full w-full" />
+            )}
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
               <button
                 onClick={() => (course && !navState?.selectedCourseName ? setActiveCourseName(null) : navigate(-1))}
@@ -234,7 +239,7 @@ function CourseView({
 
         {tab === "Entry Requirements" && (
           <ul className="space-y-2.5">
-            {university.requirements.map((r) => (
+            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
               <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
                 {r}
@@ -268,8 +273,13 @@ function UniversityView({
   const country = getCountryByName(university.country);
   return (
     <>
-      <h1 className="text-[22px] font-bold leading-tight text-slate-900 lg:text-[26px]">{university.name}</h1>
-      <p className="mt-1 text-xs text-slate-400">{university.city}, {university.country}</p>
+      <div className="flex items-start gap-3">
+        <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-14 w-14 shrink-0 text-base" />
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-bold leading-tight text-slate-900 lg:text-[26px]">{university.name}</h1>
+          <p className="mt-1 text-xs text-slate-400">{university.city}, {university.country}</p>
+        </div>
+      </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         <Pill tone="blue">{university.tags[0]}</Pill>
         <Pill tone="navy">{university.accreditations[0]}</Pill>
@@ -335,14 +345,17 @@ function UniversityView({
 
         {tab === "Requirements" && (
           <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-            <ul className="space-y-2.5">
-              {university.requirements.map((r) => (
-                <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
-                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
-                  {r}
-                </li>
-              ))}
-            </ul>
+            <EntryRequirementsView
+              requirements={university.requirements}
+              englishRequirements={university.englishRequirements}
+              minIELTS={university.minIELTS}
+              courses={university.courses}
+              currencySymbol={university.currencySymbol}
+              onSelectCourse={(courseId) => {
+                const c = university.courses.find((x) => x.id === courseId);
+                if (c) onSelectCourse(c.name);
+              }}
+            />
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { PillSelect } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -14,8 +14,10 @@ type Course = University["courses"][number];
 export default function AgentSubjectDetail() {
   const navigate = useNavigate();
   const { subject } = useParams();
+  const location = useLocation();
+  const navState = location.state as { destination?: string } | null;
   const students = loadAgentStudents();
-  const [destination, setDestination] = useState("");
+  const [destination, setDestination] = useState(navState?.destination ?? "");
   const [intake, setIntake] = useState("");
   const [feeBand, setFeeBand] = useState("");
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: Course } | null>(null);

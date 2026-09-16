@@ -92,7 +92,7 @@ export default function Applications() {
                 onClick={() => navigate(`/student/applications/${app.id}`)}
                 className="flex w-full items-start gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
               >
-                <LogoBadge name={app.university} tone={uni?.tone ?? "violet"} className="h-11 w-11 shrink-0" />
+                <LogoBadge name={app.university} tone={uni?.tone ?? "violet"} logoUrl={uni?.logoUrl} className="h-11 w-11 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-semibold text-slate-900">{app.university}</p>
                   <p className="truncate text-xs text-slate-400">{app.course}</p>

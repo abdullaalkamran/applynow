@@ -161,7 +161,7 @@ export default function Dashboard() {
                   <ChevronRight size={15} className="text-slate-300" />
                 </div>
                 <div className="mt-2 flex items-center gap-3">
-                  <LogoBadge name={primaryApplication.university} tone={primaryUniversity?.tone ?? "violet"} className="h-11 w-11 shrink-0" />
+                  <LogoBadge name={primaryApplication.university} tone={primaryUniversity?.tone ?? "violet"} logoUrl={primaryUniversity?.logoUrl} className="h-11 w-11 shrink-0" />
                   <div className="min-w-0">
                     <p className="truncate text-[14px] font-semibold text-slate-900">{primaryApplication.university}</p>
                     <p className="truncate text-xs text-slate-400">{primaryApplication.course}</p>

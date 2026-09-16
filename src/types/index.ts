@@ -222,7 +222,14 @@ export interface University {
   // synthetic "Main Campus" + one generated variant (see campusesFor) when this is absent, so
   // seeded universities that predate this field still show something on the Campus Options page.
   campuses?: { id: string; name: string; city: string; feeUSD?: number }[];
-  requirements: string[];
+  // Academic entry requirements, split by degree level — a university's Bachelor's and Postgraduate
+  // admissions criteria are rarely the same list, so this isn't one shared array a course's own
+  // `level` (above) has to guess its way through. A course whose own `requirements` (above) is unset
+  // falls back to whichever of these two matches its `level`.
+  requirements: {
+    undergraduate: string[];
+    postgraduate: string[];
+  };
   fees: { label: string; amount: number }[];
   // Minimum deposit required to secure a place after an offer — distinct from the itemized `fees`
   // above, and typically due before visa/CAS issuance. `depositRules` are free-text conditions,
@@ -237,15 +244,14 @@ export interface University {
   currencySymbol: string;
   minIELTS: number;
   minGPA: number;
-  // Every English test the university accepts — distinct from `minIELTS`, which stays the single
-  // figure existing search filtering compares against. `minScore` is the overall score required;
-  // `skillScores` additionally sets a minimum per named skill, e.g. Speaking 7.0 while
-  // Listening/Reading/Writing stay at 6.5.
+  // Every English test the university accepts, split by degree level the same way `requirements`
+  // above is — distinct from `minIELTS`, which stays the single figure existing search filtering
+  // compares against. `minScore` is the overall score required; `skillScores` additionally sets a
+  // minimum per named skill, e.g. Speaking 7.0 while Listening/Reading/Writing stay at 6.5.
   englishRequirements?: {
-    testName: string;
-    minScore?: string;
-    skillScores?: { skill: string; score: string }[];
-  }[];
+    undergraduate: { testName: string; minScore?: string; skillScores?: { skill: string; score: string }[] }[];
+    postgraduate: { testName: string; minScore?: string; skillScores?: { skill: string; score: string }[] }[];
+  };
   accreditations: string[];
   scholarshipsAvailable: boolean;
   // Named scholarships this university offers, each with its own award amount and eligibility
@@ -266,4 +272,9 @@ export interface University {
   // Official public domain, e.g. "manchester.ac.uk" — no scheme/path.
   website: string;
   tone: "violet" | "amber" | "teal" | "rose";
+  // Uploaded via Data Management (data: URL — base64-embedded, small files only, same as
+  // countryRegistry.ts's RequiredDocument sample uploads). `tone`'s SkylineArt/initials badge is
+  // the fallback everywhere these are absent, so both stay optional rather than required.
+  logoUrl?: string;
+  coverPhotoUrl?: string;
 }

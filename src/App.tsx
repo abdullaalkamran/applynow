@@ -57,6 +57,7 @@ import CounsellorMessages from "./features/staff/counsellor/Messages";
 import CounsellorApplications from "./features/staff/counsellor/Applications";
 import CounsellorCounseling from "./features/staff/counsellor/Counseling";
 import CounsellorUniversityPartners from "./features/staff/counsellor/UniversityPartners";
+import CounsellorCountryDetail from "./features/staff/counsellor/CountryDetail";
 import CounsellorVisaCompliance from "./features/staff/counsellor/VisaCompliance";
 import CounsellorReports from "./features/staff/counsellor/Reports";
 import CounsellorResources from "./features/staff/counsellor/Resources";
@@ -138,6 +139,7 @@ export default function App() {
             <Route path="/staff/counsellor/applications" element={<CounsellorApplications />} />
             <Route path="/staff/counsellor/counseling" element={<CounsellorCounseling />} />
             <Route path="/staff/counsellor/partners" element={<CounsellorUniversityPartners />} />
+            <Route path="/staff/counsellor/partners/:country" element={<CounsellorCountryDetail />} />
             <Route path="/staff/counsellor/visa-compliance" element={<CounsellorVisaCompliance />} />
             <Route path="/staff/counsellor/tasks" element={<CounsellorTasks />} />
             <Route path="/staff/counsellor/messages" element={<CounsellorMessages />} />

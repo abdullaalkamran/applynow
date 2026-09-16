@@ -3,7 +3,6 @@ import { getAllApplications, createApplication } from "../data/applicationsStore
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
 import { addUploadedDoc } from "../data/applicationDocsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
-import { getAllSubjects } from "../data/subjectsStore";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
 import { getProfileCompletion, markStepComplete, PROFILE_STEPS } from "../data/profileCompletion";
 import {
@@ -312,10 +311,14 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
     {
       spec: {
         name: "list_subjects",
-        description: "List every field of study/subject offered across our partner network — use this when the student doesn't already know what they want to study, before guessing a subject to search with.",
+        description: "List every field of study/subject a partner university actually offers right now — use this when the student doesn't already know what they want to study, before guessing a subject to search with.",
         parameters: { type: "object", properties: {} },
       },
-      execute: () => getAllSubjects(),
+      // Derived from the live catalog (what real courses actually exist), not the full picklist of
+      // possible subject names Data Management can choose from — the latter includes subjects with
+      // zero courses behind them, which would have the assistant confidently offering a subject the
+      // student can't actually apply to anywhere.
+      execute: () => Array.from(new Set(getAllUniversities().flatMap((u) => u.subjects))).sort(),
     },
     {
       spec: {

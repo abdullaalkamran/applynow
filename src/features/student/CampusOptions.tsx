@@ -53,7 +53,11 @@ export default function CampusOptions() {
                   className="w-full overflow-hidden rounded-2xl bg-[var(--sd-card)] text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
                 >
                   <div className="h-36 w-full">
-                    <SkylineArt tone={university.tone} className="h-full w-full" />
+                    {university.coverPhotoUrl ? (
+                      <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
+                    ) : (
+                      <SkylineArt tone={university.tone} className="h-full w-full" />
+                    )}
                   </div>
                   <div className="p-3.5">
                     <div className="flex items-center justify-between gap-2">

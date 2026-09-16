@@ -73,7 +73,9 @@ const COUNTRY_REQUIREMENTS: Record<string, string[]> = {
 /** Everything a specific application additionally needs beyond the student's core document vault —
  * derived from this university's own stated requirements plus its destination country's visa norms. */
 export function universityDocTypesFor(university: University, studentId: string = CURRENT_STUDENT_ID): string[] {
-  const fromRequirements = university.requirements
+  // Scans both levels' requirement text — this heuristic doesn't know which degree level the
+  // application is for, so it's deliberately the superset of both rather than guessing.
+  const fromRequirements = [...university.requirements.undergraduate, ...university.requirements.postgraduate]
     .map((r) => DOC_TYPE_PATTERNS.find((rule) => rule.match.test(r))?.docType)
     .filter((t): t is string => !!t);
   const fromCountry = COUNTRY_REQUIREMENTS[university.country] ?? [];

@@ -255,7 +255,7 @@ export default function AgentDashboard() {
                   const university = UNIVERSITIES.find((u) => u.name === uni);
                   return (
                     <div key={uni} className="flex items-center gap-2">
-                      <LogoBadge name={uni} tone={university?.tone ?? "violet"} className="h-6 w-6 shrink-0 text-[9px]" />
+                      <LogoBadge name={uni} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-6 w-6 shrink-0 text-[9px]" />
                       <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{uni}</span>
                       <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100">
                         <div className="h-full rounded-full bg-blue-500" style={{ width: `${(count / maxUniCount) * 100}%` }} />

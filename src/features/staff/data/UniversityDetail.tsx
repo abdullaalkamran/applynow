@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Languages, Wallet, Award,
+  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award,
 } from "lucide-react";
-import { SkylineArt, Pill } from "../../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
 import { Button } from "../../../components/ui";
+import { EntryRequirementsView } from "../../../components/EntryRequirementsView";
 import { getUniversityById, deleteUniversity } from "../../../data/universityCatalogStore";
 import type { University } from "../../../types";
 
@@ -46,20 +47,27 @@ export default function DataUniversityDetail() {
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <SkylineArt tone={university.tone} className="h-40 w-full" />
+        {university.coverPhotoUrl ? (
+          <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-40 w-full object-cover" />
+        ) : (
+          <SkylineArt tone={university.tone} className="h-40 w-full" />
+        )}
         <div className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-slate-900">{university.name}</h1>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-slate-500">{university.id}</span>
-              </div>
-              <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} /> {university.city}, {university.country}</p>
-              {university.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {university.tags.map((t) => <Pill key={t} tone={university.tone}>{t}</Pill>)}
+          <div className="-mt-9 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-14 w-14 shrink-0 text-base" />
+              <div className="pt-9">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-semibold text-slate-900">{university.name}</h1>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-semibold text-slate-500">{university.id}</span>
                 </div>
-              )}
+                <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} /> {university.city}, {university.country}</p>
+                {university.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {university.tags.map((t) => <Pill key={t} tone={university.tone}>{t}</Pill>)}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Button variant="secondary" onClick={() => navigate(`/staff/data/universities/${university.id}/edit`)}>
@@ -219,54 +227,20 @@ export default function DataUniversityDetail() {
 
           {tab === "Requirements" && (
             <div className="space-y-4">
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Academic Requirements
-                </p>
-                <div className="space-y-2">
-                  {university.requirements.map((r) => (
-                    <div key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <CheckCircle2 size={14} className="shrink-0 text-emerald-500" /> {r}
-                    </div>
-                  ))}
-                  {university.requirements.length === 0 && <p className="text-xs text-slate-400">No academic requirements added yet.</p>}
-                </div>
-              </div>
+              <EntryRequirementsView
+                requirements={university.requirements}
+                englishRequirements={university.englishRequirements}
+                minIELTS={university.minIELTS}
+                courses={university.courses}
+                currencySymbol={university.currencySymbol}
+                onSelectCourse={(courseId) => navigate(`/staff/data/universities/${university.id}/courses/${courseId}`)}
+              />
 
               <div>
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   <Award size={13} /> Scholarship Amount
                 </p>
                 <ScholarshipsBlock university={university} />
-              </div>
-
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  <Languages size={13} /> English Requirements
-                </p>
-                {(university.englishRequirements ?? []).length === 0 ? (
-                  <p className="text-xs text-slate-400">Minimum IELTS {university.minIELTS} overall — no other tests listed.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {university.englishRequirements!.map((e, i) => (
-                      <div key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-slate-700">{e.testName}</p>
-                          {e.minScore && <span className="font-semibold text-slate-800">{e.minScore}</span>}
-                        </div>
-                        {(e.skillScores ?? []).length > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {e.skillScores!.map((s, si) => (
-                              <span key={si} className="rounded-md bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">
-                                {s.skill} <span className="font-semibold text-slate-700">{s.score}</span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div>

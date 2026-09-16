@@ -158,7 +158,7 @@ export default function AgentStudentProfile() {
                   className="flex w-full flex-col gap-2.5 p-4 text-left"
                 >
                   <div className="flex items-start gap-3">
-                    <LogoBadge name={a.university} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0 text-xs" />
+                    <LogoBadge name={a.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-10 w-10 shrink-0 text-xs" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold text-slate-800">{a.university}</p>
                       <p className="truncate text-xs text-slate-500">{a.course} · {a.intake} · {a.campus ?? "Main Campus"}</p>
@@ -369,7 +369,7 @@ export default function AgentStudentProfile() {
             const university = UNIVERSITIES.find((u) => u.id === p.universityId);
             return (
               <div key={`${p.universityId}-${p.courseName}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
-                <LogoBadge name={p.universityName} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0 text-xs" />
+                <LogoBadge name={p.universityName} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-10 w-10 shrink-0 text-xs" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-slate-800">{p.courseName}</p>
                   <p className="truncate text-[11px] text-slate-400">{p.universityName} · Shortlisted {p.addedAt}</p>

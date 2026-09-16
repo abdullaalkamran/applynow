@@ -433,7 +433,19 @@ const logoBadgeTones: Record<string, [string, string]> = {
 };
 
 /** Monogram badge standing in for a university crest/logo — deterministic color from `tone`. */
-export function LogoBadge({ name, tone = "violet", className = "" }: { name: string; tone?: keyof typeof logoBadgeTones; className?: string }) {
+export function LogoBadge({
+  name, tone = "violet", logoUrl, className = "",
+}: { name: string; tone?: keyof typeof logoBadgeTones; logoUrl?: string; className?: string }) {
+  if (logoUrl) {
+    // object-contain (not object-cover) so a non-square logo — a crest, a wordmark — shows in full
+    // rather than getting cropped to fill the badge; the white backing keeps it legible on any
+    // background the badge sits on, same as a real logo lockup would use.
+    return (
+      <div className={`flex shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white p-1 ${className}`}>
+        <img src={logoUrl} alt={`${name} logo`} className="h-full w-full object-contain" />
+      </div>
+    );
+  }
   const initials = name.replace(/^University of /, "").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const [from, to] = logoBadgeTones[tone];
   return (

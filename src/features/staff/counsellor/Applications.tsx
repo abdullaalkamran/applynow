@@ -247,7 +247,7 @@ export default function CounsellorApplications() {
               }`}
             >
               <div className="flex items-start gap-3">
-                <LogoBadge name={app.university} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0 text-xs" />
+                <LogoBadge name={app.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-10 w-10 shrink-0 text-xs" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-slate-800">{app.university}</p>
                   <p className="truncate text-xs text-slate-500">{app.course}</p>

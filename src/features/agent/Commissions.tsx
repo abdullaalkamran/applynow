@@ -77,7 +77,7 @@ export default function AgentCommissions() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {universityRates.map(({ university, rate }) => (
             <div key={university.id} className="flex items-center gap-2.5 rounded-xl border border-slate-100 p-2.5">
-              <LogoBadge name={university.name} tone={university.tone} className="h-9 w-9 shrink-0 text-[11px]" />
+              <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-9 w-9 shrink-0 text-[11px]" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11.5px] font-medium text-slate-800">{university.name}</p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-1">
@@ -118,7 +118,7 @@ export default function AgentCommissions() {
                   ) : (
                     <span className="h-4 w-4 shrink-0" />
                   )}
-                  <LogoBadge name={app.university} tone={university?.tone ?? "violet"} className="h-9 w-9 shrink-0 text-[11px]" />
+                  <LogoBadge name={app.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-9 w-9 shrink-0 text-[11px]" />
                   <button
                     onClick={() => navigate(`/agent/students/${student.id}`, { state: { tab: "Applications", appId: app.id } })}
                     className="min-w-0 flex-1 truncate text-left text-xs font-medium text-slate-800 hover:text-blue-600"

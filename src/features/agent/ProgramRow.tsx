@@ -25,7 +25,7 @@ export function ProgramRow({
       className="flex cursor-pointer flex-col gap-2.5 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)]"
     >
       <div className="flex items-start gap-3">
-        <LogoBadge name={university.name} tone={university.tone} className="h-11 w-11 shrink-0 text-xs" />
+        <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-11 w-11 shrink-0 text-xs" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[11px] text-slate-400">{university.name}</p>
           <p className="truncate text-xs font-semibold text-slate-800">{course.name}</p>

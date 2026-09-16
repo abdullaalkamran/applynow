@@ -145,7 +145,7 @@ export default function AgentUniversities() {
                 className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)]"
               >
                 <div className="flex items-center gap-3">
-                  <LogoBadge name={u.name} tone={u.tone} className="h-10 w-10 shrink-0 text-xs" />
+                  <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-10 w-10 shrink-0 text-xs" />
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-slate-800">{u.name}</p>
                     <p className="flex items-center gap-1 truncate text-[11px] text-slate-400"><MapPin size={10} /> {u.city}, {u.country}</p>

@@ -59,13 +59,42 @@ function saveDeleted(ids: Set<string>) {
 }
 
 /** Every partner university — seeded catalog (with any admin edits applied, and any admin
- * deletions removed) plus everything Data Management has added this session. */
+ * deletions removed) plus everything Data Management has added this session.
+ *
+ * Re-derives `subjects` from each university's courses on every read (not just on write, see
+ * addUniversity/updateUniversity below) so a university saved before that derivation existed
+ * self-heals here instead of staying invisible to subject browsing until someone re-edits it.
+ * Also normalizes `requirements`/`englishRequirements` on every read — both used to be one flat
+ * list/array before they were split by degree level (Undergraduate vs. Postgraduate), and a
+ * university saved under that older shape would otherwise crash the Requirements tab the moment
+ * something calls `.undergraduate` on what's still a plain array in storage. */
 export function getAllUniversities(): University[] {
   const overrides = loadOverrides();
   const deleted = loadDeleted();
   const seedMerged = SEED_UNIVERSITIES.filter((u) => !deleted.has(u.id)).map((u) => (overrides[u.id] ? { ...u, ...overrides[u.id] } : u));
   const created = loadCreated().filter((u) => !deleted.has(u.id));
-  return [...seedMerged, ...created];
+  return [...seedMerged, ...created].map((u) => ({
+    ...u,
+    subjects: subjectsFromCourses(u.courses),
+    requirements: normalizeRequirements(u.requirements),
+    englishRequirements: normalizeEnglishRequirements(u.englishRequirements),
+  }));
+}
+
+/** Accepts either the current `{ undergraduate, postgraduate }` shape or the pre-migration flat
+ * array a university may still have in storage. A legacy flat list is duplicated into both levels
+ * rather than picked for one — nothing a data manager already entered silently disappears; they
+ * can trim whichever side doesn't apply next time they edit this university. */
+function normalizeRequirements(requirements: unknown): University["requirements"] {
+  if (Array.isArray(requirements)) return { undergraduate: requirements, postgraduate: requirements };
+  if (requirements && typeof requirements === "object") return requirements as University["requirements"];
+  return { undergraduate: [], postgraduate: [] };
+}
+
+function normalizeEnglishRequirements(englishRequirements: unknown): University["englishRequirements"] {
+  if (Array.isArray(englishRequirements)) return { undergraduate: englishRequirements, postgraduate: englishRequirements };
+  if (englishRequirements && typeof englishRequirements === "object") return englishRequirements as University["englishRequirements"];
+  return undefined;
 }
 
 export function getUniversityById(id: string): University | undefined {
@@ -76,8 +105,20 @@ export function isCustomUniversity(id: string): boolean {
   return loadCreated().some((u) => u.id === id);
 }
 
+// `University.subjects` (a plain tag list) must always match what its courses actually teach —
+// every browse-by-subject page in the app (SubjectDetail on student/agent, the assistant tools,
+// universityFilter.ts) filters universities by this tag list first, then looks for a matching
+// course inside it. Letting a data manager set them independently (the old "Subjects offered"
+// checkboxes) meant a course could carry a subject the university-level tag list never got — the
+// university would then look invisible everywhere a student or agent actually browses by subject,
+// even though the course itself was saved correctly. Deriving it here, at the one place courses
+// enter storage, makes that drift impossible.
+function subjectsFromCourses(courses: University["courses"]): string[] {
+  return Array.from(new Set(courses.map((c) => c.subject).filter(Boolean)));
+}
+
 export function addUniversity(data: Omit<University, "id">): University {
-  const university: University = { ...data, id: `u-custom-${Date.now().toString(36)}` };
+  const university: University = { ...data, subjects: subjectsFromCourses(data.courses), id: `u-custom-${Date.now().toString(36)}` };
   // Registers the country with a stable id the moment it's introduced, even though University
   // still stores the plain name — the registry is what a real countries table would become.
   getCountryId(university.country);
@@ -87,15 +128,16 @@ export function addUniversity(data: Omit<University, "id">): University {
 
 export function updateUniversity(id: string, patch: Partial<University>) {
   if (patch.country) getCountryId(patch.country);
+  const effectivePatch = patch.courses ? { ...patch, subjects: subjectsFromCourses(patch.courses) } : patch;
   const created = loadCreated();
   const idx = created.findIndex((u) => u.id === id);
   if (idx >= 0) {
-    created[idx] = { ...created[idx], ...patch };
+    created[idx] = { ...created[idx], ...effectivePatch };
     saveCreated(created);
     return;
   }
   const overrides = loadOverrides();
-  overrides[id] = { ...overrides[id], ...patch };
+  overrides[id] = { ...overrides[id], ...effectivePatch };
   saveOverrides(overrides);
 }
 

@@ -222,7 +222,7 @@ export default function UniversitySearch() {
                       i !== programs.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
                     }`}
                   >
-                    <LogoBadge name={u.name} tone={u.tone} className="h-12 w-12" />
+                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] text-slate-400">{u.name}</p>
                       <p className="truncate text-[14.5px] font-semibold text-slate-900">{c.name}</p>

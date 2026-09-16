@@ -230,7 +230,7 @@ export default function StudentProfile() {
                     >
                       {appIndex + 1}
                     </span>
-                    <LogoBadge name={safeText(a.university)} tone={university?.tone ?? "violet"} className="h-10 w-10 shrink-0" />
+                    <LogoBadge name={safeText(a.university)} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-10 w-10 shrink-0" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-sm font-semibold text-slate-800">{safeText(a.university)}</p>

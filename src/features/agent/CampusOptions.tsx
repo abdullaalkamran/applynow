@@ -43,7 +43,11 @@ export default function AgentCampusOptions() {
           const scholarship = course ? scholarshipAmountUSD(university, c.feeUSD) : null;
           return (
             <div key={c.name} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.05)]">
-              <SkylineArt tone={university.tone} className="h-28 w-full" />
+              {university.coverPhotoUrl ? (
+                <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-28 w-full object-cover" />
+              ) : (
+                <SkylineArt tone={university.tone} className="h-28 w-full" />
+              )}
               <div className="p-4">
                 <p className="text-xs font-semibold text-slate-800">{c.name}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400"><MapPin size={11} /> {c.city}, {university.country}</p>

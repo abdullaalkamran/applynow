@@ -1,7 +1,8 @@
 // Renders a country's "Country Guide" content (see countryRegistry.ts) on a university's profile
 // page — shared between student and agent, since the content itself is country-level, not
 // per-university. Sections that haven't been filled in yet by Data Management simply don't render.
-import { Download, FileText } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Download, FileText } from "lucide-react";
 import type { CountryRecord } from "../data/countryRegistry";
 
 function StepList({ text }: { text: string }) {
@@ -84,6 +85,37 @@ export function CountryGuideSection({ country }: { country: CountryRecord | unde
           <div className="mt-3">
             <StepList text={country.visaProcedure} />
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A collapsed-by-default entry point onto a country's Guide content, for pages that browse a
+ * country's programs (student/agent Explore, counsellor Partners) rather than dedicating a whole
+ * tab to it the way UniversityDetail does. Renders nothing once there's genuinely no guide content
+ * yet, instead of a permanently-collapsed empty accordion. */
+export function CountryGuideDisclosure({ country }: { country: CountryRecord | undefined }) {
+  const [open, setOpen] = useState(false);
+  const hasAnything =
+    !!country && !!(country.whyThisCountry || country.applicationProcedure || country.visaProcedure || country.requiredDocuments?.length);
+
+  if (!hasAnything) return null;
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-slate-800">
+          <FileText size={15} className="text-slate-400" /> Country Guide
+        </span>
+        <ChevronDown size={16} className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-3">
+          <CountryGuideSection country={country} />
         </div>
       )}
     </div>

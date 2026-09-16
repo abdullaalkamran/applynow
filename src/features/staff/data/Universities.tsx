@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Search, Plus, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase } from "lucide-react";
+import { ArrowLeft, Search, Plus, Pencil, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase, FileText } from "lucide-react";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { getAllUniversities, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
 import { getAllApplications } from "../../../data/applicationsStore";
 import { getAllStudents } from "../../../data/allStudentsStore";
 import { loadStaff } from "../../../data/staffStore";
+import { getCountryByName } from "../../../data/countryRegistry";
 
 export default function DataUniversities() {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ export default function DataUniversities() {
   }
 
   const addUniversityHref = scopedCountry ? `/staff/data/universities/new?country=${encodeURIComponent(scopedCountry)}` : "/staff/data/universities/new";
+  const countryDetails = scopedCountry ? getCountryByName(scopedCountry) : undefined;
+  const hasGuideContent = !!countryDetails && !!(countryDetails.whyThisCountry || countryDetails.applicationProcedure || countryDetails.visaProcedure || countryDetails.requiredDocuments?.length);
 
   return (
     <div>
@@ -72,6 +75,56 @@ export default function DataUniversities() {
         {scopedCountry && <StatTile label="Students" value={String(studentsInCountry.length)} />}
         {scopedCountry && <StatTile label="Agents" value={String(agentsInCountry.length)} />}
       </div>
+
+      {scopedCountry && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-800"><FileText size={13} /> Country Guide</p>
+            <button
+              onClick={() => navigate(`/staff/data/countries/${encodeURIComponent(scopedCountry)}/edit`)}
+              className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]"
+            >
+              <Pencil size={12} /> {hasGuideContent ? "Edit" : "Add"} Country Details
+            </button>
+          </div>
+          {!hasGuideContent ? (
+            <p className="text-xs text-slate-400">
+              No guide content yet — add "Why This Country", required documents, and application/visa procedure so students, agents, and counsellors see it on every university in {scopedCountry}.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {countryDetails?.whyThisCountry && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Why This Country</p>
+                  <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{countryDetails.whyThisCountry}</p>
+                </div>
+              )}
+              {!!countryDetails?.requiredDocuments?.length && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Required Documents</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {countryDetails.requiredDocuments.map((d) => (
+                      <span key={d.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{d.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {countryDetails?.applicationProcedure && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Application Procedure</p>
+                  <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{countryDetails.applicationProcedure}</p>
+                </div>
+              )}
+              {countryDetails?.visaProcedure && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-700">Visa Procedure</p>
+                  <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{countryDetails.visaProcedure}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {scopedCountry && (studentsInCountry.length > 0 || agentsInCountry.length > 0) && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -143,7 +196,7 @@ export default function DataUniversities() {
             className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 cursor-pointer hover:border-slate-300"
             onClick={() => navigate(`/staff/data/universities/${u.id}`)}
           >
-            <LogoBadge name={u.name} tone={u.tone} className="h-11 w-11 shrink-0 text-xs" />
+            <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0 text-xs" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate text-xs font-semibold text-slate-800">{u.name}</p>

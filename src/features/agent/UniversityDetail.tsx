@@ -4,7 +4,7 @@ import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
   Building2, Clock3, ExternalLink, ChevronRight,
 } from "lucide-react";
-import { SkylineArt, Pill } from "../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
@@ -13,6 +13,7 @@ import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
+import { EntryRequirementsView } from "../../components/EntryRequirementsView";
 import { ShortlistButton } from "./ShortlistButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
 
@@ -54,7 +55,11 @@ export default function AgentUniversityDetail() {
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-        <SkylineArt tone={university.tone} className="h-36 w-full" />
+        {university.coverPhotoUrl ? (
+          <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-36 w-full object-cover" />
+        ) : (
+          <SkylineArt tone={university.tone} className="h-36 w-full" />
+        )}
         <div className="p-5">
           {course ? (
             <>
@@ -67,15 +72,18 @@ export default function AgentUniversityDetail() {
               )}
             </>
           ) : (
-            <>
-              <h1 className="text-lg font-semibold text-slate-900">{university.name}</h1>
-              <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin size={12} /> {university.city}, {university.country}</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <Pill tone={university.tone}>{university.tags[0]}</Pill>
-                {university.accreditations[0] && <Pill tone="gray">{university.accreditations[0]}</Pill>}
-                {university.tags[1] && <Pill tone="gray">{university.tags[1]}</Pill>}
+            <div className="-mt-8 flex items-start gap-3">
+              <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-12 w-12 shrink-0 text-sm" />
+              <div className="pt-8">
+                <h1 className="text-lg font-semibold text-slate-900">{university.name}</h1>
+                <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin size={12} /> {university.city}, {university.country}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Pill tone={university.tone}>{university.tags[0]}</Pill>
+                  {university.accreditations[0] && <Pill tone="gray">{university.accreditations[0]}</Pill>}
+                  {university.tags[1] && <Pill tone="gray">{university.tags[1]}</Pill>}
+                </div>
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -122,7 +130,7 @@ export default function AgentUniversityDetail() {
               )}
               {courseTab === "Entry Requirements" && (
                 <ul className="space-y-2">
-                  {university.requirements.map((r) => (
+                  {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
                     <li key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> {r}
                     </li>
@@ -205,13 +213,17 @@ export default function AgentUniversityDetail() {
                 </div>
               )}
               {uniTab === "Requirements" && (
-                <ul className="space-y-2">
-                  {university.requirements.map((r) => (
-                    <li key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> {r}
-                    </li>
-                  ))}
-                </ul>
+                <EntryRequirementsView
+                  requirements={university.requirements}
+                  englishRequirements={university.englishRequirements}
+                  minIELTS={university.minIELTS}
+                  courses={university.courses}
+                  currencySymbol={university.currencySymbol}
+                  onSelectCourse={(courseId) => {
+                    const c = university.courses.find((x) => x.id === courseId);
+                    if (c) { setActiveCourseName(c.name); setCourseTab("Overview"); }
+                  }}
+                />
               )}
               {uniTab === "Fees" && (
                 <div className="space-y-3">

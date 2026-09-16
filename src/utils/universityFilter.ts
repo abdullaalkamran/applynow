@@ -1,5 +1,6 @@
 import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllSubjects } from "../data/subjectsStore";
+import { getAllCountries } from "../data/countryRegistry";
 import { countryByIso2 } from "../data/countries";
 import type { University } from "../types";
 
@@ -183,6 +184,10 @@ export interface CountryStat {
 
 // One row per destination country, used to render the "Countries" tab on Explore — the card-grid
 // entry point into browsing by destination, same shape as subjectStats() above but for country.
+// Includes every country Data Management has registered, even ones with zero universities yet —
+// a country can carry real Overview/Country Guide content (see CountryOverview.tsx) worth browsing
+// into before any partner university has been added under it, and hiding it here just made it
+// silently disappear from Explore while staff's and counsellor's own country lists still showed it.
 export function countryStats(): CountryStat[] {
   const universities = getAllUniversities();
   const byCountry = new Map<string, University[]>();
@@ -191,9 +196,11 @@ export function countryStats(): CountryStat[] {
     list.push(u);
     byCountry.set(u.country, list);
   });
+  getAllCountries().forEach((c) => {
+    if (!byCountry.has(c.name)) byCountry.set(c.name, []);
+  });
   return Array.from(byCountry.entries())
     .map(([name, list]) => ({ name, universityCount: list.length, courseCount: list.reduce((sum, u) => sum + u.courses.length, 0) }))
-    .filter((c) => c.universityCount > 0)
     .sort((a, b) => b.universityCount - a.universityCount);
 }
 

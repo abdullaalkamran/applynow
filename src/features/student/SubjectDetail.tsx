@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, ArrowUpRight } from "lucide-react";
 import { LogoBadge, PillSelect } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -11,9 +11,11 @@ import type { University } from "../../types";
 export default function SubjectDetail() {
   const { subject: subjectParam } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = location.state as { destination?: string } | null;
   const subject = decodeURIComponent(subjectParam ?? "");
 
-  const [destination, setDestination] = useState("");
+  const [destination, setDestination] = useState(navState?.destination ?? "");
   const [intake, setIntake] = useState("");
   const [feeBand, setFeeBand] = useState("");
   const [scholarship, setScholarship] = useState("");
@@ -112,7 +114,7 @@ export default function SubjectDetail() {
                 onKeyDown={(e) => { if (e.key === "Enter") openCourse(u.id, c.name); }}
                 className={`flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== offerings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
-                <LogoBadge name={u.name} tone={u.tone} className="h-12 w-12 shrink-0" />
+                <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-slate-400">{u.name}</p>
                   <p className="truncate text-[14.5px] font-semibold text-slate-900">{c.name}</p>

@@ -188,7 +188,7 @@ export default function DataCourseForm() {
             <SameToggle same={sameAcademic} onChange={setSameAcademic} />
           </div>
           {sameAcademic ? (
-            <p className="text-[11px] text-slate-400">This course follows {university.name}'s general academic requirements.</p>
+            <p className="text-[11px] text-slate-400">This course follows {university.name}'s general {level.toLowerCase()} academic requirements.</p>
           ) : (
             <Field label="Requirements specific to this course (one per line)">
               <textarea
@@ -208,7 +208,7 @@ export default function DataCourseForm() {
             <SameToggle same={sameEnglish} onChange={setSameEnglish} />
           </div>
           {sameEnglish ? (
-            <p className="text-[11px] text-slate-400">This course follows {university.name}'s general English requirements.</p>
+            <p className="text-[11px] text-slate-400">This course follows {university.name}'s general {level.toLowerCase()} English requirements.</p>
           ) : (
             <>
               <div className="flex justify-end">
