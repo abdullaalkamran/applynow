@@ -133,6 +133,26 @@ export function scholarshipAmountUSD(u: University, feeUSD: number): number | nu
   return Math.round((feeUSD * 0.3) / 500) * 500;
 }
 
+/** Short, single-line form of the minimum deposit — for compact program-row chips, not the full
+ * "50% of first year tuition fees" wording PaymentRequirementsBlock uses on the university page. */
+export function depositLabel(u: University): string | null {
+  if (u.depositMode === "half") return "50% deposit";
+  if (u.depositMode === "full") return "Full deposit";
+  if (u.minimumDepositAmount != null) return `${u.currencySymbol}${u.minimumDepositAmount.toLocaleString()} deposit`;
+  return null;
+}
+
+/** Whether a course currently has at least one intake month marked open — students, agents, and
+ * counsellors can only apply to a course while this is true. Uses the course's own `intakes`
+ * subset when it has one, falling back to the university's full intake list otherwise (same
+ * fallback CourseView/FactTile displays already use for "intake"). Missing `intakeStatus` (a
+ * university that's never had any intake marked open) counts as closed, not open — the point of
+ * this gate is to require an explicit "Open" from Data Management, not assume one. */
+export function courseHasOpenIntake(u: University, course: University["courses"][number]): boolean {
+  const months = course.intakes && course.intakes.length > 0 ? course.intakes : u.intakes;
+  return months.some((m) => !!u.intakeStatus?.[m]);
+}
+
 export interface Campus {
   name: string;
   city: string;

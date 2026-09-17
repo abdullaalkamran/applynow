@@ -441,7 +441,7 @@ export function LogoBadge({
     // rather than getting cropped to fill the badge; the white backing keeps it legible on any
     // background the badge sits on, same as a real logo lockup would use.
     return (
-      <div className={`flex shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white p-1 ${className}`}>
+      <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white ${className}`}>
         <img src={logoUrl} alt={`${name} logo`} className="h-full w-full object-contain" />
       </div>
     );

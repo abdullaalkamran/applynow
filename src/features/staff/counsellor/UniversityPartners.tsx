@@ -109,7 +109,11 @@ export default function CounsellorUniversityPartners() {
         {filtered.map((u) => {
           const activeFromMyStudents = allActiveApps.filter((a) => a.university === u.name).length;
           return (
-            <div key={u.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div
+              key={u.id}
+              onClick={() => navigate(`/staff/counsellor/partners/universities/${u.id}`)}
+              className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)] hover:border-slate-200"
+            >
               <div className="flex items-start gap-3">
                 <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
                 <div className="min-w-0">

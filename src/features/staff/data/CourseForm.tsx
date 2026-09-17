@@ -35,8 +35,6 @@ export default function DataCourseForm() {
   const [requirements, setRequirements] = useState((existing?.requirements ?? []).join("\n"));
   const [sameEnglish, setSameEnglish] = useState((existing?.englishRequirements ?? []).length === 0);
   const [englishTests, setEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements ?? []);
-  const [scholarshipAvailable, setScholarshipAvailable] = useState(existing?.scholarshipAvailable ?? false);
-  const [scholarshipInfo, setScholarshipInfo] = useState(existing?.scholarshipInfo ?? "");
 
   if (!university) {
     return (
@@ -98,8 +96,6 @@ export default function DataCourseForm() {
               skillScores: (e.skillScores ?? []).filter((s) => s.skill.trim() && s.score.trim()),
             }))
             .filter((e) => e.minScore || e.skillScores.length > 0),
-      scholarshipAvailable,
-      scholarshipInfo: scholarshipAvailable ? scholarshipInfo.trim() || undefined : undefined,
     };
     if (existing) updateCourse(university!.id, existing.id, data);
     else addCourse(university!.id, data);
@@ -254,24 +250,10 @@ export default function DataCourseForm() {
           )}
         </div>
 
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold text-slate-800">Scholarship / Funding</p>
-          <label className="flex items-center gap-2 text-xs text-slate-700">
-            <input type="checkbox" checked={scholarshipAvailable} onChange={(e) => setScholarshipAvailable(e.target.checked)} />
-            Scholarship available for this course
-          </label>
-          {scholarshipAvailable && (
-            <Field label="Scholarship details">
-              <textarea
-                value={scholarshipInfo}
-                onChange={(e) => setScholarshipInfo(e.target.value)}
-                rows={2}
-                className={`${INPUT_CLASS} resize-y`}
-                placeholder="e.g. Up to 30% tuition waiver for high-achieving international applicants"
-              />
-            </Field>
-          )}
-        </div>
+        <p className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-xs text-slate-500">
+          Scholarships are managed on the university's own Scholarship Amount section, since a university's scholarship offers are rarely
+          tied to just one course.
+        </p>
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">

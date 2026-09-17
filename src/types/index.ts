@@ -182,7 +182,13 @@ export interface University {
   tags: string[];
   subjects: string[];
   intakes: string[];
+  // `worldRank` stays the single generic figure every existing sort/display site already reads —
+  // derived from whichever of the two named rankings below is set (QS preferred, Times Higher as
+  // fallback) so nothing consuming it needs to change. The two named fields are what Data
+  // Management actually enters, since a university's QS and Times Higher positions rarely match.
   worldRank: string;
+  qsRanking?: string;
+  timesHigherRanking?: string;
   employability: string;
   studentCount: string;
   description: string;
@@ -211,8 +217,6 @@ export interface University {
       minScore?: string;
       skillScores?: { skill: string; score: string }[];
     }[];
-    scholarshipAvailable?: boolean;
-    scholarshipInfo?: string;
     // Fee currency for this course — falls back to the university's own `currencySymbol` when unset.
     currencySymbol?: string;
     // Which of the university's campuses this course runs at, if it has more than one.
@@ -241,6 +245,17 @@ export interface University {
   depositMode?: "custom" | "half" | "full";
   paymentDeadline?: string;
   depositRules?: string[];
+  // Ordered admission/application steps for this university, e.g. "Submit application" → "Receive
+  // offer" → "Pay deposit" → "Get CAS" — shown as a numbered checklist so applicants know what's
+  // next. Absent/empty means the university hasn't documented its own procedure yet.
+  admissionSteps?: string[];
+  // Sub-national regions/divisions this university does NOT accept applicants from — based on
+  // either the applicant's passport/permanent address or where they studied (education board or
+  // prior institution), e.g. "Sylhet Division" for a university that restricts intake from a
+  // specific district due to a history of visa refusals/overstays from there. Free text since each
+  // source country has its own subdivision system (divisions, states, provinces, etc.) — shown as
+  // a prominent warning, not tucked into a collapsible section, since it's a hard eligibility gate.
+  restrictedRegions?: string[];
   currencySymbol: string;
   minIELTS: number;
   minGPA: number;
@@ -252,6 +267,18 @@ export interface University {
     undergraduate: { testName: string; minScore?: string; skillScores?: { skill: string; score: string }[] }[];
     postgraduate: { testName: string; minScore?: string; skillScores?: { skill: string; score: string }[] }[];
   };
+  // Medium of Instruction (MOI) letters accepted in place of a formal English test — postgraduate
+  // only, since it depends on the applicant's own undergraduate degree having been taught in
+  // English. `moiAcceptedUniversities` names exactly which home universities' MOI letters qualify
+  // — kept as a controlled list (see bangladeshUniversities.ts) rather than free text, since exact,
+  // consistent names matter once this is used to match a student's own university against it.
+  moiAccepted?: boolean;
+  moiAcceptedUniversities?: string[];
+  // The university's own English test, run in place of IELTS/TOEFL/etc. — offered to both
+  // Undergraduate and Postgraduate applicants alike, unlike MOI above.
+  internalEnglishTestOffered?: boolean;
+  internalEnglishTestFree?: boolean;
+  internalEnglishTestFee?: number;
   accreditations: string[];
   scholarshipsAvailable: boolean;
   // Named scholarships this university offers, each with its own award amount and eligibility

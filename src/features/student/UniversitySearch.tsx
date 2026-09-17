@@ -2,15 +2,15 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock, Award,
-  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, ArrowUpRight,
+  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send,
 } from "lucide-react";
-import { BackButton, SkylineArt, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
+import { BackButton, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { countryByName } from "../../data/countries";
 import {
   emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
-  allPrograms, FEE_BANDS, feeBandMax, scholarshipAmountUSD, subjectOptions, destinationOptions,
+  allPrograms, FEE_BANDS, feeBandMax, scholarshipAmountUSD, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
   countryStats, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -120,10 +120,6 @@ export default function UniversitySearch() {
     navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
   }
 
-  function openUniversityProfile(universityId: string) {
-    navigate(`/student/universities/${universityId}`);
-  }
-
   const subjectQueryText = filters.subjectQuery.trim() || filters.courseQuery.trim() || query.trim();
 
   return (
@@ -218,53 +214,59 @@ export default function UniversitySearch() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
-                    className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left lg:rounded-2xl lg:bg-[var(--sd-card)] lg:px-4 lg:shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
+                    className={`relative flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left lg:rounded-2xl lg:bg-[var(--sd-card)] lg:px-4 lg:shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
                       i !== programs.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
                     }`}
                   >
-                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] text-slate-400">{u.name}</p>
-                      <p className="truncate text-[14.5px] font-semibold text-slate-900">{c.name}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
-                          {Math.round(c.feeUSD).toLocaleString()}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarDays size={11} className="text-slate-400" /> {u.openIntake}
-                        </span>
-                        {scholarshipUSD && (
-                          <span className="inline-flex items-center gap-1">
-                            <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1">
-                          <Building2 size={11} className="text-slate-400" /> Main Campus
-                        </span>
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <span
-                          onClick={(e) => { e.stopPropagation(); openUniversityProfile(u.id); }}
-                          className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--sd-ink)]"
-                        >
-                          University Profile <ArrowUpRight size={11} />
-                        </span>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setApplyTarget({ university: u, course: c }); }}
-                          className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3.5 py-1.5 text-[11.5px] font-semibold text-white"
-                        >
-                          Apply Now
-                        </button>
-                      </div>
-                    </div>
                     <span
                       onClick={(e) => { e.stopPropagation(); toggleProgramShortlist(programKey); }}
                       aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
-                      className={`shrink-0 ${shortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
+                      className={`absolute right-3 top-2 ${shortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
                     >
                       <Bookmark size={16} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
                     </span>
+                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12" />
+                    <div className="min-w-0 flex-1">
+                      <div className="min-w-0 pr-6">
+                        <p className="text-[13.5px] font-semibold leading-snug text-slate-900">{c.name}</p>
+                        <p className="flex items-center gap-1 text-[12px] leading-snug text-slate-400">
+                          <span className="min-w-0 truncate">{u.name}</span>
+                          <span className="inline-flex shrink-0 items-center gap-0.5">
+                            <Building2 size={10} /> Main Campus
+                          </span>
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center gap-x-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[10.5px] text-slate-500">
+                        <span className="inline-flex shrink-0 items-center gap-1">
+                          <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
+                          {Math.round(c.feeUSD).toLocaleString()}
+                        </span>
+                        {scholarshipUSD && (
+                          <span className="inline-flex shrink-0 items-center gap-1">
+                            <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
+                          </span>
+                        )}
+                        {depositLabel(u) && (
+                          <span className="inline-flex shrink-0 items-center gap-1">
+                            <Landmark size={11} className="text-slate-400" /> {depositLabel(u)}
+                          </span>
+                        )}
+                        {u.openIntake && (
+                          <span className="inline-flex min-w-0 shrink items-center gap-1 truncate">
+                            <CalendarDays size={11} className="shrink-0 text-slate-400" /> <span className="truncate">{u.openIntake}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (courseHasOpenIntake(u, c)) setApplyTarget({ university: u, course: c }); }}
+                      disabled={!courseHasOpenIntake(u, c)}
+                      aria-label={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
+                      title={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
+                    >
+                      <Send size={13} />
+                    </button>
                     <ChevronRight size={16} className="shrink-0 text-slate-300" />
                   </div>
                 );
@@ -355,12 +357,10 @@ export default function UniversitySearch() {
                     onClick={() => navigate(`/student/universities/${u.id}`)}
                     className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
                   >
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-                      <SkylineArt tone={u.tone} className="h-full w-full" />
-                    </div>
+                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-16 w-16 text-base" />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[14px] font-semibold text-slate-900">{u.name}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[13px] font-semibold leading-snug text-slate-900">{u.name}</p>
                         <span
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
                           className="shrink-0 text-slate-300"

@@ -39,6 +39,7 @@ export default function DataCountryForm() {
 
   const vc = existing?.visaCostConfig;
   const [name, setName] = useState(existing?.name ?? "");
+  const [currencySymbols, setCurrencySymbols] = useState((existing?.currencySymbols ?? []).join(", "));
   const [whyThisCountry, setWhyThisCountry] = useState(existing?.whyThisCountry ?? "");
   const [recommendedFunds, setRecommendedFunds] = useState(existing?.recommendedFundsUSD != null ? String(existing.recommendedFundsUSD) : "");
   const [documents, setDocuments] = useState<RequiredDocument[]>(existing?.requiredDocuments ?? []);
@@ -148,6 +149,7 @@ export default function DataCountryForm() {
 
     const patch = {
       name: trimmedName,
+      currencySymbols: currencySymbols.split(",").map((s) => s.trim()).filter(Boolean),
       whyThisCountry: whyThisCountry.trim() || undefined,
       recommendedFundsUSD: recommendedFunds.trim() ? Number(recommendedFunds) || undefined : undefined,
       visaCostConfig,
@@ -182,6 +184,12 @@ export default function DataCountryForm() {
       <div className="space-y-5">
         <Section title="Identity">
           <Field label="Country name"><Input value={name} onChange={setName} placeholder="e.g. Japan" /></Field>
+          <Field label="Currency symbols (comma separated)">
+            <Input value={currencySymbols} onChange={setCurrencySymbols} placeholder="e.g. ¥, $" />
+          </Field>
+          <p className="text-[11px] text-slate-400">
+            Offered as the currency choices when adding a university in this country — the university form also lets someone type a one-off custom currency there.
+          </p>
         </Section>
 
         <Section title="Why This Country">

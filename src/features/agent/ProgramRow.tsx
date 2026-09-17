@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Wallet, CalendarDays, GraduationCap } from "lucide-react";
+import { ChevronRight, Wallet, CalendarDays, GraduationCap, AlertTriangle } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
-import { scholarshipAmountUSD } from "../../utils/universityFilter";
+import { scholarshipAmountUSD, courseHasOpenIntake } from "../../utils/universityFilter";
 import { ShortlistButton } from "./ShortlistButton";
 import type { Student, University } from "../../types";
 
@@ -39,6 +39,15 @@ export function ProgramRow({
         {scholarship !== null && (
           <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> Up to ${scholarship.toLocaleString()}</span>
         )}
+        {(university.restrictedRegions ?? []).length > 0 && (
+          <span className="flex items-center gap-1 text-amber-600"><AlertTriangle size={11} /> Restricted regions</span>
+        )}
+        {university.internalEnglishTestOffered && (
+          <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> Own English test</span>
+        )}
+        {course.level !== "Undergraduate" && university.moiAccepted && (
+          <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> MOI accepted</span>
+        )}
       </div>
 
       <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-50 pt-2.5">
@@ -49,9 +58,10 @@ export function ProgramRow({
           <ShortlistButton students={students} universityId={university.id} universityName={university.name} courseName={course.name} />
           <button
             onClick={() => onApply(university, course)}
-            className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
+            disabled={!courseHasOpenIntake(university, course)}
+            className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
           >
-            Apply
+            {courseHasOpenIntake(university, course) ? "Apply" : "Intake Closed"}
           </button>
         </div>
       </div>

@@ -1,52 +1,48 @@
+// Read-only equivalent of the student/agent University Detail page — every field Data Management
+// has entered, laid out the same way, minus any apply/shortlist actions since a counsellor doesn't
+// apply on a student's behalf from here (mirrors CountryDetail.tsx's view-only convention).
 import { useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
-  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks,
+  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, Briefcase as BriefcaseIcon,
 } from "lucide-react";
-import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
-import { getAllUniversities } from "../../data/universityCatalogStore";
-import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake } from "../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
-import { curriculumFor } from "../../data/subjectCurriculum";
-import { getCountryByName } from "../../data/countryRegistry";
-import { CostCalculator } from "../../components/CostCalculator";
-import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
-import { CountryGuideSection } from "../../components/CountryGuideSection";
-import { EntryRequirementsView } from "../../components/EntryRequirementsView";
-import { PaymentRequirementsBlock } from "../../components/PaymentRequirementsBlock";
-import { AdmissionProcedureBlock } from "../../components/AdmissionProcedureBlock";
-import { IntakesBlock } from "../../components/IntakesBlock";
-import { ScholarshipsBlock } from "../../components/ScholarshipsBlock";
-import { RankingCaption } from "../../components/RankingCaption";
-import { ExpandableSection } from "../../components/ExpandableSection";
-import { RestrictedRegionsNotice } from "../../components/RestrictedRegionsNotice";
-import { EnglishTestNotices } from "../../components/EnglishTestNotices";
-import { ShortlistButton } from "./ShortlistButton";
-import { CreateApplicationModal } from "./CreateApplicationModal";
+import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
+import { curriculumFor } from "../../../data/subjectCurriculum";
+import { getCountryByName } from "../../../data/countryRegistry";
+import { CostCalculator } from "../../../components/CostCalculator";
+import { VisaCostBreakdown } from "../../../components/VisaCostBreakdown";
+import { CountryGuideSection } from "../../../components/CountryGuideSection";
+import { EntryRequirementsView } from "../../../components/EntryRequirementsView";
+import { PaymentRequirementsBlock } from "../../../components/PaymentRequirementsBlock";
+import { AdmissionProcedureBlock } from "../../../components/AdmissionProcedureBlock";
+import { IntakesBlock } from "../../../components/IntakesBlock";
+import { ScholarshipsBlock } from "../../../components/ScholarshipsBlock";
+import { RankingCaption } from "../../../components/RankingCaption";
+import { ExpandableSection } from "../../../components/ExpandableSection";
+import { RestrictedRegionsNotice } from "../../../components/RestrictedRegionsNotice";
+import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
+import { depositLabel } from "../../../utils/universityFilter";
+import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 
 const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
 
-export default function AgentUniversityDetail() {
+export default function CounsellorUniversityDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const location = useLocation();
-  const navState = location.state as { selectedCourseName?: string; subject?: string } | null;
-  const students = loadAgentStudents();
   const UNIVERSITIES = getAllUniversities();
+  const university = UNIVERSITIES.find((u) => u.id === id);
 
-  const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
-  const [activeCourseName, setActiveCourseName] = useState<string | null>(navState?.selectedCourseName ?? null);
+  const [activeCourseName, setActiveCourseName] = useState<string | null>(null);
   const [uniTab, setUniTab] = useState<(typeof UNI_TABS)[number]>("Overview");
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
-  const [applyOpen, setApplyOpen] = useState(false);
 
   if (!university) {
     return (
       <div className="max-w-4xl">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate("/staff/counsellor/partners")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-[var(--brand-600)]">
           <ArrowLeft size={14} /> Back
         </button>
         <p className="text-xs text-slate-400">University not found.</p>
@@ -59,7 +55,7 @@ export default function AgentUniversityDetail() {
 
   return (
     <div className="max-w-4xl">
-      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate("/staff/counsellor/partners")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-[var(--brand-600)]">
         <ArrowLeft size={14} /> Back to Universities
       </button>
 
@@ -74,11 +70,6 @@ export default function AgentUniversityDetail() {
             <>
               <p className="text-xs text-slate-400">{university.name}</p>
               <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{course.name}</h1>
-              {navState?.subject && (
-                <button onClick={() => navigate(`/agent/subjects/${encodeURIComponent(navState.subject!)}`)} className="mt-1 text-[11px] font-medium text-blue-600">
-                  View {navState.subject} at other universities →
-                </button>
-              )}
             </>
           ) : (
             <div className="-mt-8 flex items-start gap-3">
@@ -102,10 +93,10 @@ export default function AgentUniversityDetail() {
                 <button
                   key={t}
                   onClick={() => setCourseTab(t)}
-                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${courseTab === t ? "text-blue-700" : "text-slate-400"}`}
+                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${courseTab === t ? "text-[var(--brand-700)]" : "text-slate-400"}`}
                 >
                   {t}
-                  {courseTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+                  {courseTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--brand-600)]" />}
                 </button>
               ))}
             </div>
@@ -114,17 +105,13 @@ export default function AgentUniversityDetail() {
                 <div className="space-y-4">
                   <RestrictedRegionsNotice university={university} />
                   <div className="grid grid-cols-3 gap-3">
-                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={`$${course.feeUSD.toLocaleString()}`} />
+                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={`${university.currencySymbol}${course.feeUSD.toLocaleString()}`} />
                     <StatTile icon={<CalendarDays size={14} />} label="Intake" value={university.openIntake} />
-                    <StatTile icon={<GraduationCap size={14} />} label="Scholarship" value={scholarshipAmountUSD(university, course.feeUSD) ? `Up to $${scholarshipAmountUSD(university, course.feeUSD)!.toLocaleString()}` : "—"} />
+                    <StatTile icon={<GraduationCap size={14} />} label="Level" value={course.level} />
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <FactTile
-                      icon={<Building2 size={14} />} label="Campus" value="Main Campus"
-                      onClick={() => navigate(`/agent/universities/${university.id}/campuses`, { state: { courseName: course.name } })}
-                    />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <FactTile icon={<Building2 size={14} />} label="Campus" value="Main Campus" />
                     <FactTile icon={<Clock3 size={14} />} label="Duration" value={course.duration} />
-                    <FactTile icon={<GraduationCap size={14} />} label="Level" value={course.level} />
                   </div>
                   <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} />
                   <div className="rounded-xl bg-slate-50 p-4">
@@ -139,7 +126,7 @@ export default function AgentUniversityDetail() {
                 <ul className="space-y-2">
                   {curriculumFor(course.subject).modules.map((m) => (
                     <li key={m} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <CheckCircle2 size={13} className="shrink-0 text-blue-500" /> {m}
+                      <CheckCircle2 size={13} className="shrink-0 text-[var(--brand-500)]" /> {m}
                     </li>
                   ))}
                 </ul>
@@ -160,25 +147,15 @@ export default function AgentUniversityDetail() {
                 <ul className="space-y-2">
                   {curriculumFor(course.subject).careers.map((c) => (
                     <li key={c} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <Briefcase size={13} className="shrink-0 text-violet-500" /> {c}
+                      <BriefcaseIcon size={13} className="shrink-0 text-violet-500" /> {c}
                     </li>
                   ))}
                 </ul>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4">
+            <div className="flex items-center justify-between gap-2 border-t border-slate-100 p-4">
               <button onClick={() => setActiveCourseName(null)} className="text-xs font-medium text-slate-500">← University profile</button>
-              <div className="flex items-center gap-1.5">
-                <ShortlistButton students={students} universityId={university.id} universityName={university.name} courseName={course.name} />
-                <button
-                  onClick={() => setApplyOpen(true)}
-                  disabled={!courseHasOpenIntake(university, course)}
-                  className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
-                >
-                  {courseHasOpenIntake(university, course) ? "Apply Now" : "Intake Closed"}
-                </button>
-              </div>
             </div>
           </>
         ) : (
@@ -188,10 +165,10 @@ export default function AgentUniversityDetail() {
                 <button
                   key={t}
                   onClick={() => setUniTab(t)}
-                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${uniTab === t ? "text-blue-700" : "text-slate-400"}`}
+                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${uniTab === t ? "text-[var(--brand-700)]" : "text-slate-400"}`}
                 >
                   {t}
-                  {uniTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+                  {uniTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-[var(--brand-600)]" />}
                 </button>
               ))}
             </div>
@@ -264,10 +241,11 @@ export default function AgentUniversityDetail() {
                         <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
-                        ${c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                        {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
                       </div>
                     </button>
                   ))}
+                  {university.courses.length === 0 && <p className="text-xs text-slate-400">No courses added yet.</p>}
                 </div>
               )}
               {uniTab === "Requirements" && (
@@ -295,6 +273,7 @@ export default function AgentUniversityDetail() {
                         <span className="font-semibold text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
                       </div>
                     ))}
+                    {university.fees.length === 0 && <p className="text-xs text-slate-400">No fee line items added yet.</p>}
                   </div>
                 </div>
               )}
@@ -305,23 +284,13 @@ export default function AgentUniversityDetail() {
               <a href={`https://www.${university.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
                 Website <ExternalLink size={12} />
               </a>
-              <button onClick={() => setUniTab("Courses")} className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+              <button onClick={() => setUniTab("Courses")} className="rounded-full bg-[var(--brand-600)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--brand-700)]">
                 View Courses →
               </button>
             </div>
           </>
         )}
       </div>
-
-      {applyOpen && course && (
-        <CreateApplicationModal
-          students={students}
-          initialUniversityId={university.id}
-          initialCourseName={course.name}
-          onClose={() => setApplyOpen(false)}
-          onCreated={() => setApplyOpen(false)}
-        />
-      )}
     </div>
   );
 }

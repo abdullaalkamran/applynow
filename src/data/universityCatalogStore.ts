@@ -75,7 +75,7 @@ export function getAllUniversities(): University[] {
   const created = loadCreated().filter((u) => !deleted.has(u.id));
   return [...seedMerged, ...created].map((u) => ({
     ...u,
-    subjects: subjectsFromCourses(u.courses),
+    subjects: mergedSubjects(u.subjects, u.courses),
     requirements: normalizeRequirements(u.requirements),
     englishRequirements: normalizeEnglishRequirements(u.englishRequirements),
   }));
@@ -105,20 +105,19 @@ export function isCustomUniversity(id: string): boolean {
   return loadCreated().some((u) => u.id === id);
 }
 
-// `University.subjects` (a plain tag list) must always match what its courses actually teach —
-// every browse-by-subject page in the app (SubjectDetail on student/agent, the assistant tools,
-// universityFilter.ts) filters universities by this tag list first, then looks for a matching
-// course inside it. Letting a data manager set them independently (the old "Subjects offered"
-// checkboxes) meant a course could carry a subject the university-level tag list never got — the
-// university would then look invisible everywhere a student or agent actually browses by subject,
-// even though the course itself was saved correctly. Deriving it here, at the one place courses
-// enter storage, makes that drift impossible.
-function subjectsFromCourses(courses: University["courses"]): string[] {
-  return Array.from(new Set(courses.map((c) => c.subject).filter(Boolean)));
+// `University.subjects` is the union of two things: the broad subject genres Data Management
+// explicitly picks for the university (via the form's multi-select, e.g. to advertise "Business &
+// Management" before any course under it exists yet) and whatever subject each of its courses
+// actually carries. Every browse-by-subject page in the app (SubjectDetail on student/agent, the
+// assistant tools, universityFilter.ts) filters universities by this tag list first, then looks
+// for a matching course inside it — merging here, at the one place courses enter storage, means a
+// course's subject can never go "invisible" just because nobody also multi-selected its genre.
+function mergedSubjects(manual: string[] | undefined, courses: University["courses"]): string[] {
+  return Array.from(new Set([...(manual ?? []), ...courses.map((c) => c.subject).filter(Boolean)]));
 }
 
 export function addUniversity(data: Omit<University, "id">): University {
-  const university: University = { ...data, subjects: subjectsFromCourses(data.courses), id: `u-custom-${Date.now().toString(36)}` };
+  const university: University = { ...data, subjects: mergedSubjects(data.subjects, data.courses), id: `u-custom-${Date.now().toString(36)}` };
   // Registers the country with a stable id the moment it's introduced, even though University
   // still stores the plain name — the registry is what a real countries table would become.
   getCountryId(university.country);
@@ -128,7 +127,11 @@ export function addUniversity(data: Omit<University, "id">): University {
 
 export function updateUniversity(id: string, patch: Partial<University>) {
   if (patch.country) getCountryId(patch.country);
-  const effectivePatch = patch.courses ? { ...patch, subjects: subjectsFromCourses(patch.courses) } : patch;
+  // A course-only patch (addCourse/updateCourse/removeCourse below) never carries `subjects`, so
+  // fall back to whatever's already stored — this is what keeps a newly added course's subject
+  // folded in without discarding the manual genres Data Management picked on the university form.
+  const manualSubjects = patch.subjects ?? getUniversityById(id)?.subjects;
+  const effectivePatch = patch.courses ? { ...patch, subjects: mergedSubjects(manualSubjects, patch.courses) } : patch;
   const created = loadCreated();
   const idx = created.findIndex((u) => u.id === id);
   if (idx >= 0) {

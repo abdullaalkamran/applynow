@@ -333,9 +333,7 @@ export default function Dashboard() {
                   onClick={() => navigate(`/student/universities/${recommended.id}`, { state: { selectedCourseName: recommendedCourse.name } })}
                   className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
                 >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-                    <SkylineArt tone={recommended.tone} className="h-full w-full" />
-                  </div>
+                  <LogoBadge name={recommended.name} tone={recommended.tone} logoUrl={recommended.logoUrl} className="h-16 w-16 text-base" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-semibold text-slate-900">{recommendedCourse.name}</p>
                     <p className="truncate text-xs text-slate-400">{recommended.name}</p>

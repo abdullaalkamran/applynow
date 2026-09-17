@@ -78,6 +78,11 @@ export interface CountryRecord {
   // RequiredDocument's sample uploads above). CountryHero falls back to its abstract SkylineArt
   // illustration wherever this is absent.
   photoUrl?: string;
+  // Currency symbols universities in this country are typically priced in, e.g. ["£"] for the UK
+  // or ["$", "C$"] for a country where both a local and foreign-quoted fee are common. Offered as
+  // the University form's currency picklist for this country, plus a "custom currency" escape
+  // hatch (see addCurrencyToCountry) that adds whatever's typed to this list for next time.
+  currencySymbols?: string[];
 }
 
 const STORAGE_KEY = "data-mgmt-country-registry";
@@ -242,4 +247,18 @@ export function updateCountryDetails(id: string, patch: Partial<Omit<CountryReco
   const overrides = loadOverrides();
   overrides[id] = { ...overrides[id], ...patch };
   saveOverrides(overrides);
+}
+
+/** Adds a custom currency symbol to a country's picklist — used when someone typing a university's
+ * currency picks "+ Add a custom currency…" instead of one already on file, so the same symbol is
+ * offered without retyping the next time a university in that country is added. No-ops if the
+ * country isn't found or the symbol's blank or already listed. */
+export function addCurrencyToCountry(countryName: string, symbol: string) {
+  const trimmed = symbol.trim();
+  if (!trimmed) return;
+  const record = getCountryByName(countryName);
+  if (!record) return;
+  const current = record.currencySymbols ?? [];
+  if (current.includes(trimmed)) return;
+  updateCountryDetails(record.id, { currencySymbols: [...current, trimmed] });
 }

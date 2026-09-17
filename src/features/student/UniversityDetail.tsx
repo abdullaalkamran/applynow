@@ -2,17 +2,26 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
-  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink,
+  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { scholarshipAmountUSD } from "../../utils/universityFilter";
+import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake } from "../../utils/universityFilter";
+import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumFor } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
 import { EntryRequirementsView } from "../../components/EntryRequirementsView";
+import { PaymentRequirementsBlock } from "../../components/PaymentRequirementsBlock";
+import { AdmissionProcedureBlock } from "../../components/AdmissionProcedureBlock";
+import { IntakesBlock } from "../../components/IntakesBlock";
+import { ScholarshipsBlock } from "../../components/ScholarshipsBlock";
+import { RankingCaption } from "../../components/RankingCaption";
+import { ExpandableSection } from "../../components/ExpandableSection";
+import { RestrictedRegionsNotice } from "../../components/RestrictedRegionsNotice";
+import { EnglishTestNotices } from "../../components/EnglishTestNotices";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 
@@ -81,9 +90,14 @@ export default function UniversityDetail() {
       </div>
       <button
         onClick={() => setApplying(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
+        disabled={!courseHasOpenIntake(university, course)}
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white disabled:opacity-40"
       >
-        Apply Now <ArrowLeft size={14} className="rotate-180" />
+        {courseHasOpenIntake(university, course) ? (
+          <>Apply Now <ArrowLeft size={14} className="rotate-180" /></>
+        ) : (
+          "Intake Closed"
+        )}
       </button>
     </div>
   ) : (
@@ -102,42 +116,39 @@ export default function UniversityDetail() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="lg:mx-auto lg:grid lg:w-full lg:max-w-6xl lg:grid-cols-[360px_1fr] lg:items-start lg:gap-10 lg:px-10 lg:pt-8">
-        {/* Left rail on desktop: hero photo + actions — stays put while the right column scrolls */}
-        <div className="lg:sticky lg:top-8">
-          <div className="relative h-[330px] shrink-0 lg:h-72 lg:overflow-hidden lg:rounded-3xl">
-            {university.coverPhotoUrl ? (
-              <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
-            ) : (
-              <SkylineArt tone={university.tone} className="h-full w-full" />
-            )}
-            <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+      <div className="lg:mx-auto lg:w-full lg:max-w-3xl">
+        {/* Single column at every breakpoint — the cover photo is a full-width banner, not squeezed
+            into a narrow side rail, and the rest of the page just flows underneath it. */}
+        <div className="relative h-[330px] shrink-0 lg:h-80 lg:overflow-hidden lg:rounded-b-3xl">
+          {university.coverPhotoUrl ? (
+            <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
+          ) : (
+            <SkylineArt tone={university.tone} className="h-full w-full" />
+          )}
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4 lg:px-10 lg:pt-6">
+            <button
+              onClick={() => (course && !navState?.selectedCourseName ? setActiveCourseName(null) : navigate(-1))}
+              aria-label="Back"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow"
+            >
+              <ArrowLeft size={17} />
+            </button>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => (course && !navState?.selectedCourseName ? setActiveCourseName(null) : navigate(-1))}
-                aria-label="Back"
+                onClick={() => setSaved((v) => !v)}
+                aria-label="Save"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow"
               >
-                <ArrowLeft size={17} />
+                <Bookmark size={16} className={saved ? "fill-[var(--sd-ink)] text-[var(--sd-ink)]" : ""} />
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSaved((v) => !v)}
-                  aria-label="Save"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow"
-                >
-                  <Bookmark size={16} className={saved ? "fill-[var(--sd-ink)] text-[var(--sd-ink)]" : ""} />
-                </button>
-                <button aria-label="Share" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow">
-                  <Share2 size={16} />
-                </button>
-              </div>
+              <button aria-label="Share" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow">
+                <Share2 size={16} />
+              </button>
             </div>
           </div>
-
-          <div className="mt-4 hidden lg:block">{actions}</div>
         </div>
 
-        <div className="px-5 pb-4 pt-5 lg:px-0 lg:pt-0">
+        <div className="px-5 pb-4 pt-5 lg:px-10">
           {course ? (
             <CourseView
               university={university}
@@ -152,7 +163,7 @@ export default function UniversityDetail() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 py-4 lg:hidden">
+      <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 py-4 lg:mx-auto lg:w-full lg:max-w-3xl lg:px-10">
         {actions}
       </div>
 
@@ -216,10 +227,18 @@ function CourseView({
         {tab === "Overview" && (
           <>
             <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
+            <RestrictedRegionsNotice university={university} className="mt-4" />
             <div className="mt-4 grid grid-cols-3 gap-2.5">
               <FactTile icon={<Building2 size={16} />} label="Campus" value="Main Campus" onClick={openCampuses} />
               <FactTile icon={<Clock size={16} />} label="Duration" value={course.duration} />
               <FactTile icon={<Users size={16} />} label="Study Mode" value="Full-time" />
+            </div>
+            <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mt-4" />
+            <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><Landmark size={15} /> Deposit & Payment</p>
+              <div className="mt-3">
+                <PaymentRequirementsBlock university={university} />
+              </div>
             </div>
           </>
         )}
@@ -238,14 +257,17 @@ function CourseView({
         )}
 
         {tab === "Entry Requirements" && (
-          <ul className="space-y-2.5">
-            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-              <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
-                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
-                {r}
-              </li>
-            ))}
-          </ul>
+          <>
+            <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
+            <ul className="space-y-2.5">
+              {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
+                <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
+                  {r}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         {tab === "Careers" && (
@@ -281,10 +303,17 @@ function UniversityView({
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <Pill tone="blue">{university.tags[0]}</Pill>
-        <Pill tone="navy">{university.accreditations[0]}</Pill>
-        <Pill tone="green">{university.tags[1]}</Pill>
+        {university.tags.map((t) => <Pill key={t} tone="blue">{t}</Pill>)}
+        {university.accreditations.map((a) => <Pill key={a} tone="navy">{a}</Pill>)}
       </div>
+      <a
+        href={`https://www.${university.website}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--sd-ink)]"
+      >
+        {university.website} <ExternalLink size={12} />
+      </a>
 
       <div className="mt-5 flex items-center gap-5 overflow-x-auto border-b border-black/5">
         {UNIVERSITY_TABS.map((t) => (
@@ -304,22 +333,64 @@ function UniversityView({
           <>
             <p className="text-[13px] leading-relaxed text-slate-500">{university.description}</p>
 
+            <RestrictedRegionsNotice university={university} className="mt-4" />
+            <EnglishTestNotices university={university} className="mt-4" />
+
             <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <Stat value={university.worldRank} label="in the World" />
               <Stat value={university.employability} label="Employability" />
               <Stat value={university.studentCount} label="Students" />
             </div>
+            <RankingCaption university={university} className="mt-2" />
 
-            <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="text-sm font-semibold text-slate-900">Why study here?</p>
-              <ul className="mt-3 space-y-2.5">
-                {university.highlights.map((h) => (
-                  <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
-                    <CheckCircle2 size={16} className="shrink-0 text-[var(--sd-teal)]" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-4 space-y-2.5">
+              {university.subjects.length > 0 && (
+                <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                  <div className="flex flex-wrap gap-1.5">
+                    {university.subjects.map((s) => <Pill key={s}>{s}</Pill>)}
+                  </div>
+                </ExpandableSection>
+              )}
+
+              {(university.campuses ?? []).length > 0 && (
+                <ExpandableSection icon={<Building2 size={15} />} title="Campuses" preview={campusesPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                  <div className="space-y-1.5">
+                    {university.campuses!.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2 text-[13px]">
+                        <span className="text-slate-700">{c.name}</span>
+                        <span className="text-slate-400">{c.city}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ExpandableSection>
+              )}
+
+              <ExpandableSection title="Why study here?" preview={highlightsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <ul className="space-y-2.5">
+                  {university.highlights.map((h) => (
+                    <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
+                      <CheckCircle2 size={16} className="shrink-0 text-[var(--sd-teal)]" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </ExpandableSection>
+
+              <ExpandableSection icon={<CalendarDays size={15} />} title="Intakes" preview={intakesPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <IntakesBlock university={university} />
+              </ExpandableSection>
+
+              <ExpandableSection icon={<GraduationCap size={15} />} title="Scholarships" preview={scholarshipsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <ScholarshipsBlock university={university} />
+              </ExpandableSection>
+
+              <ExpandableSection icon={<Landmark size={15} />} title="Deposit & Payment" preview={depositLabel(university) ?? undefined} defaultExpanded className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <PaymentRequirementsBlock university={university} />
+              </ExpandableSection>
+
+              <ExpandableSection icon={<ListChecks size={15} />} title="Admission Procedure" preview={admissionStepsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <AdmissionProcedureBlock university={university} />
+              </ExpandableSection>
             </div>
           </>
         )}
@@ -349,12 +420,13 @@ function UniversityView({
               requirements={university.requirements}
               englishRequirements={university.englishRequirements}
               minIELTS={university.minIELTS}
-              courses={university.courses}
+              minGPA={university.minGPA}
+              moiAccepted={university.moiAccepted}
+              moiAcceptedUniversities={university.moiAcceptedUniversities}
+              internalEnglishTestOffered={university.internalEnglishTestOffered}
+              internalEnglishTestFree={university.internalEnglishTestFree}
+              internalEnglishTestFee={university.internalEnglishTestFee}
               currencySymbol={university.currencySymbol}
-              onSelectCourse={(courseId) => {
-                const c = university.courses.find((x) => x.id === courseId);
-                if (c) onSelectCourse(c.name);
-              }}
             />
           </div>
         )}

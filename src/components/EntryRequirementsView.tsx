@@ -3,7 +3,7 @@
 // what used to be one shared list with a level switcher. Shared across every role's University
 // Detail "Requirements" tab (see UniversityForm.tsx for where Data Management enters this).
 import { useState } from "react";
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { CheckCircle2, GraduationCap } from "lucide-react";
 
 export interface EnglishTestRequirement {
   testName: string;
@@ -11,35 +11,30 @@ export interface EnglishTestRequirement {
   skillScores?: { skill: string; score: string }[];
 }
 
-export interface RequirementCourse {
-  id: string;
-  name: string;
-  level: string;
-  feeUSD: number;
-}
-
 const LEVELS = ["Undergraduate", "Postgraduate"] as const;
 type Level = (typeof LEVELS)[number];
 
 export function EntryRequirementsView({
-  requirements, englishRequirements, minIELTS, courses, currencySymbol = "$", onSelectCourse,
+  requirements, englishRequirements, minIELTS, minGPA, currencySymbol = "$",
+  moiAccepted, moiAcceptedUniversities, internalEnglishTestOffered, internalEnglishTestFree, internalEnglishTestFee,
 }: {
   requirements: { undergraduate: string[]; postgraduate: string[] };
   englishRequirements?: { undergraduate: EnglishTestRequirement[]; postgraduate: EnglishTestRequirement[] };
   minIELTS?: number;
-  // Optional — when given, shows which of the university's courses these requirements actually
-  // apply to. The Postgraduate tab matches anything that isn't Undergraduate ("PG and above"), so
-  // a level beyond the current two (e.g. a future Doctorate) still lands somewhere sensible without
-  // this needing to know every level name in advance.
-  courses?: RequirementCourse[];
+  minGPA?: number;
   currencySymbol?: string;
-  onSelectCourse?: (courseId: string) => void;
+  // MOI (Medium of Instruction) — postgraduate only, so only ever shown on that tab.
+  moiAccepted?: boolean;
+  moiAcceptedUniversities?: string[];
+  // The university's own English test — offered to both levels alike, so shown on both tabs.
+  internalEnglishTestOffered?: boolean;
+  internalEnglishTestFree?: boolean;
+  internalEnglishTestFee?: number;
 }) {
   const [level, setLevel] = useState<Level>("Undergraduate");
   const key = level === "Undergraduate" ? "undergraduate" : "postgraduate";
   const academic = requirements[key];
   const english = englishRequirements?.[key] ?? [];
-  const levelCourses = courses?.filter((c) => (level === "Undergraduate" ? c.level === "Undergraduate" : c.level !== "Undergraduate"));
 
   return (
     <div>
@@ -58,38 +53,15 @@ export function EntryRequirementsView({
       </div>
 
       <div className="space-y-4">
-        {courses && (
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {level === "Undergraduate" ? "Undergraduate" : "Postgraduate & above"} Courses
-            </p>
-            <div className="space-y-1.5">
-              {levelCourses!.map((c) => {
-                const Tag = onSelectCourse ? "button" : "div";
-                return (
-                  <Tag
-                    key={c.id}
-                    onClick={onSelectCourse ? () => onSelectCourse(c.id) : undefined}
-                    className={`flex w-full items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-left text-xs ${onSelectCourse ? "hover:bg-slate-100" : ""}`}
-                  >
-                    <span className="font-medium text-slate-700">{c.name}</span>
-                    <span className="flex shrink-0 items-center gap-1.5 text-slate-500">
-                      {currencySymbol}{c.feeUSD.toLocaleString()}/yr
-                      {onSelectCourse && <ChevronRight size={13} className="text-slate-300" />}
-                    </span>
-                  </Tag>
-                );
-              })}
-              {levelCourses!.length === 0 && (
-                <p className="text-xs text-slate-400">No {level === "Undergraduate" ? "undergraduate" : "postgraduate"} courses added yet.</p>
-              )}
-            </div>
-          </div>
-        )}
-
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Academic Requirements</p>
           <div className="space-y-2">
+            {!!minGPA && (
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                <span className="text-slate-600">Minimum GPA</span>
+                <span className="font-semibold text-slate-800">{minGPA.toFixed(1)} / 4.0</span>
+              </div>
+            )}
             {academic.map((r) => (
               <div key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                 <CheckCircle2 size={14} className="shrink-0 text-emerald-500" /> {r}
@@ -124,6 +96,23 @@ export function EntryRequirementsView({
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          {internalEnglishTestOffered && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              <GraduationCap size={14} className="shrink-0" />
+              This university offers its own English test —{" "}
+              <span className="font-semibold">
+                {internalEnglishTestFree ? "free" : `fee: ${currencySymbol}${(internalEnglishTestFee ?? 0).toLocaleString()}`}
+              </span>
+            </div>
+          )}
+          {level === "Postgraduate" && moiAccepted && (
+            <div className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              <p className="flex items-center gap-2 font-semibold"><GraduationCap size={14} className="shrink-0" /> Accepts MOI (Medium of Instruction)</p>
+              {(moiAcceptedUniversities ?? []).length > 0 && (
+                <p className="mt-1 text-emerald-700">From: {moiAcceptedUniversities!.join(", ")}</p>
+              )}
             </div>
           )}
         </div>

@@ -4,7 +4,7 @@ import { X, CheckCircle2 } from "lucide-react";
 import { Chip } from "../../components/ui/mobile";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { createApplication } from "../../data/applicationsStore";
-import { campusesFor } from "../../utils/universityFilter";
+import { campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
 import type { University } from "../../types";
 
 type Course = University["courses"][number];
@@ -20,6 +20,10 @@ export function ApplyModal({
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const campuses = campusesFor(university, course.feeUSD);
+  const openIntakes = (course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes).filter(
+    (m) => !!university.intakeStatus?.[m]
+  );
+  const canApply = courseHasOpenIntake(university, course);
 
   async function confirm() {
     if (!intake || !campus) return;
@@ -77,27 +81,35 @@ export function ApplyModal({
               </button>
             </div>
 
-            <p className="mt-4 text-xs font-medium text-slate-500">Select a campus</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {campuses.map((c) => (
-                <Chip key={c.name} label={c.name} selected={campus === c.name} onClick={() => setCampus(c.name)} />
-              ))}
-            </div>
+            {!canApply ? (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
+                Applications aren't currently open for this course — check back once its intake opens.
+              </p>
+            ) : (
+              <>
+                <p className="mt-4 text-xs font-medium text-slate-500">Select a campus</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {campuses.map((c) => (
+                    <Chip key={c.name} label={c.name} selected={campus === c.name} onClick={() => setCampus(c.name)} />
+                  ))}
+                </div>
 
-            <p className="mt-4 text-xs font-medium text-slate-500">Select an intake</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {university.intakes.map((i) => (
-                <Chip key={i} label={i} selected={intake === i} onClick={() => setIntake(i)} />
-              ))}
-            </div>
+                <p className="mt-4 text-xs font-medium text-slate-500">Select an intake</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {openIntakes.map((i) => (
+                    <Chip key={i} label={i} selected={intake === i} onClick={() => setIntake(i)} />
+                  ))}
+                </div>
 
-            <button
-              onClick={confirm}
-              disabled={!intake || !campus}
-              className="mt-5 w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
-            >
-              Confirm Application
-            </button>
+                <button
+                  onClick={confirm}
+                  disabled={!intake || !campus}
+                  className="mt-5 w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
+                >
+                  Confirm Application
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

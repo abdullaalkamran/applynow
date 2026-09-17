@@ -13,13 +13,25 @@ import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
 import { AGENTS, DOCUMENTS } from "../../../data/mockData";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { createApplication } from "../../../data/applicationsStore";
-import { destinationOptions, campusesFor } from "../../../utils/universityFilter";
+import { destinationOptions, campusesFor, courseHasOpenIntake } from "../../../utils/universityFilter";
 import { isSeenByCounsellor, markSeenByCounsellor } from "../../../data/counsellorSeenApplicationsStore";
 import { buildChecklist } from "../../../utils/documentChecklist";
 import { loadUploadedDocs, addUploadedDoc } from "../../../data/applicationDocsStore";
 import { loadDocDueDate, dueDateTone as docDueTone } from "../../../data/documentDueDatesStore";
 import { loadNextSteps, dueDateTone as stepDueTone } from "../../../data/applicationNextStepsStore";
-import type { Student } from "../../../types";
+import type { Student, University } from "../../../types";
+
+/** The open intake months for one course — course's own `intakes` subset when set, else the
+ * university's full list, filtered down to the ones actually marked open. */
+function openIntakesFor(university: University, course: University["courses"][number]): string[] {
+  const months = course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes;
+  return months.filter((m) => !!university.intakeStatus?.[m]);
+}
+
+/** The first course with at least one open intake — undefined if none of them have one. */
+function firstOpenCourse(university: University | undefined): University["courses"][number] | undefined {
+  return university?.courses.find((c) => courseHasOpenIntake(university, c));
+}
 
 const BUCKET_TABS: (PipelineBucket | "All" | "New")[] = ["All", "New", "Documents", "Under Review", "Offer Received", "Visa Process", "Enrolled"];
 const SOURCE_CARDS = ["Agents", "Platform"] as const;
@@ -453,13 +465,15 @@ function CreateApplicationModal({
   const universitiesInCountry = UNIVERSITIES.filter((u) => u.country === country);
   const [universityId, setUniversityId] = useState(universitiesInCountry[0]?.id ?? "");
   const university = UNIVERSITIES.find((u) => u.id === universityId);
-  const [courseName, setCourseName] = useState(university?.courses[0]?.name ?? "");
+  const openCourses = university?.courses.filter((c) => courseHasOpenIntake(university, c)) ?? [];
+  const [courseName, setCourseName] = useState(firstOpenCourse(university)?.name ?? "");
   const course = university?.courses.find((c) => c.name === courseName);
   const campuses = university && course ? campusesFor(university, course.feeUSD) : [];
   const [campus, setCampus] = useState(campuses[0]?.name ?? "");
-  const [intake, setIntake] = useState(university?.intakes[0] ?? "");
+  const openIntakes = university && course ? openIntakesFor(university, course) : [];
+  const [intake, setIntake] = useState(openIntakes[0] ?? "");
   const student = students.find((s) => s.id === studentId);
-  const canSubmit = !!student && !!university && !!courseName && !!campus && !!intake;
+  const canSubmit = !!student && !!university && !!course && courseHasOpenIntake(university, course) && !!campus && !!intake;
 
   return (
     <Modal title="Create application" onClose={onClose}>
@@ -480,10 +494,10 @@ function CreateApplicationModal({
               const inCountry = UNIVERSITIES.filter((u) => u.country === v);
               const u = inCountry[0];
               setUniversityId(u?.id ?? "");
-              const c = u?.courses[0];
+              const c = firstOpenCourse(u);
               setCourseName(c?.name ?? "");
               setCampus((u && c ? campusesFor(u, c.feeUSD) : [])[0]?.name ?? "");
-              setIntake(u?.intakes[0] ?? "");
+              setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
             className={SELECT_CLASS}
           >
@@ -499,10 +513,10 @@ function CreateApplicationModal({
               const v = e.target.value;
               setUniversityId(v);
               const u = UNIVERSITIES.find((x) => x.id === v);
-              const c = u?.courses[0];
+              const c = firstOpenCourse(u);
               setCourseName(c?.name ?? "");
               setCampus((u && c ? campusesFor(u, c.feeUSD) : [])[0]?.name ?? "");
-              setIntake(u?.intakes[0] ?? "");
+              setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
             className={SELECT_CLASS}
           >
@@ -519,10 +533,14 @@ function CreateApplicationModal({
                 setCourseName(v);
                 const c = university.courses.find((x) => x.name === v);
                 setCampus((c ? campusesFor(university, c.feeUSD) : [])[0]?.name ?? "");
+                setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
               }}
-              options={university.courses.map((c) => c.name)}
+              options={openCourses.map((c) => c.name)}
               placeholder="Search subjects…"
             />
+            {openCourses.length === 0 && (
+              <p className="mt-1 text-[11px] text-rose-500">No courses at this university currently have an open intake.</p>
+            )}
           </Field>
         )}
         <Field label="Campus">
@@ -534,10 +552,11 @@ function CreateApplicationModal({
         </Field>
         <Field label="Intake">
           <select value={intake} onChange={(e) => setIntake(e.target.value)} className={SELECT_CLASS}>
-            {(university?.intakes ?? []).map((i) => (
+            {openIntakes.map((i) => (
               <option key={i} value={i}>{i}</option>
             ))}
           </select>
+          {openIntakes.length === 0 && <p className="mt-1 text-[11px] text-rose-500">This course has no open intake right now.</p>}
         </Field>
         <Button
           className="w-full justify-center"

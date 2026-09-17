@@ -6,8 +6,10 @@ import {
 } from "lucide-react";
 import { Modal, Button } from "../../../components/ui";
 import { SkylineArt } from "../../../components/ui/mobile";
-import { COUNSELLORS, UNIVERSITIES } from "../../../data/mockData";
+import { COUNSELLORS } from "../../../data/mockData";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { createApplication } from "../../../data/applicationsStore";
+import { campusesFor, courseHasOpenIntake } from "../../../utils/universityFilter";
 import { COUNSELLOR_ID, activeApplicationsFor, VISA_BUCKET_STATUSES } from "../../../utils/counsellorData";
 import { loadAssignedStudents, addStudent } from "../../../data/counsellorStudentsStore";
 import {
@@ -15,7 +17,19 @@ import {
 } from "../../../data/counsellorMeetingsStore";
 import { getStaffMessages, markMessageRead } from "../../../data/counsellorMessagesStore";
 import { getStatTrends } from "../../../data/staffStatsSnapshotStore";
-import type { Student } from "../../../types";
+import type { Student, University } from "../../../types";
+
+/** The open intake months for one course — course's own `intakes` subset when set, else the
+ * university's full list, filtered down to the ones actually marked open. */
+function openIntakesFor(university: University, course: University["courses"][number]): string[] {
+  const months = course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes;
+  return months.filter((m) => !!university.intakeStatus?.[m]);
+}
+
+/** The first course with at least one open intake — undefined if none of them have one. */
+function firstOpenCourse(university: University | undefined): University["courses"][number] | undefined {
+  return university?.courses.find((c) => courseHasOpenIntake(university, c));
+}
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -364,13 +378,19 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void; onAdded: (
 function CreateApplicationModal({
   assigned, onClose, onCreated,
 }: { assigned: Student[]; onClose: () => void; onCreated: () => void }) {
+  const UNIVERSITIES = getAllUniversities();
   const [studentId, setStudentId] = useState(assigned[0]?.id ?? "");
   const [universityId, setUniversityId] = useState(UNIVERSITIES[0]?.id ?? "");
   const university = UNIVERSITIES.find((u) => u.id === universityId);
-  const [courseName, setCourseName] = useState(university?.courses[0]?.name ?? "");
-  const [intake, setIntake] = useState(university?.openIntake ?? "");
+  const openCourses = university?.courses.filter((c) => courseHasOpenIntake(university, c)) ?? [];
+  const [courseName, setCourseName] = useState(firstOpenCourse(university)?.name ?? "");
+  const course = university?.courses.find((c) => c.name === courseName);
+  const campuses = university && course ? campusesFor(university, course.feeUSD) : [];
+  const [campus, setCampus] = useState(campuses[0]?.name ?? "");
+  const openIntakes = university && course ? openIntakesFor(university, course) : [];
+  const [intake, setIntake] = useState(openIntakes[0] ?? "");
   const student = assigned.find((s) => s.id === studentId);
-  const canSubmit = !!student && !!university && !!courseName && !!intake;
+  const canSubmit = !!student && !!university && !!course && courseHasOpenIntake(university, course) && !!campus && !!intake;
 
   return (
     <Modal title="Create application" onClose={onClose}>
@@ -382,21 +402,46 @@ function CreateApplicationModal({
           onChange={(v) => {
             setUniversityId(v);
             const u = UNIVERSITIES.find((x) => x.id === v);
-            setCourseName(u?.courses[0]?.name ?? "");
-            setIntake(u?.openIntake ?? "");
+            const c = firstOpenCourse(u);
+            setCourseName(c?.name ?? "");
+            setCampus((u && c ? campusesFor(u, c.feeUSD) : [])[0]?.name ?? "");
+            setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
           }}
           options={UNIVERSITIES.map((u) => ({ value: u.id, label: u.name }))}
         />
         {university && (
-          <SelectField label="Course" value={courseName} onChange={setCourseName} options={university.courses.map((c) => ({ value: c.name, label: c.name }))} />
+          openCourses.length > 0 ? (
+            <SelectField
+              label="Course"
+              value={courseName}
+              onChange={(v) => {
+                setCourseName(v);
+                const c = university.courses.find((x) => x.name === v);
+                setCampus((c ? campusesFor(university, c.feeUSD) : [])[0]?.name ?? "");
+                setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
+              }}
+              options={openCourses.map((c) => ({ value: c.name, label: c.name }))}
+            />
+          ) : (
+            <p className="text-[11px] text-rose-500">No courses at this university currently have an open intake.</p>
+          )
         )}
-        <ModalField label="Intake" value={intake} onChange={setIntake} placeholder="e.g. September 2027" />
+        {university && course && (
+          <SelectField label="Campus" value={campus} onChange={setCampus} options={campuses.map((c) => ({ value: c.name, label: c.name }))} />
+        )}
+        {university && course && (
+          openIntakes.length > 0 ? (
+            <SelectField label="Intake" value={intake} onChange={setIntake} options={openIntakes.map((i) => ({ value: i, label: i }))} />
+          ) : (
+            <p className="text-[11px] text-rose-500">This course has no open intake right now.</p>
+          )
+        )}
         <Button
           className="w-full justify-center"
           disabled={!canSubmit}
           onClick={async () => {
-            if (!student || !university) return;
-            await createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus: "Main Campus" });
+            if (!student || !university || !course) return;
+            await createApplication({ studentId: student.id, university: university.name, course: courseName, intake, country: university.country, campus });
             onCreated();
             onClose();
           }}

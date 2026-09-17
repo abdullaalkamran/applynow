@@ -4,7 +4,7 @@
 // Universities (partner universities in this country), and Subjects (every distinct field of
 // study offered here).
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { GraduationCap, Award, BookOpen } from "lucide-react";
 import { BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
@@ -18,6 +18,7 @@ import { activeApplicationsFor } from "../../../utils/counsellorData";
 const TABS = ["Overview", "Universities", "Subjects"] as const;
 
 export default function CounsellorCountryDetail() {
+  const navigate = useNavigate();
   const { country: countryParam } = useParams();
   const country = countryParam ? decodeURIComponent(countryParam) : "";
   const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
@@ -76,7 +77,11 @@ export default function CounsellorCountryDetail() {
           {universities.map((u) => {
             const activeFromMyStudents = allActiveApps.filter((a) => a.university === u.name).length;
             return (
-              <div key={u.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+              <div
+                key={u.id}
+                onClick={() => navigate(`/staff/counsellor/partners/universities/${u.id}`)}
+                className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)] hover:border-slate-200"
+              >
                 <div className="flex items-start gap-3">
                   <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
                   <div className="min-w-0">

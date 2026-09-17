@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui";
 import { getAllSubjects, addSubject } from "../../../data/subjectsStore";
-import { getAllCountries } from "../../../data/countryRegistry";
+import { getAllUgcUniversitiesBD, addUgcUniversityBD } from "../../../data/bangladeshUniversities";
+import { getAllCountries, getCountryByName, addCurrencyToCountry } from "../../../data/countryRegistry";
 import { getUniversityById, addUniversity, updateUniversity } from "../../../data/universityCatalogStore";
 import { TEST_NAME_OPTIONS } from "../../../utils/universityFilter";
 import type { University } from "../../../types";
@@ -14,6 +15,11 @@ type EnglishReq = NonNullable<University["englishRequirements"]>["undergraduate"
 type Scholarship = NonNullable<University["scholarships"]>[number];
 const TONES: University["tone"][] = ["violet", "amber", "teal", "rose"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+// Shown alongside whatever the selected country's own currencySymbols list has, so the picklist
+// is never empty for a country that hasn't had its currencies configured yet.
+const DEFAULT_CURRENCY_SYMBOLS = ["$", "£", "€", "A$", "C$"];
+const MIN_TUITION_FEE = 18000;
+const MAX_TUITION_FEE = 40000;
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -95,21 +101,29 @@ function EnglishTestsEditor({ tests, onChange }: { tests: EnglishReq[]; onChange
   );
 }
 
+// Each offered month keeps its own `year` — a university can have more than one intake open at
+// once (e.g. September and January), and those don't necessarily fall in the same year, so one
+// shared "intake year" field couldn't express both correctly.
 type MonthState = Record<
   string,
-  { offered: boolean; open: boolean; applicationDeadline: string; casRequestDeadline: string; enrollmentDate: string }
+  { offered: boolean; open: boolean; year: string; applicationDeadline: string; casRequestDeadline: string; enrollmentDate: string }
 >;
 
 function initMonthState(existing?: University): MonthState {
   const offered = new Set(existing?.intakes ?? []);
   const openMap = existing?.intakeStatus ?? {};
   const datesMap = existing?.intakeDates ?? {};
-  const openIntakeMonth = existing?.openIntake?.split(" ")[0];
+  const openIntakeParts = (existing?.openIntake ?? "").split(" ");
+  const openIntakeMonth = openIntakeParts[0];
+  const openIntakeYear = openIntakeParts[1];
+  const defaultYear = String(new Date().getFullYear() + 1);
   const state: MonthState = {};
   MONTHS.forEach((m) => {
+    const enrollmentYear = datesMap[m]?.enrollmentDate?.slice(0, 4);
     state[m] = {
       offered: offered.has(m),
       open: openMap[m] ?? m === openIntakeMonth,
+      year: enrollmentYear || (m === openIntakeMonth && openIntakeYear ? openIntakeYear : defaultYear),
       applicationDeadline: datesMap[m]?.applicationDeadline ?? "",
       casRequestDeadline: datesMap[m]?.casRequestDeadline ?? "",
       enrollmentDate: datesMap[m]?.enrollmentDate ?? "",
@@ -139,14 +153,14 @@ export default function DataUniversityForm() {
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(existing?.coverPhotoUrl ?? "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [worldRank, setWorldRank] = useState(existing?.worldRank ?? "#100");
+  const [qsRanking, setQsRanking] = useState(existing?.qsRanking ?? "");
+  const [timesHigherRanking, setTimesHigherRanking] = useState(existing?.timesHigherRanking ?? "");
   const [employability, setEmployability] = useState(existing?.employability ?? "85%");
   const [studentCount, setStudentCount] = useState(existing?.studentCount ?? "20,000+");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [highlights, setHighlights] = useState((existing?.highlights ?? []).join("\n"));
   const [tags, setTags] = useState((existing?.tags ?? []).join(", "));
   const [monthState, setMonthState] = useState<MonthState>(() => initMonthState(existing));
-  const [intakeYear, setIntakeYear] = useState(() => existing?.openIntake?.split(" ")[1] ?? String(new Date().getFullYear() + 1));
   const [undergraduateRequirements, setUndergraduateRequirements] = useState((existing?.requirements?.undergraduate ?? []).join("\n"));
   const [postgraduateRequirements, setPostgraduateRequirements] = useState((existing?.requirements?.postgraduate ?? []).join("\n"));
   const [accreditations, setAccreditations] = useState((existing?.accreditations ?? []).join(", "));
@@ -154,11 +168,15 @@ export default function DataUniversityForm() {
   const [scholarships, setScholarships] = useState<Scholarship[]>(existing?.scholarships ?? []);
   const [minGPA, setMinGPA] = useState(String(existing?.minGPA ?? 3.0));
   const [currencySymbol, setCurrencySymbol] = useState(existing?.currencySymbol ?? "$");
+  const [addingNewCurrency, setAddingNewCurrency] = useState(false);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(existing?.subjects ?? []);
   const [fees, setFees] = useState<Fee[]>(existing?.fees ?? [blankFee()]);
   const [depositMode, setDepositMode] = useState<"custom" | "half" | "full">(existing?.depositMode ?? "custom");
   const [minimumDepositAmount, setMinimumDepositAmount] = useState(String(existing?.minimumDepositAmount ?? ""));
   const [paymentDeadline, setPaymentDeadline] = useState(existing?.paymentDeadline ?? "");
   const [depositRules, setDepositRules] = useState((existing?.depositRules ?? []).join("\n"));
+  const [admissionSteps, setAdmissionSteps] = useState((existing?.admissionSteps ?? []).join("\n"));
+  const [restrictedRegions, setRestrictedRegions] = useState((existing?.restrictedRegions ?? []).join("\n"));
   const tuitionFeeAmount = fees.find((f) => f.label.trim().toLowerCase() === "tuition fee")?.amount ?? 0;
   const effectiveDepositAmount =
     depositMode === "half" ? Math.round(tuitionFeeAmount * 0.5)
@@ -171,8 +189,21 @@ export default function DataUniversityForm() {
   const [campuses, setCampuses] = useState<Campus[]>(existing?.campuses ?? []);
   const [undergraduateEnglishTests, setUndergraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.undergraduate ?? []);
   const [postgraduateEnglishTests, setPostgraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.postgraduate ?? []);
+  const [moiAccepted, setMoiAccepted] = useState(existing?.moiAccepted ?? false);
+  const [moiUniversities, setMoiUniversities] = useState<string[]>(existing?.moiAcceptedUniversities ?? []);
+  const [moiSearch, setMoiSearch] = useState("");
+  const [newMoiUniversity, setNewMoiUniversity] = useState("");
+  const [internalTestOffered, setInternalTestOffered] = useState(existing?.internalEnglishTestOffered ?? false);
+  const [internalTestFree, setInternalTestFree] = useState(existing?.internalEnglishTestFree ?? true);
+  const [internalTestFee, setInternalTestFee] = useState(String(existing?.internalEnglishTestFee ?? ""));
 
   const canSubmit = name.trim() && city.trim() && country.trim() && courses.every((c) => c.name.trim());
+  // The selected country's own currencies first, then the generic fallbacks, deduped — so the
+  // picklist always has something even for a country that hasn't had its currencies set yet, but
+  // still surfaces that country's real ones first.
+  const currencyOptions = Array.from(
+    new Set([...(getCountryByName(country)?.currencySymbols ?? []), ...DEFAULT_CURRENCY_SYMBOLS, currencySymbol])
+  );
   const backTarget = existing
     ? `/staff/data/universities/${existing.id}`
     : country.trim() ? `/staff/data/countries/${encodeURIComponent(country.trim())}` : "/staff/data";
@@ -182,7 +213,25 @@ export default function DataUniversityForm() {
     if (!trimmed) return;
     const created = addSubject(trimmed);
     setNewSubject("");
+    setSelectedSubjects((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
     if (created) forceTick((t) => t + 1);
+  }
+
+  function toggleMoiUniversity(name: string) {
+    setMoiUniversities((prev) => (prev.includes(name) ? prev.filter((u) => u !== name) : [...prev, name]));
+  }
+
+  function handleAddMoiUniversity() {
+    const trimmed = newMoiUniversity.trim();
+    if (!trimmed) return;
+    const created = addUgcUniversityBD(trimmed);
+    setNewMoiUniversity("");
+    setMoiUniversities((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    if (created) forceTick((t) => t + 1);
+  }
+
+  function toggleSubject(subject: string) {
+    setSelectedSubjects((prev) => (prev.includes(subject) ? prev.filter((s) => s !== subject) : [...prev, subject]));
   }
 
   async function handleLogoPicked(file: File | undefined) {
@@ -217,6 +266,9 @@ export default function DataUniversityForm() {
   function updateMonthDate(month: string, field: "applicationDeadline" | "casRequestDeadline" | "enrollmentDate", value: string) {
     setMonthState((prev) => ({ ...prev, [month]: { ...prev[month], [field]: value } }));
   }
+  function updateMonthYear(month: string, value: string) {
+    setMonthState((prev) => ({ ...prev, [month]: { ...prev[month], year: value } }));
+  }
 
   function updateFee(i: number, patch: Partial<Fee>) {
     setFees((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
@@ -228,11 +280,16 @@ export default function DataUniversityForm() {
     setScholarships((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
   function handleSubmit() {
+    if (addingNewCurrency) addCurrencyToCountry(country, currencySymbol);
+
     const offeredMonths = MONTHS.filter((m) => monthState[m].offered);
     const openMonths = offeredMonths.filter((m) => monthState[m].open);
     const intakeStatus: Record<string, boolean> = {};
     offeredMonths.forEach((m) => { intakeStatus[m] = monthState[m].open; });
-    const firstOpen = openMonths[0] ?? offeredMonths[0];
+    // A university can have more than one intake open at once, each in its own year (e.g.
+    // "September 2026, January 2027") — falls back to the first offered-but-closed month so the
+    // field isn't blank when nothing's currently open.
+    const displayMonths = openMonths.length > 0 ? openMonths : offeredMonths.slice(0, 1);
 
     const intakeDates: NonNullable<University["intakeDates"]> = {};
     offeredMonths.forEach((m) => {
@@ -254,17 +311,19 @@ export default function DataUniversityForm() {
       tone,
       logoUrl: logoUrl || undefined,
       coverPhotoUrl: coverPhotoUrl || undefined,
-      worldRank,
+      worldRank: qsRanking.trim() || timesHigherRanking.trim() || existing?.worldRank || "#100",
+      qsRanking: qsRanking.trim() || undefined,
+      timesHigherRanking: timesHigherRanking.trim() || undefined,
       employability,
       studentCount,
       description: description.trim(),
       highlights: highlights.split("\n").map((s) => s.trim()).filter(Boolean),
       tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
-      subjects: Array.from(new Set(courses.map((c) => c.subject).filter(Boolean))),
+      subjects: selectedSubjects,
       intakes: offeredMonths,
       intakeStatus,
       intakeDates,
-      openIntake: firstOpen ? `${firstOpen} ${intakeYear}` : "",
+      openIntake: displayMonths.map((m) => `${m} ${monthState[m].year}`).join(", "),
       requirements: {
         undergraduate: undergraduateRequirements.split("\n").map((s) => s.trim()).filter(Boolean),
         postgraduate: postgraduateRequirements.split("\n").map((s) => s.trim()).filter(Boolean),
@@ -281,12 +340,19 @@ export default function DataUniversityForm() {
         undergraduate: cleanEnglishTests(undergraduateEnglishTests),
         postgraduate: cleanEnglishTests(postgraduateEnglishTests),
       },
+      moiAccepted,
+      moiAcceptedUniversities: moiAccepted ? moiUniversities : [],
+      internalEnglishTestOffered: internalTestOffered,
+      internalEnglishTestFree: internalTestOffered ? internalTestFree : undefined,
+      internalEnglishTestFee: internalTestOffered && !internalTestFree ? Number(internalTestFee) || 0 : undefined,
       currencySymbol,
       fees: fees.filter((f) => f.label.trim()),
       minimumDepositAmount: effectiveDepositAmount || undefined,
       depositMode,
       paymentDeadline: paymentDeadline || undefined,
       depositRules: depositRules.split("\n").map((s) => s.trim()).filter(Boolean),
+      admissionSteps: admissionSteps.split("\n").map((s) => s.trim()).filter(Boolean),
+      restrictedRegions: restrictedRegions.split("\n").map((s) => s.trim()).filter(Boolean),
       campuses: campuses.filter((c) => c.name.trim()),
       courses: courses.filter((c) => c.name.trim()).map((c) => ({ ...c, subject: c.subject || getAllSubjects()[0] })),
     };
@@ -344,7 +410,27 @@ export default function DataUniversityForm() {
                 {TONES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
-            <Field label="Currency symbol"><Input value={currencySymbol} onChange={setCurrencySymbol} placeholder="e.g. £, $, €, A$, C$" /></Field>
+            <Field label="Currency (used for fees & scholarship amounts)">
+              <select
+                value={addingNewCurrency ? "__new__" : currencySymbol}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") setAddingNewCurrency(true);
+                  else { setAddingNewCurrency(false); setCurrencySymbol(e.target.value); }
+                }}
+                className={SELECT_CLASS}
+              >
+                {currencyOptions.map((sym) => <option key={sym} value={sym}>{sym}</option>)}
+                <option value="__new__">+ Add a custom currency…</option>
+              </select>
+              {addingNewCurrency && (
+                <input
+                  value={currencySymbol}
+                  onChange={(e) => setCurrencySymbol(e.target.value)}
+                  placeholder="Type a new currency symbol, e.g. ¥, NZ$, HK$"
+                  className={`mt-2 ${BASE_INPUT_CLASS} w-full`}
+                />
+              )}
+            </Field>
           </div>
 
           <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -396,13 +482,6 @@ export default function DataUniversityForm() {
               <div key={c.id} className="flex flex-wrap items-center gap-2">
                 <Input value={c.name} onChange={(v) => updateCampus(i, { name: v })} placeholder="Campus name, e.g. City Centre Campus" className="min-w-[160px] flex-1" />
                 <Input value={c.city} onChange={(v) => updateCampus(i, { city: v })} placeholder="City" className="w-32" />
-                <Input
-                  type="number"
-                  value={c.feeUSD !== undefined ? String(c.feeUSD) : ""}
-                  onChange={(v) => updateCampus(i, { feeUSD: v ? Number(v) || 0 : undefined })}
-                  placeholder="Fee override (optional)"
-                  className="w-40"
-                />
                 <button onClick={() => setCampuses((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove campus" className="shrink-0 text-slate-300 hover:text-rose-500">
                   <Trash2 size={15} />
                 </button>
@@ -412,8 +491,11 @@ export default function DataUniversityForm() {
         </Section>
 
         <Section title="Rankings & Stats">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label="World rank"><Input value={worldRank} onChange={setWorldRank} placeholder="#32" /></Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="QS World Ranking"><Input value={qsRanking} onChange={setQsRanking} placeholder="#32" /></Field>
+            <Field label="Times Higher Education Ranking"><Input value={timesHigherRanking} onChange={setTimesHigherRanking} placeholder="#45" /></Field>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Employability"><Input value={employability} onChange={setEmployability} placeholder="93%" /></Field>
             <Field label="Student count"><Input value={studentCount} onChange={setStudentCount} placeholder="40,000+" /></Field>
           </div>
@@ -433,14 +515,16 @@ export default function DataUniversityForm() {
 
         <Section title="Subjects offered">
           <p className="text-[11px] text-slate-400">
-            Detected automatically from the subject picked for each course below — this university shows up when a student or agent
-            browses by subject only once a course here carries it. Add a new option to the picklist below if the one you need isn't there yet.
+            Pick every subject genre this university offers, so it shows up when a student or agent browses by subject even before a
+            specific course is added under it. Whatever subject a course below carries is always included too, automatically.
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {Array.from(new Set(courses.map((c) => c.subject).filter(Boolean))).map((s) => (
-              <span key={s} className="rounded-full bg-[var(--brand-50)] px-2.5 py-1 text-xs font-medium text-[var(--brand-700)]">{s}</span>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {getAllSubjects().map((s) => (
+              <label key={s} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-[11.5px] text-slate-700">
+                <input type="checkbox" checked={selectedSubjects.includes(s)} onChange={() => toggleSubject(s)} />
+                {s}
+              </label>
             ))}
-            {courses.every((c) => !c.subject) && <p className="text-xs text-slate-400">No courses with a subject yet.</p>}
           </div>
           <div className="flex items-center gap-2 pt-1">
             <Input
@@ -460,7 +544,10 @@ export default function DataUniversityForm() {
         </Section>
 
         <Section title="Intakes">
-          <p className="text-xs text-slate-400">Toggle every month this university runs an intake, then mark which of those are currently open for applications.</p>
+          <p className="text-xs text-slate-400">
+            Toggle every month this university runs an intake, then mark which of those are currently open for applications — more than
+            one can be open at once, each with its own year, e.g. "September 2026" and "January 2027" open at the same time.
+          </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {MONTHS.map((m) => (
               <div key={m} className="rounded-lg border border-slate-200 px-3 py-2">
@@ -470,14 +557,23 @@ export default function DataUniversityForm() {
                     {m}
                   </label>
                   {monthState[m].offered && (
-                    <button
-                      onClick={() => toggleMonthOpen(m)}
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        monthState[m].open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {monthState[m].open ? "Open" : "Closed"}
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <input
+                        type="number"
+                        value={monthState[m].year}
+                        onChange={(e) => updateMonthYear(m, e.target.value)}
+                        aria-label={`${m} intake year`}
+                        className="w-16 rounded-md border border-slate-200 px-1.5 py-1 text-[11px] text-slate-800"
+                      />
+                      <button
+                        onClick={() => toggleMonthOpen(m)}
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          monthState[m].open ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {monthState[m].open ? "Open" : "Closed"}
+                      </button>
+                    </div>
                   )}
                 </div>
                 {monthState[m].offered && (
@@ -514,9 +610,6 @@ export default function DataUniversityForm() {
               </div>
             ))}
           </div>
-          <Field label="Year shown for the currently-open intake">
-            <input type="number" value={intakeYear} onChange={(e) => setIntakeYear(e.target.value)} className={`${BASE_INPUT_CLASS} w-32`} />
-          </Field>
         </Section>
 
         <Section title="Academic Requirements">
@@ -562,7 +655,7 @@ export default function DataUniversityForm() {
               <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
                 <div className="flex items-center gap-2">
                   <Input value={s.name} onChange={(v) => updateScholarship(i, { name: v })} placeholder="Scholarship name, e.g. Vice-Chancellor's Excellence Scholarship" className="flex-1" />
-                  <Input value={s.amount} onChange={(v) => updateScholarship(i, { amount: v })} placeholder="Amount, e.g. Up to $10,000" className="w-48" />
+                  <Input value={s.amount} onChange={(v) => updateScholarship(i, { amount: v })} placeholder={`Amount, e.g. Up to ${currencySymbol}10,000`} className="w-48" />
                   <button onClick={() => setScholarships((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove scholarship" className="shrink-0 text-slate-300 hover:text-rose-500">
                     <Trash2 size={15} />
                   </button>
@@ -606,6 +699,87 @@ export default function DataUniversityForm() {
               <EnglishTestsEditor tests={postgraduateEnglishTests} onChange={setPostgraduateEnglishTests} />
             </div>
           </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <input type="checkbox" checked={moiAccepted} onChange={(e) => setMoiAccepted(e.target.checked)} />
+              Accepts MOI (Medium of Instruction) — Postgraduate only
+            </label>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Lets a postgraduate applicant submit an MOI letter instead of a formal English test, if their undergraduate degree was
+              taught in English at one of the universities selected below.
+            </p>
+            {moiAccepted && (
+              <div className="mt-3">
+                <Input value={moiSearch} onChange={setMoiSearch} placeholder="Search universities…" className="mb-2 w-full" />
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-2">
+                  {getAllUgcUniversitiesBD()
+                    .filter((u) => u.toLowerCase().includes(moiSearch.trim().toLowerCase()))
+                    .map((u) => (
+                      <label key={u} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50">
+                        <input type="checkbox" checked={moiUniversities.includes(u)} onChange={() => toggleMoiUniversity(u)} />
+                        {u}
+                      </label>
+                    ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-slate-400">{moiUniversities.length} selected</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input
+                    value={newMoiUniversity}
+                    onChange={setNewMoiUniversity}
+                    placeholder="University missing from this list? Add it here"
+                    className="flex-1"
+                  />
+                  <button
+                    onClick={handleAddMoiUniversity}
+                    disabled={!newMoiUniversity.trim()}
+                    className="flex shrink-0 items-center gap-1 rounded-lg bg-[var(--brand-600)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+                  >
+                    <Plus size={13} /> Add
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <input type="checkbox" checked={internalTestOffered} onChange={(e) => setInternalTestOffered(e.target.checked)} />
+              Offers its own internal English test — Undergraduate & Postgraduate
+            </label>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Some universities run their own English test in place of IELTS/TOEFL — free for some, a paid fee for others.
+            </p>
+            {internalTestOffered && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <div className="flex gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setInternalTestFree(true)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium ${internalTestFree ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                  >
+                    Free
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInternalTestFree(false)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium ${!internalTestFree ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                  >
+                    Paid
+                  </button>
+                </div>
+                {!internalTestFree && (
+                  <Input
+                    type="number"
+                    value={internalTestFee}
+                    onChange={setInternalTestFee}
+                    placeholder={`Fee (${currencySymbol})`}
+                    className="w-36"
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </Section>
 
         <Section title="Fees" action={
@@ -614,15 +788,37 @@ export default function DataUniversityForm() {
           </button>
         }>
           <div className="space-y-2">
-            {fees.map((f, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <Input value={f.label} onChange={(v) => updateFee(i, { label: v })} placeholder="Tuition Fee" className="flex-1" />
-                <Input type="number" value={String(f.amount)} onChange={(v) => updateFee(i, { amount: Number(v) || 0 })} className="w-32" />
-                <button onClick={() => setFees((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove fee line" className="shrink-0 text-slate-300 hover:text-rose-500">
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            ))}
+            {fees.map((f, i) => {
+              const isTuition = f.label.trim().toLowerCase() === "tuition fee";
+              return (
+                <div key={i} className="space-y-1.5 rounded-lg border border-slate-100 p-2">
+                  <div className="flex items-center gap-2">
+                    <Input value={f.label} onChange={(v) => updateFee(i, { label: v })} placeholder="Tuition Fee" className="flex-1" />
+                    <span className="shrink-0 text-xs font-medium text-slate-400">{currencySymbol}</span>
+                    <Input type="number" value={String(f.amount)} onChange={(v) => updateFee(i, { amount: Number(v) || 0 })} className="w-32" />
+                    <button onClick={() => setFees((prev) => prev.filter((_, idx) => idx !== i))} aria-label="Remove fee line" className="shrink-0 text-slate-300 hover:text-rose-500">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                  {isTuition && (
+                    <div className="flex items-center gap-2 pl-1">
+                      <input
+                        type="range"
+                        min={MIN_TUITION_FEE}
+                        max={MAX_TUITION_FEE}
+                        step={500}
+                        value={Math.min(Math.max(f.amount, MIN_TUITION_FEE), MAX_TUITION_FEE)}
+                        onChange={(e) => updateFee(i, { amount: Number(e.target.value) })}
+                        className="flex-1 accent-[var(--brand-600)]"
+                      />
+                      <span className="w-32 shrink-0 text-right text-[11px] text-slate-400">
+                        {currencySymbol}{MIN_TUITION_FEE.toLocaleString()} – {currencySymbol}{MAX_TUITION_FEE.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Section>
 
@@ -642,8 +838,7 @@ export default function DataUniversityForm() {
                 <button
                   type="button"
                   onClick={() => setDepositMode("half")}
-                  disabled={!tuitionFeeAmount}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium disabled:opacity-40 ${
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
                     depositMode === "half" ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]" : "border-slate-200 text-slate-600 hover:border-[var(--brand-300)] hover:text-[var(--brand-600)]"
                   }`}
                 >
@@ -652,8 +847,7 @@ export default function DataUniversityForm() {
                 <button
                   type="button"
                   onClick={() => setDepositMode("full")}
-                  disabled={!tuitionFeeAmount}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium disabled:opacity-40 ${
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${
                     depositMode === "full" ? "border-[var(--brand-300)] bg-[var(--brand-50)] text-[var(--brand-700)]" : "border-slate-200 text-slate-600 hover:border-[var(--brand-300)] hover:text-[var(--brand-600)]"
                   }`}
                 >
@@ -666,7 +860,8 @@ export default function DataUniversityForm() {
                 <p className="text-sm font-semibold text-slate-800">
                   {currencySymbol}{effectiveDepositAmount.toLocaleString()}
                   <span className="ml-1.5 text-xs font-normal text-slate-400">
-                    ({depositMode === "half" ? "50%" : "100%"} of tuition fee — updates automatically)
+                    ({depositMode === "half" ? "50%" : "100%"} of tuition fee — updates automatically
+                    {!tuitionFeeAmount && ", set a Tuition Fee amount above"})
                   </span>
                 </p>
               )}
@@ -682,6 +877,34 @@ export default function DataUniversityForm() {
               rows={4}
               className={TEXTAREA_CLASS}
               placeholder={"Due within 14 days of accepting the offer\nNon-refundable if the visa application is refused\nDeducted from the first semester's tuition fee"}
+            />
+          </Field>
+        </Section>
+
+        <Section title="Admission Procedure">
+          <Field label="Application steps, in order (one per line)">
+            <textarea
+              value={admissionSteps}
+              onChange={(e) => setAdmissionSteps(e.target.value)}
+              rows={5}
+              className={TEXTAREA_CLASS}
+              placeholder={"Submit online application with academic transcripts\nReceive conditional offer letter\nPay the deposit to confirm your place\nReceive final offer and CAS/I-20\nApply for your student visa"}
+            />
+          </Field>
+        </Section>
+
+        <Section title="Restricted Regions">
+          <p className="text-[11px] text-slate-400">
+            Sub-national regions/divisions this university does not accept applicants from — based on the applicant's passport/permanent
+            address or where they studied (education board or prior institution). Shown as a clear warning, not a required field.
+          </p>
+          <Field label="Restricted regions/divisions (one per line)">
+            <textarea
+              value={restrictedRegions}
+              onChange={(e) => setRestrictedRegions(e.target.value)}
+              rows={3}
+              className={TEXTAREA_CLASS}
+              placeholder={"Sylhet Division\nChittagong Division"}
             />
           </Field>
         </Section>
