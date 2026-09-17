@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
-  ChevronRight, Check, TrendingUp, Calendar, Award,
+  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin,
 } from "lucide-react";
-import { SkylineArt, SupportRow, LogoBadge } from "../../components/ui/mobile";
+import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
 import { STUDENTS, UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
 import { loadUploadedDocs } from "../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { shortlistedCount } from "../../data/shortlistStore";
 import { getProfileCompletion } from "../../data/profileCompletion";
-import { APPLICATION_STAGES, applicationStageIndex, applicationBucket } from "../../utils/applicationStatus";
+import { APPLICATION_STAGES, applicationStageIndex, applicationBucket, applicationStatusTone } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
 import { getStudentTasks } from "../../utils/taskBoard";
 
@@ -51,6 +51,7 @@ const STEP_WIDTH = 58;
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [currentApplicationIndex, setCurrentApplicationIndex] = useState(0);
   // Starts empty and fills in on mount so the line visibly advances to the real current stage,
   // instead of just appearing already-filled.
   const [stepperFilled, setStepperFilled] = useState(false);
@@ -64,15 +65,24 @@ export default function Dashboard() {
   const myApplications = allApplications.filter(
     (a) => a.studentId === CURRENT_STUDENT_ID && !["Withdrawn", "Rejected", "Deferred"].includes(a.status)
   );
+  const activeApplications = [...myApplications].sort((a, b) => b.progress - a.progress);
   const offersCount = myApplications.filter((a) => applicationBucket(a.status) === "offer").length;
   const inProgressCount = myApplications.filter((a) => applicationBucket(a.status) === "inProgress").length;
   const savedProgramsCount = shortlistedCount();
   const unreadNotifications = unreadNotificationCount();
   const nextStepTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done).slice(0, 3);
 
-  const primaryApplication = [...myApplications].sort((a, b) => b.progress - a.progress)[0];
+  const safeApplicationIndex = activeApplications.length > 0 ? currentApplicationIndex % activeApplications.length : 0;
+  const primaryApplication = activeApplications[safeApplicationIndex];
   const primaryUniversity = primaryApplication ? UNIVERSITIES.find((u) => u.name === primaryApplication.university) : undefined;
-  const currentStageIdx = primaryApplication ? applicationStageIndex(primaryApplication.status) : 0;
+
+  useEffect(() => {
+    if (activeApplications.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setCurrentApplicationIndex((index) => (index + 1) % activeApplications.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [activeApplications.length]);
 
   const outstandingDocs = myApplications.reduce((sum, app) => {
     const university = UNIVERSITIES.find((u) => u.name === app.university);
@@ -152,58 +162,103 @@ export default function Dashboard() {
         <div className="lg:mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
           <div className="lg:col-span-2">
             {primaryApplication && (
-              <button
-                onClick={() => navigate(`/student/applications/${primaryApplication.id}`)}
-                className="mt-5 block w-full rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)] lg:mt-0"
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Current Application</p>
-                  <ChevronRight size={15} className="text-slate-300" />
-                </div>
-                <div className="mt-2 flex items-center gap-3">
-                  <LogoBadge name={primaryApplication.university} tone={primaryUniversity?.tone ?? "violet"} logoUrl={primaryUniversity?.logoUrl} className="h-11 w-11 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="truncate text-[14px] font-semibold text-slate-900">{primaryApplication.university}</p>
-                    <p className="truncate text-xs text-slate-400">{primaryApplication.course}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 overflow-x-auto pb-1">
-                  <div className="relative" style={{ width: APPLICATION_STAGES.length * STEP_WIDTH }}>
-                    <div
-                      className="absolute top-3 h-0.5 rounded-full bg-slate-200"
-                      style={{ left: STEP_WIDTH / 2, width: (APPLICATION_STAGES.length - 1) * STEP_WIDTH }}
-                    />
-                    <div
-                      className="absolute top-3 h-0.5 rounded-full bg-[#2955C4] transition-[width] duration-1000 ease-out"
-                      style={{ left: STEP_WIDTH / 2, width: stepperFilled ? currentStageIdx * STEP_WIDTH : 0 }}
-                    />
-                    <div className="relative flex">
-                      {APPLICATION_STAGES.map((stage, i) => {
-                        const done = i < currentStageIdx;
-                        const current = i === currentStageIdx;
-                        return (
-                          <div key={stage} className="flex shrink-0 flex-col items-center" style={{ width: STEP_WIDTH }}>
-                            <div className="relative flex h-6 w-6 shrink-0 items-center justify-center">
-                              {current && <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[var(--sd-ink)]/40" />}
-                              <div
-                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${
-                                  done ? "bg-[#2955C4] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
-                                }`}
-                              >
-                                {done ? <Check size={12} /> : current ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+              <div className="mt-5 lg:mt-0">
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                  <div
+                    className="flex transition-transform duration-700 ease-out"
+                    style={{ transform: `translateX(-${safeApplicationIndex * 100}%)` }}
+                  >
+                    {activeApplications.map((app, index) => {
+                      const university = UNIVERSITIES.find((u) => u.name === app.university);
+                      const stageIndex = applicationStageIndex(app.status);
+                      return (
+                        <div key={app.id} className="w-full shrink-0 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Current Application</p>
+                              <p className="mt-1 text-[11px] text-slate-400">
+                                {activeApplications.length > 1 ? `${index + 1} of ${activeApplications.length} running applications` : "1 running application"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => navigate(`/student/applications/${app.id}`)}
+                              className="flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-[#2955C4]"
+                            >
+                              Details <ChevronRight size={13} />
+                            </button>
+                          </div>
+                          <div className="mt-3 flex items-center gap-3">
+                            <LogoBadge name={app.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-11 w-11 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[14px] font-semibold text-slate-900">{app.university}</p>
+                              <p className="truncate text-xs text-slate-400">{app.course}</p>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar size={11} className="text-slate-400" /> {app.intake}
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                  <MapPin size={11} className="text-slate-400" /> {app.campus ?? "Main Campus"}
+                                </span>
                               </div>
                             </div>
-                            <p className={`mt-1.5 text-center text-[9.5px] leading-tight ${current ? "font-semibold text-[var(--sd-ink)]" : done ? "text-slate-500" : "text-slate-300"}`}>
-                              {stage.replace("Application ", "").replace(" Verified", "").replace(" Application", "")}
-                            </p>
+                            <Pill tone={applicationStatusTone(app.status)} className="hidden shrink-0 sm:inline-flex">
+                              {app.status}
+                            </Pill>
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          <div className="mt-4 overflow-x-auto pb-1">
+                            <div className="relative" style={{ width: APPLICATION_STAGES.length * STEP_WIDTH }}>
+                              <div
+                                className="absolute top-3 h-0.5 rounded-full bg-slate-200"
+                                style={{ left: STEP_WIDTH / 2, width: (APPLICATION_STAGES.length - 1) * STEP_WIDTH }}
+                              />
+                              <div
+                                className="absolute top-3 h-0.5 rounded-full bg-[#2955C4] transition-[width] duration-1000 ease-out"
+                                style={{ left: STEP_WIDTH / 2, width: stepperFilled ? stageIndex * STEP_WIDTH : 0 }}
+                              />
+                              <div className="relative flex">
+                                {APPLICATION_STAGES.map((stage, i) => {
+                                  const done = i < stageIndex;
+                                  const current = i === stageIndex;
+                                  return (
+                                    <div key={stage} className="flex shrink-0 flex-col items-center" style={{ width: STEP_WIDTH }}>
+                                      <div className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+                                        {current && <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[var(--sd-ink)]/40" />}
+                                        <div
+                                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${
+                                            done ? "bg-[#2955C4] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
+                                          }`}
+                                        >
+                                          {done ? <Check size={12} /> : current ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                                        </div>
+                                      </div>
+                                      <p className={`mt-1.5 text-center text-[9.5px] leading-tight ${current ? "font-semibold text-[var(--sd-ink)]" : done ? "text-slate-500" : "text-slate-300"}`}>
+                                        {stage.replace("Application ", "").replace(" Verified", "").replace(" Application", "")}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </button>
+                {activeApplications.length > 1 && (
+                  <div className="mt-2 flex justify-center gap-1.5">
+                    {activeApplications.map((app, index) => (
+                      <button
+                        key={app.id}
+                        onClick={() => setCurrentApplicationIndex(index)}
+                        aria-label={`Show application ${index + 1}`}
+                        className={`h-1.5 rounded-full transition-all ${index === safeApplicationIndex ? "w-5 bg-[#2955C4]" : "w-1.5 bg-slate-200"}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="mt-6 flex items-center justify-between">
