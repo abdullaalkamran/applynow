@@ -248,7 +248,7 @@ export default function CounsellorApplications() {
           };
 
           const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === app.id), ...loadUploadedDocs(app.id)];
-          const missingDocs = university ? buildChecklist(university, student.id, app.id, docs).filter((r) => !r.own && !r.reused) : [];
+          const missingDocs = buildChecklist(university, student.id, app.id, docs).filter((r) => !r.own && !r.reused);
           // Core docs (Passport, Transcript, etc.) are uploaded once via the student's own vault,
           // not per-application — surfaced here as a heads-up, not something a counsellor uploads
           // on the student's behalf. Resolves for every role the instant the student uploads it,

@@ -1,36 +1,60 @@
-// Optional due dates a counsellor can set on any checklist document type for a given
-// application — works uniformly whether the document is automatically required (core/university
-// derived) or a custom request, since it's keyed only by (applicationId, type).
+// Postgres-backed via /api/document-due-dates (server/src/routes/documentDueDates.js) — same
+// synchronous-cache pattern as every other migrated store. This used to be plain per-browser
+// localStorage, which meant a counsellor's due date on a document request was invisible to the
+// student and agent who needed to see it, and to the "Due soon"/"Overdue" flags taskBoard.ts
+// derives from it for their Tasks pages — works uniformly whether the document is automatically
+// required (core/university derived) or a custom request, since it's keyed only by
+// (applicationId, type).
+import { apiGet, apiPost, apiDelete } from "../utils/apiClient";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 
-const STORAGE_PREFIX = "sd-doc-due-dates:";
-
-function loadMap(applicationId: string): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + applicationId);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
+interface DueDateEntry {
+  id: string;
+  applicationId: string;
+  docType: string;
+  dueDate: string;
 }
 
-function saveMap(applicationId: string, map: Record<string, string>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_PREFIX + applicationId, JSON.stringify(map));
+let cache: DueDateEntry[] = [];
+
+/** Every document due date the caller's account can see — call once after login (see
+ * utils/warmCaches.ts), same as every other migrated store. */
+export async function refreshDocDueDates(): Promise<void> {
+  const next = await apiGet<DueDateEntry[]>("/api/document-due-dates");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
+  notifyCacheChange();
 }
 
 export function loadDocDueDate(applicationId: string, type: string): string | undefined {
-  return loadMap(applicationId)[type];
+  return cache.find((d) => d.applicationId === applicationId && d.docType === type)?.dueDate;
 }
 
+/** Setting an empty date clears it; otherwise it's an upsert — a document only ever has one due
+ * date, so setting a new one just moves it. */
 export function setDocDueDate(applicationId: string, type: string, dueDate: string) {
-  const map = loadMap(applicationId);
-  if (dueDate) {
-    map[type] = dueDate;
-  } else {
-    delete map[type];
+  if (!dueDate) {
+    cache = cache.filter((d) => !(d.applicationId === applicationId && d.docType === type));
+    notifyCacheChange();
+    apiDelete(`/api/document-due-dates?applicationId=${encodeURIComponent(applicationId)}&docType=${encodeURIComponent(type)}`).catch(
+      (err) => console.warn("Failed to remove document due date:", err)
+    );
+    return;
   }
-  saveMap(applicationId, map);
+
+  const optimisticId = `duedate-${Date.now()}`;
+  const hadExisting = cache.some((d) => d.applicationId === applicationId && d.docType === type);
+  cache = hadExisting
+    ? cache.map((d) => (d.applicationId === applicationId && d.docType === type ? { ...d, dueDate } : d))
+    : [...cache, { id: optimisticId, applicationId, docType: type, dueDate }];
+  notifyCacheChange();
+
+  apiPost<DueDateEntry>("/api/document-due-dates", { applicationId, docType: type, dueDate })
+    .then((serverEntry) => {
+      cache = [...cache.filter((d) => !(d.applicationId === applicationId && d.docType === type)), serverEntry];
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist document due date:", err));
 }
 
 /** "Overdue" / "Due soon" / "On track" classification for showing urgency. */

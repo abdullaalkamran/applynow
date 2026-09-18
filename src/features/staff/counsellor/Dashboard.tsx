@@ -17,6 +17,7 @@ import {
 } from "../../../data/counsellorMeetingsStore";
 import { getStaffMessages, markMessageRead } from "../../../data/counsellorMessagesStore";
 import { getStatTrends } from "../../../data/staffStatsSnapshotStore";
+import { getCounsellorTasks, staffTaskTarget, type DisplayTask } from "../../../utils/taskBoard";
 import type { Student, University } from "../../../types";
 
 /** The open intake months for one course — course's own `intakes` subset when set, else the
@@ -40,6 +41,23 @@ function greeting(): string {
 
 function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
+}
+
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Same red/amber styling the Tasks page uses for a required document/next-step vs. a review task
+ * — kept consistent here so a task looks the same whether it's seen on the Dashboard or the full
+ * Tasks page. */
+function taskRowTone(task: DisplayTask): { card: string; text: string; badge: string } {
+  if ((task.source === "document" || task.source === "next-step" || task.source === "finance") && !task.done) {
+    return { card: "bg-rose-50/60", text: "text-rose-700", badge: "bg-rose-100 text-rose-600" };
+  }
+  if (task.source === "review" && !task.done) {
+    return { card: "bg-amber-50/60", text: "text-amber-800", badge: "bg-amber-100 text-amber-700" };
+  }
+  return { card: "", text: "text-slate-800", badge: "bg-slate-100 text-slate-500" };
 }
 
 // 3 days back through 10 days ahead — enough that the strip genuinely needs the horizontal
@@ -114,6 +132,16 @@ export default function CounsellorDashboard() {
     return a.time.localeCompare(b.time);
   });
   const messages = getStaffMessages();
+
+  // "Today's Task" used to only ever show scheduled meetings — a real task (next step, missing
+  // document, pending review) never appeared here at all, and one with no due date especially
+  // never had anywhere to show up since it doesn't belong to any specific day on this dashboard's
+  // date strip. An undated task is always relevant, so it counts as "today" here; a dated one only
+  // counts once it's actually due (today or overdue), the same rule the full Tasks page's calendar
+  // view uses for its own "no due date yet" column.
+  const todayKey = dateKey(new Date());
+  const todaysOpenTasks = getCounsellorTasks(COUNSELLOR_ID).filter((t) => !t.done && (!t.dueDate || t.dueDate <= todayKey));
+  const taskTarget = (t: DisplayTask) => staffTaskTarget(t, "/staff/counsellor/students");
 
   function runMeetingAction(m: Meeting) {
     if (m.studentId) {
@@ -204,40 +232,68 @@ export default function CounsellorDashboard() {
 
           <div className="max-h-80 divide-y divide-slate-50 overflow-y-auto">
             {isSameDay(selectedDate, new Date()) ? (
-              meetings.length === 0 ? (
+              meetings.length === 0 && todaysOpenTasks.length === 0 ? (
                 <p className="px-5 py-6 text-sm text-slate-400">Nothing scheduled today.</p>
               ) : (
-                meetings.map((m) => {
-                  const status = meetingStatus(m, doneIds);
-                  const openable = !!m.studentId;
-                  const done = doneIds.has(m.id);
-                  return (
-                    <div
-                      key={m.id}
-                      onClick={openable ? () => navigate(`/staff/counsellor/students/${m.studentId}`) : undefined}
-                      className={`flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-4 ${done ? "opacity-60" : ""} ${openable ? "cursor-pointer hover:bg-slate-50" : ""}`}
-                    >
-                      <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                        <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-800">{m.title}</p>
-                          <p className="truncate text-xs text-slate-400">{m.subtitle}</p>
+                <>
+                  {meetings.map((m) => {
+                    const status = meetingStatus(m, doneIds);
+                    const openable = !!m.studentId;
+                    const done = doneIds.has(m.id);
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={openable ? () => navigate(`/staff/counsellor/students/${m.studentId}`) : undefined}
+                        className={`flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-4 ${done ? "opacity-60" : ""} ${openable ? "cursor-pointer hover:bg-slate-50" : ""}`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                          <div className="w-16 shrink-0 text-xs font-medium text-slate-500">{formatMeetingTime(m.time)}</div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-800">{m.title}</p>
+                            <p className="truncate text-xs text-slate-400">{m.subtitle}</p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center justify-between gap-2 pl-[76px] sm:justify-end sm:pl-0">
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
+                          {!done && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); runMeetingAction(m); }}
+                              className="w-20 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-center text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              {m.action}
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center justify-between gap-2 pl-[76px] sm:justify-end sm:pl-0">
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CLASS[status.tone]}`}>{status.label}</span>
-                        {!done && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); runMeetingAction(m); }}
-                            className="w-20 shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-center text-xs font-medium text-slate-600 hover:bg-slate-50"
-                          >
-                            {m.action}
-                          </button>
-                        )}
+                    );
+                  })}
+                  {todaysOpenTasks.map((t) => {
+                    const tone = taskRowTone(t);
+                    const target = taskTarget(t);
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={target ? () => navigate(target.path, { state: target.state }) : undefined}
+                        className={`flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-4 ${tone.card} ${target ? "cursor-pointer hover:bg-slate-50" : ""}`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                          <div className="w-16 shrink-0 text-xs font-medium text-slate-500">
+                            {t.dueDate ? (t.dueDate < todayKey ? "Overdue" : "Due today") : "Any time"}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate text-sm font-medium ${tone.text}`}>{t.title}</p>
+                            {t.subtitle && <p className="truncate text-xs text-slate-400">{t.subtitle}</p>}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center justify-end pl-[76px] sm:pl-0">
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${tone.badge}`}>
+                            {t.source === "next-step" ? "Next Step" : t.source === "review" ? "Review" : t.source === "document" ? "Document" : t.source === "finance" ? "Financial" : "Assigned"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </>
               )
             ) : (
               <p className="px-5 py-6 text-sm text-slate-400">No tasks scheduled for this day yet.</p>

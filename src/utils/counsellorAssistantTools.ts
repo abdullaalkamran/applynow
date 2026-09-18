@@ -8,7 +8,7 @@ import { loadAssignedStudents } from "../data/counsellorStudentsStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { addTask, patchTask, toggleTaskDone, type TaskPerson } from "../data/tasksStore";
 import { requestDocument as requestStageDocument } from "../data/documentsStore";
-import { addCustomDocRequest } from "../data/customDocRequestsStore";
+import { addCustomDocRequest } from "../data/applicationDocsStore";
 import { recordActivity } from "../data/applicationActivityStore";
 import {
   getApplicationSummary, getApplicationStage, getApplicationTimeline, getApplicationRequirements,

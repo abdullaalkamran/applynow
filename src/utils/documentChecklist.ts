@@ -1,10 +1,9 @@
 import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
 import { getAllApplications } from "../data/applicationsStore";
-import { loadUploadedDocs } from "../data/applicationDocsStore";
+import { loadUploadedDocs, loadCustomDocRequests } from "../data/applicationDocsStore";
 import { loadCoreDocs } from "../data/coreDocsStore";
 import { loadAcademicLevels } from "../data/academicProfileStore";
 import { isStepComplete } from "../data/profileCompletion";
-import { loadCustomDocRequests } from "../data/customDocRequestsStore";
 import type { University } from "../types";
 
 export interface ChecklistDoc { name: string; uploadedAt: string; sourceApplicationId?: string; sourceUniversity?: string }
@@ -134,6 +133,11 @@ export interface ChecklistRow {
   // uploaded since — still counts as "missing" (own is unset) but carries the counsellor's reason
   // so the checklist can prompt a re-upload instead of a plain "not uploaded yet".
   rejected?: { id: string; reason?: string; uploadedAt: string };
+  // True when this is still missing (no own/reused/rejected) and a counsellor added it as an
+  // ad-hoc request (applicationDocsStore.ts's loadCustomDocRequests) rather than it coming from the automatic
+  // university/core checklist — flagged so the UI can call it out (red) instead of blending in
+  // with the rest of the "not uploaded yet" items.
+  requested?: boolean;
 }
 
 /** Rejected items float to the top of a checklist — they're the ones actually blocking the
@@ -149,16 +153,21 @@ function sortChecklistRows(rows: ChecklistRow[]): ChecklistRow[] {
  * be reused from another of the student's applications, and (implicitly) what's still missing. Core
  * documents (Passport, Transcript, etc.) are deliberately excluded — see `buildCoreChecklist`. Also
  * includes any ad-hoc documents a counsellor has requested for this specific application, so a
- * staff-created request shows up as a real checklist item on both sides, not just a note. */
+ * staff-created request shows up as a real checklist item on both sides, not just a note.
+ * `university` is optional — an application whose `university` string doesn't resolve to a catalog
+ * entry (a stale/mistyped name, or one added after the application was created) still needs its
+ * counsellor-requested items to show up; only the university-derived part of the list is skipped. */
 export function buildChecklist(
-  university: University,
+  university: University | undefined,
   studentId: string,
   applicationId: string,
   ownDocs: { name: string; status: string; previewUrl?: string }[]
 ): ChecklistRow[] {
   const vault = studentDocumentVault(studentId, applicationId);
   const customTypes = loadCustomDocRequests(applicationId).map((r) => r.type);
-  const allTypes = Array.from(new Set([...universityDocTypesFor(university, studentId), ...customTypes]));
+  const customTypeSet = new Set(customTypes);
+  const universityTypes = university ? universityDocTypesFor(university, studentId) : [];
+  const allTypes = Array.from(new Set([...universityTypes, ...customTypes]));
   // The real, server-backed uploads for this application (loadUploadedDocs is now Postgres-backed —
   // see applicationDocsStore.ts) — checked ahead of `ownDocs` since these are the ones with a
   // working verify/reject lifecycle, unlike the legacy/seed entries mixed into `ownDocs`, which
@@ -169,7 +178,15 @@ export function buildChecklist(
   const rows = allTypes.map((type) => {
     const serverMatches = serverDocs.filter((d) => docMatchesType(d.name, type)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const latestServer = serverMatches[0];
+    // Whenever a server Document row exists for this type at all, it's authoritative — the
+    // `ownDocs`/vault fallback below is for legacy/seed entries with no real row behind them, and
+    // must never be consulted once a real row (of any status) exists, or a counsellor's "requested"
+    // placeholder (which is also included in `ownDocs` by every caller, unfiltered by status) gets
+    // picked back up there and wrongly rendered as already-on-file with status "requested".
     if (latestServer) {
+      if (latestServer.status === "requested") {
+        return { type, requested: true };
+      }
       if (latestServer.status === "rejected") {
         return { type, rejected: { id: latestServer.id, reason: latestServer.rejectionReason, uploadedAt: latestServer.uploadedAt } };
       }
@@ -177,7 +194,7 @@ export function buildChecklist(
     }
     const own = ownDocs.find((d) => docMatchesType(d.name, type));
     const reused = !own ? vault.find((d) => docMatchesType(d.name, type)) : undefined;
-    return { type, own, reused };
+    return { type, own, reused, requested: !own && !reused && customTypeSet.has(type) };
   });
   return sortChecklistRows(rows);
 }

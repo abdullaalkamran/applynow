@@ -16,6 +16,9 @@ const applicationsRoute = require("./routes/applications");
 const tasksRoute = require("./routes/tasks");
 const messagesRoute = require("./routes/messages");
 const documentsRoute = require("./routes/documents");
+const applicationNextStepsRoute = require("./routes/applicationNextSteps");
+const documentDueDatesRoute = require("./routes/documentDueDates");
+const studentFinancialReadinessRoute = require("./routes/studentFinancialReadiness");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -46,6 +49,9 @@ app.use("/api/applications", applicationsRoute);
 app.use("/api/tasks", tasksRoute);
 app.use("/api/messages", messagesRoute);
 app.use("/api/documents", documentsRoute);
+app.use("/api/next-steps", applicationNextStepsRoute);
+app.use("/api/document-due-dates", documentDueDatesRoute);
+app.use("/api/financial-readiness", studentFinancialReadinessRoute);
 
 app.use(errorHandler);
 

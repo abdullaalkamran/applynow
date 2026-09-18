@@ -34,7 +34,8 @@ export default function AgentStudentProfile() {
   const { id } = useParams();
   const location = useLocation();
   const navState = location.state as { tab?: Tab; appId?: string } | null;
-  const student = loadAgentStudents().find((s) => s.id === id) ?? null;
+  const agentStudents = loadAgentStudents();
+  const student = agentStudents.find((s) => s.id === id) ?? null;
   const [tab, setTab] = useState<Tab>(navState?.tab ?? "Overview");
   const [expandedAppId, setExpandedAppId] = useState<string | null>(navState?.appId ?? null);
   const [applyTarget, setApplyTarget] = useState<{ universityId: string; courseName: string } | null>(null);
@@ -56,12 +57,14 @@ export default function AgentStudentProfile() {
   }
 
   if (!student) {
+    // Same reasoning as counsellor StudentProfile.tsx: an empty caseload usually means the
+    // agent-students cache just hasn't finished its first fetch yet, not a genuine mismatch.
     return (
       <div>
         <button onClick={() => navigate("/agent/students")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
           <ArrowLeft size={14} /> Back to Students
         </button>
-        <p className="text-xs text-slate-400">Student not found.</p>
+        <p className="text-xs text-slate-400">{agentStudents.length === 0 ? "Loading…" : "Student not found."}</p>
       </div>
     );
   }
@@ -80,7 +83,6 @@ export default function AgentStudentProfile() {
   const coreMissing = buildCoreChecklist(student.id).filter((r) => !r.own);
   const perAppMissing = activeApps.reduce((sum, a) => {
     const uni = UNIVERSITIES.find((u) => u.name === a.university);
-    if (!uni) return sum;
     const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)];
     return sum + buildChecklist(uni, student.id, a.id, docs).filter((r) => !r.own && !r.reused).length;
   }, 0);
@@ -194,10 +196,8 @@ export default function AgentStudentProfile() {
         <div className="mt-4 space-y-3">
           {apps.map((a) => {
             const university = UNIVERSITIES.find((u) => u.name === a.university);
-            const docs = university
-              ? [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)]
-              : [];
-            const checklist = university ? buildChecklist(university, student.id, a.id, docs) : [];
+            const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)];
+            const checklist = buildChecklist(university, student.id, a.id, docs);
             const missingDocs = checklist.filter((r) => !r.own && !r.reused);
             const appNextSteps = counsellorSteps.filter((s) => s.applicationId === a.id);
             const statusHistory = [...getStatusHistory(a.id)].reverse();
@@ -312,7 +312,6 @@ export default function AgentStudentProfile() {
                         <ApplicationChecklistCard
                           key={r.type}
                           row={r}
-                          dueDate={loadDocDueDate(a.id, r.type)}
                           onUpload={(file) => {
                             addUploadedDoc(a.id, r.type, file);
                             forceTick((t) => t + 1);
@@ -498,7 +497,6 @@ export default function AgentStudentProfile() {
 
           {activeApps.map((a) => {
             const university = UNIVERSITIES.find((u) => u.name === a.university);
-            if (!university) return null;
             const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)];
             const checklist = buildChecklist(university, student.id, a.id, docs);
             return (

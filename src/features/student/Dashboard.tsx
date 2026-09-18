@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
-  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle,
+  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle, Wallet,
 } from "lucide-react";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
 import { STUDENTS, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
@@ -15,6 +15,8 @@ import { getProfileCompletion } from "../../data/profileCompletion";
 import { APPLICATION_STAGES, applicationStageIndex, applicationBucket, applicationStatusTone } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
 import { getStudentTasks, type DisplayTask } from "../../utils/taskBoard";
+import { FinancialReadinessCard } from "../../components/FinancialReadinessCard";
+import { useAuth } from "../../context/AuthContext";
 
 const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
 const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
@@ -31,15 +33,19 @@ function greeting() {
 
 /** Where tapping a "Your Next Steps" item should actually land — a document task goes straight to
  * the application's Documents tab (or the core Documents page, for a core-vault item), a next-step
- * task to that application's Overview, and anything else (a manually assigned task with no
- * application of its own) falls back to the Tasks page. Previously every item here just opened the
- * generic Tasks page regardless of what it actually was about. */
-function taskDestination(t: DisplayTask): { path: string; state?: { tab: "Documents" } } {
+ * task to that application's Overview, a finance task to any application's Overview (Financial
+ * Readiness is one shared record now, not tied to a specific application — see
+ * studentFinancialReadinessStore.ts — so there's no specific one to prefer), and anything else (a
+ * manually assigned task with no application of its own) falls back to the Tasks page. */
+function taskDestination(t: DisplayTask, fallbackApplicationId?: string): { path: string; state?: { tab: "Documents" } } {
   if (t.source === "document") {
     return t.applicationId ? { path: `/student/applications/${t.applicationId}`, state: { tab: "Documents" } } : { path: "/student/documents" };
   }
   if (t.source === "next-step" && t.applicationId) {
     return { path: `/student/applications/${t.applicationId}` };
+  }
+  if (t.source === "finance" && fallbackApplicationId) {
+    return { path: `/student/applications/${fallbackApplicationId}` };
   }
   return { path: "/student/tasks" };
 }
@@ -67,6 +73,9 @@ const STEP_WIDTH = 58;
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const financeCardRef = useRef<HTMLDivElement>(null);
+  const [, forceTick] = useState(0);
   const [currentApplicationIndex, setCurrentApplicationIndex] = useState(0);
   // Starts empty and fills in on mount so the line visibly advances to the real current stage,
   // instead of just appearing already-filled.
@@ -89,7 +98,15 @@ export default function Dashboard() {
   const inProgressCount = myApplications.filter((a) => applicationBucket(a.status) === "inProgress").length;
   const savedProgramsCount = shortlistedCount();
   const unreadNotifications = unreadNotificationCount();
-  const nextStepTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done).slice(0, 3);
+  // Capped at 3 so this stays a quick glance, not the full Tasks page — but a plain slice(0, 3)
+  // meant Financial Readiness (tone "none", since it has no due date to be "soon"/"overdue" about)
+  // regularly lost out to a pile of small per-document tasks and never actually appeared here even
+  // while genuinely incomplete. It's pinned first when present so it's never silently crowded out.
+  const openStudentTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done);
+  const financeTask = openStudentTasks.find((t) => t.source === "finance");
+  const nextStepTasks = financeTask
+    ? [financeTask, ...openStudentTasks.filter((t) => t.id !== financeTask.id)].slice(0, 3)
+    : openStudentTasks.slice(0, 3);
 
   const safeApplicationIndex = activeApplications.length > 0 ? currentApplicationIndex % activeApplications.length : 0;
   const primaryApplication = activeApplications[safeApplicationIndex];
@@ -105,7 +122,6 @@ export default function Dashboard() {
 
   const outstandingDocs = myApplications.reduce((sum, app) => {
     const university = universities.find((u) => u.name === app.university);
-    if (!university) return sum;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),
       ...loadUploadedDocs(app.id),
@@ -195,23 +211,32 @@ export default function Dashboard() {
                 <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
               ) : (
                 nextStepTasks.map((t, i) => {
-                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
-                  const tone = t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
+                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : t.source === "finance" ? Wallet : ShieldCheck;
+                  // A next-step, document, or finance task is required by definition — it only
+                  // exists while still outstanding (see taskBoard.ts) — so it's red regardless of
+                  // due date, same as everywhere else in the app; a plain manually assigned task
+                  // keeps the due-date-based tone since it isn't inherently "required" the same way.
+                  const required = t.source === "document" || t.source === "next-step" || t.source === "finance";
+                  const tone = required ? "rose" : t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
                   return (
                     <button
                       key={t.id}
                       onClick={() => {
-                        const dest = taskDestination(t);
+                        // Financial Readiness is filled in right on this page, below the Current
+                        // Application section (see FinancialReadinessCard) — scroll to it rather
+                        // than navigating away or popping up a modal over the page.
+                        if (t.source === "finance") { financeCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+                        const dest = taskDestination(t, primaryApplication?.id);
                         navigate(dest.path, dest.state ? { state: dest.state } : undefined);
                       }}
-                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
+                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${required ? "bg-rose-50/60" : ""} ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
                     >
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
                         <Icon size={16} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-800">{t.title}</p>
-                        <p className="truncate text-xs text-slate-400">
+                        <p className={`truncate text-sm font-medium ${required ? "text-rose-700" : "text-slate-800"}`}>{t.title}</p>
+                        <p className={`truncate text-xs ${required ? "text-rose-500" : "text-slate-400"}`}>
                           {t.subtitle}
                           {t.dueDate && (
                             <span className={t.tone === "overdue" ? "font-medium text-rose-500" : ""}>
@@ -220,7 +245,7 @@ export default function Dashboard() {
                           )}
                         </p>
                       </div>
-                      <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                      <ChevronRight size={16} className={`shrink-0 ${required ? "text-rose-300" : "text-slate-300"}`} />
                     </button>
                   );
                 })
@@ -337,6 +362,16 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {user && (
+              <div ref={financeCardRef}>
+                <FinancialReadinessCard
+                  studentId={student.id}
+                  actor={{ id: user.roleUserId, role: user.role, name: user.name }}
+                  onSaved={() => forceTick((t) => t + 1)}
+                />
               </div>
             )}
 

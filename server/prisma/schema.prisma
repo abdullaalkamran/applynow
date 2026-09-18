@@ -129,9 +129,10 @@ model Student {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  applications Application[]
-  tasks        Task[]
-  documents    Document[]
+  applications        Application[]
+  tasks               Task[]
+  documents           Document[]
+  financialReadiness  StudentFinancialReadiness?
 }
 
 model Staff {
@@ -729,6 +730,28 @@ model StudentAcademicLevel {
   passingYear String?
 }
 
+// One shared record per student — edited from any of their applications' Financial Readiness
+// stage, and broadcast back out to every one of their applications (see server's
+// applications/:id/journey/financial_readiness route and the frontend's applicationJourneyStore.ts
+// updateStage), instead of each application tracking its own independent copy. `completedAt`
+// mirrors the same "Ready"/"Matured" terminal-status rule the per-application StageRecord uses, so
+// a counsellor's outstanding "fill this in" task (see taskBoard.ts) disappears the moment it's set.
+model StudentFinancialReadiness {
+  studentId         String    @id
+  student           Student   @relation(fields: [studentId], references: [id])
+  evidenceRequired  Boolean   @default(true)
+  requiredAmount    Float?
+  currency          String?
+  holdingPeriodDays Int?
+  openingDate       DateTime? @db.Date
+  maturityDate      DateTime? @db.Date
+  bankStatus        String    @default("Not Started")
+  accountHolder     String?
+  accountType       String?
+  completedAt       DateTime?
+  updatedAt         DateTime  @updatedAt
+}
+
 model Shortlist {
   id             String   @id @default(cuid())
   studentId      String
@@ -748,5 +771,8 @@ model ApplicationNextStep {
   title         String
   createdAt     DateTime    @default(now())
   done          Boolean     @default(false)
+  // Set the moment `done` flips true — once set, the step is locked (the UI no longer lets it be
+  // un-checked), so this date is a permanent record of when it was actually completed.
+  completedAt   DateTime?
   dueDate       DateTime?   @db.Date
 }

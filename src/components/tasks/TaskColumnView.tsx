@@ -8,6 +8,8 @@ const SOURCE_LABEL: Record<DisplayTask["source"], string> = {
   manual: "Assigned",
   "next-step": "Next Step",
   document: "Document",
+  review: "Review",
+  finance: "Financial",
 };
 
 function toKey(d: Date): string {
@@ -45,10 +47,31 @@ function TaskCard({ task, columnKey, getTaskTarget, muted = false }: { task: Dis
   const dueLabel = !task.done && task.dueDate && task.dueDate !== columnKey
     ? `${task.dueDate < columnKey ? "Was due" : "Due"} ${new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
     : null;
+  // A document, next-step, or finance task only exists while still outstanding (see taskBoard.ts's
+  // documentTasksFor/nextStepTasksFor/financialReadinessTaskFor — each disappears the moment the
+  // underlying thing is actually done), so all three are always something to act on — red, same as
+  // every other "required" card in the app, not just when overdue. A review task (a counsellor's
+  // "go confirm what Sarah uploaded") is a different kind of urgency — amber, matching the Pending
+  // review section it points at, not red.
+  const isRequiredTask = (task.source === "document" || task.source === "next-step" || task.source === "finance") && !task.done;
+  const isReviewTask = task.source === "review" && !task.done;
+  const cardClass = isRequiredTask
+    ? "border-rose-200 bg-rose-50/60"
+    : isReviewTask
+      ? "border-amber-200 bg-amber-50/60"
+      : "border-slate-100 bg-white";
+  const textClass = isRequiredTask ? "text-rose-700" : isReviewTask ? "text-amber-800" : "text-slate-800";
+  const subtleClass = isRequiredTask ? "text-rose-500" : isReviewTask ? "text-amber-600" : "";
+  const badgeClass = isRequiredTask
+    ? "bg-rose-100 text-rose-600"
+    : isReviewTask
+      ? "bg-amber-100 text-amber-700"
+      : "bg-slate-100 text-slate-500";
+  const dotClass = isRequiredTask ? "bg-rose-400" : isReviewTask ? "bg-amber-400" : "bg-slate-300";
   return (
     <div
       onClick={target ? () => navigate(target.path, { state: target.state }) : undefined}
-      className={`rounded-lg border border-slate-100 bg-white p-2.5 ${muted ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-slate-50" : ""}`}
+      className={`rounded-lg border p-2.5 ${cardClass} ${muted ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-slate-50" : ""}`}
     >
       <div className="flex items-start gap-2">
         {task.onToggle ? (
@@ -57,21 +80,26 @@ function TaskCard({ task, columnKey, getTaskTarget, muted = false }: { task: Dis
             checked={task.done}
             onChange={task.onToggle}
             onClick={(e) => e.stopPropagation()}
+            // A completed next step is locked (see applicationNextStepsStore.ts) — the toggle
+            // would no-op anyway, but disabling it here avoids the checkbox visibly snapping back.
+            disabled={task.source === "next-step" && task.done}
             className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300"
           />
         ) : (
-          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
         )}
         <div className="min-w-0 flex-1">
-          <p className={`text-[12.5px] font-medium text-slate-800 ${task.done ? "line-through" : ""}`}>{task.title}</p>
+          <p className={`text-[12.5px] font-medium ${textClass} ${task.done ? "line-through" : ""}`}>{task.title}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-slate-400">
-            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 font-medium text-slate-500">{SOURCE_LABEL[task.source]}</span>
+            <span className={`rounded-full px-1.5 py-0.5 font-medium ${badgeClass}`}>
+              {SOURCE_LABEL[task.source]}
+            </span>
             {dueLabel && (
               <span className={`rounded-full px-1.5 py-0.5 font-medium ${dueLabel.startsWith("Was due") ? "bg-rose-50 text-rose-500" : "bg-amber-50 text-amber-600"}`}>
                 {dueLabel}
               </span>
             )}
-            {task.subtitle && <span className="truncate">{task.subtitle}</span>}
+            {task.subtitle && <span className={`truncate ${subtleClass}`}>{task.subtitle}</span>}
           </div>
           {task.assignedByName && <p className="mt-0.5 truncate text-[10.5px] text-slate-400">from {task.assignedByName}</p>}
         </div>

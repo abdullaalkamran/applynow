@@ -3,7 +3,7 @@
 // per-browser localStorage keyed only by applicationId, which meant a document an agent or student
 // uploaded for an application was invisible to the counsellor's separate login — so there was
 // nothing for a counsellor to view, let alone verify or reject.
-import { apiGet, apiPostForm, apiPatch } from "../utils/apiClient";
+import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import { getAllApplications } from "./applicationsStore";
 import { BACKEND_BASE } from "../utils/backendBase";
@@ -12,10 +12,11 @@ export interface AppDoc {
   id: string;
   name: string;
   type: string;
-  status: string; // "uploaded" | "verified" | "rejected"
+  status: string; // "requested" | "uploaded" | "verified" | "rejected"
   uploadedAt: string; // date-only (YYYY-MM-DD), for display
   createdAt: string; // full ISO datetime — use this, not uploadedAt, to tell same-day uploads apart
   previewUrl?: string;
+  custom?: boolean;
   rejectionReason?: string;
 }
 
@@ -29,6 +30,7 @@ interface ServerDocument {
   status: string;
   fileUrl?: string;
   custom?: boolean;
+  note?: string;
   rejectionReason?: string;
   createdAt: string;
 }
@@ -41,7 +43,7 @@ function resolveFileUrl(fileUrl: string | undefined): string | undefined {
 }
 
 function toAppDoc(d: ServerDocument): AppDoc {
-  return { id: d.id, name: d.name, type: d.type, status: d.status, uploadedAt: d.createdAt.slice(0, 10), createdAt: d.createdAt, previewUrl: resolveFileUrl(d.fileUrl), rejectionReason: d.rejectionReason };
+  return { id: d.id, name: d.name, type: d.type, status: d.status, uploadedAt: d.createdAt.slice(0, 10), createdAt: d.createdAt, previewUrl: resolveFileUrl(d.fileUrl), custom: d.custom, rejectionReason: d.rejectionReason };
 }
 
 let cache: ServerDocument[] = [];
@@ -122,4 +124,63 @@ export function rejectAppDoc(id: string, reason: string): void {
       notifyCacheChange();
     })
     .catch((err) => console.warn("Failed to reject application document:", err));
+}
+
+// Ad-hoc document requests a counsellor adds for a specific application, beyond the automatic
+// core + university-derived checklist — modelled as the same Document row as a real upload
+// (custom: true, status "requested", no file yet), so they share this store's cache instead of a
+// separate localStorage-only one. That used to mean a counsellor's request only ever existed in
+// their own browser — invisible to the student and agent who needed to act on it, and with no
+// notification firing (see server route's POST handler for that half of the fix).
+
+export interface CustomDocRequest {
+  id: string;
+  type: string;
+  note?: string;
+  requestedAt: string; // date-only (YYYY-MM-DD)
+}
+
+function toCustomDocRequest(d: ServerDocument): CustomDocRequest {
+  return { id: d.id, type: d.type, note: d.note, requestedAt: d.createdAt.slice(0, 10) };
+}
+
+export function loadCustomDocRequests(applicationId: string): CustomDocRequest[] {
+  return cache.filter((d) => d.applicationId === applicationId && d.custom && d.status === "requested").map(toCustomDocRequest);
+}
+
+export function addCustomDocRequest(applicationId: string, type: string, note?: string): void {
+  const trimmed = type.trim();
+  if (!trimmed) return;
+  if (cache.some((d) => d.applicationId === applicationId && d.custom && d.status === "requested" && d.type.toLowerCase() === trimmed.toLowerCase())) return;
+  const studentId = getAllApplications().find((a) => a.id === applicationId)?.studentId;
+  if (!studentId) {
+    console.warn(`addCustomDocRequest: couldn't resolve a student for application "${applicationId}" — request not saved.`);
+    return;
+  }
+
+  const optimisticId = `custom-req-${Date.now()}`;
+  const optimistic: ServerDocument = {
+    id: optimisticId, studentId, applicationId, scope: "application", name: trimmed, type: trimmed,
+    status: "requested", custom: true, note: note?.trim() || undefined, createdAt: new Date().toISOString(),
+  };
+  cache = [...cache, optimistic];
+  notifyCacheChange();
+
+  apiPost<ServerDocument>("/api/documents", {
+    studentId, applicationId, scope: "application", name: trimmed, type: trimmed, custom: true, status: "requested", note: note?.trim(),
+  })
+    .then((serverDoc) => {
+      cache = cache.map((d) => (d.id === optimisticId ? serverDoc : d));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist document request:", err));
+}
+
+/** Withdraws a request before anything's been uploaded against it. */
+export function removeCustomDocRequest(applicationId: string, type: string): void {
+  const match = cache.find((d) => d.applicationId === applicationId && d.custom && d.status === "requested" && d.type === type);
+  if (!match) return;
+  cache = cache.filter((d) => d.id !== match.id);
+  notifyCacheChange();
+  apiDelete(`/api/documents/${match.id}`).catch((err) => console.warn("Failed to remove document request:", err));
 }

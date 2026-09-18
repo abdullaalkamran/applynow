@@ -44,12 +44,12 @@ async function studentAndAgentRecipients(studentId) {
   return { student, recipients };
 }
 
-// Currently only the student's core-document vault (scope "core") is migrated here — uploaded
-// once, independent of any application, so it needs to be visible identically to the student, and
-// to their counsellor and agent (see documentChecklist.ts's buildCoreChecklist). Per-application
-// uploads (applicationDocsStore.ts) and ad-hoc counsellor requests (customDocRequestsStore.ts)
-// stay localStorage-backed for now, same deferred-migration note as applicationsStore.ts's status
-// history — nothing about this route stops them from moving here later too.
+// Both the student's core-document vault (scope "core") and per-application documents — including
+// ad-hoc counsellor requests (custom: true, status "requested", no file yet) — are migrated here.
+// A "requested" row with no upload is a real, shared checklist item the moment it's created: every
+// account that can see this application (the student, their agent, their counsellor) reads it off
+// the same row, and its creation is what triggers the notification below — unlike the old
+// customDocRequestsStore.ts, which only ever wrote to the requesting counsellor's own browser.
 function serializeDocument(d) {
   return {
     id: d.id,
@@ -63,6 +63,7 @@ function serializeDocument(d) {
     // different hosts, and the served path itself doesn't need to know which).
     fileUrl: d.fileUrl || undefined,
     custom: d.custom,
+    note: d.note || undefined,
     rejectionReason: d.rejectionReason || undefined,
     createdAt: d.createdAt.toISOString(),
   };
@@ -70,11 +71,13 @@ function serializeDocument(d) {
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const { studentId, applicationId, scope } = req.query;
+    const { studentId, applicationId, scope, custom, status } = req.query;
     const where = {};
     if (studentId) where.studentId = String(studentId);
     if (applicationId) where.applicationId = String(applicationId);
     if (scope) where.scope = String(scope);
+    if (custom !== undefined) where.custom = custom === "true";
+    if (status) where.status = String(status);
     const docs = await prisma.document.findMany({ where, orderBy: { createdAt: "asc" } });
     res.json(docs.map(serializeDocument));
   } catch (err) {
@@ -91,18 +94,36 @@ router.get("/", requireAuth, async (req, res, next) => {
 // parsing a (potentially large) body.
 router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
   try {
-    const { studentId, applicationId, scope, name, type, custom, status } = req.body || {};
+    const { studentId, applicationId, scope, name, type, custom, status, note } = req.body || {};
     if (!studentId || !scope || !name || !type) {
       return res.status(400).json({ error: "studentId, scope, name and type are required." });
     }
     const fileUrl = req.file ? `/uploads/documents/${req.file.filename}` : undefined;
+    const isRequestedPlaceholder = status === "requested";
     const doc = await prisma.document.create({
       data: {
         studentId, applicationId, scope, name, type, fileUrl,
-        status: status === "requested" ? "requested" : "uploaded",
+        status: isRequestedPlaceholder ? "requested" : "uploaded",
         custom: !!custom,
+        note: note || undefined,
       },
     });
+
+    // A counsellor asking for a specific document is new information the student and their agent
+    // otherwise wouldn't see until they happened to check the checklist — worth the same active
+    // nudge a verify/reject already gets. Scoped to the counsellor's own action (not every
+    // "requested" placeholder — e.g. a student adding their own core-doc slot shouldn't notify
+    // themselves and their agent that they just asked themselves for something).
+    if (isRequestedPlaceholder && req.authUser.role === "counsellor") {
+      const { student, recipients } = await studentAndAgentRecipients(doc.studentId);
+      if (student && recipients.length > 0) {
+        const message = `Hi ${student.name}, your counsellor has requested a new document: "${doc.type}"${doc.note ? ` — ${doc.note}` : ""}. Please upload it as soon as possible.`;
+        sendDocumentNotification({ subject: "StudyOne: New document requested", message, recipients }).catch((err) =>
+          console.warn("Document request notification failed to send:", err)
+        );
+      }
+    }
+
     res.status(201).json(serializeDocument(doc));
   } catch (err) {
     next(err);
@@ -143,6 +164,24 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
     }
 
     res.json(serializeDocument(doc));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Withdraws a counsellor's ad-hoc request before anything's been uploaded against it (the
+// "remove request" affordance in ApplicationChecklistCard.tsx). Scoped to "requested" rows only —
+// a real upload is evidence a student/agent supplied and a counsellor already reviewed; deleting
+// it is not this endpoint's job.
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
+    if (!doc) return res.status(404).json({ error: "Document not found." });
+    if (doc.status !== "requested") {
+      return res.status(400).json({ error: "Only an unfulfilled request can be removed this way." });
+    }
+    await prisma.document.delete({ where: { id: req.params.id } });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

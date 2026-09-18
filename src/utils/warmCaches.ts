@@ -10,6 +10,10 @@ import { refreshAssignedStudents } from "../data/counsellorStudentsStore";
 import { refreshAllStudents } from "../data/allStudentsStore";
 import { refreshCoreDocs } from "../data/coreDocsStore";
 import { refreshApplicationDocs } from "../data/applicationDocsStore";
+import { refreshNextSteps } from "../data/applicationNextStepsStore";
+import { refreshDocDueDates } from "../data/documentDueDatesStore";
+import { refreshFinancialReadiness } from "../data/studentFinancialReadinessStore";
+import { refreshCachedJourneys } from "../data/applicationJourneyStore";
 
 export function warmCaches() {
   refreshApplications().catch((err) => console.warn("Failed to warm applications cache:", err));
@@ -20,6 +24,13 @@ export function warmCaches() {
   refreshAllStudents().catch((err) => console.warn("Failed to warm all-students cache:", err));
   refreshCoreDocs().catch((err) => console.warn("Failed to warm core-docs cache:", err));
   refreshApplicationDocs().catch((err) => console.warn("Failed to warm application-docs cache:", err));
+  refreshNextSteps().catch((err) => console.warn("Failed to warm next-steps cache:", err));
+  refreshDocDueDates().catch((err) => console.warn("Failed to warm document-due-dates cache:", err));
+  refreshFinancialReadiness().catch((err) => console.warn("Failed to warm financial-readiness cache:", err));
+  // Not a bulk fetch like the others — re-fetches whichever applications' journeys this session
+  // has actually looked at (see applicationJourneyStore.ts's own comment on why this needs to be
+  // on the same poll/focus schedule as everything else).
+  refreshCachedJourneys();
 }
 
 // Closes the "I have to refresh to see what someone else changed" gap: without this, every store

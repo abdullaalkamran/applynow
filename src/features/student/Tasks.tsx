@@ -3,19 +3,25 @@ import { MobileHeader } from "../../components/ui/mobile";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
 import type { GetTaskTarget } from "../../components/tasks/TaskListSection";
 import { getStudentTasks } from "../../utils/taskBoard";
+import { getAllApplications } from "../../data/applicationsStore";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
-
-const getTaskTarget: GetTaskTarget = (task) => {
-  if (task.applicationId) return { path: `/student/applications/${task.applicationId}` };
-  if (task.source === "document") return { path: "/student/documents" };
-  return undefined;
-};
 
 export default function StudentTasks() {
   const [, forceTick] = useState(0);
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const tasks = getStudentTasks(CURRENT_STUDENT_ID);
   const openCount = tasks.filter((t) => !t.done).length;
+  // Financial Readiness is one shared record per student, not tied to a specific application (see
+  // studentFinancialReadinessStore.ts), so its task has no applicationId of its own to route to —
+  // any of the student's own applications shows the same shared status in its Overview tab.
+  const fallbackApplicationId = getAllApplications().find((a) => a.studentId === CURRENT_STUDENT_ID)?.id;
+
+  const getTaskTarget: GetTaskTarget = (task) => {
+    if (task.applicationId) return { path: `/student/applications/${task.applicationId}` };
+    if (task.source === "document") return { path: "/student/documents" };
+    if (task.source === "finance" && fallbackApplicationId) return { path: `/student/applications/${fallbackApplicationId}` };
+    return undefined;
+  };
 
   return (
     <div className="pb-8">

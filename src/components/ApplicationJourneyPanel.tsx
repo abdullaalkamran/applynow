@@ -5,8 +5,8 @@ import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
 import { getApplicationTasks } from "../utils/taskBoard";
 import { loadActivityDescending } from "../data/applicationActivityStore";
-import { ADMISSION_OFFICERS, COUNSELLORS } from "../data/mockData";
-import { assignCounsellor, assignAdmissionOfficer } from "../data/applicationsStore";
+import { ADMISSION_OFFICERS, COUNSELLORS, AGENTS, STUDENTS } from "../data/mockData";
+import { getAllApplications, assignCounsellor, assignAdmissionOfficer } from "../data/applicationsStore";
 import type { Role } from "../types";
 
 // The four stages that get full structured fields + editing this phase — everything else
@@ -48,6 +48,9 @@ export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: P
   const [, forceTick] = useState(0);
   const journey = loadJourney(applicationId);
   const currentStage = computeCurrentStage(journey);
+  const application = getAllApplications().find((a) => a.id === applicationId);
+  const student = application ? STUDENTS.find((s) => s.id === application.studentId) : undefined;
+  const agent = student?.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
 
   function patch(stageType: StageType, fieldPatch: Record<string, unknown>) {
     if (!actor) return;
@@ -63,7 +66,14 @@ export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: P
       ) : (
         <div className="space-y-3">
           <JourneyStageEditor journey={journey} onPatch={patch} readOnly={!actor} />
-          <ResponsibleStaffCard applicationId={applicationId} journey={journey} actor={actor} onChanged={() => forceTick((t) => t + 1)} />
+          <ResponsibleStaffCard
+            applicationId={applicationId}
+            responsibleCounsellorId={application?.responsibleCounsellorId}
+            responsibleAdmissionOfficerId={application?.responsibleAdmissionOfficerId}
+            agentName={agent?.name}
+            actor={actor}
+            onChanged={() => forceTick((t) => t + 1)}
+          />
           <ApplicationTasksCard applicationId={applicationId} />
           <ApplicationActivityCard applicationId={applicationId} />
         </div>
@@ -148,14 +158,30 @@ export function JourneyStageEditor({ journey, onPatch, readOnly }: { journey: Ap
   );
 }
 
-export function ResponsibleStaffCard({ applicationId, journey, actor, onChanged }: { applicationId: string; journey: ApplicationJourney; actor?: Actor; onChanged: () => void }) {
+/** Counsellor/admission assignment is a real field on the Application record itself
+ * (`responsibleCounsellorId`/`responsibleAdmissionOfficerId`, set via assignCounsellor/
+ * assignAdmissionOfficer in applicationsStore.ts) — pass those straight from the caller's own
+ * Application object rather than from `journey`, which nothing ever writes them into (that used to
+ * make this card always show "Unassigned" regardless of what was actually assigned). The agent
+ * isn't reassignable per application — it's fixed on the student record — so it's shown here
+ * read-only for context rather than as a third dropdown. */
+export function ResponsibleStaffCard({
+  applicationId, responsibleCounsellorId, responsibleAdmissionOfficerId, agentName, actor, onChanged,
+}: {
+  applicationId: string;
+  responsibleCounsellorId?: string;
+  responsibleAdmissionOfficerId?: string;
+  agentName?: string;
+  actor?: Actor;
+  onChanged: () => void;
+}) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white p-3">
       <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Responsible staff</p>
       <div className="grid grid-cols-2 gap-2">
         <SelectFieldInline
           label="Counsellor"
-          value={journey.stages.application?.data.responsibleCounsellorId as string ?? ""}
+          value={responsibleCounsellorId ?? ""}
           options={["", ...COUNSELLORS.map((c) => c.id)]}
           optionLabels={{ "": "Unassigned", ...Object.fromEntries(COUNSELLORS.map((c) => [c.id, c.name])) }}
           onChange={(v) => {
@@ -166,7 +192,7 @@ export function ResponsibleStaffCard({ applicationId, journey, actor, onChanged 
         />
         <SelectFieldInline
           label="Admission"
-          value={journey.stages.application?.data.responsibleAdmissionOfficerId as string ?? ""}
+          value={responsibleAdmissionOfficerId ?? ""}
           options={["", ...ADMISSION_OFFICERS.map((o) => o.id)]}
           optionLabels={{ "": "Unassigned", ...Object.fromEntries(ADMISSION_OFFICERS.map((o) => [o.id, o.name])) }}
           onChange={(v) => {
@@ -175,6 +201,10 @@ export function ResponsibleStaffCard({ applicationId, journey, actor, onChanged 
           }}
           readOnly={!actor}
         />
+      </div>
+      <div className="mt-2 border-t border-slate-50 pt-2">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Agent</p>
+        <p className="mt-0.5 text-[12.5px] text-slate-700">{agentName ?? "No agent (direct application)"}</p>
       </div>
     </div>
   );

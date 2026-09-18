@@ -566,7 +566,7 @@ const docStatusLabel: Record<string, string> = { uploaded: "Pending review" };
  * Shared between the Application Detail page and the My Documents overview so both stay in sync.
  */
 export function DocChecklistRow({
-  type, own, reused, rejected, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload,
+  type, own, reused, rejected, requested, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload,
 }: {
   type: string;
   own?: { name: string; status: string };
@@ -575,6 +575,10 @@ export function DocChecklistRow({
   // it yet — shown instead of the plain "Not uploaded yet" empty state, with the reason and a
   // "Re-upload" affordance (reuses onStartUpload — a fresh upload simply supersedes it).
   rejected?: { reason?: string };
+  // Still missing, but a counsellor specifically asked for it (see documentChecklist.ts's
+  // `requested` flag) — shown in red rather than the plain "not uploaded yet" style so it doesn't
+  // blend in with the rest of the standard checklist.
+  requested?: boolean;
   highlighted?: boolean;
   highlightLabel?: string;
   isUploading: boolean;
@@ -632,27 +636,28 @@ export function DocChecklistRow({
     );
   }
 
+  // Every "not uploaded yet" card reads as red now, not just a rejected/counsellor-requested one —
+  // it's still something the student needs to act on. `highlighted` (this stage's specific
+  // blocker) gets its own amber call-out layered on top via the label/icon below, but the card
+  // itself stays red so it's consistent with how the same item shows up in the Required section
+  // of My Documents.
   return (
     <button
       onClick={onStartUpload}
-      className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left ${
-        rejected ? "border-rose-200 bg-rose-50/60" : highlighted ? "border-[#F3D9A8] bg-[#FDF6E9]" : "border-dashed border-slate-300 bg-[var(--sd-card)]"
-      }`}
+      className="flex w-full items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 text-left"
     >
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-          rejected ? "bg-rose-100 text-rose-600" : highlighted ? "bg-[#F3D9A8] text-[#8A5A11]" : "bg-slate-100 text-slate-400"
-        }`}
-      >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
         <AlertCircle size={16} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
-        <p className={`truncate text-xs ${rejected ? "text-rose-600" : "text-slate-400"}`}>
-          {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : highlighted && highlightLabel ? highlightLabel : "Not uploaded yet"}
+        <p className="truncate text-xs text-rose-600">
+          {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : requested ? "Requested by counsellor — not uploaded yet" : highlighted && highlightLabel ? highlightLabel : "Not uploaded yet"}
         </p>
       </div>
-      <span className={`shrink-0 text-xs font-semibold ${rejected ? "text-rose-600" : "text-[var(--sd-ink)]"}`}>{rejected ? "Re-upload" : "Upload"}</span>
+      <span className="flex shrink-0 items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white">
+        <Upload size={12} /> {rejected ? "Re-upload" : "Upload"}
+      </span>
     </button>
   );
 }

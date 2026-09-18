@@ -35,35 +35,50 @@ export default function ApplicationDetail() {
   // Documents tab of a specific application instead of always landing on Overview.
   const navState = location.state as { tab?: (typeof TABS)[number] } | null;
   const allApplications = getAllApplications();
+  // Can be undefined for a moment right after a fresh page load / direct link, while
+  // applicationsStore's cache is still being fetched (see warmCaches.ts) — every reference below
+  // has to tolerate that, since React's Rules of Hooks mean the hooks that follow still have to run
+  // on every render regardless; the actual "nothing to show yet" bail-out is after them.
   const application = allApplications.find((a) => a.id === id) ?? allApplications[0];
   const universities = getAllUniversities();
-  const university = universities.find((u) => u.name === application.university);
-  const course = university?.courses.find((c) => c.name === application.course);
-  const currentIdx = pipelineIndex(application.status);
-  const missingCoreDocs = buildCoreChecklist(application.studentId).filter((row) => !row.own);
+  const university = universities.find((u) => u.name === application?.university);
+  const course = university?.courses.find((c) => c.name === application?.course);
+  const currentIdx = pipelineIndex(application?.status ?? "Draft");
+  const missingCoreDocs = buildCoreChecklist(application?.studentId ?? "").filter((row) => !row.own);
   const coreDocsBlocked = missingCoreDocs.length > 0;
-  const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application.nextAction;
+  const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
   const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
   const [saved, setSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [programInfoOpen, setProgramInfoOpen] = useState(true);
   const [, forceTick] = useState(0);
-  const nextSteps = loadNextSteps(application.id);
+  const nextSteps = loadNextSteps(application?.id ?? "");
   const [notes, setNotes] = useState(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined" || !application) return "";
     return window.localStorage.getItem(`sd-app-notes:${application.id}`) ?? "";
   });
 
   function saveNotes(value: string) {
     setNotes(value);
-    window.localStorage.setItem(`sd-app-notes:${application.id}`, value);
+    if (application) window.localStorage.setItem(`sd-app-notes:${application.id}`, value);
   }
 
-  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs(application.id));
+  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs(application?.id ?? ""));
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<UploadedDoc | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
   const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  if (!application) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-slate-500">Loading this application…</p>
+        <button onClick={() => navigate("/student/applications")} className="text-[13px] font-semibold text-[var(--sd-ink)]">
+          Back to Applications
+        </button>
+      </div>
+    );
+  }
 
   function addUploadedDoc(name: string, file: File) {
     setUploadedDocs(addUploadedDocToStore(application.id, name, file));
@@ -114,16 +129,19 @@ export default function ApplicationDetail() {
   // Checklist auto-derived from this university's own stated requirements (plus universal
   // baseline docs like Passport). Anything already provided for one of the student's other
   // applications is recognised here automatically instead of asking them to upload it again.
-  const checklistRows = university
-    ? buildChecklist(university, application.studentId, application.id, docs).map((row) => ({
-        ...row,
-        isStageBlocker: stageDocName ? docMatchesType(stageDocName, row.type) : false,
-      }))
-    : [];
+  // buildChecklist tolerates `university` being undefined — a counsellor-requested item still
+  // needs to show up even when the university name doesn't resolve to a catalog entry.
+  const checklistRows = buildChecklist(university, application.studentId, application.id, docs).map((row) => ({
+    ...row,
+    isStageBlocker: stageDocName ? docMatchesType(stageDocName, row.type) : false,
+  }));
   const coreTypes = coreDocTypes();
   const extraDocs = docs.filter(
     (d) => !checklistRows.some((row) => docMatchesType(d.name, row.type)) && !coreTypes.some((t) => docMatchesType(d.name, t))
   );
+  // Surfaced on Overview so a counsellor's ad-hoc request (or any other unmet university-specific
+  // requirement) isn't something the student only discovers by clicking into the Documents tab.
+  const missingAppDocs = checklistRows.filter((row) => !row.own && !row.reused);
 
   const scholarshipUSD = course ? scholarshipAmountUSD(university!, course.feeUSD) : null;
 
@@ -218,6 +236,47 @@ export default function ApplicationDetail() {
           <div className="py-4">
             {tab === "Overview" && (
               <>
+                {nextSteps.length > 0 && (
+                  <div className="mb-5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
+                      <ListChecks size={15} className="text-slate-400" /> Next Steps
+                    </p>
+                    <div className="space-y-2">
+                      {nextSteps.map((ns) => (
+                        <div
+                          key={ns.id}
+                          className={`flex items-center gap-2.5 rounded-xl p-2.5 ${ns.done ? "" : "border border-rose-200 bg-rose-50/60"}`}
+                        >
+                          <button
+                            onClick={() => { if (!ns.done) { toggleNextStepDone(application.id, ns.id); forceTick((t) => t + 1); } }}
+                            disabled={ns.done}
+                            aria-label={ns.done ? `"${ns.title}" completed — locked` : `Mark "${ns.title}" done`}
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                              ns.done ? "border-[var(--sd-teal)] bg-[var(--sd-teal)] text-white" : "border-rose-300"
+                            }`}
+                          >
+                            {ns.done && <Check size={11} />}
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-[13px] ${ns.done ? "text-slate-400 line-through" : "font-medium text-rose-700"}`}>{ns.title}</p>
+                            {ns.done
+                              ? ns.completedAt && (
+                                  <p className="text-[11px] text-slate-400">
+                                    Completed {new Date(`${ns.completedAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                                  </p>
+                                )
+                              : ns.dueDate && (
+                                  <p className="text-[11px] text-rose-500">
+                                    Due {new Date(`${ns.dueDate}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                                  </p>
+                                )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {coreDocsBlocked && (
                   <button
                     onClick={() => navigate("/student/documents")}
@@ -237,11 +296,31 @@ export default function ApplicationDetail() {
                   </button>
                 )}
 
+                {missingAppDocs.length > 0 && (
+                  <button
+                    onClick={() => setTab("Documents")}
+                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-left"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                      <AlertCircle size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold text-rose-950">
+                        {missingAppDocs.length} document{missingAppDocs.length === 1 ? "" : "s"} required for this application
+                      </p>
+                      <p className="truncate text-[11.5px] text-rose-800">
+                        {missingAppDocs.slice(0, 2).map((row) => row.type).join(", ")}
+                        {missingAppDocs.length > 2 ? ` and ${missingAppDocs.length - 2} more` : ""}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="shrink-0 text-rose-700" />
+                  </button>
+                )}
+
                 <div className="flex items-center gap-4 rounded-2xl bg-[#E7EEFC] p-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-[#1B2C57]">Application Status</p>
                     <p className="mt-1 text-[19px] font-bold text-[#1B2C57]">{application.status}</p>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-[#3A4B76]">{visibleNextAction}</p>
                   </div>
                   <ProgressRing pct={ringPct} label={`${ringNumerator} / ${ringDenominator}`} />
                 </div>
@@ -265,7 +344,6 @@ export default function ApplicationDetail() {
                         <div className="pb-6">
                           <p className={`text-[13px] font-medium ${current ? "text-[var(--sd-ink)]" : done ? "text-slate-700" : "text-slate-400"}`}>{label}</p>
                           {stepDates[i] && <p className="text-xs text-slate-400">{stepDates[i]}</p>}
-                          {current && <p className="mt-0.5 text-xs text-slate-500">{visibleNextAction}</p>}
                         </div>
                       </div>
                     );
@@ -275,30 +353,6 @@ export default function ApplicationDetail() {
                 <div className="mb-5">
                   <ApplicationJourneyPanel applicationId={application.id} mode="student" />
                 </div>
-
-                {nextSteps.length > 0 && (
-                  <div className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
-                      <ListChecks size={15} className="text-slate-400" /> Next Steps
-                    </p>
-                    <div className="space-y-2">
-                      {nextSteps.map((ns) => (
-                        <div key={ns.id} className="flex items-center gap-2.5">
-                          <button
-                            onClick={() => { toggleNextStepDone(application.id, ns.id); forceTick((t) => t + 1); }}
-                            aria-label={ns.done ? `Mark "${ns.title}" not done` : `Mark "${ns.title}" done`}
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                              ns.done ? "border-[var(--sd-teal)] bg-[var(--sd-teal)] text-white" : "border-slate-300"
-                            }`}
-                          >
-                            {ns.done && <Check size={11} />}
-                          </button>
-                          <span className={`flex-1 text-[13px] ${ns.done ? "text-slate-400 line-through" : "text-slate-700"}`}>{ns.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {course && university && (
                   <div className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
@@ -346,13 +400,14 @@ export default function ApplicationDetail() {
                   </p>
                 )}
 
-                {checklistRows.map(({ type, own, reused, rejected, isStageBlocker }) => (
+                {checklistRows.map(({ type, own, reused, rejected, requested, isStageBlocker }) => (
                   <DocChecklistRow
                     key={type}
                     type={type}
                     own={own}
                     reused={reused}
                     rejected={rejected}
+                    requested={requested}
                     highlighted={isStageBlocker}
                     highlightLabel={`Needed for the "${STEPS[currentIdx]}" stage`}
                     isUploading={uploadingType === type}

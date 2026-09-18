@@ -143,8 +143,9 @@ export default function CounsellorCaseQueue() {
                 className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left hover:bg-slate-50"
               >
                 <button
-                  onClick={(e) => { e.stopPropagation(); toggleNextStepDone(ns.applicationId, ns.id); forceTick((t) => t + 1); }}
-                  aria-label={ns.done ? `Mark "${ns.title}" not done` : `Mark "${ns.title}" done`}
+                  onClick={(e) => { e.stopPropagation(); if (!ns.done) { toggleNextStepDone(ns.applicationId, ns.id); forceTick((t) => t + 1); } }}
+                  disabled={ns.done}
+                  aria-label={ns.done ? `"${ns.title}" completed — locked` : `Mark "${ns.title}" done`}
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                     ns.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"
                   }`}

@@ -1,24 +1,23 @@
 import { useRef, useState } from "react";
-import { AlertCircle, Upload, X, CalendarDays, FileText } from "lucide-react";
+import { AlertCircle, Upload, X, FileText } from "lucide-react";
 import { ChecklistCard } from "./ChecklistCard";
 import { DocViewButton } from "./DocViewButton";
-import { dueDateTone } from "../data/documentDueDatesStore";
 import type { ChecklistRow } from "../utils/documentChecklist";
 
 const STATUS_LABEL: Record<string, string> = { uploaded: "Pending review", verified: "Verified" };
 const STATUS_TONE: Record<string, string> = { uploaded: "text-amber-600", verified: "text-emerald-600" };
 
-/** Same own/reused/missing states as ChecklistCard, plus a real upload control for a missing item
- * — used anywhere staff (counsellor or agent) can supply a required document on a student's
- * behalf, writing to the exact same store the student's own upload flow uses. Counsellor-only
- * (`canVerify`), it also adds approve/reject on anything a student or agent uploaded and is still
- * awaiting review, and a rejected upload gets its own state (reason shown, re-upload offered)
- * instead of just looking "missing" again. */
+/** Same own/reused/missing states as ChecklistCard — and the same plain layout as
+ * CoreDocumentCard — plus a real upload control for a missing item, used anywhere staff
+ * (counsellor or agent) can supply a required document on a student's behalf, writing to the
+ * exact same store the student's own upload flow uses. Counsellor-only (`canVerify`), it also
+ * adds approve/reject on anything a student or agent uploaded and is still awaiting review, and a
+ * rejected upload gets its own state (reason shown, re-upload offered) instead of just looking
+ * "missing" again. */
 export function ApplicationChecklistCard({
-  row, onUpload, onRemoveRequest, dueDate, onSetDueDate, canVerify, onVerify, onReject,
+  row, onUpload, onRemoveRequest, canVerify, onVerify, onReject,
 }: {
   row: ChecklistRow; onUpload: (file: File) => void; onRemoveRequest?: () => void;
-  dueDate?: string; onSetDueDate?: (date: string) => void;
   canVerify?: boolean; onVerify?: (id: string) => void; onReject?: (id: string, reason: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,20 +88,20 @@ export function ApplicationChecklistCard({
     return <ChecklistCard row={row} />;
   }
 
-  const tone = dueDateTone(dueDate);
-  const dueClass = tone === "overdue" ? "text-rose-600" : tone === "soon" ? "text-amber-600" : "text-slate-500";
+  // Missing, or the previous upload was rejected, or a counsellor asked for this specific item —
+  // red either way, since all three mean the same thing: this still needs a (re-)upload.
   const rejected = row.rejected;
 
   return (
-    <div className={`rounded-xl border border-dashed p-3 ${rejected ? "border-rose-300 bg-rose-50/50" : "border-amber-300 bg-amber-50/40"}`}>
+    <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3">
       <div className="flex items-center gap-3">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${rejected ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"}`}>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
           <AlertCircle size={14} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className={`text-[11px] ${rejected ? "text-rose-600" : "text-slate-400"}`}>
-            {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : "Required — not uploaded yet"}
+          <p className="truncate text-[11px] text-rose-600">
+            {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : row.requested ? "Requested by counsellor — not uploaded yet" : "Not uploaded yet"}
           </p>
         </div>
         {onRemoveRequest && (
@@ -112,7 +111,7 @@ export function ApplicationChecklistCard({
         )}
         <button
           onClick={() => inputRef.current?.click()}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-[image:var(--sd-gradient)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-semibold text-white"
         >
           <Upload size={11} /> {rejected ? "Re-upload" : "Upload"}
         </button>
@@ -128,29 +127,6 @@ export function ApplicationChecklistCard({
           }}
         />
       </div>
-      {onSetDueDate ? (
-        <div className="mt-2 flex items-center gap-1.5 pl-11">
-          <CalendarDays size={11} className={dueClass} />
-          <label className={`text-[10.5px] font-medium ${dueClass}`}>
-            {tone === "overdue" ? "Overdue" : tone === "soon" ? "Due soon" : "Due"}
-          </label>
-          <input
-            type="date"
-            value={dueDate ?? ""}
-            onChange={(e) => onSetDueDate(e.target.value)}
-            className={`rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10.5px] ${dueClass}`}
-          />
-        </div>
-      ) : (
-        dueDate && (
-          <div className="mt-2 flex items-center gap-1.5 pl-11">
-            <CalendarDays size={11} className={dueClass} />
-            <span className={`text-[10.5px] font-medium ${dueClass}`}>
-              {tone === "overdue" ? "Overdue — set by counsellor" : tone === "soon" ? "Due soon" : "Due"} {dueDate}
-            </span>
-          </div>
-        )
-      )}
     </div>
   );
 }

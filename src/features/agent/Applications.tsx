@@ -154,10 +154,8 @@ export default function AgentApplications() {
           const university = UNIVERSITIES.find((u) => u.name === app.university);
           const openApplication = () => navigate(`/agent/students/${student.id}`, { state: { tab: "Applications", appId: app.id } });
 
-          const docs = university
-            ? [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === app.id), ...loadUploadedDocs(app.id)]
-            : [];
-          const missingDocs = university ? buildChecklist(university, student.id, app.id, docs).filter((r) => !r.own && !r.reused) : [];
+          const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === app.id), ...loadUploadedDocs(app.id)];
+          const missingDocs = buildChecklist(university, student.id, app.id, docs).filter((r) => !r.own && !r.reused);
           // Core docs (Passport, Transcript, etc.) live in the student's own vault, uploaded once
           // and shared across every application — flagged here as a heads-up, resolving for every
           // role (student, counsellor, agent) the moment the student uploads it.

@@ -13,6 +13,11 @@ export default function AICounsellor() {
     { id: "m0", from: "ai", text: `Hi ${aiStudent.name.split(" ")[0]}! 👋 How can I help you today?` },
   ]);
   const [input, setInput] = useState("");
+  // A tool-calling turn can take several sequential round trips to the AI provider before a reply
+  // comes back (each step re-sends the whole conversation) — nothing here ever showed that it was
+  // working, so a genuinely-in-progress reply looked identical to a frozen/broken page. This is
+  // what actually shows up while waiting.
+  const [isThinking, setIsThinking] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceMode, setVoiceMode] = useState(true);
   const nextId = useRef(1);
@@ -20,7 +25,7 @@ export default function AICounsellor() {
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isThinking]);
 
   useEffect(() => {
     return () => { window.speechSynthesis?.cancel(); };
@@ -35,14 +40,19 @@ export default function AICounsellor() {
   }
 
   async function send(text: string) {
-    if (!text.trim()) return;
+    if (!text.trim() || isThinking) return;
     const userMsg: ChatMessage = { id: `u${nextId.current++}`, from: "me", text };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    const replyText = await ask(text);
-    const aiMsg: ChatMessage = { id: `a${nextId.current++}`, from: "ai", text: replyText };
-    setMessages((prev) => [...prev, aiMsg]);
-    speak(replyText);
+    setIsThinking(true);
+    try {
+      const replyText = await ask(text);
+      const aiMsg: ChatMessage = { id: `a${nextId.current++}`, from: "ai", text: replyText };
+      setMessages((prev) => [...prev, aiMsg]);
+      speak(replyText);
+    } finally {
+      setIsThinking(false);
+    }
   }
 
   function addExchange(userText: string, aiText: string) {
@@ -92,6 +102,19 @@ export default function AICounsellor() {
               </div>
             ))}
 
+            {isThinking && (
+              <div className="flex justify-start">
+                <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
+                  <Sparkles size={13} />
+                </div>
+                <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-[var(--sd-card)] px-4 py-3 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+                </div>
+              </div>
+            )}
+
             {messages.length === 1 && (
               <div className="space-y-2 pl-9">
                 {suggestions.map((s) => (
@@ -113,19 +136,22 @@ export default function AICounsellor() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send(input)}
-                placeholder="Type, or tap the mic to talk live..."
-                className="w-full bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                disabled={isThinking}
+                placeholder={isThinking ? "Waiting for a reply…" : "Type, or tap the mic to talk live..."}
+                className="w-full bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
               />
               <button
                 onClick={() => setVoiceOpen(true)}
                 aria-label="Start live voice conversation"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]"
+                disabled={isThinking}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF] disabled:opacity-40"
               >
                 <Mic size={17} />
               </button>
               <button
                 onClick={() => send(input)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white"
+                disabled={isThinking}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:opacity-60"
               >
                 <Send size={14} />
               </button>

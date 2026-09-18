@@ -52,14 +52,18 @@ export function ChecklistCard({ row }: { row: ChecklistRow }) {
       </div>
     );
   }
+  // Not uploaded at all — red, same as a rejected or counsellor-requested item, since it's still
+  // something the student needs to act on.
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+    <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50/50 p-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
         <AlertCircle size={14} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-        <p className="text-[11px] text-slate-400">Not uploaded yet</p>
+        <p className="text-[11px] text-rose-600">
+          {row.requested ? "Requested by counsellor — not uploaded yet" : "Not uploaded yet"}
+        </p>
       </div>
     </div>
   );

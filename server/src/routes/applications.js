@@ -219,20 +219,24 @@ router.patch("/:id/status", requireAuth, async (req, res, next) => {
   }
 });
 
+// counsellorId is optional — an empty value clears the assignment back to "Unassigned" (the
+// counsellor UI's own dropdown offers that option), it's only ever *rejected* outright if the body
+// is missing the field altogether in a way that suggests a malformed request... which in practice
+// never happens here, so this just accepts empty/absent equally and clears the field.
 router.patch("/:id/assign-counsellor", requireAuth, async (req, res, next) => {
   try {
     const { counsellorId } = req.body || {};
-    if (!counsellorId) return res.status(400).json({ error: "counsellorId is required." });
+    const value = counsellorId || null;
     const actor = actorFrom(req);
 
     const updated = await prisma.$transaction(async (tx) => {
       const current = await tx.application.findUnique({ where: { id: req.params.id } });
       if (!current) throw Object.assign(new Error("Application not found."), { status: 404 });
-      const updated = await tx.application.update({ where: { id: req.params.id }, data: { responsibleCounsellorId: counsellorId } });
+      const updated = await tx.application.update({ where: { id: req.params.id }, data: { responsibleCounsellorId: value } });
       await tx.applicationActivity.create({
         data: {
           applicationId: req.params.id, action: "counsellor_assigned",
-          oldValue: current.responsibleCounsellorId, newValue: counsellorId,
+          oldValue: current.responsibleCounsellorId, newValue: value,
           performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
         },
       });
@@ -245,20 +249,21 @@ router.patch("/:id/assign-counsellor", requireAuth, async (req, res, next) => {
   }
 });
 
+// Same "empty clears it" rule as assign-counsellor above.
 router.patch("/:id/assign-admission-officer", requireAuth, async (req, res, next) => {
   try {
     const { officerId } = req.body || {};
-    if (!officerId) return res.status(400).json({ error: "officerId is required." });
+    const value = officerId || null;
     const actor = actorFrom(req);
 
     const updated = await prisma.$transaction(async (tx) => {
       const current = await tx.application.findUnique({ where: { id: req.params.id } });
       if (!current) throw Object.assign(new Error("Application not found."), { status: 404 });
-      const updated = await tx.application.update({ where: { id: req.params.id }, data: { responsibleAdmissionOfficerId: officerId } });
+      const updated = await tx.application.update({ where: { id: req.params.id }, data: { responsibleAdmissionOfficerId: value } });
       await tx.applicationActivity.create({
         data: {
           applicationId: req.params.id, action: "admission_officer_assigned",
-          oldValue: current.responsibleAdmissionOfficerId, newValue: officerId,
+          oldValue: current.responsibleAdmissionOfficerId, newValue: value,
           performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
         },
       });
@@ -324,6 +329,120 @@ router.get("/:id/journey", requireAuth, async (req, res, next) => {
   }
 });
 
+/** Merges a patch into one application's stage record and returns the computed StageRecord —
+ * pure, no writes — shared by the primary edit below and, for Financial Readiness, every sibling
+ * application it gets broadcast to (see the route), so both end up with byte-identical records. */
+function computeUpdatedStage(currentStages, stageType, patch) {
+  const current = currentStages[stageType];
+  const oldStatus = current?.status;
+  const nextData = { ...(current?.data ?? {}), ...patch };
+  const { status: nextStatus, blocked, blockedReason, ...dataOnly } = nextData;
+
+  const updatedStage = {
+    stageType,
+    applicable: current?.applicable ?? true,
+    required: current?.required ?? true,
+    status: nextStatus ?? current?.status ?? "",
+    startedAt: current?.startedAt ?? new Date().toISOString(),
+    completedAt: current?.completedAt,
+    blocked: blocked ?? current?.blocked,
+    blockedReason: blockedReason ?? current?.blockedReason,
+    data: dataOnly,
+  };
+  if (nextStatus && journey.STAGE_TERMINAL_STATUS[stageType]?.includes(nextStatus) && !updatedStage.completedAt) {
+    updatedStage.completedAt = new Date().toISOString();
+  }
+  return { updatedStage, oldStatus };
+}
+
+/** Persists an already-computed stage record onto one application: journey + stage_updated
+ * activity, then re-derives the flat AppStatus/nextAction and updates the Application row (plus a
+ * status-changed activity/history entry and notification when it actually changed). Shared between
+ * the application actually being edited and, for Financial Readiness only, every sibling
+ * application the edit gets broadcast to — same effect either way, so they can never end up
+ * showing different things for what is now one shared piece of data. */
+async function applyStageToApplication(applicationId, stageType, updatedStage, oldStatus, actor) {
+  let record = await prisma.applicationJourney.findUnique({ where: { applicationId } });
+  if (!record) {
+    const app = await prisma.application.findUnique({ where: { id: applicationId } });
+    if (!app) return null;
+    record = await prisma.applicationJourney.create({
+      data: { applicationId, stages: journey.buildInitialStages(app.country) },
+    });
+  }
+  const nextStages = { ...record.stages, [stageType]: updatedStage };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.applicationJourney.update({ where: { applicationId }, data: { stages: nextStages } });
+    await tx.applicationActivity.create({
+      data: {
+        applicationId, stageType, action: "stage_updated",
+        oldValue: oldStatus, newValue: updatedStage.status,
+        performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
+      },
+    });
+  });
+
+  const derivedStatus = journey.deriveAppStatus(nextStages);
+  const derivedNextAction = journey.computeNextAction(nextStages)?.title ?? "Every stage of the journey is complete.";
+
+  const current = await prisma.application.findUnique({ where: { id: applicationId } });
+  const previousStatus = toHuman(current.status);
+  const updatedApp = await prisma.$transaction(async (tx) => {
+    const updated = await tx.application.update({ where: { id: applicationId }, data: { status: toEnum(derivedStatus), nextAction: derivedNextAction } });
+    await tx.applicationStatusHistory.create({ data: { applicationId, status: toEnum(derivedStatus) } });
+    if (derivedStatus !== previousStatus) {
+      await tx.applicationActivity.create({
+        data: {
+          applicationId, action: "status_changed",
+          oldValue: previousStatus, newValue: derivedStatus,
+          performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
+        },
+      });
+    }
+    return updated;
+  });
+
+  if (derivedStatus !== previousStatus) {
+    const { recipients, variables } = await recipientsAndVariablesFor(updatedApp);
+    if (recipients.length > 0) {
+      sendStatusNotification({ status: derivedStatus, recipients, variables }).catch((err) =>
+        console.warn("Status-change notification failed to send:", err)
+      );
+    }
+  }
+
+  return nextStages;
+}
+
+// Merges a Financial Readiness stage's data into the one shared StudentFinancialReadiness record
+// for that student — matches studentFinancialReadiness.js's own upsert rule so editing it from
+// either door (a specific application's Journey panel, or the student's own form) behaves
+// identically.
+async function upsertSharedFinancialReadiness(studentId, updatedStage) {
+  const existing = await prisma.studentFinancialReadiness.findUnique({ where: { studentId } });
+  const d = updatedStage.data || {};
+  const data = {
+    evidenceRequired: d.evidenceRequired ?? existing?.evidenceRequired ?? true,
+    requiredAmount: d.requiredAmount ?? null,
+    currency: d.currency ?? null,
+    holdingPeriodDays: d.holdingPeriodDays ?? null,
+    openingDate: d.openingDate ? new Date(d.openingDate) : null,
+    maturityDate: d.maturityDate ? new Date(d.maturityDate) : null,
+    bankStatus: updatedStage.status || existing?.bankStatus || "Not Started",
+    accountHolder: d.accountHolder ?? null,
+    accountType: d.accountType ?? null,
+  };
+  if (!existing?.completedAt && updatedStage.completedAt) {
+    data.completedAt = new Date(updatedStage.completedAt);
+  }
+  await prisma.studentFinancialReadiness.upsert({
+    where: { studentId },
+    create: { studentId, ...data },
+    update: data,
+  });
+}
+
 router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
   try {
     const { stageType } = req.params;
@@ -342,65 +461,26 @@ router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
       });
     }
 
-    const current = record.stages[stageType];
-    const oldStatus = current?.status;
-    const nextData = { ...(current?.data ?? {}), ...patch };
-    const { status: nextStatus, blocked, blockedReason, ...dataOnly } = nextData;
+    const { updatedStage, oldStatus } = computeUpdatedStage(record.stages, stageType, patch);
+    const nextStages = await applyStageToApplication(req.params.id, stageType, updatedStage, oldStatus, actor);
 
-    const updatedStage = {
-      stageType,
-      applicable: current?.applicable ?? true,
-      required: current?.required ?? true,
-      status: nextStatus ?? current?.status ?? "",
-      startedAt: current?.startedAt ?? new Date().toISOString(),
-      completedAt: current?.completedAt,
-      blocked: blocked ?? current?.blocked,
-      blockedReason: blockedReason ?? current?.blockedReason,
-      data: dataOnly,
-    };
-    if (nextStatus && journey.STAGE_TERMINAL_STATUS[stageType]?.includes(nextStatus) && !updatedStage.completedAt) {
-      updatedStage.completedAt = new Date().toISOString();
-    }
-
-    const nextStages = { ...record.stages, [stageType]: updatedStage };
-
-    await prisma.$transaction(async (tx) => {
-      await tx.applicationJourney.update({ where: { applicationId: req.params.id }, data: { stages: nextStages } });
-      await tx.applicationActivity.create({
-        data: {
-          applicationId: req.params.id, stageType, action: "stage_updated",
-          oldValue: oldStatus, newValue: updatedStage.status,
-          performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
-        },
-      });
-    });
-
-    const derivedStatus = journey.deriveAppStatus(nextStages);
-    const derivedNextAction = journey.computeNextAction(nextStages)?.title ?? "Every stage of the journey is complete.";
-
-    const current2 = await prisma.application.findUnique({ where: { id: req.params.id } });
-    const previousStatus = toHuman(current2.status);
-    const updatedApp = await prisma.$transaction(async (tx) => {
-      const updated = await tx.application.update({ where: { id: req.params.id }, data: { status: toEnum(derivedStatus), nextAction: derivedNextAction } });
-      await tx.applicationStatusHistory.create({ data: { applicationId: req.params.id, status: toEnum(derivedStatus) } });
-      if (derivedStatus !== previousStatus) {
-        await tx.applicationActivity.create({
-          data: {
-            applicationId: req.params.id, action: "status_changed",
-            oldValue: previousStatus, newValue: derivedStatus,
-            performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
-          },
+    // Financial Readiness is one shared record per student (see the StudentFinancialReadiness
+    // table/studentFinancialReadiness.js), not an independent copy per application — persisting
+    // this and broadcasting it to every sibling application here, server-side, means it happens
+    // reliably regardless of which client made the edit (or how stale that client's own JS is),
+    // instead of depending on every client to correctly replicate the same fan-out itself.
+    if (stageType === "financial_readiness") {
+      const app = await prisma.application.findUnique({ where: { id: req.params.id } });
+      if (app) {
+        await upsertSharedFinancialReadiness(app.studentId, updatedStage);
+        const siblings = await prisma.application.findMany({
+          where: { studentId: app.studentId, id: { not: req.params.id } },
         });
-      }
-      return updated;
-    });
-
-    if (derivedStatus !== previousStatus) {
-      const { recipients, variables } = await recipientsAndVariablesFor(updatedApp);
-      if (recipients.length > 0) {
-        sendStatusNotification({ status: derivedStatus, recipients, variables }).catch((err) =>
-          console.warn("Status-change notification failed to send:", err)
-        );
+        for (const sibling of siblings) {
+          const siblingRecord = await prisma.applicationJourney.findUnique({ where: { applicationId: sibling.id } });
+          const siblingOldStatus = siblingRecord?.stages?.[stageType]?.status;
+          await applyStageToApplication(sibling.id, stageType, updatedStage, siblingOldStatus, actor);
+        }
       }
     }
 

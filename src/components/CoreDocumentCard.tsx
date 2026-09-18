@@ -98,16 +98,16 @@ export function CoreDocumentCard({
     return <ChecklistCard row={row} />;
   }
 
-  // Missing, or the previous upload was rejected — both need a (re-)upload action.
+  // Missing, or the previous upload was rejected — both need a (re-)upload action, so both are red.
   return (
-    <div className={`rounded-xl border p-3 ${row.rejected ? "border-rose-200 bg-rose-50/50" : "border-dashed border-slate-300 bg-white"}`}>
+    <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3">
       <div className="flex items-center gap-3">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${row.rejected ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-400"}`}>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
           <AlertCircle size={14} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className={`truncate text-[11px] ${row.rejected ? "text-rose-600" : "text-slate-400"}`}>
+          <p className="truncate text-[11px] text-rose-600">
             {row.rejected ? `Rejected — ${row.rejected.reason || "no reason given"}` : "Not uploaded yet"}
           </p>
         </div>
@@ -115,7 +115,7 @@ export function CoreDocumentCard({
           <>
             <button
               onClick={() => inputRef.current?.click()}
-              className="flex shrink-0 items-center gap-1 rounded-lg bg-[image:var(--sd-gradient)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
+              className="flex shrink-0 items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-[11px] font-semibold text-white"
             >
               <Upload size={11} /> {row.rejected ? "Re-upload" : "Upload"}
             </button>

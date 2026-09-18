@@ -1,10 +1,10 @@
 // The generic, lifecycle-aware document system the workflow needs (Requested → Uploaded → Under
-// Review → Verified/Rejected/Expired) — additive, not a replacement for the four existing
-// document-ish stores (applicationDocsStore, coreDocsStore, customDocRequestsStore,
-// documentDueDatesStore). Those keep serving the existing core/university-text checklist
-// untouched; new stage-linked documents (bank statement, SWIFT copy, CAS/COE/PAL/I-20, visa docs)
-// go through this store from this feature onward. Consolidating the older stores into this one is
-// a deliberate later migration, not part of this pass.
+// Review → Verified/Rejected/Expired) — additive, not a replacement for the existing document-ish
+// stores (applicationDocsStore, coreDocsStore, documentDueDatesStore). Those keep serving the
+// existing core/university-text checklist untouched; new stage-linked documents (bank statement,
+// SWIFT copy, CAS/COE/PAL/I-20, visa docs) go through this store from this feature onward.
+// Consolidating the older stores into this one is a deliberate later migration, not part of this
+// pass.
 import type { Role } from "../types";
 import type { StageType } from "../types/journey";
 
