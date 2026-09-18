@@ -1,7 +1,6 @@
 import { STUDENTS, COUNSELLORS, AGENTS } from "../data/mockData";
 import { getAllApplications, createApplication } from "../data/applicationsStore";
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
-import { addUploadedDoc } from "../data/applicationDocsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
 import { getProfileCompletion, markStepComplete, PROFILE_STEPS } from "../data/profileCompletion";
@@ -15,6 +14,7 @@ import { loadAcademicLevels, saveAcademicLevels } from "../data/academicProfileS
 import { sendMessage, type MessageParticipant } from "../data/messagesStore";
 import { buildAnswer } from "./aiCounsellorEngine";
 import { getApplicationSummary, getNextAction, getMissingDocuments, getDeadlines, getBlockers } from "./applicationJourneyTools";
+import { buildCoreChecklist } from "./documentChecklist";
 import type { ToolDefinition, AssistantUserContext } from "./assistantEngine";
 
 // Students don't use taskAssignment.recipientsFor here — that map is one-directional for *task
@@ -374,6 +374,12 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         if (!course) {
           return { error: `No course with id "${args.courseId}" exists at ${university.name}. Call get_university_detail("${university.id}") to see its real courses and use a real course id.` };
         }
+        const missingCoreDocs = buildCoreChecklist(studentId).filter((row) => !row.own);
+        if (missingCoreDocs.length > 0) {
+          return {
+            error: `Core documents must be uploaded before submitting an application. Missing: ${missingCoreDocs.map((row) => row.type).join(", ")}.`,
+          };
+        }
         return createApplication({
           studentId,
           university: university.name,
@@ -411,18 +417,6 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         toggleNextStepDone(String(args.applicationId), String(args.stepId));
         return loadNextSteps(String(args.applicationId));
       },
-    },
-    {
-      spec: {
-        name: "record_uploaded_document",
-        description: "Record that a document has been provided for an application (checklist bookkeeping only — the actual file must still be uploaded manually in the app).",
-        parameters: {
-          type: "object",
-          properties: { applicationId: { type: "string" }, name: { type: "string" } },
-          required: ["applicationId", "name"],
-        },
-      },
-      execute: (args) => addUploadedDoc(String(args.applicationId), String(args.name)),
     },
     {
       spec: {

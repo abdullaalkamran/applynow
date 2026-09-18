@@ -31,6 +31,16 @@ export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   }).then((r) => handle<T>(r));
 }
 
+/** Same as apiPost, but for multipart/form-data (real file uploads) — no content-type header set
+ * explicitly, since the browser needs to generate the multipart boundary itself. */
+export function apiPostForm<T>(path: string, formData: FormData): Promise<T> {
+  return fetch(`${BACKEND_BASE}${path}`, {
+    method: "POST",
+    headers: { ...authHeader() },
+    body: formData,
+  }).then((r) => handle<T>(r));
+}
+
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return fetch(`${BACKEND_BASE}${path}`, {
     method: "PATCH",

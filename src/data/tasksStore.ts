@@ -4,7 +4,7 @@
 // fields, exactly as before this migration.
 import type { StageType } from "../types/journey";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 
 export type TaskRole = "student" | "agent" | "counsellor" | "admin" | "admission";
 
@@ -35,7 +35,9 @@ export interface Task {
 let cache: Task[] = [];
 
 export async function refreshTasks(): Promise<void> {
-  cache = await apiGet<Task[]>("/api/tasks");
+  const next = await apiGet<Task[]>("/api/tasks");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 

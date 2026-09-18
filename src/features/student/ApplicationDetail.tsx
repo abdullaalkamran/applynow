@@ -1,18 +1,19 @@
 import { useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, MoreVertical, Heart, Calendar, MapPin, Check, FileText, StickyNote,
-  Clock, Landmark, GraduationCap, ChevronRight, ChevronDown, MessageCircle, ExternalLink, ListChecks,
+  Clock, Landmark, GraduationCap, ChevronRight, ChevronDown, MessageCircle, ExternalLink, ListChecks, AlertCircle,
 } from "lucide-react";
 import { LogoBadge, DocChecklistRow, SupportRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import {
-  UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID, STUDENTS,
+  DOCUMENTS, CURRENT_STUDENT_ID, STUDENTS,
   COUNSELLORS, AGENTS, ADMISSION_OFFICERS, COMPLIANCE_OFFICERS,
 } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs, addUploadedDoc as addUploadedDocToStore } from "../../data/applicationDocsStore";
 import { scholarshipAmountUSD } from "../../utils/universityFilter";
-import { docMatchesType, buildChecklist, coreDocTypes } from "../../utils/documentChecklist";
+import { docMatchesType, buildChecklist, buildCoreChecklist, coreDocTypes } from "../../utils/documentChecklist";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
 import { ApplicationJourneyPanel } from "../../components/ApplicationJourneyPanel";
@@ -29,12 +30,20 @@ const docStatusTone: Record<string, string> = {
 export default function ApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Lets a caller (the Dashboard's "Next Steps" list, a notification) deep-link straight to the
+  // Documents tab of a specific application instead of always landing on Overview.
+  const navState = location.state as { tab?: (typeof TABS)[number] } | null;
   const allApplications = getAllApplications();
   const application = allApplications.find((a) => a.id === id) ?? allApplications[0];
-  const university = UNIVERSITIES.find((u) => u.name === application.university);
+  const universities = getAllUniversities();
+  const university = universities.find((u) => u.name === application.university);
   const course = university?.courses.find((c) => c.name === application.course);
   const currentIdx = pipelineIndex(application.status);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const missingCoreDocs = buildCoreChecklist(application.studentId).filter((row) => !row.own);
+  const coreDocsBlocked = missingCoreDocs.length > 0;
+  const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application.nextAction;
+  const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
   const [saved, setSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [programInfoOpen, setProgramInfoOpen] = useState(true);
@@ -56,13 +65,13 @@ export default function ApplicationDetail() {
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  function addUploadedDoc(name: string, previewUrl?: string) {
-    setUploadedDocs(addUploadedDocToStore(application.id, name, previewUrl));
+  function addUploadedDoc(name: string, file: File) {
+    setUploadedDocs(addUploadedDocToStore(application.id, name, file));
   }
 
   // "Upload bank statement" -> "Bank statement" — the specific document this application's current
   // stage is actually blocked on, used to highlight the matching checklist row.
-  const stageDocMatch = /^upload (.+)/i.exec(application.nextAction);
+  const stageDocMatch = /^upload (.+)/i.exec(visibleNextAction);
   const stageDocName = stageDocMatch ? stageDocMatch[1].replace(/^./, (c) => c.toUpperCase()) : null;
 
   function startUpload(type: string) {
@@ -80,7 +89,9 @@ export default function ApplicationDetail() {
     const type = uploadingType;
     window.setTimeout(() => {
       setScanStatus("done");
-      addUploadedDoc(type, isImage ? URL.createObjectURL(file) : undefined);
+      // The store itself uploads the real file bytes to the server (see applicationDocsStore.ts) —
+      // it no longer needs (or accepts) a pre-built blob: URL here.
+      addUploadedDoc(type, file);
       window.setTimeout(() => { setUploadingType(null); setUploadingFile(null); setScanStatus("idle"); }, 600);
     }, 1200);
   }
@@ -207,11 +218,30 @@ export default function ApplicationDetail() {
           <div className="py-4">
             {tab === "Overview" && (
               <>
+                {coreDocsBlocked && (
+                  <button
+                    onClick={() => navigate("/student/documents")}
+                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                      <AlertCircle size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold text-amber-950">Upload core documents</p>
+                      <p className="truncate text-[11.5px] text-amber-800">
+                        Missing {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
+                        {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="shrink-0 text-amber-700" />
+                  </button>
+                )}
+
                 <div className="flex items-center gap-4 rounded-2xl bg-[#E7EEFC] p-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-[#1B2C57]">Application Status</p>
                     <p className="mt-1 text-[19px] font-bold text-[#1B2C57]">{application.status}</p>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-[#3A4B76]">{application.nextAction}</p>
+                    <p className="mt-1 text-[12.5px] leading-relaxed text-[#3A4B76]">{visibleNextAction}</p>
                   </div>
                   <ProgressRing pct={ringPct} label={`${ringNumerator} / ${ringDenominator}`} />
                 </div>
@@ -235,7 +265,7 @@ export default function ApplicationDetail() {
                         <div className="pb-6">
                           <p className={`text-[13px] font-medium ${current ? "text-[var(--sd-ink)]" : done ? "text-slate-700" : "text-slate-400"}`}>{label}</p>
                           {stepDates[i] && <p className="text-xs text-slate-400">{stepDates[i]}</p>}
-                          {current && <p className="mt-0.5 text-xs text-slate-500">{application.nextAction}</p>}
+                          {current && <p className="mt-0.5 text-xs text-slate-500">{visibleNextAction}</p>}
                         </div>
                       </div>
                     );
@@ -316,12 +346,13 @@ export default function ApplicationDetail() {
                   </p>
                 )}
 
-                {checklistRows.map(({ type, own, reused, isStageBlocker }) => (
+                {checklistRows.map(({ type, own, reused, rejected, isStageBlocker }) => (
                   <DocChecklistRow
                     key={type}
                     type={type}
                     own={own}
                     reused={reused}
+                    rejected={rejected}
                     highlighted={isStageBlocker}
                     highlightLabel={`Needed for the "${STEPS[currentIdx]}" stage`}
                     isUploading={uploadingType === type}
@@ -395,7 +426,7 @@ export default function ApplicationDetail() {
                       <div className="min-w-0">
                         <p className="text-[13px] font-medium text-slate-800">{label}</p>
                         <p className="text-xs text-slate-400">{stepDates[i] ?? "Today"}</p>
-                        {isCurrent && <p className="mt-0.5 text-xs text-slate-500">{application.nextAction}</p>}
+                        {isCurrent && <p className="mt-0.5 text-xs text-slate-500">{visibleNextAction}</p>}
                       </div>
                     </div>
                   );

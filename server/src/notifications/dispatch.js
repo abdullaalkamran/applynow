@@ -39,4 +39,29 @@ async function sendStatusNotification({ status, recipients, variables }) {
   };
 }
 
-module.exports = { sendStatusNotification, renderTemplate };
+/** Same recipients/channel fan-out as sendStatusNotification, but for document review events
+ * (verified/rejected) — these aren't an AppStatus, so there's no admin-configurable per-status
+ * rule to gate on here; the message is built by the caller and always sent. */
+async function sendDocumentNotification({ subject, message, recipients }) {
+  const config = getConfig();
+  const results = await Promise.allSettled(
+    recipients.map(async (recipient) => {
+      if (recipient.channel === "whatsapp") {
+        const provider = getWhatsAppProvider(config.whatsappProvider);
+        return { ...(await provider.send({ to: recipient.to, message })), channel: "whatsapp", to: recipient.to };
+      }
+      if (recipient.channel === "email") {
+        const provider = getEmailProvider(config.emailProvider);
+        return { ...(await provider.send({ to: recipient.to, subject, message })), channel: "email", to: recipient.to };
+      }
+      throw Object.assign(new Error(`Unknown channel "${recipient.channel}"`), { status: 400 });
+    })
+  );
+
+  return {
+    sent: true,
+    results: results.map((r) => (r.status === "fulfilled" ? r.value : { ok: false, error: r.reason?.message || "Send failed" })),
+  };
+}
+
+module.exports = { sendStatusNotification, sendDocumentNotification, renderTemplate };

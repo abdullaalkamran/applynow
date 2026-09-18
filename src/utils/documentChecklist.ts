@@ -128,8 +128,21 @@ export function studentDocumentVault(studentId: string, excludeApplicationId?: s
 
 export interface ChecklistRow {
   type: string;
-  own?: { name: string; status: string; previewUrl?: string };
+  own?: { id?: string; name: string; status: string; previewUrl?: string };
   reused?: ChecklistDoc;
+  // Core-doc only: the most recent upload for this type was rejected, and nothing newer has been
+  // uploaded since — still counts as "missing" (own is unset) but carries the counsellor's reason
+  // so the checklist can prompt a re-upload instead of a plain "not uploaded yet".
+  rejected?: { id: string; reason?: string; uploadedAt: string };
+}
+
+/** Rejected items float to the top of a checklist — they're the ones actually blocking the
+ * student right now and need a re-upload, so they shouldn't be buried wherever their type
+ * happens to fall in the list. Everything else (missing, pending review, reused, verified) keeps
+ * its original relative order — Array.prototype.sort is stable, so this only ever moves rejected
+ * rows forward. */
+function sortChecklistRows(rows: ChecklistRow[]): ChecklistRow[] {
+  return [...rows].sort((a, b) => Number(!a.rejected) - Number(!b.rejected));
 }
 
 /** The university-specific checklist for one application — what's already on file for it, what can
@@ -146,23 +159,80 @@ export function buildChecklist(
   const vault = studentDocumentVault(studentId, applicationId);
   const customTypes = loadCustomDocRequests(applicationId).map((r) => r.type);
   const allTypes = Array.from(new Set([...universityDocTypesFor(university, studentId), ...customTypes]));
-  return allTypes.map((type) => {
+  // The real, server-backed uploads for this application (loadUploadedDocs is now Postgres-backed —
+  // see applicationDocsStore.ts) — checked ahead of `ownDocs` since these are the ones with a
+  // working verify/reject lifecycle, unlike the legacy/seed entries mixed into `ownDocs`, which
+  // have no real Document row behind them to verify or reject. A rejected upload leaves the item
+  // still "missing" (with the counsellor's reason attached) until a fresh one replaces it — same
+  // rule as buildCoreChecklist.
+  const serverDocs = loadUploadedDocs(applicationId);
+  const rows = allTypes.map((type) => {
+    const serverMatches = serverDocs.filter((d) => docMatchesType(d.name, type)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const latestServer = serverMatches[0];
+    if (latestServer) {
+      if (latestServer.status === "rejected") {
+        return { type, rejected: { id: latestServer.id, reason: latestServer.rejectionReason, uploadedAt: latestServer.uploadedAt } };
+      }
+      return { type, own: { id: latestServer.id, name: latestServer.name, status: latestServer.status, previewUrl: latestServer.previewUrl } };
+    }
     const own = ownDocs.find((d) => docMatchesType(d.name, type));
     const reused = !own ? vault.find((d) => docMatchesType(d.name, type)) : undefined;
     return { type, own, reused };
   });
+  return sortChecklistRows(rows);
+}
+
+/** True when the student's academic profile is too thin for coreDocTypes()/academicDocTypesFor()
+ * to have derived the exact document types they actually need (e.g. no education level recorded
+ * yet, so it's fallen back to a single generic "Academic Transcript/Certificate" pair) — the
+ * trigger for showing the manual "Add a document type" picker (see coreDocTypeOptions()). */
+export function academicProfileIncomplete(studentId: string): boolean {
+  return loadAcademicLevels(studentId).length === 0;
+}
+
+const MANUAL_ACADEMIC_LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Bachelor's", "Master's", "PhD"];
+
+/** Every type the manual "Add a document type" picker offers — every academic level's
+ * Transcript/Certificate pair (so a student can say "Bachelor's Transcript" precisely instead of
+ * waiting on their profile to derive it) plus the other core types that aren't level-dependent. */
+export function coreDocTypeOptions(): string[] {
+  return [
+    ...MANUAL_ACADEMIC_LEVELS.flatMap((level) => [`${level} — Transcript`, `${level} — Certificate`]),
+    "English Proficiency", "CV / Resume", "Employment Reference Letter", "Passport", "Financial Statement",
+  ];
 }
 
 /** The student's core document checklist — uploaded once via the core vault, and satisfied
  * automatically if a matching document already exists anywhere (including older per-application
- * uploads from before the core vault existed). */
+ * uploads from before the core vault existed). The server-backed vault (`core`) is checked first
+ * since it's the one with a working verify/reject lifecycle: a rejected upload leaves the item
+ * still "missing" (with the counsellor's reason attached) until a fresh one replaces it, and a
+ * "requested" placeholder (added via the manual picker, no file yet) does the same until something
+ * is actually filed against it. Anything already on file from before that migration (seed data,
+ * older per-application uploads) is still recognised as a plain fallback. */
 export function buildCoreChecklist(studentId: string): ChecklistRow[] {
   const legacyDocs = DOCUMENTS.filter((d) => d.studentId === studentId);
   const perApplicationUploads = getAllApplications()
     .filter((a) => a.studentId === studentId)
     .flatMap((a) => loadUploadedDocs(a.id));
-  const core = loadCoreDocs();
-  const allOwn: { name: string; status: string; previewUrl?: string }[] = [...core, ...legacyDocs, ...perApplicationUploads];
+  const legacyOwn: { name: string; status: string; previewUrl?: string }[] = [...legacyDocs, ...perApplicationUploads];
 
-  return coreDocTypes(studentId).map((type) => ({ type, own: allOwn.find((d) => docMatchesType(d.name, type)) }));
+  const core = loadCoreDocs(studentId);
+  const adHocTypes = core.filter((d) => d.custom).map((d) => d.type);
+  const types = Array.from(new Set([...coreDocTypes(studentId), ...adHocTypes]));
+
+  const rows = types.map((type) => {
+    const coreMatches = core.filter((d) => docMatchesType(d.name, type)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const latestCore = coreMatches[0];
+
+    if (latestCore && latestCore.status !== "requested") {
+      if (latestCore.status === "rejected") {
+        return { type, rejected: { id: latestCore.id, reason: latestCore.rejectionReason, uploadedAt: latestCore.uploadedAt } };
+      }
+      return { type, own: { id: latestCore.id, name: latestCore.name, status: latestCore.status, previewUrl: latestCore.previewUrl } };
+    }
+
+    return { type, own: legacyOwn.find((d) => docMatchesType(d.name, type)) };
+  });
+  return sortChecklistRows(rows);
 }

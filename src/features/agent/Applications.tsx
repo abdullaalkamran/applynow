@@ -11,7 +11,7 @@ import { getAllApplications } from "../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
 import { loadDocDueDate } from "../../data/documentDueDatesStore";
 import { UNIVERSITIES, DOCUMENTS } from "../../data/mockData";
-import { buildChecklist } from "../../utils/documentChecklist";
+import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
 import { pipelineBucketFor, CLOSED_STATUSES, daysAgo, type PipelineBucket } from "../../utils/counsellorData";
 import { loadOpenNextStepsFor } from "../../utils/agentNextSteps";
@@ -158,6 +158,10 @@ export default function AgentApplications() {
             ? [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === app.id), ...loadUploadedDocs(app.id)]
             : [];
           const missingDocs = university ? buildChecklist(university, student.id, app.id, docs).filter((r) => !r.own && !r.reused) : [];
+          // Core docs (Passport, Transcript, etc.) live in the student's own vault, uploaded once
+          // and shared across every application — flagged here as a heads-up, resolving for every
+          // role (student, counsellor, agent) the moment the student uploads it.
+          const missingCoreDocs = buildCoreChecklist(student.id).filter((r) => !r.own);
           const appNextSteps = openSteps.filter((s) => s.applicationId === app.id);
 
           return (
@@ -177,6 +181,11 @@ export default function AgentApplications() {
 
               <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-50 pt-3">
                 <StatusBadge status={app.status} />
+                {missingCoreDocs.length > 0 && (
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                    <AlertCircle size={9} /> Core docs missing ({missingCoreDocs.length})
+                  </span>
+                )}
                 <span className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8.5px] font-semibold text-white ${student.avatarColor}`}>
                     {student.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
@@ -245,7 +254,7 @@ export default function AgentApplications() {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                addUploadedDoc(app.id, row.type, URL.createObjectURL(file));
+                                addUploadedDoc(app.id, row.type, file);
                                 forceTick((t) => t + 1);
                               }
                               e.target.value = "";

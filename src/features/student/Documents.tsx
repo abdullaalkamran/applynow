@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight, CheckCircle2, ShieldCheck } from "lucide-react";
 import { MobileHeader, LogoBadge, DocChecklistRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
-import { UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
 import { addCoreDoc } from "../../data/coreDocsStore";
-import { buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType } from "../../utils/documentChecklist";
+import { buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType, academicProfileIncomplete } from "../../utils/documentChecklist";
+import { AddCoreDocumentButton } from "../../components/CoreDocumentCard";
 
 const CORE_KEY = "core";
 
@@ -30,6 +32,7 @@ export default function Documents() {
   const applications = getAllApplications().filter(
     (a) => a.studentId === CURRENT_STUDENT_ID && !["Withdrawn", "Rejected", "Deferred"].includes(a.status)
   );
+  const universities = getAllUniversities();
 
   function startUpload(scope: string, type: string) {
     setUploadKey(`${scope}::${type}`);
@@ -46,8 +49,10 @@ export default function Documents() {
     setScanStatus("scanning");
     window.setTimeout(() => {
       setScanStatus("done");
-      if (scope === CORE_KEY) addCoreDoc(type, isImage ? URL.createObjectURL(file) : undefined);
-      else addUploadedDoc(scope, type, isImage ? URL.createObjectURL(file) : undefined);
+      // The store itself uploads the real file bytes to the server (see coreDocsStore.ts /
+      // applicationDocsStore.ts) — it no longer needs (or accepts) a pre-built blob: URL here.
+      if (scope === CORE_KEY) addCoreDoc(CURRENT_STUDENT_ID, type, file);
+      else addUploadedDoc(scope, type, file);
       window.setTimeout(() => { setUploadKey(null); setUploadingFile(null); setScanStatus("idle"); }, 600);
     }, 1200);
   }
@@ -96,11 +101,18 @@ export default function Documents() {
 
             {coreOpen && (
               <div className="space-y-2 p-3.5">
+                {academicProfileIncomplete(CURRENT_STUDENT_ID) && (
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11.5px] leading-relaxed text-slate-500">
+                    Your academic profile isn't fully filled in yet, so we can't always tell exactly which
+                    transcript or certificate you need. If something's missing from the list below, add it yourself.
+                  </p>
+                )}
                 {coreRows.map((row) => (
                   <DocChecklistRow
                     key={row.type}
                     type={row.type}
                     own={row.own}
+                    rejected={row.rejected}
                     isUploading={uploadKey === `${CORE_KEY}::${row.type}`}
                     uploadingFile={uploadingFile}
                     scanStatus={scanStatus}
@@ -108,12 +120,17 @@ export default function Documents() {
                     onCancelUpload={() => { setUploadKey(null); setUploadingFile(null); setScanStatus("idle"); }}
                   />
                 ))}
+                <AddCoreDocumentButton
+                  studentId={CURRENT_STUDENT_ID}
+                  existingTypes={coreRows.map((r) => r.type)}
+                  onAdded={() => {}}
+                />
               </div>
             )}
           </div>
 
           {applications.map((app) => {
-            const university = UNIVERSITIES.find((u) => u.name === app.university);
+            const university = universities.find((u) => u.name === app.university);
             if (!university) return null;
 
             const linkedDocs = DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id);

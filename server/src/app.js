@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const { getConfig } = require("./config");
 const assistantRoute = require("./routes/assistant");
@@ -14,6 +15,7 @@ const staffRoute = require("./routes/staff");
 const applicationsRoute = require("./routes/applications");
 const tasksRoute = require("./routes/tasks");
 const messagesRoute = require("./routes/messages");
+const documentsRoute = require("./routes/documents");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -24,6 +26,11 @@ app.use(
   })
 );
 app.use(express.json({ limit: "1mb" }));
+
+// Uploaded documents (see routes/documents.js) — served back exactly as stored, no auth check on
+// the static file itself (only the path is unguessable, per multer's random filename), same
+// trade-off as any plain object-storage URL.
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.use("/api/health", healthRoute);
 app.use("/api/assistant", assistantRoute);
@@ -38,6 +45,7 @@ app.use("/api/staff", staffRoute);
 app.use("/api/applications", applicationsRoute);
 app.use("/api/tasks", tasksRoute);
 app.use("/api/messages", messagesRoute);
+app.use("/api/documents", documentsRoute);
 
 app.use(errorHandler);
 

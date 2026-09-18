@@ -10,6 +10,9 @@ import { RoleBottomNav } from "./RoleBottomNav";
 import { unreadStaffMessageCount } from "../data/counsellorMessagesStore";
 import { loadDoneMeetingIds, loadMeetings } from "../data/counsellorMeetingsStore";
 import { loadLeads, loadLeadFollowUpStatus } from "../data/leadsStore";
+import { loadAssignedStudents } from "../data/counsellorStudentsStore";
+import { activeApplicationsFor } from "../utils/counsellorData";
+import { isSeenByCounsellor } from "../data/counsellorSeenApplicationsStore";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
 
@@ -40,12 +43,18 @@ export default function CounsellorShell() {
   const doneIds = loadDoneMeetingIds();
   const openTasks = loadMeetings().filter((m) => !doneIds.has(m.id)).length;
   const newLeads = loadLeads().filter((s) => loadLeadFollowUpStatus(s.id) === "New").length;
+  // Mirrors CounsellorApplications.tsx's isNewSubmission() — a student-submitted application the
+  // counsellor hasn't opened yet. Kept in sync via cacheTick (applications) and the same
+  // localStorage seen-list markSeenByCounsellor() writes to when they open one.
+  const newApplications = loadAssignedStudents()
+    .flatMap((s) => activeApplicationsFor(s.id))
+    .filter((a) => a.source === "student" && !isSeenByCounsellor(a.id)).length;
 
   const navItems: NavEntry[] = [
     { label: "Dashboard", path: "/staff/counsellor", icon: LayoutGrid },
     { label: "Leads", path: "/staff/counsellor/leads", icon: UserPlus, badge: newLeads },
     { label: "My Students", path: "/staff/counsellor/students", icon: Users },
-    { label: "Applications", path: "/staff/counsellor/applications", icon: FileText },
+    { label: "Applications", path: "/staff/counsellor/applications", icon: FileText, badge: newApplications },
     { label: "Counseling", path: "/staff/counsellor/counseling", icon: MessageCircle },
     { label: "University Partners", path: "/staff/counsellor/partners", icon: Landmark },
     { label: "Visa & Compliance", path: "/staff/counsellor/visa-compliance", icon: ShieldCheck },

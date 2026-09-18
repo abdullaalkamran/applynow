@@ -553,9 +553,12 @@ export function SupportRow({ contact, onChat }: { contact: SupportContact; onCha
 const docStatusTone: Record<string, string> = {
   verified: "text-[var(--sd-teal)]",
   pending: "text-[#B8791C]",
+  uploaded: "text-[#B8791C]",
   rejected: "text-rose-500",
   flagged: "text-rose-500",
 };
+
+const docStatusLabel: Record<string, string> = { uploaded: "Pending review" };
 
 /**
  * One row of an application's auto-built document checklist — shows whichever of four states
@@ -563,11 +566,15 @@ const docStatusTone: Record<string, string> = {
  * Shared between the Application Detail page and the My Documents overview so both stay in sync.
  */
 export function DocChecklistRow({
-  type, own, reused, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload,
+  type, own, reused, rejected, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload,
 }: {
   type: string;
   own?: { name: string; status: string };
   reused?: ChecklistDoc;
+  // Core-doc only: the most recent upload was rejected by the counsellor and nothing's replaced
+  // it yet — shown instead of the plain "Not uploaded yet" empty state, with the reason and a
+  // "Re-upload" affordance (reuses onStartUpload — a fresh upload simply supersedes it).
+  rejected?: { reason?: string };
   highlighted?: boolean;
   highlightLabel?: string;
   isUploading: boolean;
@@ -586,7 +593,9 @@ export function DocChecklistRow({
           <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
           <p className="truncate text-xs text-slate-400">{own.name}</p>
         </div>
-        <span className={`shrink-0 text-xs font-medium capitalize ${docStatusTone[own.status] ?? "text-slate-400"}`}>{own.status}</span>
+        <span className={`shrink-0 text-xs font-medium capitalize ${docStatusTone[own.status] ?? "text-slate-400"}`}>
+          {docStatusLabel[own.status] ?? own.status}
+        </span>
       </div>
     );
   }
@@ -627,17 +636,23 @@ export function DocChecklistRow({
     <button
       onClick={onStartUpload}
       className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left ${
-        highlighted ? "border-[#F3D9A8] bg-[#FDF6E9]" : "border-dashed border-slate-300 bg-[var(--sd-card)]"
+        rejected ? "border-rose-200 bg-rose-50/60" : highlighted ? "border-[#F3D9A8] bg-[#FDF6E9]" : "border-dashed border-slate-300 bg-[var(--sd-card)]"
       }`}
     >
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${highlighted ? "bg-[#F3D9A8] text-[#8A5A11]" : "bg-slate-100 text-slate-400"}`}>
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+          rejected ? "bg-rose-100 text-rose-600" : highlighted ? "bg-[#F3D9A8] text-[#8A5A11]" : "bg-slate-100 text-slate-400"
+        }`}
+      >
         <AlertCircle size={16} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
-        <p className="text-xs text-slate-400">{highlighted && highlightLabel ? highlightLabel : "Not uploaded yet"}</p>
+        <p className={`truncate text-xs ${rejected ? "text-rose-600" : "text-slate-400"}`}>
+          {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : highlighted && highlightLabel ? highlightLabel : "Not uploaded yet"}
+        </p>
       </div>
-      <span className="shrink-0 text-xs font-semibold text-[var(--sd-ink)]">Upload</span>
+      <span className={`shrink-0 text-xs font-semibold ${rejected ? "text-rose-600" : "text-[var(--sd-ink)]"}`}>{rejected ? "Re-upload" : "Upload"}</span>
     </button>
   );
 }

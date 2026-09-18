@@ -93,7 +93,22 @@ router.post("/", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "studentId, university, course, intake and country are required." });
     }
 
+    // A withdrawn or rejected application doesn't block a fresh attempt — anything else in
+    // flight (or already successful) for the same student/university/course does.
+    const duplicate = await prisma.application.findFirst({
+      where: {
+        studentId,
+        university,
+        course,
+        status: { notIn: ["Withdrawn", "Rejected"] },
+      },
+    });
+    if (duplicate) {
+      return res.status(409).json({ error: `You've already applied to ${course} at ${university}.` });
+    }
+
     const id = `app-custom-${Date.now()}`;
+    const actor = actorFrom(req);
     const app = await prisma.$transaction(async (tx) => {
       const created = await tx.application.create({
         data: {
@@ -109,8 +124,44 @@ router.post("/", requireAuth, async (req, res, next) => {
       await tx.applicationJourney.create({
         data: { applicationId: id, stages: journey.buildInitialStages(country) },
       });
+
+      // Auto-assign a "review this" task to the student's responsible counsellor — otherwise a
+      // student-submitted application only surfaces via the WhatsApp/email ping below, with
+      // nothing on the counsellor's own Tasks page prompting them to actually go look at it.
+      // Scoped to the student's own submissions — a counsellor creating an application on a
+      // student's behalf already knows about it, so there's nothing to remind them of.
+      const student = source === "student" ? await tx.student.findUnique({ where: { id: studentId } }) : null;
+      if (student?.counsellorId) {
+        const counsellor = await tx.staff.findUnique({ where: { id: student.counsellorId } });
+        if (counsellor) {
+          await tx.task.create({
+            data: {
+              id: `tk-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`,
+              title: `Review new application: ${course} at ${university}`,
+              description: `${student.name} submitted an application to ${course} at ${university} (${intake} intake).`,
+              assignedToId: counsellor.id, assignedToRole: "counsellor", assignedToName: counsellor.name,
+              assignedById: actor.id, assignedByRole: actor.role, assignedByName: actor.name,
+              studentId: student.id, studentName: student.name,
+              applicationId: id,
+              taskType: "application_review",
+              priority: "medium",
+            },
+          });
+        }
+      }
+
       return created;
     });
+
+    // Same notification path the status-PATCH route uses — a brand-new application is created
+    // straight into "Submitted", which never goes through that route, so without this the
+    // student's counsellor/agent never gets the WhatsApp/email "Submitted" alert at all.
+    const { recipients, variables } = await recipientsAndVariablesFor(app);
+    if (recipients.length > 0) {
+      sendStatusNotification({ status: "Submitted", recipients, variables }).catch((err) =>
+        console.warn("New-application notification failed to send:", err)
+      );
+    }
 
     res.status(201).json(serializeApplication(app));
   } catch (err) {

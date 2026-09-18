@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { Chip } from "../../components/ui/mobile";
 import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
-import { createApplication } from "../../data/applicationsStore";
+import { createApplication, getAllApplications } from "../../data/applicationsStore";
 import { campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
+import { buildCoreChecklist } from "../../utils/documentChecklist";
 import type { University } from "../../types";
 
 type Course = University["courses"][number];
@@ -18,25 +19,42 @@ export function ApplyModal({
   const [intake, setIntake] = useState("");
   const [campus, setCampus] = useState("");
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const campuses = campusesFor(university, course.feeUSD);
+  const missingCoreDocs = buildCoreChecklist(student.id).filter((row) => !row.own);
   const openIntakes = (course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes).filter(
     (m) => !!university.intakeStatus?.[m]
   );
   const canApply = courseHasOpenIntake(university, course);
+  // A withdrawn/rejected application doesn't count as "already applied" — everything else
+  // (including a fresh Draft) does. Mirrors the server's own guard in POST /api/applications.
+  const alreadyApplied = getAllApplications().some(
+    (a) =>
+      a.studentId === student.id &&
+      a.university === university.name &&
+      a.course === course.name &&
+      a.status !== "Withdrawn" &&
+      a.status !== "Rejected"
+  );
 
   async function confirm() {
-    if (!intake || !campus) return;
-    const application = await createApplication({
-      studentId: student.id,
-      university: university.name,
-      course: course.name,
-      intake,
-      country: university.country,
-      campus,
-      source: "student",
-    });
-    setConfirmedId(application.id);
+    if (!intake || !campus || missingCoreDocs.length > 0) return;
+    setError("");
+    try {
+      const application = await createApplication({
+        studentId: student.id,
+        university: university.name,
+        course: course.name,
+        intake,
+        country: university.country,
+        campus,
+        source: "student",
+      });
+      setConfirmedId(application.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't submit this application.");
+    }
   }
 
   return (
@@ -81,7 +99,19 @@ export function ApplyModal({
               </button>
             </div>
 
-            {!canApply ? (
+            {alreadyApplied ? (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
+                You've already applied to {course.name} at {university.name}. Check your{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/student/applications")}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  applications
+                </button>{" "}
+                for its status.
+              </p>
+            ) : !canApply ? (
               <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
                 Applications aren't currently open for this course — check back once its intake opens.
               </p>
@@ -101,9 +131,32 @@ export function ApplyModal({
                   ))}
                 </div>
 
+                {missingCoreDocs.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-700" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-semibold text-amber-900">Core documents required before submitting</p>
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-amber-800">
+                          Upload {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
+                          {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate("/student/documents")}
+                      className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-amber-900"
+                    >
+                      Go to Documents <ChevronRight size={13} />
+                    </button>
+                  </div>
+                )}
+
+                {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</p>}
+
                 <button
                   onClick={confirm}
-                  disabled={!intake || !campus}
+                  disabled={!intake || !campus || missingCoreDocs.length > 0}
                   className="mt-5 w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
                 >
                   Confirm Application

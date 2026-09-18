@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Calendar, MapPin, ChevronRight, Plus, ListChecks } from "lucide-react";
+import { Search, Calendar, MapPin, ChevronRight, Plus, ListChecks, AlertCircle } from "lucide-react";
 import { LogoBadge, Pill } from "../../components/ui/mobile";
-import { CURRENT_STUDENT_ID, STUDENTS, UNIVERSITIES } from "../../data/mockData";
+import { CURRENT_STUDENT_ID, STUDENTS } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { applicationStatusTone, applicationBucket as bucketOf } from "../../utils/applicationStatus";
 import { loadNextSteps } from "../../data/applicationNextStepsStore";
+import { buildCoreChecklist } from "../../utils/documentChecklist";
 
 type Bucket = "all" | "inProgress" | "offer" | "completed";
 
@@ -21,6 +23,9 @@ export default function Applications() {
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const [tab, setTab] = useState<Bucket>("all");
+  const universities = getAllUniversities();
+  const missingCoreDocs = buildCoreChecklist(CURRENT_STUDENT_ID).filter((row) => !row.own);
+  const coreDocsBlocked = missingCoreDocs.length > 0;
 
   const applications = getAllApplications()
     .filter((a) => a.studentId === CURRENT_STUDENT_ID && !["Withdrawn", "Rejected", "Deferred"].includes(a.status))
@@ -83,9 +88,9 @@ export default function Applications() {
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {visible.map((app) => {
-            const uni = UNIVERSITIES.find((u) => u.name === app.university);
+            const uni = universities.find((u) => u.name === app.university);
             const openSteps = loadNextSteps(app.id).filter((s) => !s.done);
-            const nextStepText = openSteps[0]?.title ?? app.nextAction;
+            const nextStepText = coreDocsBlocked ? "Upload core documents" : openSteps[0]?.title ?? app.nextAction;
             return (
               <button
                 key={app.id}
@@ -105,16 +110,18 @@ export default function Applications() {
                     </span>
                   </div>
                   <p className="mt-1.5 flex items-center gap-1 truncate text-[11px] font-medium text-[#2955C4]">
-                    <ListChecks size={11} className="shrink-0" />
+                    {coreDocsBlocked ? <AlertCircle size={11} className="shrink-0 text-amber-600" /> : <ListChecks size={11} className="shrink-0" />}
                     <span className="truncate">
                       Next: {nextStepText}
-                      {openSteps.length > 1 ? ` (+${openSteps.length - 1} more)` : ""}
+                      {!coreDocsBlocked && openSteps.length > 1 ? ` (+${openSteps.length - 1} more)` : ""}
                     </span>
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   <ChevronRight size={16} className="text-slate-300" />
-                  <Pill tone={applicationStatusTone(app.status)}>{app.status}</Pill>
+                  <Pill tone={coreDocsBlocked ? "amber" : applicationStatusTone(app.status)}>
+                    {coreDocsBlocked ? "Core docs needed" : app.status}
+                  </Pill>
                 </div>
               </button>
             );

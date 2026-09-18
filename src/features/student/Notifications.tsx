@@ -25,7 +25,7 @@ export default function Notifications() {
   function open(item: NotificationItem) {
     markNotificationRead(item.id);
     setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
-    navigate(item.path);
+    navigate(item.path, item.state ? { state: item.state } : undefined);
   }
 
   function markAllRead() {

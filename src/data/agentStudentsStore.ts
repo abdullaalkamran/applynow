@@ -2,13 +2,15 @@
 // synchronous-cache pattern as applicationsStore.ts.
 import { CURRENT_AGENT_ID } from "./mockData";
 import { apiGet, apiPost } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
 
 export async function refreshAgentStudents(): Promise<void> {
-  cache = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+  const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 

@@ -15,6 +15,9 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   path: string;
+  // Set on document items pointing at an application — opens straight to its Documents tab
+  // instead of Overview, since that's the tab that actually shows what triggered the notification.
+  state?: { tab: "Documents" };
 }
 
 function relativeTime(dateStr: string): string {
@@ -60,7 +63,26 @@ export function getNotifications(): NotificationItem[] {
     });
   });
 
-  const missingCore = buildCoreChecklist(CURRENT_STUDENT_ID).filter((r) => !r.own).length;
+  const coreChecklist = buildCoreChecklist(CURRENT_STUDENT_ID);
+  // A rejected core document gets its own, specific notification — the counsellor's reason
+  // included — rather than being buried in the generic "documents needed" count below, which
+  // looks identical whether nothing was ever uploaded or something was uploaded and turned down.
+  coreChecklist
+    .filter((r) => r.rejected)
+    .forEach((r) => {
+      const id = `doc-rejected-core-${r.rejected!.id}`;
+      items.push({
+        id,
+        type: "document",
+        title: `${r.type} rejected`,
+        detail: r.rejected!.reason ? `Your counsellor rejected this: ${r.rejected!.reason}` : "Your counsellor rejected this document.",
+        time: relativeTime(r.rejected!.uploadedAt),
+        read: readIds.has(id),
+        path: "/student/documents",
+      });
+    });
+
+  const missingCore = coreChecklist.filter((r) => !r.own).length;
   if (missingCore > 0) {
     const id = "doc-core";
     items.push({
@@ -81,7 +103,25 @@ export function getNotifications(): NotificationItem[] {
       ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),
       ...loadUploadedDocs(app.id),
     ];
-    const missing = buildChecklist(university, app.studentId, app.id, docs).filter((r) => !r.own && !r.reused).length;
+    const checklist = buildChecklist(university, app.studentId, app.id, docs);
+
+    checklist
+      .filter((r) => r.rejected)
+      .forEach((r) => {
+        const id = `doc-rejected-${app.id}-${r.rejected!.id}`;
+        items.push({
+          id,
+          type: "document",
+          title: `${r.type} rejected — ${app.university}`,
+          detail: r.rejected!.reason ? `Your counsellor rejected this: ${r.rejected!.reason}` : "Your counsellor rejected this document.",
+          time: relativeTime(r.rejected!.uploadedAt),
+          read: readIds.has(id),
+          path: `/student/applications/${app.id}`,
+          state: { tab: "Documents" },
+        });
+      });
+
+    const missing = checklist.filter((r) => !r.own && !r.reused).length;
     if (missing === 0) return;
     const id = `doc-${app.id}`;
     items.push({
@@ -92,6 +132,7 @@ export function getNotifications(): NotificationItem[] {
       time: "",
       read: readIds.has(id),
       path: `/student/applications/${app.id}`,
+      state: { tab: "Documents" },
     });
   });
 

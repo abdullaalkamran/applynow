@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
-  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin,
+  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle,
 } from "lucide-react";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
-import { STUDENTS, UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
+import { STUDENTS, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
+import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs } from "../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { shortlistedCount } from "../../data/shortlistStore";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import { APPLICATION_STAGES, applicationStageIndex, applicationBucket, applicationStatusTone } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
-import { getStudentTasks } from "../../utils/taskBoard";
+import { getStudentTasks, type DisplayTask } from "../../utils/taskBoard";
 
 const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
 const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
@@ -26,6 +27,21 @@ function greeting() {
   if (h < 12) return "Good morning,";
   if (h < 18) return "Good afternoon,";
   return "Good evening,";
+}
+
+/** Where tapping a "Your Next Steps" item should actually land — a document task goes straight to
+ * the application's Documents tab (or the core Documents page, for a core-vault item), a next-step
+ * task to that application's Overview, and anything else (a manually assigned task with no
+ * application of its own) falls back to the Tasks page. Previously every item here just opened the
+ * generic Tasks page regardless of what it actually was about. */
+function taskDestination(t: DisplayTask): { path: string; state?: { tab: "Documents" } } {
+  if (t.source === "document") {
+    return t.applicationId ? { path: `/student/applications/${t.applicationId}`, state: { tab: "Documents" } } : { path: "/student/documents" };
+  }
+  if (t.source === "next-step" && t.applicationId) {
+    return { path: `/student/applications/${t.applicationId}` };
+  }
+  return { path: "/student/tasks" };
 }
 
 const QUICK_ACTIONS = [
@@ -62,6 +78,9 @@ export default function Dashboard() {
 
   const { percent, pendingSteps, requiredRemaining } = getProfileCompletion();
   const allApplications = getAllApplications();
+  const universities = getAllUniversities();
+  const missingCoreDocs = buildCoreChecklist(CURRENT_STUDENT_ID).filter((row) => !row.own);
+  const coreDocsBlocked = missingCoreDocs.length > 0;
   const myApplications = allApplications.filter(
     (a) => a.studentId === CURRENT_STUDENT_ID && !["Withdrawn", "Rejected", "Deferred"].includes(a.status)
   );
@@ -74,7 +93,7 @@ export default function Dashboard() {
 
   const safeApplicationIndex = activeApplications.length > 0 ? currentApplicationIndex % activeApplications.length : 0;
   const primaryApplication = activeApplications[safeApplicationIndex];
-  const primaryUniversity = primaryApplication ? UNIVERSITIES.find((u) => u.name === primaryApplication.university) : undefined;
+  const primaryUniversity = primaryApplication ? universities.find((u) => u.name === primaryApplication.university) : undefined;
 
   useEffect(() => {
     if (activeApplications.length <= 1) return;
@@ -85,7 +104,7 @@ export default function Dashboard() {
   }, [activeApplications.length]);
 
   const outstandingDocs = myApplications.reduce((sum, app) => {
-    const university = UNIVERSITIES.find((u) => u.name === app.university);
+    const university = universities.find((u) => u.name === app.university);
     if (!university) return sum;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),
@@ -98,7 +117,7 @@ export default function Dashboard() {
   // A real, unapplied-to university with a scholarship on offer, best-ranked first — not a
   // fabricated example.
   const appliedTo = new Set(myApplications.map((a) => a.university));
-  const recommended = [...UNIVERSITIES]
+  const recommended = [...universities]
     .filter((u) => u.scholarshipsAvailable && !appliedTo.has(u.name))
     .sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank))[0];
   const recommendedCourse = recommended?.courses[0];
@@ -161,15 +180,62 @@ export default function Dashboard() {
 
         <div className="lg:mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
           <div className="lg:col-span-2">
+            {/* Required actions — next steps, rejected documents needing a re-upload, and any task
+                a counsellor/agent has assigned — surfaced first, above the current application
+                summary, since these are the things actually waiting on the student right now. */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-slate-900">Your Next Steps</h2>
+              <button onClick={() => navigate("/student/tasks")} className="text-[13px] font-medium text-[#2955C4]">
+                View All
+              </button>
+            </div>
+
+            <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+              {nextStepTasks.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
+              ) : (
+                nextStepTasks.map((t, i) => {
+                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
+                  const tone = t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        const dest = taskDestination(t);
+                        navigate(dest.path, dest.state ? { state: dest.state } : undefined);
+                      }}
+                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
+                    >
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
+                        <Icon size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-slate-800">{t.title}</p>
+                        <p className="truncate text-xs text-slate-400">
+                          {t.subtitle}
+                          {t.dueDate && (
+                            <span className={t.tone === "overdue" ? "font-medium text-rose-500" : ""}>
+                              {" — Due "}{new Date(`${t.dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
             {primaryApplication && (
-              <div className="mt-5 lg:mt-0">
+              <div className="mt-6">
                 <div className="overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
                   <div
                     className="flex transition-transform duration-700 ease-out"
                     style={{ transform: `translateX(-${safeApplicationIndex * 100}%)` }}
                   >
                     {activeApplications.map((app, index) => {
-                      const university = UNIVERSITIES.find((u) => u.name === app.university);
+                      const university = universities.find((u) => u.name === app.university);
                       const stageIndex = applicationStageIndex(app.status);
                       return (
                         <div key={app.id} className="w-full shrink-0 p-4">
@@ -205,6 +271,19 @@ export default function Dashboard() {
                               {app.status}
                             </Pill>
                           </div>
+
+                          {coreDocsBlocked && (
+                            <button
+                              onClick={() => navigate("/student/documents")}
+                              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left"
+                            >
+                              <AlertCircle size={14} className="shrink-0 text-amber-700" />
+                              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-amber-900">
+                                Upload core documents before this application can move forward
+                              </span>
+                              <ChevronRight size={13} className="shrink-0 text-amber-700" />
+                            </button>
+                          )}
 
                           <div className="mt-4 overflow-x-auto pb-1">
                             <div className="relative" style={{ width: APPLICATION_STAGES.length * STEP_WIDTH }}>
@@ -260,47 +339,6 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-
-            <div className="mt-6 flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-slate-900">Your Next Steps</h2>
-              <button onClick={() => navigate("/student/tasks")} className="text-[13px] font-medium text-[#2955C4]">
-                View All
-              </button>
-            </div>
-
-            <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-              {nextStepTasks.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
-              ) : (
-                nextStepTasks.map((t, i) => {
-                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
-                  const tone = t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => navigate("/student/tasks")}
-                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
-                    >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
-                        <Icon size={16} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-800">{t.title}</p>
-                        <p className="truncate text-xs text-slate-400">
-                          {t.subtitle}
-                          {t.dueDate && (
-                            <span className={t.tone === "overdue" ? "font-medium text-rose-500" : ""}>
-                              {" — Due "}{new Date(`${t.dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <ChevronRight size={16} className="shrink-0 text-slate-300" />
-                    </button>
-                  );
-                })
-              )}
-            </div>
 
             <h2 className="mt-6 text-[15px] font-semibold text-slate-900">Quick Actions</h2>
             <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">

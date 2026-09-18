@@ -7,7 +7,7 @@
 // localStorage-backed for now — a deferred-phase migration, not part of this cutover.
 import { recordActivity } from "./applicationActivityStore";
 import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Application, AppStatus, Role } from "../types";
 
 type Actor = { id: string; role: Role; name: string };
@@ -18,7 +18,9 @@ let cache: Application[] = [];
  * after login (see utils/warmCaches.ts) and after this store isn't the source of a write itself
  * (e.g. nothing needed here beyond the initial warm-up, since mutations update the cache directly). */
 export async function refreshApplications(): Promise<void> {
-  cache = await apiGet<Application[]>("/api/applications");
+  const next = await apiGet<Application[]>("/api/applications");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 
@@ -39,7 +41,7 @@ export function getAllApplications(): Application[] {
   return cache;
 }
 
-function applicationSortKey(a: Application): number {
+export function applicationSortKey(a: Application): number {
   if (a.createdAt) return new Date(a.createdAt).getTime();
   const seedMatch = a.id.match(/^app(\d+)$/);
   if (seedMatch) return parseInt(seedMatch[1], 10);
@@ -50,6 +52,10 @@ function applicationSortKey(a: Application): number {
 
 export function sortByCreatedAscending(apps: Application[]): Application[] {
   return [...apps].sort((a, b) => applicationSortKey(a) - applicationSortKey(b));
+}
+
+export function sortByCreatedDescending(apps: Application[]): Application[] {
+  return [...apps].sort((a, b) => applicationSortKey(b) - applicationSortKey(a));
 }
 
 /** Cache-only status/nextAction update, no server round trip — used by applicationJourneyStore.ts

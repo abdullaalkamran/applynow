@@ -96,13 +96,16 @@ function documentTasksFor(student: Student, apps: Application[]): DisplayTask[] 
   buildCoreChecklist(student.id)
     .filter((row) => !row.own && !row.reused)
     .forEach((row) => {
+      // A rejected upload is more urgent than a plain missing one — it's already blocked once and
+      // needs the student's attention now, not just "eventually" — so it's flagged "overdue" and
+      // carries the counsellor's reason, distinct from a document that was simply never provided.
       tasks.push({
         id: `doc-core-${student.id}-${row.type}`,
-        title: `Upload ${row.type}`,
-        subtitle: `${student.name} · Core document`,
+        title: row.rejected ? `Re-upload ${row.type} — rejected` : `Upload ${row.type}`,
+        subtitle: row.rejected ? `${student.name} · ${row.rejected.reason || "Core document rejected"}` : `${student.name} · Core document`,
         done: false,
         source: "document",
-        tone: "none",
+        tone: row.rejected ? "overdue" : "none",
         studentId: student.id,
       });
     });
@@ -117,12 +120,12 @@ function documentTasksFor(student: Student, apps: Application[]): DisplayTask[] 
         const dueDate = loadDocDueDate(app.id, row.type);
         tasks.push({
           id: `doc-${app.id}-${row.type}`,
-          title: `Upload ${row.type}`,
-          subtitle: `${student.name} · ${app.university}`,
+          title: row.rejected ? `Re-upload ${row.type} — rejected` : `Upload ${row.type}`,
+          subtitle: row.rejected ? `${student.name} · ${row.rejected.reason || "Document rejected"}` : `${student.name} · ${app.university}`,
           dueDate,
           done: false,
           source: "document",
-          tone: docTone(dueDate),
+          tone: row.rejected ? "overdue" : docTone(dueDate),
           applicationId: app.id,
           studentId: student.id,
         });

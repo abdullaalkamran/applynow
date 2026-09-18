@@ -1,20 +1,22 @@
 import { useRef, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
-  Sparkles, Layers, type LucideIcon,
+  Sparkles, Layers, CheckCircle2, ShieldCheck, type LucideIcon,
 } from "lucide-react";
 import { Badge, Button, ProgressBar, Modal, SearchableSelect, BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { ProfileStepsPanel, Detail } from "../../../components/ProfileStepsPanel";
-import { ChecklistCard } from "../../../components/ChecklistCard";
 import { ApplicationChecklistCard } from "../../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../../components/DocViewButton";
 import { DOCUMENTS, AGENTS, COUNSELLORS, ADMISSION_OFFICERS } from "../../../data/mockData";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllApplications, getStatusHistory, createApplication, sortByCreatedAscending } from "../../../data/applicationsStore";
-import { loadUploadedDocs, addUploadedDoc } from "../../../data/applicationDocsStore";
-import { buildChecklist, buildCoreChecklist } from "../../../utils/documentChecklist";
+import { loadUploadedDocs, addUploadedDoc, verifyAppDoc, rejectAppDoc } from "../../../data/applicationDocsStore";
+import { buildChecklist, buildCoreChecklist, academicProfileIncomplete } from "../../../utils/documentChecklist";
+import { getStudentTasks } from "../../../utils/taskBoard";
+import { addCoreDoc, verifyCoreDoc, rejectCoreDoc } from "../../../data/coreDocsStore";
+import { CoreDocumentCard, AddCoreDocumentButton } from "../../../components/CoreDocumentCard";
 import { loadStaffNote, saveStaffNote } from "../../../data/staffNotesStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
@@ -78,10 +80,27 @@ export default function StudentProfile() {
   const UNIVERSITIES = getAllUniversities();
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const navState = location.state as { tab?: Tab; appId?: string } | null;
   const student = loadAssignedStudents().find((s) => s.id === id) ?? null;
   const [tab, setTab] = useState<Tab>(navState?.tab ?? "Overview");
   const [expandedAppId, setExpandedAppId] = useState<string | null>(navState?.appId ?? null);
+
+  // Any document upload/verify/reject below calls notifyCacheChange(), which forces the shell to
+  // remount this whole page (see syncCache.ts's useCacheSync — it keys <Outlet> on a version
+  // counter so components reading a store synchronously during render pick up fresh data). A plain
+  // setTab/setExpandedAppId would then be wiped on that remount, since the fresh useState() above
+  // re-reads navState — snapping the counsellor back to the Overview tab mid-upload. Routing the
+  // choice through router state instead means the remount reads the same value straight back.
+  function selectTab(next: Tab) {
+    setTab(next);
+    navigate(location.pathname, { replace: true, state: { tab: next, appId: expandedAppId } });
+  }
+  function toggleExpandedApp(appId: string) {
+    const next = expandedAppId === appId ? null : appId;
+    setExpandedAppId(next);
+    navigate(location.pathname, { replace: true, state: { tab, appId: next } });
+  }
   const [requestDocType, setRequestDocType] = useState("");
   const [requestDocDue, setRequestDocDue] = useState("");
   const [nextStepDraft, setNextStepDraft] = useState("");
@@ -105,7 +124,12 @@ export default function StudentProfile() {
   const activeApps = activeApplicationsFor(student.id);
   const primary = [...activeApps].sort((a, b) => b.progress - a.progress)[0];
   const avgProgress = activeApps.length ? Math.round(activeApps.reduce((s, a) => s + a.progress, 0) / activeApps.length) : 0;
-  const coreMissing = buildCoreChecklist(student.id).filter((r) => !r.own);
+  const coreRows = buildCoreChecklist(student.id);
+  const coreMissing = coreRows.filter((r) => !r.own);
+  // Same aggregation the student sees on their own Dashboard (next steps, rejected/re-upload docs,
+  // and any manually assigned task) — surfaced here too so the counsellor doesn't have to guess
+  // what's outstanding or dig into a separate Tasks tab to find it.
+  const studentTasks = getStudentTasks(student.id).filter((t) => !t.done);
   const perAppMissingCount = activeApps.reduce((sum, a) => {
     const uni = UNIVERSITIES.find((u) => u.name === a.university);
     if (!uni) return sum;
@@ -154,7 +178,7 @@ export default function StudentProfile() {
             return (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => selectTab(t)}
                 className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 text-[13px] font-medium transition ${
                   tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"
                 }`}
@@ -174,6 +198,37 @@ export default function StudentProfile() {
 
       {tab === "Overview" && (
         <>
+          <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <p className="mb-3 text-sm font-semibold text-slate-800">Next Steps</p>
+            {studentTasks.length === 0 ? (
+              <p className="text-sm text-slate-400">No open action items for {student.name}.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {studentTasks.map((t) => {
+                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
+                  const tone = t.tone === "overdue" ? "border-rose-200 bg-rose-50/60" : "border-slate-100 bg-slate-50";
+                  const iconTone = t.tone === "overdue" ? "bg-rose-100 text-rose-600" : "bg-[#E7EEFC] text-[#2955C4]";
+                  return (
+                    <div key={t.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${tone}`}>
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
+                        <Icon size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-slate-800">{t.title}</p>
+                        {t.subtitle && <p className="truncate text-[11.5px] text-slate-400">{t.subtitle}</p>}
+                      </div>
+                      {t.dueDate && (
+                        <span className={`shrink-0 text-[11px] font-medium ${t.tone === "overdue" ? "text-rose-600" : "text-slate-400"}`}>
+                          {t.dueDate}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 px-4 py-3 text-xs sm:grid-cols-4">
               <Detail label="Email" value={student.email} />
@@ -228,7 +283,7 @@ export default function StudentProfile() {
               <div key={a.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
                 <button
                   onClick={() => {
-                    setExpandedAppId(expanded ? null : a.id);
+                    toggleExpandedApp(a.id);
                     setRequestDocType(""); setRequestDocDue("");
                     setNextStepDraft(""); setNextStepDue("");
                     if (!expanded) markSeenByCounsellor(a.id);
@@ -294,10 +349,13 @@ export default function StudentProfile() {
                             <ApplicationChecklistCard
                               key={r.type}
                               row={r}
+                              canVerify
+                              onVerify={(id) => { verifyAppDoc(id); forceTick((t) => t + 1); }}
+                              onReject={(id, reason) => { rejectAppDoc(id, reason); forceTick((t) => t + 1); }}
                               dueDate={loadDocDueDate(a.id, r.type)}
                               onSetDueDate={(date) => { setDocDueDate(a.id, r.type, date); forceTick((t) => t + 1); }}
                               onUpload={(file) => {
-                                addUploadedDoc(a.id, r.type, URL.createObjectURL(file));
+                                addUploadedDoc(a.id, r.type, file);
                                 forceTick((t) => t + 1);
                               }}
                               onRemoveRequest={
@@ -518,13 +576,37 @@ export default function StudentProfile() {
 
       {tab === "Documents" && (
         <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-          <p className="mb-3 text-sm font-semibold text-slate-800">Core documents still missing</p>
-          {coreMissing.length === 0 ? (
-            <p className="text-sm text-slate-400">All core documents have been provided.</p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-800">Core documents</p>
+            <AddCoreDocumentButton
+              studentId={student.id}
+              existingTypes={coreRows.map((r) => r.type)}
+              onAdded={() => forceTick((t) => t + 1)}
+            />
+          </div>
+          {academicProfileIncomplete(student.id) && (
+            <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-[11.5px] leading-relaxed text-slate-500">
+              {student.name}'s academic profile isn't fully filled in yet, so this list may not cover every
+              document they actually need — use "Add a document type" above for anything missing from it.
+            </p>
+          )}
+          {coreRows.length === 0 ? (
+            <p className="text-sm text-slate-400">No core document requirements found.</p>
           ) : (
             <div className="space-y-1.5">
-              {coreMissing.map((r) => (
-                <ChecklistCard key={r.type} row={r} />
+              {coreRows.map((r) => (
+                <CoreDocumentCard
+                  key={r.type}
+                  row={r}
+                  canUpload
+                  canVerify
+                  onUpload={(file) => {
+                    addCoreDoc(student.id, r.type, file);
+                    forceTick((t) => t + 1);
+                  }}
+                  onVerify={(id) => { verifyCoreDoc(id); forceTick((t) => t + 1); }}
+                  onReject={(id, reason) => { rejectCoreDoc(id, reason); forceTick((t) => t + 1); }}
+                />
               ))}
             </div>
           )}

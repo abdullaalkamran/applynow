@@ -33,6 +33,17 @@ export function notifyCacheChange() {
   listeners.forEach((l) => l());
 }
 
+/** Cheap structural-equality check for a background refresh's fetched array against what's
+ * already cached — used by every store's refreshX() so periodic polling (see warmCaches.ts's
+ * startCachePolling) only calls notifyCacheChange(), and so only remounts the current page (per
+ * useCacheSync's doc comment above), when something actually changed. Without this, polling every
+ * few seconds would remount — and reset all local UI state on — every open page that often,
+ * whether or not another account had actually changed anything. */
+export function cacheChanged<T>(next: T[], current: T[]): boolean {
+  if (next.length !== current.length) return true;
+  return JSON.stringify(next) !== JSON.stringify(current);
+}
+
 /** Mounted once per role shell (AppLayout, StudentShell, CounsellorShell, AgentShell). Returns a
  * tick number that changes whenever any migrated store's cache changes — the shell must put this
  * on the `<Outlet key={tick} />` it renders (not just let the returned re-render happen on its

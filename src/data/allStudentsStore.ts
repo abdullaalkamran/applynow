@@ -3,13 +3,15 @@
 // Data Management's country page (see Universities.tsx) to show which students/agents are tied to
 // a given destination country — a role that has no existing "my students" scoping to reuse.
 import { apiGet } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
 
 export async function refreshAllStudents(): Promise<void> {
-  cache = await apiGet<Student[]>("/api/students");
+  const next = await apiGet<Student[]>("/api/students");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 

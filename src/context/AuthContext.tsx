@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { loadStoredAuth, saveAuth, clearAuth, login as loginRequest, fetchMe, type AuthUser } from "../utils/authClient";
-import { warmCaches } from "../utils/warmCaches";
+import { warmCaches, startCachePolling, stopCachePolling } from "../utils/warmCaches";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(freshUser);
         saveAuth(initial.token, freshUser);
         warmCaches();
+        startCachePolling();
       })
       .catch(() => {
         clearAuth();
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
     setUser(newUser);
     warmCaches();
+    startCachePolling();
     return newUser;
   }
 
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAuth();
     setToken(null);
     setUser(null);
+    stopCachePolling();
   }
 
   return <AuthContext.Provider value={{ user, token, loading, login, logout }}>{children}</AuthContext.Provider>;

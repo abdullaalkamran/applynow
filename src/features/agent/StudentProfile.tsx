@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ListChecks, Check, FileText, ChevronDown, ChevronUp, FileCheck2, History, AlertCircle, CalendarDays, Upload, Bookmark, X,
+  CheckCircle2, ShieldCheck,
 } from "lucide-react";
 import { StatusBadge, ProgressBar, Badge } from "../../components/ui";
 import { LogoBadge } from "../../components/ui/mobile";
@@ -14,9 +15,11 @@ import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getAllApplications, getStatusHistory } from "../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
 import { loadDocDueDate } from "../../data/documentDueDatesStore";
-import { getAgentTasks } from "../../utils/taskBoard";
+import { getAgentTasks, getStudentTasks } from "../../utils/taskBoard";
 import { loadShortlistFor, removeShortlistFor } from "../../data/agentShortlistStore";
-import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
+import { buildChecklist, buildCoreChecklist, academicProfileIncomplete } from "../../utils/documentChecklist";
+import { addCoreDoc } from "../../data/coreDocsStore";
+import { CoreDocumentCard, AddCoreDocumentButton } from "../../components/CoreDocumentCard";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
 import { UNIVERSITIES, DOCUMENTS, CURRENT_AGENT_ID } from "../../data/mockData";
 import { daysAgo } from "../../utils/counsellorData";
@@ -37,6 +40,21 @@ export default function AgentStudentProfile() {
   const [applyTarget, setApplyTarget] = useState<{ universityId: string; courseName: string } | null>(null);
   const [, forceTick] = useState(0);
 
+  // Any document upload below calls notifyCacheChange(), which forces the shell to remount this
+  // whole page (see syncCache.ts's useCacheSync). A plain setTab/setExpandedAppId gets wiped by
+  // that remount, since the fresh useState() above re-reads navState — snapping back to the
+  // Overview tab mid-upload. Routing the choice through router state instead means the remount
+  // reads the same value straight back.
+  function selectTab(next: Tab) {
+    setTab(next);
+    navigate(location.pathname, { replace: true, state: { tab: next, appId: expandedAppId } });
+  }
+  function toggleExpandedApp(appId: string) {
+    const next = expandedAppId === appId ? null : appId;
+    setExpandedAppId(next);
+    navigate(location.pathname, { replace: true, state: { tab, appId: next } });
+  }
+
   if (!student) {
     return (
       <div>
@@ -54,6 +72,10 @@ export default function AgentStudentProfile() {
 
   const tasks = getAgentTasks(CURRENT_AGENT_ID).filter((t) => t.studentId === student.id);
   const counsellorSteps = loadOpenNextStepsFor([student], apps);
+  // The same aggregation the student sees on their own Dashboard (next steps, rejected/re-upload
+  // docs, and any manually assigned task, from any assigner — not just this agent's own) —
+  // surfaced here too, up front, instead of only inside the separate Tasks tab.
+  const studentTasks = getStudentTasks(student.id).filter((t) => !t.done);
 
   const coreMissing = buildCoreChecklist(student.id).filter((r) => !r.own);
   const perAppMissing = activeApps.reduce((sum, a) => {
@@ -98,7 +120,7 @@ export default function AgentStudentProfile() {
             return (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => selectTab(t)}
                 className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 text-[13px] font-medium transition ${
                   tab === t ? "text-blue-700" : "text-slate-400"
                 }`}
@@ -118,6 +140,37 @@ export default function AgentStudentProfile() {
 
       {tab === "Overview" && (
         <>
+          <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <p className="mb-3 text-xs font-semibold text-slate-800">Next Steps</p>
+            {studentTasks.length === 0 ? (
+              <p className="text-xs text-slate-400">No open action items for {student.name}.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {studentTasks.map((t) => {
+                  const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
+                  const tone = t.tone === "overdue" ? "border-rose-200 bg-rose-50/60" : "border-slate-100 bg-slate-50";
+                  const iconTone = t.tone === "overdue" ? "bg-rose-100 text-rose-600" : "bg-[#E7EEFC] text-[#2955C4]";
+                  return (
+                    <div key={t.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${tone}`}>
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
+                        <Icon size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-slate-800">{t.title}</p>
+                        {t.subtitle && <p className="truncate text-[11px] text-slate-400">{t.subtitle}</p>}
+                      </div>
+                      {t.dueDate && (
+                        <span className={`shrink-0 text-[11px] font-medium ${t.tone === "overdue" ? "text-rose-600" : "text-slate-400"}`}>
+                          {t.dueDate}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 px-4 py-3 text-xs sm:grid-cols-4">
               <Detail label="Email" value={student.email} />
@@ -154,7 +207,7 @@ export default function AgentStudentProfile() {
             return (
               <div key={a.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.05)]">
                 <button
-                  onClick={() => setExpandedAppId(expanded ? null : a.id)}
+                  onClick={() => toggleExpandedApp(a.id)}
                   className="flex w-full flex-col gap-2.5 p-4 text-left"
                 >
                   <div className="flex items-start gap-3">
@@ -229,7 +282,7 @@ export default function AgentStudentProfile() {
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  addUploadedDoc(a.id, row.type, URL.createObjectURL(file));
+                                  addUploadedDoc(a.id, row.type, file);
                                   forceTick((t) => t + 1);
                                 }
                                 e.target.value = "";
@@ -261,7 +314,7 @@ export default function AgentStudentProfile() {
                           row={r}
                           dueDate={loadDocDueDate(a.id, r.type)}
                           onUpload={(file) => {
-                            addUploadedDoc(a.id, r.type, URL.createObjectURL(file));
+                            addUploadedDoc(a.id, r.type, file);
                             forceTick((t) => t + 1);
                           }}
                         />
@@ -409,13 +462,35 @@ export default function AgentStudentProfile() {
       {tab === "Documents" && (
         <div className="mt-4 space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-            <p className="mb-3 text-xs font-semibold text-slate-800">Core documents</p>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-slate-800">Core documents</p>
+              <AddCoreDocumentButton
+                studentId={student.id}
+                existingTypes={buildCoreChecklist(student.id).map((r) => r.type)}
+                onAdded={() => forceTick((t) => t + 1)}
+              />
+            </div>
+            {academicProfileIncomplete(student.id) && (
+              <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+                {student.name}'s academic profile isn't fully filled in yet — use "Add a document type" above for
+                anything the list below doesn't already cover.
+              </p>
+            )}
             {buildCoreChecklist(student.id).length === 0 ? (
               <p className="text-xs text-slate-400">No core document requirements found.</p>
             ) : (
               <div className="space-y-1.5">
                 {buildCoreChecklist(student.id).map((r) => (
-                  <ChecklistCard key={r.type} row={r} />
+                  <CoreDocumentCard
+                    key={r.type}
+                    row={r}
+                    canUpload
+                    canVerify={false}
+                    onUpload={(file) => {
+                      addCoreDoc(student.id, r.type, file);
+                      forceTick((t) => t + 1);
+                    }}
+                  />
                 ))}
               </div>
             )}

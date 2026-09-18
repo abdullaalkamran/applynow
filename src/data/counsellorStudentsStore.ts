@@ -6,7 +6,7 @@
 // preserving the exact visibility rule this store had before the migration.
 import { COUNSELLOR_ID } from "../utils/counsellorData";
 import { apiGet, apiPost } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
@@ -19,7 +19,9 @@ export async function refreshAssignedStudents(): Promise<void> {
   const unclaimedWithAgent = all.filter((s) => !s.counsellorId && !!s.agentId);
   const byId = new Map(assigned.map((s) => [s.id, s]));
   for (const s of unclaimedWithAgent) byId.set(s.id, s);
-  cache = [...byId.values()];
+  const next = [...byId.values()];
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 

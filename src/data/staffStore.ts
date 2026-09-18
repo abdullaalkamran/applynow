@@ -1,7 +1,7 @@
 // Postgres-backed via /api/staff (server/src/routes/staff.js) — same synchronous-cache pattern as
 // applicationsStore.ts.
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Role } from "../types";
 
 export type StaffStatus = "Active" | "Invited" | "Inactive";
@@ -18,7 +18,9 @@ export interface StaffMember {
 let cache: StaffMember[] = [];
 
 export async function refreshStaff(): Promise<void> {
-  cache = await apiGet<StaffMember[]>("/api/staff");
+  const next = await apiGet<StaffMember[]>("/api/staff");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
   notifyCacheChange();
 }
 
