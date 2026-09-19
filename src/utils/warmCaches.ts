@@ -14,6 +14,12 @@ import { refreshNextSteps } from "../data/applicationNextStepsStore";
 import { refreshDocDueDates } from "../data/documentDueDatesStore";
 import { refreshFinancialReadiness } from "../data/studentFinancialReadinessStore";
 import { refreshCachedJourneys } from "../data/applicationJourneyStore";
+import { refreshCachedActivity } from "../data/applicationActivityStore";
+import { refreshInbox } from "../data/inboxStore";
+import { refreshCachedStudentComments } from "../data/studentCommentsStore";
+import { refreshThreadsList, refreshContacts, refreshCachedMessageThreads } from "../data/messagesStore";
+import { refreshSubjectCatalog } from "../data/subjectCatalogStore";
+import { refreshUniversities, migrateLegacyLocalUniversities } from "../data/universityCatalogStore";
 
 export function warmCaches() {
   refreshApplications().catch((err) => console.warn("Failed to warm applications cache:", err));
@@ -27,10 +33,21 @@ export function warmCaches() {
   refreshNextSteps().catch((err) => console.warn("Failed to warm next-steps cache:", err));
   refreshDocDueDates().catch((err) => console.warn("Failed to warm document-due-dates cache:", err));
   refreshFinancialReadiness().catch((err) => console.warn("Failed to warm financial-readiness cache:", err));
+  refreshInbox().catch((err) => console.warn("Failed to warm inbox cache:", err));
+  refreshCachedStudentComments();
+  refreshThreadsList().catch((err) => console.warn("Failed to warm message-threads cache:", err));
+  refreshContacts().catch((err) => console.warn("Failed to warm message-contacts cache:", err));
+  refreshCachedMessageThreads();
+  refreshSubjectCatalog().catch((err) => console.warn("Failed to warm subject-catalog cache:", err));
+  migrateLegacyLocalUniversities()
+    .then(() => refreshUniversities())
+    .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
   // Not a bulk fetch like the others — re-fetches whichever applications' journeys this session
   // has actually looked at (see applicationJourneyStore.ts's own comment on why this needs to be
   // on the same poll/focus schedule as everything else).
   refreshCachedJourneys();
+  // Same reasoning — a lazily-fetched, per-application cache (see applicationActivityStore.ts).
+  refreshCachedActivity();
 }
 
 // Closes the "I have to refresh to see what someone else changed" gap: without this, every store

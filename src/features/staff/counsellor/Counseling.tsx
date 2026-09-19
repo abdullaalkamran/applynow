@@ -5,7 +5,7 @@ import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import {
   loadMeetings, loadDoneMeetingIds, markMeetingDone, meetingStatus, formatMeetingTime,
 } from "../../../data/counsellorMeetingsStore";
-import { loadStaffNote } from "../../../data/staffNotesStore";
+import { loadStudentComments } from "../../../data/studentCommentsStore";
 import { BackButton } from "../../../components/ui";
 
 const TONE_CLASS: Record<string, string> = {
@@ -33,8 +33,8 @@ export default function CounsellorCounseling() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {assigned.map((s) => {
           const studentSessions = sessions.filter((m) => m.studentId === s.id);
-          const note = loadStaffNote(s.id);
-          if (studentSessions.length === 0 && !note) return null;
+          const latestComment = loadStudentComments(s.id)[0];
+          if (studentSessions.length === 0 && !latestComment) return null;
           return (
             <div key={s.id} className="rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
@@ -78,10 +78,10 @@ export default function CounsellorCounseling() {
                 <p className="px-5 py-3 text-xs text-slate-400">No sessions scheduled today.</p>
               )}
 
-              {note && (
+              {latestComment && (
                 <div className="border-t border-slate-100 px-5 py-3">
-                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Latest case note</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{note}</p>
+                  <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Latest case comment — {latestComment.performedBy.name}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-500">{latestComment.notes}</p>
                 </div>
               )}
             </div>

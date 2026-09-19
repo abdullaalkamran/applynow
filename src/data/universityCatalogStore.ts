@@ -1,166 +1,91 @@
-// The live partner-university catalog — the seeded UNIVERSITIES array plus anything the Data
-// Management team adds or edits, merged together. Every page that lets someone *browse* or *look
-// up* universities (student, agent, counsellor, and the admin commission-rate table) should read
-// through `getAllUniversities()`/`getUniversityById()` instead of importing the raw seed array
-// directly, so a newly added university or course actually shows up everywhere, live, without a
-// page reload — the same "instant persist" standard every other store in this app follows.
-
-import { UNIVERSITIES as SEED_UNIVERSITIES } from "./mockData";
+// Postgres-backed via /api/universities (server/src/routes/universities.js) — the real partner-
+// university catalog, shared across every account instead of living only in the browser that
+// created it. Same synchronous-cache pattern as applicationsStore.ts: reads stay synchronous (the
+// dozens of existing call sites — student/agent/counsellor browse pages, the AI tool registry,
+// universityFilter.ts — never need to change), backed by a cache warmed after login and kept
+// current after every write.
+import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import { getCountryId } from "./countryRegistry";
 import type { University } from "../types";
 
-const CREATED_KEY = "data-mgmt-created-universities";
-const OVERRIDES_KEY = "data-mgmt-university-overrides";
-const DELETED_KEY = "data-mgmt-deleted-university-ids";
+type Course = University["courses"][number];
 
-function loadCreated(): University[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(CREATED_KEY);
-    return raw ? (JSON.parse(raw) as University[]) : [];
-  } catch {
-    return [];
-  }
+let cache: University[] = [];
+
+export async function refreshUniversities(): Promise<void> {
+  const next = await apiGet<University[]>("/api/universities");
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
+  notifyCacheChange();
 }
 
-function saveCreated(list: University[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(CREATED_KEY, JSON.stringify(list));
-}
-
-function loadOverrides(): Record<string, Partial<University>> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(OVERRIDES_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, Partial<University>>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveOverrides(map: Record<string, Partial<University>>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map));
-}
-
-function loadDeleted(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(DELETED_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDeleted(ids: Set<string>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
-}
-
-/** Every partner university — seeded catalog (with any admin edits applied, and any admin
- * deletions removed) plus everything Data Management has added this session.
- *
- * Re-derives `subjects` from each university's courses on every read (not just on write, see
- * addUniversity/updateUniversity below) so a university saved before that derivation existed
- * self-heals here instead of staying invisible to subject browsing until someone re-edits it.
- * Also normalizes `requirements`/`englishRequirements` on every read — both used to be one flat
- * list/array before they were split by degree level (Undergraduate vs. Postgraduate), and a
- * university saved under that older shape would otherwise crash the Requirements tab the moment
- * something calls `.undergraduate` on what's still a plain array in storage. */
 export function getAllUniversities(): University[] {
-  const overrides = loadOverrides();
-  const deleted = loadDeleted();
-  const seedMerged = SEED_UNIVERSITIES.filter((u) => !deleted.has(u.id)).map((u) => (overrides[u.id] ? { ...u, ...overrides[u.id] } : u));
-  const created = loadCreated().filter((u) => !deleted.has(u.id));
-  return [...seedMerged, ...created].map((u) => ({
-    ...u,
-    subjects: mergedSubjects(u.subjects, u.courses),
-    requirements: normalizeRequirements(u.requirements),
-    englishRequirements: normalizeEnglishRequirements(u.englishRequirements),
-  }));
-}
-
-/** Accepts either the current `{ undergraduate, postgraduate }` shape or the pre-migration flat
- * array a university may still have in storage. A legacy flat list is duplicated into both levels
- * rather than picked for one — nothing a data manager already entered silently disappears; they
- * can trim whichever side doesn't apply next time they edit this university. */
-function normalizeRequirements(requirements: unknown): University["requirements"] {
-  if (Array.isArray(requirements)) return { undergraduate: requirements, postgraduate: requirements };
-  if (requirements && typeof requirements === "object") return requirements as University["requirements"];
-  return { undergraduate: [], postgraduate: [] };
-}
-
-function normalizeEnglishRequirements(englishRequirements: unknown): University["englishRequirements"] {
-  if (Array.isArray(englishRequirements)) return { undergraduate: englishRequirements, postgraduate: englishRequirements };
-  if (englishRequirements && typeof englishRequirements === "object") return englishRequirements as University["englishRequirements"];
-  return undefined;
+  return cache;
 }
 
 export function getUniversityById(id: string): University | undefined {
-  return getAllUniversities().find((u) => u.id === id);
+  return cache.find((u) => u.id === id);
 }
 
-export function isCustomUniversity(id: string): boolean {
-  return loadCreated().some((u) => u.id === id);
-}
-
-// `University.subjects` is the union of two things: the broad subject genres Data Management
-// explicitly picks for the university (via the form's multi-select, e.g. to advertise "Business &
-// Management" before any course under it exists yet) and whatever subject each of its courses
-// actually carries. Every browse-by-subject page in the app (SubjectDetail on student/agent, the
-// assistant tools, universityFilter.ts) filters universities by this tag list first, then looks
-// for a matching course inside it — merging here, at the one place courses enter storage, means a
-// course's subject can never go "invisible" just because nobody also multi-selected its genre.
-function mergedSubjects(manual: string[] | undefined, courses: University["courses"]): string[] {
-  return Array.from(new Set([...(manual ?? []), ...courses.map((c) => c.subject).filter(Boolean)]));
+/** Every university here is real, Data-Management-authored content now (no more static seed to
+ * distinguish from) — kept only so the "Custom" badge in Universities.tsx doesn't need its own
+ * follow-up change. */
+export function isCustomUniversity(_id: string): boolean {
+  return true;
 }
 
 export function addUniversity(data: Omit<University, "id">): University {
-  const university: University = { ...data, subjects: mergedSubjects(data.subjects, data.courses), id: `u-custom-${Date.now().toString(36)}` };
-  // Registers the country with a stable id the moment it's introduced, even though University
-  // still stores the plain name — the registry is what a real countries table would become.
-  getCountryId(university.country);
-  saveCreated([...loadCreated(), university]);
-  return university;
+  const id = `u-custom-${Date.now().toString(36)}`;
+  const optimistic: University = { ...data, id };
+  cache = [...cache, optimistic];
+  notifyCacheChange();
+  getCountryId(optimistic.country);
+
+  apiPost<University>("/api/universities", { id, ...data })
+    .then((created) => {
+      cache = cache.map((u) => (u.id === id ? created : u));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist new university:", err));
+
+  return optimistic;
 }
 
 export function updateUniversity(id: string, patch: Partial<University>) {
   if (patch.country) getCountryId(patch.country);
-  // A course-only patch (addCourse/updateCourse/removeCourse below) never carries `subjects`, so
-  // fall back to whatever's already stored — this is what keeps a newly added course's subject
-  // folded in without discarding the manual genres Data Management picked on the university form.
-  const manualSubjects = patch.subjects ?? getUniversityById(id)?.subjects;
-  const effectivePatch = patch.courses ? { ...patch, subjects: mergedSubjects(manualSubjects, patch.courses) } : patch;
-  const created = loadCreated();
-  const idx = created.findIndex((u) => u.id === id);
-  if (idx >= 0) {
-    created[idx] = { ...created[idx], ...effectivePatch };
-    saveCreated(created);
-    return;
-  }
-  const overrides = loadOverrides();
-  overrides[id] = { ...overrides[id], ...effectivePatch };
-  saveOverrides(overrides);
+  cache = cache.map((u) => (u.id === id ? { ...u, ...patch } : u));
+  notifyCacheChange();
+
+  apiPatch<University>(`/api/universities/${id}`, patch)
+    .then((updated) => {
+      cache = cache.map((u) => (u.id === id ? updated : u));
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist university update:", err));
 }
 
 export function deleteUniversity(id: string) {
-  const created = loadCreated();
-  if (created.some((u) => u.id === id)) {
-    saveCreated(created.filter((u) => u.id !== id));
-    return;
-  }
-  const deleted = loadDeleted();
-  deleted.add(id);
-  saveDeleted(deleted);
+  cache = cache.filter((u) => u.id !== id);
+  notifyCacheChange();
+  apiDelete(`/api/universities/${id}`).catch((err) => console.warn("Failed to delete university:", err));
 }
 
-type Course = University["courses"][number];
-
 export function addCourse(universityId: string, course: Omit<Course, "id">): Course {
-  const uni = getUniversityById(universityId);
-  const newCourse: Course = { ...course, id: `crs-custom-${Date.now().toString(36)}` };
-  if (uni) updateUniversity(universityId, { courses: [...uni.courses, newCourse] });
+  const id = `crs-custom-${Date.now().toString(36)}`;
+  const newCourse: Course = { ...course, id };
+  cache = cache.map((u) => (u.id === universityId ? { ...u, courses: [...u.courses, newCourse] } : u));
+  notifyCacheChange();
+
+  apiPost<Course>(`/api/universities/${universityId}/courses`, { id, ...course })
+    .then((serverCourse) => {
+      cache = cache.map((u) =>
+        u.id === universityId ? { ...u, courses: u.courses.map((c) => (c.id === id ? serverCourse : c)) } : u
+      );
+      notifyCacheChange();
+    })
+    .catch((err) => console.warn("Failed to persist new course:", err));
+
   return newCourse;
 }
 
@@ -168,13 +93,53 @@ export function addCourse(universityId: string, course: Omit<Course, "id">): Cou
  * freely change without breaking the reference to it (the same reason universities aren't matched
  * by name either). */
 export function updateCourse(universityId: string, courseId: string, patch: Partial<Course>) {
-  const uni = getUniversityById(universityId);
-  if (!uni) return;
-  updateUniversity(universityId, { courses: uni.courses.map((c) => (c.id === courseId ? { ...c, ...patch } : c)) });
+  cache = cache.map((u) =>
+    u.id === universityId ? { ...u, courses: u.courses.map((c) => (c.id === courseId ? { ...c, ...patch } : c)) } : u
+  );
+  notifyCacheChange();
+
+  apiPatch<Course>(`/api/universities/${universityId}/courses/${courseId}`, patch).catch((err) =>
+    console.warn("Failed to persist course update:", err)
+  );
 }
 
 export function removeCourse(universityId: string, courseId: string) {
-  const uni = getUniversityById(universityId);
-  if (!uni) return;
-  updateUniversity(universityId, { courses: uni.courses.filter((c) => c.id !== courseId) });
+  cache = cache.map((u) => (u.id === universityId ? { ...u, courses: u.courses.filter((c) => c.id !== courseId) } : u));
+  notifyCacheChange();
+  apiDelete(`/api/universities/${universityId}/courses/${courseId}`).catch((err) =>
+    console.warn("Failed to delete course:", err)
+  );
+}
+
+// --- One-time recovery of whatever this browser had saved locally before this store moved to
+// Postgres — otherwise a university someone already spent time filling in would just silently
+// vanish the moment this ships, since the new cache starts out reading from the (empty) server
+// instead of localStorage. Runs once per browser (tracked by MIGRATED_KEY) and only ever adds
+// data; it never deletes the old localStorage keys' *content*, only stops re-attempting.
+const LEGACY_CREATED_KEY = "data-mgmt-created-universities";
+const MIGRATED_KEY = "data-mgmt-universities-migrated-to-server";
+
+export async function migrateLegacyLocalUniversities(): Promise<void> {
+  if (typeof window === "undefined" || window.localStorage.getItem(MIGRATED_KEY)) return;
+  let legacy: University[] = [];
+  try {
+    const raw = window.localStorage.getItem(LEGACY_CREATED_KEY);
+    legacy = raw ? (JSON.parse(raw) as University[]) : [];
+  } catch {
+    legacy = [];
+  }
+  if (legacy.length === 0) {
+    window.localStorage.setItem(MIGRATED_KEY, "true");
+    return;
+  }
+  for (const u of legacy) {
+    try {
+      await apiPost<University>("/api/universities", u);
+    } catch (err) {
+      console.warn(`Failed to migrate locally-saved university "${u.name}" to the server:`, err);
+      return; // leaves MIGRATED_KEY unset so this retries next load instead of losing the rest
+    }
+  }
+  window.localStorage.setItem(MIGRATED_KEY, "true");
+  await refreshUniversities();
 }

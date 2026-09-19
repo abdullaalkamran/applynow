@@ -2,12 +2,11 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Bell, Gem, Lightbulb, ArrowRight, X, LogOut,
+  Gem, Lightbulb, ArrowRight, X, LogOut,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
 import { RoleBottomNav } from "./RoleBottomNav";
-import { unreadStaffMessageCount } from "../data/counsellorMessagesStore";
 import { loadDoneMeetingIds, loadMeetings } from "../data/counsellorMeetingsStore";
 import { loadLeads, loadLeadFollowUpStatus } from "../data/leadsStore";
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
@@ -15,6 +14,7 @@ import { activeApplicationsFor } from "../utils/counsellorData";
 import { isSeenByCounsellor } from "../data/counsellorSeenApplicationsStore";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { unreadMessageCount } from "../data/messagesStore";
 
 interface NavEntry {
   label: string;
@@ -39,7 +39,9 @@ export default function CounsellorShell() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const unreadMessages = unreadStaffMessageCount();
+  // Messages now reads the real direct-messaging system (see messagesStore.ts) instead of fake
+  // seed data — comments posted elsewhere also fan out into this count (see applications.js).
+  const unreadMessages = unreadMessageCount();
   const doneIds = loadDoneMeetingIds();
   const openTasks = loadMeetings().filter((m) => !doneIds.has(m.id)).length;
   const newLeads = loadLeads().filter((s) => loadLeadFollowUpStatus(s.id) === "New").length;
@@ -177,7 +179,7 @@ export default function CounsellorShell() {
               aria-label="Messages"
               className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
             >
-              <Bell size={16} />
+              <Mail size={16} />
               {unreadMessages > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
                   {unreadMessages}

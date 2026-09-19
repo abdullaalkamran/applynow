@@ -4,8 +4,9 @@ import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
 import { MESSAGE_THREADS } from "../data/messageThreads";
 import { loadReadIds } from "../data/notificationsStore";
+import { getInboxItems } from "../data/inboxStore";
 
-export type NotificationType = "message" | "document" | "application";
+export type NotificationType = "message" | "document" | "application" | "comment";
 
 export interface NotificationItem {
   id: string;
@@ -15,9 +16,9 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   path: string;
-  // Set on document items pointing at an application — opens straight to its Documents tab
-  // instead of Overview, since that's the tab that actually shows what triggered the notification.
-  state?: { tab: "Documents" };
+  // Set on document/comment items pointing at an application — opens straight to the tab that
+  // actually shows what triggered the notification, instead of always landing on Overview.
+  state?: { tab: "Documents" | "Comments" };
 }
 
 function relativeTime(dateStr: string): string {
@@ -33,6 +34,23 @@ function relativeTime(dateStr: string): string {
 export function getNotifications(): NotificationItem[] {
   const readIds = loadReadIds();
   const items: NotificationItem[] = [];
+
+  // Real, server-backed comment notifications (see server's POST /:id/activity) — unlike every
+  // other item below, `read` here already comes from the server rather than the local readIds set.
+  getInboxItems()
+    .filter((n) => n.type === "comment_added")
+    .forEach((n) => {
+      items.push({
+        id: n.id,
+        type: "comment",
+        title: n.title,
+        detail: n.body ?? "",
+        time: relativeTime(n.createdAt),
+        read: n.read,
+        path: n.applicationId ? `/student/applications/${n.applicationId}` : "/student/notifications",
+        state: n.applicationId ? { tab: "Comments" } : undefined,
+      });
+    });
 
   MESSAGE_THREADS.forEach((t) => {
     items.push({

@@ -2,12 +2,13 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, ListChecks, Check, FileText, ChevronDown, ChevronUp, FileCheck2, History, AlertCircle, CalendarDays, Upload, Bookmark, X,
-  CheckCircle2, ShieldCheck,
+  CheckCircle2, ShieldCheck, MessageCircle,
 } from "lucide-react";
 import { StatusBadge, ProgressBar, Badge } from "../../components/ui";
 import { LogoBadge } from "../../components/ui/mobile";
 import { ProfileStepsPanel } from "../../components/ProfileStepsPanel";
 import { ChecklistCard } from "../../components/ChecklistCard";
+import { ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
 import { ApplicationChecklistCard } from "../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../components/DocViewButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
@@ -393,6 +394,14 @@ export default function AgentStudentProfile() {
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-slate-100 bg-white p-3">
+                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                        <MessageCircle size={13} /> Comments{" "}
+                        <span className="font-normal text-slate-400">— visible to the counsellor, admission officer and student</span>
+                      </p>
+                      <ApplicationCommentsCard applicationId={a.id} />
                     </div>
                   </div>
                 )}

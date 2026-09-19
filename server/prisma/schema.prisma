@@ -133,6 +133,7 @@ model Student {
   tasks               Task[]
   documents           Document[]
   financialReadiness  StudentFinancialReadiness?
+  comments            StudentComment[]
 }
 
 model Staff {
@@ -220,6 +221,9 @@ model ApplicationActivity {
   action          String
   oldValue        Json?
   newValue        Json?
+  // Freeform commentary (e.g. a counsellor's add_application_note AI tool call) — kept distinct
+  // from oldValue/newValue, which represent what actually changed, not arbitrary remarks about it.
+  notes           String?
   performedById   String
   performedByRole Role
   performedByName String
@@ -264,9 +268,12 @@ model Message {
   toRole    Role
   toName    String
   text      String
+  // Read by the "to" party. Whoever sent it obviously doesn't need this to track their own message.
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([threadId, createdAt])
+  @@index([toId, toRole, read])
 }
 
 // ============================================================
@@ -491,10 +498,19 @@ model Country {
   name String @unique
 }
 
+// A field-of-study Data Management can author real content for — a "why this subject" blurb shown
+// to students browsing it, its curriculum modules, and its recognized accrediting bodies. `modules`
+// feeds subjectCurriculum.ts's curriculumFor(), taking priority over that file's static defaults
+// once a subject has real data entered here, so this form isn't a dead end nobody reads from.
 model Subject {
-  id     String  @id @default(cuid())
-  name   String  @unique
-  custom Boolean @default(false)
+  id             String   @id @default(cuid())
+  name           String   @unique
+  custom         Boolean  @default(false)
+  description    String?
+  modules        String[]
+  accreditations String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 enum DepositMode {
@@ -510,69 +526,98 @@ enum UniversityTone {
   rose
 }
 
+// Mirrors src/types/index.ts's University interface field-for-field — nested/nullable shapes
+// (requirements/englishRequirements split by degree level, scholarships, campuses, the
+// intakeStatus/intakeDates maps keyed by month) are stored as Json rather than normalized into
+// their own tables, same trade-off as Application.stages, since nothing here is queried by its
+// internal shape, only read/written whole.
 model University {
-  id                    String         @id
-  name                  String
-  city                  String
-  country               String
-  tags                  String[]
-  subjects              String[]
-  intakes               String[]
-  worldRank             String
-  employability         String
-  studentCount          String
-  description           String
-  highlights            String[]
-  campuses              Json?
-  requirements          String[]
-  fees                  Json
-  minimumDepositAmount  Float?
-  depositMode           DepositMode?
-  paymentDeadline       String?
-  depositRules          String[]
-  currencySymbol        String
-  minIELTS              Float
-  minGPA                Float
-  englishRequirements   Json?
-  accreditations        String[]
-  scholarshipsAvailable Boolean
-  scholarships          Json?
-  openIntake            String
-  intakeStatus          Json?
-  intakeDates           Json?
-  website               String
-  tone                  UniversityTone
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  courses               Course[]
+  id                         String         @id
+  name                       String
+  city                       String
+  country                    String
+  tags                       String[]
+  subjects                   String[]
+  intakes                    String[]
+  worldRank                  String
+  qsRanking                  String?
+  timesHigherRanking         String?
+  employability              String
+  studentCount               String
+  description                String
+  highlights                 String[]
+  campuses                   Json?
+  requirements               Json // { undergraduate: string[]; postgraduate: string[] }
+  fees                       Json
+  minimumDepositAmount       Float?
+  depositMode                DepositMode?
+  paymentDeadline            String?
+  depositRules               String[]
+  admissionSteps             String[]
+  restrictedRegions          String[]
+  currencySymbol             String
+  minIELTS                   Float
+  minGPA                     Float
+  englishRequirements        Json?
+  moiAccepted                Boolean?
+  moiAcceptedUniversities    String[]
+  internalEnglishTestOffered Boolean?
+  internalEnglishTestFree    Boolean?
+  internalEnglishTestFee     Float?
+  accreditations             String[]
+  scholarshipsAvailable      Boolean
+  scholarships               Json?
+  openIntake                 String
+  intakeStatus               Json?
+  intakeDates                Json?
+  website                    String
+  tone                       UniversityTone
+  logoUrl                    String?
+  coverPhotoUrl              String?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  courses                    Course[]
 }
 
 model Course {
-  id                   String     @id
-  universityId         String
-  university           University @relation(fields: [universityId], references: [id])
-  name                 String
-  level                String
-  duration             String
-  subject              String
-  feeUSD               Float
-  intakes              String[]
-  applicationDeadline  String?
-  requirements         String[]
-  englishRequirements  Json?
-  scholarshipAvailable Boolean?
-  scholarshipInfo      String?
-  currencySymbol       String?
-  campusId             String?
+  id                  String     @id
+  universityId        String
+  university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  name                String
+  level               String
+  duration            String
+  subject             String
+  feeUSD              Float
+  intakes             String[]
+  applicationDeadline String?
+  requirements        String[]
+  englishRequirements Json?
+  currencySymbol      String?
+  campusId            String?
+
+  @@index([universityId])
 }
 
-model NotificationRead {
-  id             String   @id @default(cuid())
-  userId         String
-  notificationId String
-  readAt         DateTime @default(now())
+// A real, persisted in-app inbox row — one per (recipient, event). Distinct from the WhatsApp/email
+// dispatcher in notifications/dispatch.js (an outbound message to a phone/email address, nothing
+// kept server-side); this is what the bell icon in every role's header actually reads. First
+// producer is an application comment (see ApplicationActivity action "comment_added" and
+// applications.js's getApplicationParticipants), but `type`/`applicationId`/`activityId` are generic
+// enough for future notification kinds to reuse the same table.
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  userRole      Role
+  type          String
+  title         String
+  body          String?
+  studentId     String?
+  applicationId String?
+  activityId    String?
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
 
-  @@unique([userId, notificationId])
+  @@index([userId, userRole, createdAt])
 }
 
 model LeadFollowUp {
@@ -596,10 +641,22 @@ model TeamLead {
   staffId String @unique
 }
 
-model StaffNote {
-  studentId String   @id
-  note      String
-  updatedAt DateTime @updatedAt
+// A shared comment thread on a student's overall case — not tied to one specific application (see
+// ApplicationActivity's own "comment_added" rows for that). Replaces the old single-row, always-
+// overwritten StaffNote — every comment here is its own row, from any of the student, their
+// counsellor or their agent, and posting one notifies the others' in-app inbox (see the
+// Notification model and server/src/routes/students.js).
+model StudentComment {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id])
+  notes           String
+  performedById   String
+  performedByRole Role
+  performedByName String
+  createdAt       DateTime @default(now())
+
+  @@index([studentId, createdAt])
 }
 
 model StaffStatsSnapshot {

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, MoreVertical, Heart, Calendar, MapPin, Check, FileText, StickyNote,
+  ArrowLeft, MoreVertical, Heart, Calendar, MapPin, Check, FileText,
   Clock, Landmark, GraduationCap, ChevronRight, ChevronDown, MessageCircle, ExternalLink, ListChecks, AlertCircle,
 } from "lucide-react";
 import { LogoBadge, DocChecklistRow, SupportRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
@@ -16,9 +16,9 @@ import { scholarshipAmountUSD } from "../../utils/universityFilter";
 import { docMatchesType, buildChecklist, buildCoreChecklist, coreDocTypes } from "../../utils/documentChecklist";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
-import { ApplicationJourneyPanel } from "../../components/ApplicationJourneyPanel";
+import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
 
-const TABS = ["Overview", "Documents", "Updates", "Notes"] as const;
+const TABS = ["Overview", "Documents", "Updates", "Comments"] as const;
 
 const docStatusTone: Record<string, string> = {
   verified: "text-[var(--sd-teal)]",
@@ -53,15 +53,6 @@ export default function ApplicationDetail() {
   const [programInfoOpen, setProgramInfoOpen] = useState(true);
   const [, forceTick] = useState(0);
   const nextSteps = loadNextSteps(application?.id ?? "");
-  const [notes, setNotes] = useState(() => {
-    if (typeof window === "undefined" || !application) return "";
-    return window.localStorage.getItem(`sd-app-notes:${application.id}`) ?? "";
-  });
-
-  function saveNotes(value: string) {
-    setNotes(value);
-    if (application) window.localStorage.setItem(`sd-app-notes:${application.id}`, value);
-  }
 
   const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs(application?.id ?? ""));
   const [uploadingType, setUploadingType] = useState<string | null>(null);
@@ -512,19 +503,15 @@ export default function ApplicationDetail() {
               </div>
             )}
 
-            {tab === "Notes" && (
+            {tab === "Comments" && (
               <div>
                 <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-slate-600">
-                  <StickyNote size={15} className="text-slate-400" /> Personal notes for this application
+                  <MessageCircle size={15} className="text-slate-400" /> Comments on this application
                 </div>
-                <textarea
-                  value={notes}
-                  onChange={(e) => saveNotes(e.target.value)}
-                  placeholder="Jot down questions for your counsellor, deadlines to remember, or anything else about this application…"
-                  rows={8}
-                  className="w-full resize-none rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-[13px] text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.06)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--sd-ink)]/10"
-                />
-                <p className="mt-1.5 text-xs text-slate-400">Saved automatically on this device.</p>
+                <p className="mb-3 text-xs text-slate-400">
+                  Visible to your counsellor, admission officer and agent — they'll be notified when you post.
+                </p>
+                <ApplicationCommentsCard applicationId={application.id} />
               </div>
             )}
           </div>

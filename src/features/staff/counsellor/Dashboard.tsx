@@ -15,7 +15,7 @@ import { loadAssignedStudents, addStudent } from "../../../data/counsellorStuden
 import {
   loadMeetings, loadDoneMeetingIds, markMeetingDone, meetingStatus, formatMeetingTime, addMeeting, type Meeting,
 } from "../../../data/counsellorMeetingsStore";
-import { getStaffMessages, markMessageRead } from "../../../data/counsellorMessagesStore";
+import { getThreadsList, markThreadRead } from "../../../data/messagesStore";
 import { getStatTrends } from "../../../data/staffStatsSnapshotStore";
 import { getCounsellorTasks, staffTaskTarget, type DisplayTask } from "../../../utils/taskBoard";
 import type { Student, University } from "../../../types";
@@ -131,7 +131,7 @@ export default function CounsellorDashboard() {
     if (rankDiff !== 0) return rankDiff;
     return a.time.localeCompare(b.time);
   });
-  const messages = getStaffMessages();
+  const messages = getThreadsList().slice(0, 5);
 
   // "Today's Task" used to only ever show scheduled meetings — a real task (next step, missing
   // document, pending review) never appeared here at all, and one with no due date especially
@@ -157,9 +157,9 @@ export default function CounsellorDashboard() {
     forceTick((t) => t + 1);
   }
 
-  function openMessage(id: string, studentId: string) {
-    markMessageRead(id);
-    navigate(`/staff/counsellor/students/${studentId}`);
+  function openMessage(m: (typeof messages)[number]) {
+    markThreadRead(m.threadId);
+    navigate("/staff/counsellor/messages", { state: { counterpart: m.counterpart } });
   }
 
   return (
@@ -362,24 +362,21 @@ export default function CounsellorDashboard() {
             <p className="mb-3 text-sm font-semibold text-slate-800">Recent Messages</p>
             <div className="space-y-3">
               {messages.map((m) => {
-                const student = assigned.find((s) => s.id === m.studentId);
-                if (!student) return null;
+                const student = m.counterpart.role === "student" ? assigned.find((s) => s.id === m.counterpart.id) : undefined;
                 return (
-                  <button key={m.id} onClick={() => openMessage(m.id, m.studentId)} className="flex w-full items-center gap-2.5 text-left">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${student.avatarColor}`}>
-                      {student.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                  <button key={m.threadId} onClick={() => openMessage(m)} className="flex w-full items-center gap-2.5 text-left">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${student?.avatarColor ?? "bg-slate-400"}`}>
+                      {m.counterpart.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-[12.5px] font-semibold text-slate-800">{student.name}</p>
-                        <span className="shrink-0 text-[10px] text-slate-400">{m.time}</span>
-                      </div>
-                      <p className="truncate text-[11.5px] text-slate-500">{m.preview}</p>
+                      <p className="truncate text-[12.5px] font-semibold text-slate-800">{m.counterpart.name}</p>
+                      <p className="truncate text-[11.5px] text-slate-500">{m.lastMessage.text}</p>
                     </div>
                     {m.unread > 0 && <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />}
                   </button>
                 );
               })}
+              {messages.length === 0 && <p className="text-[12.5px] text-slate-400">No messages yet.</p>}
             </div>
           </div>
 

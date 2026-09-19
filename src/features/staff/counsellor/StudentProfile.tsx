@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
@@ -21,7 +21,7 @@ import {
 import { getStudentTasks } from "../../../utils/taskBoard";
 import { addCoreDoc, verifyCoreDoc, rejectCoreDoc } from "../../../data/coreDocsStore";
 import { AddCoreDocumentButton } from "../../../components/CoreDocumentCard";
-import { loadStaffNote, saveStaffNote } from "../../../data/staffNotesStore";
+import { StudentCommentsCard } from "../../../components/StudentCommentsCard";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
@@ -62,7 +62,7 @@ function safeText(value: string | undefined | null): string {
   return value;
 }
 
-const TABS = ["Overview", "Applications", "Documents", "Notes"] as const;
+const TABS = ["Overview", "Applications", "Documents", "Comments"] as const;
 
 // Consistent icon-badge header for each of the 4 application-detail columns, so they read as
 // distinct, scannable panels instead of loosely stacked cards under a plain gray label.
@@ -112,9 +112,6 @@ export default function StudentProfile() {
   const [nextStepDue, setNextStepDue] = useState("");
   const [newAppOpen, setNewAppOpen] = useState(false);
   const [, forceTick] = useState(0);
-  const [note, setNote] = useState(() => (id ? loadStaffNote(id) : ""));
-  const [saved, setSaved] = useState(false);
-  const savedTimeoutRef = useRef<number | null>(null);
 
   if (!student) {
     // An empty caseload usually means the assigned-students cache just hasn't finished its first
@@ -197,13 +194,6 @@ export default function StudentProfile() {
   };
 
   const agent = student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
-
-  function handleSaveNote() {
-    saveStaffNote(student!.id, note);
-    setSaved(true);
-    if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
-    savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
-  }
 
   return (
     <div className="max-w-5xl">
@@ -744,24 +734,11 @@ export default function StudentProfile() {
         </div>
       )}
 
-      {tab === "Notes" && (
+      {tab === "Comments" && (
         <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-800">Case notes</p>
-            {saved && (
-              <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                <Check size={13} /> Saved
-              </span>
-            )}
-          </div>
-          <textarea
-            value={note}
-            onChange={(e) => { setNote(e.target.value); setSaved(false); }}
-            rows={6}
-            placeholder="Private notes about this student's case — visible only to staff…"
-            className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[var(--sd-ink)] focus:outline-none"
-          />
-          <Button onClick={handleSaveNote} className="mt-2.5">Save note</Button>
+          <p className="mb-3 text-sm font-semibold text-slate-800">Case comments</p>
+          <p className="mb-3 text-xs text-slate-400">Visible to and postable by this student, their counsellor and their agent — posting notifies each of their inboxes.</p>
+          <StudentCommentsCard studentId={student.id} />
         </div>
       )}
     </div>

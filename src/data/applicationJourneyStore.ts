@@ -8,7 +8,6 @@ import type { Role } from "../types";
 import { getAllApplications, applyLocalStatusUpdate, refreshApplicationFromServer } from "./applicationsStore";
 import { getCountryId } from "./countryRegistry";
 import { resolveImmigrationDocType, resolveHoldingPeriodDays } from "./requirementRules";
-import { recordActivity } from "./applicationActivityStore";
 import { deriveAppStatus, computeNextAction } from "../utils/applicationJourneyEngine";
 import { apiGet, apiPatch } from "../utils/apiClient";
 import { notifyCacheChange } from "../utils/syncCache";
@@ -149,20 +148,20 @@ export function refreshCachedJourneys(): void {
 }
 
 /** Merges a patch into one stage's data, auto-stamping startedAt/completedAt off the new status,
- * recording an activity event, and deriving+applying the resulting flat AppStatus — mirrors the
- * pre-migration behavior exactly, just against the cache instead of localStorage. The real
- * persistence (and the server-side notification dispatch that comes with it) happens via the
- * background PATCH; the local update is what makes the UI feel instant. */
+ * and deriving+applying the resulting flat AppStatus — mirrors the pre-migration behavior exactly,
+ * just against the cache instead of localStorage. The real persistence (and the server-side
+ * notification dispatch and stage_updated activity row that come with it) happens via the
+ * background PATCH; the local update is what makes the UI feel instant. `actor`/`token` are
+ * accepted for call-site compatibility but no longer used client-side. */
 export function updateStage<TData>(
   applicationId: string,
   stageType: StageType,
   patch: Partial<TData> & { status?: string; blocked?: boolean; blockedReason?: string },
-  actor: { id: string; role: Role; name: string },
+  _actor: { id: string; role: Role; name: string },
   _token?: string
 ): ApplicationJourney {
   const journey = loadJourney(applicationId);
   const current = journey.stages[stageType];
-  const oldStatus = current?.status;
   const nextData = { ...(current?.data ?? {}), ...patch };
   const { status: nextStatus, blocked, blockedReason, ...dataOnly } = nextData as Record<string, unknown>;
 
@@ -185,15 +184,6 @@ export function updateStage<TData>(
   const nextJourney: ApplicationJourney = { ...journey, stages: { ...journey.stages, [stageType]: updated } };
   cache[applicationId] = nextJourney;
   notifyCacheChange();
-
-  recordActivity({
-    applicationId,
-    stageType,
-    action: "stage_updated",
-    oldValue: oldStatus,
-    newValue: updated.status,
-    performedBy: actor,
-  });
 
   const derivedStatus = deriveAppStatus(nextJourney);
   const derivedNextAction = computeNextAction(nextJourney)?.title ?? "Every stage of the journey is complete.";

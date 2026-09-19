@@ -148,7 +148,7 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
     {
       spec: {
         name: "add_application_note",
-        description: "Add a note to an application's activity timeline — visible to anyone reviewing the application later.",
+        description: "Post a comment on an application — visible to the student, their agent, and every other staff member on the case, and sent to each of their inboxes.",
         parameters: { type: "object", properties: { applicationId: { type: "string" }, note: { type: "string" }, stageType: { type: "string" } }, required: ["applicationId", "note"] },
       },
       execute: (args) => {
@@ -157,7 +157,7 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
         return recordActivity({
           applicationId: String(args.applicationId),
           stageType: args.stageType as StageType | undefined,
-          action: "note_added",
+          action: "comment_added",
           notes: String(args.note),
           performedBy: { id: counsellorId, role: "counsellor", name: ctx.userName },
         });

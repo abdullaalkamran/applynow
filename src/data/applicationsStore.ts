@@ -3,9 +3,11 @@
 // Reads stay synchronous (an in-memory cache warmed after login and kept current after every
 // write) so the dozens of existing call sites — including plain, non-React functions like the AI
 // tool registry and taskBoard.ts, which can't use hooks — need no changes. Status history
-// (`getStatusHistory`) and the append-only activity timeline (`applicationActivityStore.ts`) stay
-// localStorage-backed for now — a deferred-phase migration, not part of this cutover.
-import { recordActivity } from "./applicationActivityStore";
+// (`getStatusHistory`) stays localStorage-backed for now — a deferred-phase migration, not part
+// of this cutover. The activity timeline (`applicationActivityStore.ts`) is now Postgres-backed
+// too, written automatically server-side by the status/assignment routes below — nothing here
+// calls recordActivity() itself, since doing so would just double the entry the server already
+// creates in the same request.
 import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Application, AppStatus, Role } from "../types";
@@ -75,14 +77,10 @@ export function applyLocalStatusUpdate(applicationId: string, status: AppStatus,
  * Optimistically updates the cache so callers see the change immediately, then persists to the
  * server — which also writes the status-history/activity rows and fires the WhatsApp/email
  * notification itself (see server/src/routes/applications.js), so nothing further is needed here
- * for that side effect. `token` is accepted for call-site compatibility but no longer used
- * client-side. */
-export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string, actor?: Actor, _token?: string) {
-  const previousStatus = cache.find((a) => a.id === applicationId)?.status;
+ * for that side effect. `actor`/`token` are accepted for call-site compatibility but no longer
+ * used client-side. */
+export function updateApplicationStatus(applicationId: string, status: AppStatus, nextAction?: string, _actor?: Actor, _token?: string) {
   applyLocalStatusUpdate(applicationId, status, nextAction);
-  if (actor) {
-    recordActivity({ applicationId, action: "status_changed", oldValue: previousStatus, newValue: status, performedBy: actor });
-  }
   apiPatch<Application>(`/api/applications/${applicationId}/status`, { status, nextAction })
     .then((updated) => {
       cache = cache.map((a) => (a.id === applicationId ? updated : a));
@@ -91,21 +89,21 @@ export function updateApplicationStatus(applicationId: string, status: AppStatus
     .catch((err) => console.warn("Failed to persist status update:", err));
 }
 
-export function assignCounsellor(applicationId: string, counsellorId: string, actor: Actor) {
-  const previous = cache.find((a) => a.id === applicationId)?.responsibleCounsellorId;
+// `actor` is accepted for call-site compatibility (ResponsibleStaffCard passes it) but no longer
+// used client-side — the server's own /assign-counsellor route already writes the
+// counsellor_assigned activity row itself, attributed to whoever's actually authenticated.
+export function assignCounsellor(applicationId: string, counsellorId: string, _actor: Actor) {
   cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleCounsellorId: counsellorId } : a));
   notifyCacheChange();
-  recordActivity({ applicationId, action: "counsellor_assigned", oldValue: previous, newValue: counsellorId, performedBy: actor });
   apiPatch(`/api/applications/${applicationId}/assign-counsellor`, { counsellorId }).catch((err) =>
     console.warn("Failed to persist counsellor assignment:", err)
   );
 }
 
-export function assignAdmissionOfficer(applicationId: string, officerId: string, actor: Actor) {
-  const previous = cache.find((a) => a.id === applicationId)?.responsibleAdmissionOfficerId;
+// Same reasoning as assignCounsellor above.
+export function assignAdmissionOfficer(applicationId: string, officerId: string, _actor: Actor) {
   cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleAdmissionOfficerId: officerId } : a));
   notifyCacheChange();
-  recordActivity({ applicationId, action: "admission_officer_assigned", oldValue: previous, newValue: officerId, performedBy: actor });
   apiPatch(`/api/applications/${applicationId}/assign-admission-officer`, { officerId }).catch((err) =>
     console.warn("Failed to persist admission officer assignment:", err)
   );

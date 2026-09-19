@@ -32,17 +32,22 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   admission: [
     { label: "Submission Queue", path: "/staff/admission", icon: FileText },
+    { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   compliance: [
     { label: "Risk & Fraud Queue", path: "/staff/compliance", icon: ShieldAlert },
+    { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   data: [
     { label: "Countries", path: "/staff/data", icon: Globe2 },
     { label: "Universities", path: "/staff/data/universities", icon: Landmark },
+    { label: "Subjects", path: "/staff/data/subjects", icon: BookOpen },
     { label: "Content Catalog", path: "/staff/data/catalog", icon: BookOpen },
+    { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   finance: [
     { label: "Commission Approvals", path: "/staff/finance", icon: Percent },
+    { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   admin: [
     { label: "Teams & Roles", path: "/admin", icon: Users },
@@ -50,6 +55,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Commission Rules", path: "/admin/commission-rules", icon: Percent },
     { label: "Audit Logs", path: "/admin/audit-logs", icon: ScrollText },
     { label: "Tasks", path: "/admin/tasks", icon: ListChecks },
+    { label: "Messages", path: "/messages", icon: MessageCircle },
     { label: "AI Settings", path: "/admin/ai-settings", icon: Sparkles },
     { label: "Notifications", path: "/admin/notifications", icon: Bell },
   ],

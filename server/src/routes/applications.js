@@ -6,6 +6,7 @@ const { workflowStages } = require("../workflowStages");
 const journey = require("../journeyLogic");
 const { saveFinancialReadiness } = require("../financialReadinessRecord");
 const { sendStatusNotification } = require("../notifications/dispatch");
+const { threadIdFor } = require("./messages");
 
 const router = express.Router();
 
@@ -292,24 +293,132 @@ router.get("/:id/status-history", requireAuth, async (req, res, next) => {
   }
 });
 
+/** Everyone tied to this specific application — the student, whoever's actually responsible for
+ * it (counsellor/admission officer), plus the student's overall agent/counsellor (which can differ
+ * from the per-application responsible staff — see the Application model's own comment). Used to
+ * gate who can read/post comments on an application and who gets notified of a new one. Deduped by
+ * id+role since the same person often appears twice (e.g. responsibleCounsellorId === student's
+ * own counsellorId). */
+async function getApplicationParticipants(application) {
+  const student = await prisma.student.findUnique({ where: { id: application.studentId } });
+  if (!student) return [];
+
+  const staffIds = [
+    application.responsibleCounsellorId,
+    application.responsibleAdmissionOfficerId,
+    student.counsellorId,
+    student.agentId,
+  ].filter(Boolean);
+  const staff = staffIds.length ? await prisma.staff.findMany({ where: { id: { in: staffIds } } }) : [];
+
+  const participants = [{ id: student.id, role: "student", name: student.name }];
+  for (const s of staff) participants.push({ id: s.id, role: s.role, name: s.name });
+
+  const seen = new Set();
+  return participants.filter((p) => {
+    const key = `${p.role}:${p.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function serializeActivity(r) {
+  return {
+    id: r.id,
+    applicationId: r.applicationId,
+    timestamp: r.timestamp.toISOString(),
+    stageType: r.stageType || undefined,
+    action: r.action,
+    oldValue: r.oldValue,
+    newValue: r.newValue,
+    notes: r.notes || undefined,
+    performedBy: { id: r.performedById, role: r.performedByRole, name: r.performedByName },
+  };
+}
+
+// No ownership check here, matching every other route in this file (GET /, GET /:id, the status/
+// assignment PATCHes) — any authenticated user can already see any application, so gating just
+// its comments would be a one-off inconsistency, and would also lock out a legitimate staff
+// member who isn't yet the officially-assigned responsible party for this specific application
+// (e.g. an admission officer before one's been assigned).
 router.get("/:id/activity", requireAuth, async (req, res, next) => {
   try {
+    const app = await prisma.application.findUnique({ where: { id: req.params.id } });
+    if (!app) return res.status(404).json({ error: "Application not found." });
+
     const rows = await prisma.applicationActivity.findMany({
       where: { applicationId: req.params.id },
       orderBy: { timestamp: "desc" },
     });
-    res.json(
-      rows.map((r) => ({
-        id: r.id,
-        applicationId: r.applicationId,
-        timestamp: r.timestamp.toISOString(),
-        stageType: r.stageType || undefined,
-        action: r.action,
-        oldValue: r.oldValue,
-        newValue: r.newValue,
-        performedBy: { id: r.performedById, role: r.performedByRole, name: r.performedByName },
-      }))
-    );
+    res.json(rows.map(serializeActivity));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// For activity a client itself originates — a comment (action "comment_added", postable and
+// visible to anyone, same as GET above) or the counsellor's request_document AI tool call — as
+// opposed to the activity rows other routes in this file already create automatically alongside
+// their own real effect (a status/stage change, a counsellor/admission-officer assignment).
+// Always attributes to whoever is actually authenticated, never a client-supplied performer. A
+// comment also notifies every actual participant's in-app inbox (see the Notification model) —
+// unlike read/write access above, notifications *are* targeted, so posting a comment doesn't spam
+// every authenticated user in the system.
+router.post("/:id/activity", requireAuth, async (req, res, next) => {
+  try {
+    const { action, stageType, oldValue, newValue, notes } = req.body || {};
+    if (typeof action !== "string" || !action.trim()) {
+      return res.status(400).json({ error: "action is required." });
+    }
+    const app = await prisma.application.findUnique({ where: { id: req.params.id } });
+    if (!app) return res.status(404).json({ error: "Application not found." });
+    const actor = actorFrom(req);
+
+    const row = await prisma.applicationActivity.create({
+      data: {
+        applicationId: req.params.id,
+        action,
+        stageType: stageType || undefined,
+        oldValue,
+        newValue,
+        notes: notes || undefined,
+        performedById: actor.id, performedByRole: actor.role, performedByName: actor.name,
+      },
+    });
+
+    if (action === "comment_added" && notes) {
+      const participants = await getApplicationParticipants(app);
+      const recipients = participants.filter((p) => !(p.id === actor.id && p.role === actor.role));
+      if (recipients.length > 0) {
+        await prisma.notification.createMany({
+          data: recipients.map((p) => ({
+            userId: p.id,
+            userRole: p.role,
+            type: "comment_added",
+            title: `${actor.name} commented on ${app.university} — ${app.course}`,
+            body: String(notes).slice(0, 280),
+            studentId: app.studentId,
+            applicationId: app.id,
+            activityId: row.id,
+          })),
+        });
+        // Also fans the comment out as an individual 1:1 message from the poster to each other
+        // participant — so it shows up in their normal chat with that person, not just the
+        // shared comment thread on the application itself.
+        await prisma.message.createMany({
+          data: recipients.map((p) => ({
+            id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}-${p.id}`,
+            threadId: threadIdFor(actor, p),
+            fromId: actor.id, fromRole: actor.role, fromName: actor.name,
+            toId: p.id, toRole: p.role, toName: p.name,
+            text: `[${app.university} — ${app.course}] ${notes}`,
+          })),
+        });
+      }
+    }
+
+    res.status(201).json(serializeActivity(row));
   } catch (err) {
     next(err);
   }

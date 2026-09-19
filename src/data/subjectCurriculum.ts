@@ -1,5 +1,9 @@
+import { getSubjectRecord } from "./subjectCatalogStore";
+
 // Representative module and career-outcome lists per field of study, used to fill out a course's
-// "Modules" and "Careers" tabs. Illustrative, not any specific university's real syllabus.
+// "Modules" and "Careers" tabs. Illustrative, not any specific university's real syllabus — the
+// fallback for any subject Data Management hasn't authored real modules for yet (see
+// subjectCatalogStore.ts and curriculumFor below).
 export const SUBJECT_CURRICULUM: Record<string, { modules: string[]; careers: string[] }> = {
   "Computer Science & IT": {
     modules: ["Algorithms & Data Structures", "Software Engineering", "Databases & Web Systems", "Operating Systems", "Artificial Intelligence Fundamentals", "Capstone Project"],
@@ -41,6 +45,12 @@ export const SUBJECT_CURRICULUM: Record<string, { modules: string[]; careers: st
 
 const DEFAULT_CURRICULUM = { modules: ["Core Modules", "Electives", "Research Methods", "Capstone Project"], careers: ["Graduate Roles in this Field"] };
 
+/** Data Management's real modules (see subjectCatalogStore.ts) take priority once entered for a
+ * subject; the static tables above are only the fallback for whatever hasn't been authored yet. */
 export function curriculumFor(subject: string) {
+  const authored = getSubjectRecord(subject);
+  if (authored?.modules.length) {
+    return { modules: authored.modules, careers: SUBJECT_CURRICULUM[subject]?.careers ?? DEFAULT_CURRICULUM.careers };
+  }
   return SUBJECT_CURRICULUM[subject] ?? DEFAULT_CURRICULUM;
 }

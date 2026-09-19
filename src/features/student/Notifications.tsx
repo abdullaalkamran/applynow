@@ -4,17 +4,20 @@ import { Bell, MessageCircle, FileText, Sparkles } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { getNotifications, type NotificationItem } from "../../utils/notifications";
 import { markAllNotificationsRead, markNotificationRead } from "../../data/notificationsStore";
+import { markInboxItemRead, markAllInboxRead } from "../../data/inboxStore";
 
 const ICON_BY_TYPE: Record<NotificationItem["type"], typeof Bell> = {
   message: MessageCircle,
   document: FileText,
   application: Bell,
+  comment: MessageCircle,
 };
 
 const TONE_BY_TYPE: Record<NotificationItem["type"], string> = {
   message: "bg-[#F1EAFB] text-[#6D3FBF]",
   document: "bg-[#FDF0DC] text-[#B8791C]",
   application: "bg-[#E7EEFC] text-[#2955C4]",
+  comment: "bg-[#E7EEFC] text-[#2955C4]",
 };
 
 export default function Notifications() {
@@ -23,13 +26,15 @@ export default function Notifications() {
   const unreadCount = items.filter((n) => !n.read).length;
 
   function open(item: NotificationItem) {
-    markNotificationRead(item.id);
+    if (item.type === "comment") markInboxItemRead(item.id);
+    else markNotificationRead(item.id);
     setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
     navigate(item.path, item.state ? { state: item.state } : undefined);
   }
 
   function markAllRead() {
-    markAllNotificationsRead(items.map((n) => n.id));
+    markAllNotificationsRead(items.filter((n) => n.type !== "comment").map((n) => n.id));
+    markAllInboxRead();
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 

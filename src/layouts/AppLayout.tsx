@@ -8,6 +8,7 @@ import { NAV } from "./nav";
 import { RoleBottomNav } from "./RoleBottomNav";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { unreadMessageCount } from "../data/messagesStore";
 
 export default function AppLayout() {
   const cacheTick = useCacheSync();
@@ -17,6 +18,7 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const meta = ROLES.find((r) => r.id === role)!;
   const nav = NAV[role];
+  const unreadMessages = unreadMessageCount();
 
   function handleLogout() {
     setMenuOpen(false);
@@ -79,11 +81,16 @@ export default function AppLayout() {
         <header className="flex items-center justify-end border-b border-slate-200 bg-white px-4 py-3 md:px-6">
           <div className="flex items-center gap-3">
             <button
-              aria-label="Notifications"
+              onClick={() => navigate("/messages")}
+              aria-label="Messages"
               className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
             >
               <Bell size={16} />
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500" />
+              {unreadMessages > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                  {unreadMessages}
+                </span>
+              )}
             </button>
 
             <div className="relative">

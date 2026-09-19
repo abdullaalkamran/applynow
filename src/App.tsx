@@ -47,6 +47,7 @@ import AgentVisaCompliance from "./features/agent/VisaCompliance";
 import AgentCommissions from "./features/agent/Commissions";
 import AgentStatements from "./features/agent/Statements";
 import AgentTasks from "./features/agent/Tasks";
+import AgentMessages from "./features/agent/Messages";
 
 import CounsellorDashboard from "./features/staff/counsellor/Dashboard";
 import CounsellorLeads from "./features/staff/counsellor/Leads";
@@ -64,8 +65,11 @@ import CounsellorReports from "./features/staff/counsellor/Reports";
 import CounsellorResources from "./features/staff/counsellor/Resources";
 import CounsellorSettings from "./features/staff/counsellor/Settings";
 import AdmissionSubmissionQueue from "./features/staff/admission/SubmissionQueue";
+import SharedMessages from "./features/shared/Messages";
 import ComplianceRiskQueue from "./features/staff/compliance/RiskQueue";
 import DataCatalog from "./features/staff/data/Catalog";
+import DataSubjects from "./features/staff/data/Subjects";
+import DataSubjectForm from "./features/staff/data/SubjectForm";
 import DataCountries from "./features/staff/data/Countries";
 import DataUniversities from "./features/staff/data/Universities";
 import DataUniversityDetail from "./features/staff/data/UniversityDetail";
@@ -169,12 +173,15 @@ export default function App() {
             <Route path="/agent/commissions" element={<AgentCommissions />} />
             <Route path="/agent/statements" element={<AgentStatements />} />
             <Route path="/agent/tasks" element={<AgentTasks />} />
+            <Route path="/agent/messages" element={<AgentMessages />} />
           </Route>
           </Route>
 
           <Route element={<RequireAuth roles={["admission", "compliance", "data", "finance", "admin"]} />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<RoleHomeRedirect />} />
+
+            <Route path="/messages" element={<SharedMessages />} />
 
             {/* Staff */}
             <Route path="/staff/admission" element={<AdmissionSubmissionQueue />} />
@@ -189,6 +196,9 @@ export default function App() {
             <Route path="/staff/data/universities/:id/edit" element={<DataUniversityForm />} />
             <Route path="/staff/data/universities/:id/courses/new" element={<DataCourseForm />} />
             <Route path="/staff/data/universities/:id/courses/:courseId" element={<DataCourseForm />} />
+            <Route path="/staff/data/subjects" element={<DataSubjects />} />
+            <Route path="/staff/data/subjects/new" element={<DataSubjectForm />} />
+            <Route path="/staff/data/subjects/:id" element={<DataSubjectForm />} />
             <Route path="/staff/data/catalog" element={<DataCatalog />} />
             <Route path="/staff/finance" element={<FinanceCommissionApprovals />} />
 

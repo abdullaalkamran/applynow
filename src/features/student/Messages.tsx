@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { BackButton } from "../../components/ui/mobile";
-import { MESSAGE_THREADS as THREADS } from "../../data/messageThreads";
+import { Messenger } from "../../components/Messenger";
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -16,32 +16,21 @@ export default function Messages() {
         </div>
       </div>
 
-      <div className="mt-4 space-y-2.5">
-        {THREADS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => navigate(t.ai ? "/student/counsellor" : "#")}
-            className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
-          >
-            {t.ai ? (
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
-                <Sparkles size={18} />
-              </div>
-            ) : (
-              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${t.color}`}>
-                {t.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-[13px] font-semibold text-slate-900">{t.name}</p>
-                <span className="shrink-0 text-[11px] text-slate-400">{t.time}</span>
-              </div>
-              <p className="truncate text-xs text-slate-500">{t.last}</p>
-            </div>
-            {t.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--sd-teal)]" />}
-          </button>
-        ))}
+      <button
+        onClick={() => navigate("/student/counsellor")}
+        className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
+          <Sparkles size={18} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-slate-900">AI Counsellor</p>
+          <p className="truncate text-xs text-slate-500">Ask anything about your applications.</p>
+        </div>
+      </button>
+
+      <div className="mt-4">
+        <Messenger />
       </div>
     </div>
   );

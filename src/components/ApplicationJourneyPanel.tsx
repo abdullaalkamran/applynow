@@ -7,9 +7,10 @@ import { JourneyStageGrid } from "./JourneyStageGrid";
 import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
 import { getApplicationTasks } from "../utils/taskBoard";
-import { loadActivityDescending } from "../data/applicationActivityStore";
+import { loadActivityDescending, recordActivity } from "../data/applicationActivityStore";
 import { ADMISSION_OFFICERS, COUNSELLORS, AGENTS, STUDENTS } from "../data/mockData";
 import { getAllApplications, assignCounsellor, assignAdmissionOfficer } from "../data/applicationsStore";
+import { useRole } from "../context/RoleContext";
 import type { Role } from "../types";
 
 // The four stages that get full structured fields + editing this phase — everything else
@@ -242,8 +243,12 @@ export function ApplicationTasksCard({ applicationId }: { applicationId: string 
   );
 }
 
+// Audit trail only — status changes, stage updates, assignments. Comments (action "comment_added")
+// get their own dedicated thread, ApplicationCommentsCard below, rather than being mixed in here.
 export function ApplicationActivityCard({ applicationId, limit = 8 }: { applicationId: string; limit?: number }) {
-  const activity = loadActivityDescending(applicationId).slice(0, limit);
+  const activity = loadActivityDescending(applicationId)
+    .filter((e) => e.action !== "comment_added")
+    .slice(0, limit);
   if (activity.length === 0) {
     return <p className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-center text-[12px] text-slate-400">No activity recorded yet.</p>;
   }
@@ -252,10 +257,72 @@ export function ApplicationActivityCard({ applicationId, limit = 8 }: { applicat
       {activity.map((e) => (
         <p key={e.id} className="py-0.5 text-[12px] text-slate-600">
           <span className="text-slate-400">{new Date(e.timestamp).toLocaleDateString()}</span>{" "}
-          {e.action === "note_added" ? `"${e.notes}"` : `${e.action.replace(/_/g, " ")}${e.newValue ? `: ${e.newValue}` : ""}`}{" "}
+          {e.action.replace(/_/g, " ")}{e.newValue ? `: ${e.newValue}` : ""}{" "}
           <span className="text-slate-400">— {e.performedBy.name}</span>
         </p>
       ))}
+    </div>
+  );
+}
+
+/** A shared comment thread on one application — every participant (student, responsible
+ * counsellor/admission officer, agent) can post and read every comment, and posting one drops a
+ * notification into every other participant's inbox (see server's POST /:id/activity). Works from
+ * any role's page since it only needs useRole() for "who's posting this". */
+export function ApplicationCommentsCard({ applicationId }: { applicationId: string }) {
+  const { role, currentUser } = useRole();
+  const [draft, setDraft] = useState("");
+  const [posting, setPosting] = useState(false);
+  const comments = loadActivityDescending(applicationId).filter((e) => e.action === "comment_added");
+
+  function post() {
+    const text = draft.trim();
+    if (!text) return;
+    setPosting(true);
+    recordActivity({
+      applicationId,
+      action: "comment_added",
+      notes: text,
+      performedBy: { id: currentUser.id, role, name: currentUser.name },
+    });
+    setDraft("");
+    setPosting(false);
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white p-3">
+      <div className="flex items-start gap-2">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Add a comment — visible to everyone on this application, and sent to their inbox."
+          rows={2}
+          className="flex-1 resize-none rounded-lg border border-slate-200 p-2 text-[12.5px] text-slate-700 outline-none focus:border-slate-300"
+        />
+        <button
+          onClick={post}
+          disabled={posting || !draft.trim()}
+          className="shrink-0 rounded-lg bg-[image:var(--sd-gradient)] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
+        >
+          Post
+        </button>
+      </div>
+
+      {comments.length === 0 ? (
+        <p className="mt-3 text-center text-[12px] text-slate-400">No comments yet.</p>
+      ) : (
+        // Bounded to its own scroll area — a long thread shouldn't keep expanding the page height.
+        <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+          {comments.map((c) => (
+            <div key={c.id} className="rounded-lg bg-slate-50 p-2.5">
+              <p className="text-[12.5px] text-slate-700">{c.notes}</p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                {c.performedBy.name} ({c.performedBy.role}) — {new Date(c.timestamp).toLocaleString()}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

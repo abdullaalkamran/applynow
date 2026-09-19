@@ -427,11 +427,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
       execute: (args) => {
         const to = resolveCounterpart(studentId);
         if (!to) return { error: "No counsellor or agent is assigned to this student yet." };
-        const message = sendMessage({
-          from: { role: "student", id: studentId, name: ctx.userName },
-          to,
-          text: String(args.text),
-        });
+        const message = sendMessage(to, String(args.text), { role: "student", id: studentId, name: ctx.userName });
         return { sent: true, to: to.name, message };
       },
     },
