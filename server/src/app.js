@@ -22,6 +22,7 @@ const studentFinancialReadinessRoute = require("./routes/studentFinancialReadine
 const inboxRoute = require("./routes/inbox");
 const subjectsRoute = require("./routes/subjects");
 const universitiesRoute = require("./routes/universities");
+const interviewPrepRoute = require("./routes/interviewPrep");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -58,6 +59,7 @@ app.use("/api/financial-readiness", studentFinancialReadinessRoute);
 app.use("/api/inbox", inboxRoute);
 app.use("/api/subjects", subjectsRoute);
 app.use("/api/universities", universitiesRoute);
+app.use("/api/interview-prep", interviewPrepRoute);
 
 app.use(errorHandler);
 

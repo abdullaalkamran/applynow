@@ -852,3 +852,76 @@ model ApplicationNextStep {
   completedAt   DateTime?
   dueDate       DateTime?   @db.Date
 }
+
+// ============================================================
+// Interview Prep — credibility-interview practice (see the build plan this implements).
+// `userId` on InterviewSession is a plain reference to User.id, not a Prisma relation — same
+// pattern as ApplicationActivity.performedById elsewhere in this file, so adding this feature
+// never requires touching the User model itself.
+// ============================================================
+
+enum InterviewSessionStatus {
+  in_progress
+  completed
+}
+
+model InterviewQuestionSet {
+  id            String   @id @default(cuid())
+  name          String
+  institutionId String?
+  createdAt     DateTime @default(now())
+
+  questions InterviewQuestion[]
+  sessions  InterviewSession[]
+}
+
+model InterviewQuestion {
+  id            String               @id @default(cuid())
+  questionSetId String
+  questionSet   InterviewQuestionSet @relation(fields: [questionSetId], references: [id])
+  prompt        String
+  category      String
+  // Display/answering order within the set — ties matter, so an explicit index instead of relying
+  // on createdAt.
+  orderIndex    Int                  @default(0)
+
+  answers InterviewAnswer[]
+
+  @@index([questionSetId, orderIndex])
+}
+
+model InterviewSession {
+  id            String               @id @default(cuid())
+  userId        String
+  questionSetId String
+  questionSet   InterviewQuestionSet @relation(fields: [questionSetId], references: [id])
+  status        InterviewSessionStatus @default(in_progress)
+  // Average of every answer's own `overall` so far — recomputed on each answer, final once status
+  // flips to completed.
+  overallScore  Float?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  answers InterviewAnswer[]
+
+  @@index([userId, createdAt])
+}
+
+model InterviewAnswer {
+  id         String            @id @default(cuid())
+  sessionId  String
+  session    InterviewSession  @relation(fields: [sessionId], references: [id])
+  questionId String
+  question   InterviewQuestion @relation(fields: [questionId], references: [id])
+  answerText String
+  // { relevance, consistency, specificity, genuineness } — each 0-100, per the rubric.
+  scores     Json
+  // { feedback: string[], flags: string[] } — kept as one Json blob rather than two columns since
+  // both are always read/written together and neither is queried by its internal shape.
+  feedback   Json
+  overall    Float
+  createdAt  DateTime          @default(now())
+
+  @@index([sessionId])
+  @@unique([sessionId, questionId])
+}

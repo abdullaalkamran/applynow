@@ -16,6 +16,7 @@ import StudentApplicationDetail from "./features/student/ApplicationDetail";
 import StudentDocuments from "./features/student/Documents";
 import StudentNotifications from "./features/student/Notifications";
 import StudentTasks from "./features/student/Tasks";
+import StudentInterviewPrep from "./features/student/InterviewPrep";
 import UniversitySearch from "./features/student/UniversitySearch";
 import UniversityFilters from "./features/student/UniversityFilters";
 import UniversityDetail from "./features/student/UniversityDetail";
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="/student/documents" element={<StudentDocuments />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/tasks" element={<StudentTasks />} />
+            <Route path="/student/interview-prep" element={<StudentInterviewPrep />} />
             <Route path="/student/counsellor" element={<AICounsellor />} />
             <Route path="/student/cost-planner" element={<CostPlanner />} />
             <Route path="/student/messages" element={<StudentMessages />} />

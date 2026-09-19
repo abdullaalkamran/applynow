@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
-  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle, Wallet,
+  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle, Wallet, ClipboardCheck,
 } from "lucide-react";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
 import { STUDENTS, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
@@ -55,6 +55,7 @@ const QUICK_ACTIONS = [
   { icon: FileText, tone: "slate" as const, title: "Track Applications", subtitle: "Stay on top", path: "/student/applications" },
   { icon: MessageCircle, tone: "green" as const, title: "Ask AI Counsellor", subtitle: "Get personalized advice", path: "/student/counsellor" },
   { icon: Briefcase, tone: "violet" as const, title: "Manage Documents", subtitle: "Keep everything ready", path: "/student/documents" },
+  { icon: ClipboardCheck, tone: "green" as const, title: "Interview Prep", subtitle: "Practice with AI feedback", path: "/student/interview-prep" },
 ];
 
 const iconBg: Record<string, string> = {
