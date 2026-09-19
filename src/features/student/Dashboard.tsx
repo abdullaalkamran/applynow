@@ -191,7 +191,7 @@ export default function Dashboard() {
           <StatCard icon={<FileText size={16} />} tone="blue" value={myApplications.length} label="Applications" onClick={() => navigate("/student/applications")} />
           <StatCard icon={<CheckCircle2 size={16} />} tone="green" value={offersCount} label="Offers" onClick={() => navigate("/student/applications")} />
           <StatCard icon={<Clock size={16} />} tone="slate" value={inProgressCount} label="In Progress" onClick={() => navigate("/student/applications")} />
-          <StatCard icon={<Bookmark size={16} />} tone="violet" value={savedProgramsCount} label="Saved Programs" onClick={() => navigate("/student/search")} />
+          <StatCard icon={<Bookmark size={16} />} tone="violet" value={savedProgramsCount} label="Saved Programs" onClick={() => navigate("/student/search?shortlisted=1")} />
         </div>
 
         <div className="lg:mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">

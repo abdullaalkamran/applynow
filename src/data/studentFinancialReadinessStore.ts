@@ -18,7 +18,23 @@ export interface StudentFinancialReadiness {
   bankStatus: string;
   accountHolder?: string;
   accountType?: string;
+  depositType?: string;
   completedAt?: string;
+}
+
+/** One save to the student's record — who, when, and the field-level before/after list. Read
+ * straight from the API when a history panel opens (see FinancialReadinessHistory.tsx) rather
+ * than kept in the warm cache: it's only ever looked at on demand. */
+export interface FinancialReadinessHistoryEntry {
+  id: string;
+  studentId: string;
+  changedAt: string;
+  changedBy: { id: string; role: string; name: string };
+  changes: { field: string; from: string | number | null; to: string | number | null }[];
+}
+
+export function fetchFinancialReadinessHistory(studentId: string): Promise<FinancialReadinessHistoryEntry[]> {
+  return apiGet<FinancialReadinessHistoryEntry[]>(`/api/financial-readiness/${studentId}/history`);
 }
 
 let cache: StudentFinancialReadiness[] = [];

@@ -6,6 +6,7 @@ import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { createApplication, getAllApplications } from "../../data/applicationsStore";
 import { campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
 import { buildCoreChecklist } from "../../utils/documentChecklist";
+import { useHoldCacheSync } from "../../utils/syncCache";
 import type { University } from "../../types";
 
 type Course = University["courses"][number];
@@ -16,9 +17,13 @@ export function ApplyModal({
   university: University; course: Course; onClose: () => void;
 }) {
   const navigate = useNavigate();
+  // Without this, createApplication()'s own cache notification remounts the page underneath and
+  // unmounts this modal before the "Application submitted" screen ever renders.
+  useHoldCacheSync();
   const [intake, setIntake] = useState("");
   const [campus, setCampus] = useState("");
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
   const campuses = campusesFor(university, course.feeUSD);
@@ -39,8 +44,9 @@ export function ApplyModal({
   );
 
   async function confirm() {
-    if (!intake || !campus || missingCoreDocs.length > 0) return;
+    if (!intake || !campus || missingCoreDocs.length > 0 || submitting) return;
     setError("");
+    setSubmitting(true);
     try {
       const application = await createApplication({
         studentId: student.id,
@@ -54,6 +60,8 @@ export function ApplyModal({
       setConfirmedId(application.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't submit this application.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -156,10 +164,10 @@ export function ApplyModal({
 
                 <button
                   onClick={confirm}
-                  disabled={!intake || !campus || missingCoreDocs.length > 0}
+                  disabled={!intake || !campus || missingCoreDocs.length > 0 || submitting}
                   className="mt-5 w-full rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white disabled:opacity-40"
                 >
-                  Confirm Application
+                  {submitting ? "Submitting…" : "Confirm Application"}
                 </button>
               </>
             )}

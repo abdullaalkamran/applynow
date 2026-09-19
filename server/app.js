@@ -1,6 +1,6 @@
 // Passenger entry point (cPanel "Setup Node.js App" expects this file at the app root).
 // Loads .env for local dev only — in production, cPanel injects env vars directly.
-require("dotenv").config();
+require("dotenv").config({ path: require("path").resolve(__dirname, ".env") });
 
 const http = require("http");
 const { WebSocketServer } = require("ws");

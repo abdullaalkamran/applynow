@@ -22,9 +22,12 @@ function StepList({ text }: { text: string }) {
   );
 }
 
-export function CountryGuideSection({ country }: { country: CountryRecord | undefined }) {
+/** `hideWhyThisCountry` skips the intro block for callers that already show it elsewhere on the
+ * page (the Country Detail Overview tab renders it as its own card under Key Information). */
+export function CountryGuideSection({ country, hideWhyThisCountry = false }: { country: CountryRecord | undefined; hideWhyThisCountry?: boolean }) {
+  const showWhy = !!country?.whyThisCountry && !hideWhyThisCountry;
   const hasAnything =
-    !!country && !!(country.whyThisCountry || country.applicationProcedure || country.visaProcedure || country.requiredDocuments?.length);
+    !!country && !!(showWhy || country.applicationProcedure || country.visaProcedure || country.requiredDocuments?.length);
 
   if (!hasAnything) {
     return (
@@ -37,10 +40,10 @@ export function CountryGuideSection({ country }: { country: CountryRecord | unde
 
   return (
     <div className="space-y-4">
-      {country?.whyThisCountry && (
+      {showWhy && (
         <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           <p className="text-[13px] font-semibold text-slate-800">Why This Country</p>
-          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{country.whyThisCountry}</p>
+          <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{country!.whyThisCountry}</p>
         </div>
       )}
 
@@ -97,8 +100,8 @@ export function CountryGuideSection({ country }: { country: CountryRecord | unde
  * yet, instead of a permanently-collapsed empty accordion. */
 export function CountryGuideDisclosure({ country }: { country: CountryRecord | undefined }) {
   const [open, setOpen] = useState(false);
-  const hasAnything =
-    !!country && !!(country.whyThisCountry || country.applicationProcedure || country.visaProcedure || country.requiredDocuments?.length);
+  // "Why This Country" is deliberately excluded — the Overview cards above already show it.
+  const hasAnything = !!country && !!(country.applicationProcedure || country.visaProcedure || country.requiredDocuments?.length);
 
   if (!hasAnything) return null;
 
@@ -115,7 +118,7 @@ export function CountryGuideDisclosure({ country }: { country: CountryRecord | u
       </button>
       {open && (
         <div className="mt-3">
-          <CountryGuideSection country={country} />
+          <CountryGuideSection country={country} hideWhyThisCountry />
         </div>
       )}
     </div>

@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Check, Circle, Lock, AlertTriangle } from "lucide-react";
-import { STAGE_ORDER, STAGE_LABEL, type StageType, type ApplicationJourney } from "../types/journey";
+import { Check, Circle, Lock, AlertTriangle, CalendarClock } from "lucide-react";
+import { STAGE_ORDER, STAGE_LABEL, DEPOSIT_TYPES, type StageType, type ApplicationJourney } from "../types/journey";
+import { FinancialReadinessHistory } from "./FinancialReadinessHistory";
+import { daysHeldLabel } from "../utils/financialReadiness";
+import { JourneyStageGrid } from "./JourneyStageGrid";
 import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
 import { getApplicationTasks } from "../utils/taskBoard";
@@ -58,26 +61,33 @@ export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: P
     forceTick((t) => t + 1);
   }
 
+  if (mode === "student") {
+    // The student's view is the stage grid from the design plus a plain current-stage summary —
+    // no "View Full Details" button (that's the counsellor card's way into its expanded editor).
+    return (
+      <div className="space-y-4">
+        <JourneyStageGrid journey={journey} />
+        <StudentSummary journey={journey} currentStage={currentStage} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <JourneyStepper journey={journey} />
-      {mode === "student" ? (
-        <StudentSummary journey={journey} currentStage={currentStage} />
-      ) : (
-        <div className="space-y-3">
-          <JourneyStageEditor journey={journey} onPatch={patch} readOnly={!actor} />
-          <ResponsibleStaffCard
-            applicationId={applicationId}
-            responsibleCounsellorId={application?.responsibleCounsellorId}
-            responsibleAdmissionOfficerId={application?.responsibleAdmissionOfficerId}
-            agentName={agent?.name}
-            actor={actor}
-            onChanged={() => forceTick((t) => t + 1)}
-          />
-          <ApplicationTasksCard applicationId={applicationId} />
-          <ApplicationActivityCard applicationId={applicationId} />
-        </div>
-      )}
+      <div className="space-y-3">
+        <JourneyStageEditor journey={journey} onPatch={patch} readOnly={!actor} />
+        <ResponsibleStaffCard
+          applicationId={applicationId}
+          responsibleCounsellorId={application?.responsibleCounsellorId}
+          responsibleAdmissionOfficerId={application?.responsibleAdmissionOfficerId}
+          agentName={agent?.name}
+          actor={actor}
+          onChanged={() => forceTick((t) => t + 1)}
+        />
+        <ApplicationTasksCard applicationId={applicationId} />
+        <ApplicationActivityCard applicationId={applicationId} />
+      </div>
     </div>
   );
 }
@@ -120,9 +130,12 @@ export function StageStatusStrip({ journey, dense = false }: { journey: Applicat
   );
 }
 
-export function JourneyStepper({ journey, showStrip = true }: { journey: ApplicationJourney; showStrip?: boolean }) {
+/** `showNextAction={false}` drops the "Next action" card — the student's page doesn't show it
+ * (the student sees a plain stage/status summary instead; the next-action wording is written for
+ * staff, e.g. "— Counsellor" / "— University" owners they can't act on). */
+export function JourneyStepper({ journey, showStrip = true, showNextAction = true }: { journey: ApplicationJourney; showStrip?: boolean; showNextAction?: boolean }) {
   const blockers = computeBlockers(journey);
-  const nextAction = computeNextAction(journey);
+  const nextAction = showNextAction ? computeNextAction(journey) : null;
 
   return (
     <div className="space-y-3">
@@ -264,6 +277,8 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
   const record = journey.stages[stageType]!;
   const [open, setOpen] = useState(stageType === computeCurrentStage(journey));
   const data = record.data as Record<string, unknown>;
+  // Financial Readiness is one shared record per student — its history is keyed by the student.
+  const studentId = getAllApplications().find((a) => a.id === journey.applicationId)?.studentId;
 
   return (
     <div className="@container overflow-hidden rounded-xl border border-slate-100 bg-white">
@@ -283,7 +298,7 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
         // unclickable, looking like "the status form doesn't work".
         <div className="grid grid-cols-1 gap-2.5 border-t border-slate-100 p-3 @sm:grid-cols-2">
           {FULL_DEPTH_STAGES.has(stageType) ? (
-            <FullDepthFields stageType={stageType} data={data} status={record.status} onPatch={onPatch} readOnly={readOnly} />
+            <FullDepthFields stageType={stageType} data={data} status={record.status} onPatch={onPatch} readOnly={readOnly} studentId={studentId} />
           ) : (
             <GenericFields stageType={stageType} data={data} status={record.status} onPatch={onPatch} readOnly={readOnly} />
           )}
@@ -345,7 +360,7 @@ function GenericFields({ stageType, data, status, onPatch, readOnly }: { stageTy
   );
 }
 
-function FullDepthFields({ stageType, data, status, onPatch, readOnly }: { stageType: StageType; data: Record<string, unknown>; status: string; onPatch: (p: Record<string, unknown>) => void; readOnly: boolean }) {
+function FullDepthFields({ stageType, data, status, onPatch, readOnly, studentId }: { stageType: StageType; data: Record<string, unknown>; status: string; onPatch: (p: Record<string, unknown>) => void; readOnly: boolean; studentId?: string }) {
   if (stageType === "application") {
     return (
       <>
@@ -381,14 +396,28 @@ function FullDepthFields({ stageType, data, status, onPatch, readOnly }: { stage
   }
 
   if (stageType === "financial_readiness") {
+    // Same field set, in the same order, as the student's own FinancialReadinessCard — both edit
+    // the one shared record per student, so a counsellor sees exactly what the student entered
+    // (and vice versa), with the same running days-held count under the cash-in date.
+    const daysHeld = daysHeldLabel(data.openingDate as string | undefined);
     return (
       <>
         <SelectFieldInline label="Bank status" value={data.bankStatus} options={["Not Required", "Not Started", "Preparing", "Maintaining", "Matured", "Ready", "Expired"]} onChange={(v) => onPatch({ bankStatus: v, status: v })} readOnly={readOnly} />
-        <Field label="Opened" value={data.openingDate} type="date" onChange={(v) => onPatch({ openingDate: v })} readOnly={readOnly} />
-        <Field label="Hold (days)" value={data.holdingPeriodDays} type="number" onChange={(v) => onPatch({ holdingPeriodDays: Number(v) })} readOnly={readOnly} />
-        <Field label="Amount" value={data.requiredAmount} type="number" onChange={(v) => onPatch({ requiredAmount: Number(v) })} readOnly={readOnly} />
+        <SelectFieldInline label="Deposit" value={data.depositType} options={DEPOSIT_TYPES} onChange={(v) => onPatch({ depositType: v })} readOnly={readOnly} />
+        <Field label="Cash-in" value={data.openingDate} type="date" onChange={(v) => onPatch({ openingDate: v })} readOnly={readOnly} />
+        <Field label="Amt (BDT)" value={data.requiredAmount} type="number" onChange={(v) => onPatch({ requiredAmount: Number(v), currency: "BDT" })} readOnly={readOnly} />
         <SelectFieldInline label="Holder" value={data.accountHolder} options={["Student", "Mother", "Father", "Brother/Sister", "Other"]} onChange={(v) => onPatch({ accountHolder: v })} readOnly={readOnly} />
         <SelectFieldInline label="Acc. type" value={data.accountType} options={["Savings", "Current", "FDR", "Other"]} onChange={(v) => onPatch({ accountType: v })} readOnly={readOnly} />
+        {daysHeld && (
+          <p className="flex items-center gap-1 text-[11.5px] font-medium text-slate-600 @sm:col-span-2">
+            <CalendarClock size={12} className="text-slate-400" /> {daysHeld}
+          </p>
+        )}
+        {studentId && (
+          <div className="@sm:col-span-2">
+            <FinancialReadinessHistory studentId={studentId} />
+          </div>
+        )}
       </>
     );
   }

@@ -101,7 +101,11 @@ export interface FinancialReadinessStageData {
   bankStatus: BankStatus;
   accountHolder?: "Student" | "Mother" | "Father" | "Brother/Sister" | "Other";
   accountType?: "Savings" | "Current" | "FDR" | "Other";
+  depositType?: DepositType;
 }
+
+export type DepositType = "Cash Deposit" | "Cheque Deposit" | "Bank Transfer";
+export const DEPOSIT_TYPES: DepositType[] = ["Cash Deposit", "Cheque Deposit", "Bank Transfer"];
 
 // --- Stage 04: Payment ---
 export type PaymentStageStatus = "Preparing" | "Not Yet Paid" | "Waiting for Confirmation" | "Paid" | "Failed" | "Refunded";

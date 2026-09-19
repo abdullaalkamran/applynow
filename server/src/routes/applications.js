@@ -4,6 +4,7 @@ const requireAuth = require("../middleware/requireAuth");
 const { toEnum, toHuman } = require("../appStatusMap");
 const { workflowStages } = require("../workflowStages");
 const journey = require("../journeyLogic");
+const { saveFinancialReadiness } = require("../financialReadinessRecord");
 const { sendStatusNotification } = require("../notifications/dispatch");
 
 const router = express.Router();
@@ -121,8 +122,11 @@ router.post("/", requireAuth, async (req, res, next) => {
           source: source || "counsellor",
         },
       });
+      // A student who already filled in Financial Readiness (it's one shared record per student,
+      // fillable before any application exists) gets it carried into this journey from the start.
+      const sharedFinancial = await tx.studentFinancialReadiness.findUnique({ where: { studentId } });
       await tx.applicationJourney.create({
-        data: { applicationId: id, stages: journey.buildInitialStages(country) },
+        data: { applicationId: id, stages: journey.syncFinancialReadinessStage(journey.buildInitialStages(country), sharedFinancial) },
       });
 
       // Auto-assign a "review this" task to the student's responsible counsellor — otherwise a
@@ -313,6 +317,13 @@ router.get("/:id/activity", requireAuth, async (req, res, next) => {
 
 // --- Application → Enrolment 9-stage journey ---
 
+/** The journey's stages with financial_readiness rebuilt from the student's shared record. */
+async function withSharedFinancialReadiness(journeyRecord) {
+  const app = await prisma.application.findUnique({ where: { id: journeyRecord.applicationId } });
+  const shared = app ? await prisma.studentFinancialReadiness.findUnique({ where: { studentId: app.studentId } }) : null;
+  return journey.syncFinancialReadinessStage(journeyRecord.stages, shared);
+}
+
 router.get("/:id/journey", requireAuth, async (req, res, next) => {
   try {
     let record = await prisma.applicationJourney.findUnique({ where: { applicationId: req.params.id } });
@@ -322,8 +333,20 @@ router.get("/:id/journey", requireAuth, async (req, res, next) => {
       record = await prisma.applicationJourney.create({
         data: { applicationId: req.params.id, stages: journey.buildInitialStages(app.country) },
       });
+    } else if (record.stages?.application?.status === "Incomplete Profile") {
+      // One-time repair of journeys created with the old "Incomplete Profile" default — see
+      // journeyLogic.repairLegacyApplicationStage. Done here on read (not a migration) so it also
+      // covers rows restored from a dump after the migrations have already run.
+      const app = await prisma.application.findUnique({ where: { id: req.params.id } });
+      const repaired = app && journey.repairLegacyApplicationStage(record.stages, toHuman(app.status));
+      if (repaired) {
+        record = await prisma.applicationJourney.update({ where: { applicationId: req.params.id }, data: { stages: repaired } });
+      }
     }
-    res.json({ applicationId: record.applicationId, stages: record.stages });
+    // Always serve Financial Readiness from the shared per-student record (see
+    // journeyLogic.syncFinancialReadinessStage) so a counsellor sees what the student saved
+    // even if this particular application's copy was never written to.
+    res.json({ applicationId: record.applicationId, stages: await withSharedFinancialReadiness(record) });
   } catch (err) {
     next(err);
   }
@@ -419,7 +442,7 @@ async function applyStageToApplication(applicationId, stageType, updatedStage, o
 // for that student — matches studentFinancialReadiness.js's own upsert rule so editing it from
 // either door (a specific application's Journey panel, or the student's own form) behaves
 // identically.
-async function upsertSharedFinancialReadiness(studentId, updatedStage) {
+async function upsertSharedFinancialReadiness(studentId, updatedStage, actor) {
   const existing = await prisma.studentFinancialReadiness.findUnique({ where: { studentId } });
   const d = updatedStage.data || {};
   const data = {
@@ -432,15 +455,13 @@ async function upsertSharedFinancialReadiness(studentId, updatedStage) {
     bankStatus: updatedStage.status || existing?.bankStatus || "Not Started",
     accountHolder: d.accountHolder ?? null,
     accountType: d.accountType ?? null,
+    depositType: d.depositType ?? null,
   };
   if (!existing?.completedAt && updatedStage.completedAt) {
     data.completedAt = new Date(updatedStage.completedAt);
   }
-  await prisma.studentFinancialReadiness.upsert({
-    where: { studentId },
-    create: { studentId, ...data },
-    update: data,
-  });
+  // Shared write path with studentFinancialReadiness.js — records the history entry too.
+  await saveFinancialReadiness(studentId, data, actor);
 }
 
 router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
@@ -461,7 +482,11 @@ router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
       });
     }
 
-    const { updatedStage, oldStatus } = computeUpdatedStage(record.stages, stageType, patch);
+    // Merge a Financial Readiness patch over the shared record, never over this application's
+    // possibly-stale copy — otherwise a one-field edit here would write stale values back over
+    // everything the student (or another application's editor) had saved since.
+    const baseStages = stageType === "financial_readiness" ? await withSharedFinancialReadiness(record) : record.stages;
+    const { updatedStage, oldStatus } = computeUpdatedStage(baseStages, stageType, patch);
     const nextStages = await applyStageToApplication(req.params.id, stageType, updatedStage, oldStatus, actor);
 
     // Financial Readiness is one shared record per student (see the StudentFinancialReadiness
@@ -472,7 +497,7 @@ router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
     if (stageType === "financial_readiness") {
       const app = await prisma.application.findUnique({ where: { id: req.params.id } });
       if (app) {
-        await upsertSharedFinancialReadiness(app.studentId, updatedStage);
+        await upsertSharedFinancialReadiness(app.studentId, updatedStage, actor);
         const siblings = await prisma.application.findMany({
           where: { studentId: app.studentId, id: { not: req.params.id } },
         });

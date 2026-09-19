@@ -1,29 +1,9 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { serialize, saveFinancialReadiness, listFinancialReadinessHistory } = require("../financialReadinessRecord");
 
 const router = express.Router();
-
-// Same terminal-status rule the per-application financial_readiness StageRecord uses (see
-// applicationJourneyStore.ts's STAGE_TERMINAL_STATUS) — kept in sync manually since this is a
-// plain string column, not shared code with the frontend.
-const TERMINAL_STATUSES = ["Ready", "Matured"];
-
-function serialize(r) {
-  return {
-    studentId: r.studentId,
-    evidenceRequired: r.evidenceRequired,
-    requiredAmount: r.requiredAmount ?? undefined,
-    currency: r.currency || undefined,
-    holdingPeriodDays: r.holdingPeriodDays ?? undefined,
-    openingDate: r.openingDate ? r.openingDate.toISOString().slice(0, 10) : undefined,
-    maturityDate: r.maturityDate ? r.maturityDate.toISOString().slice(0, 10) : undefined,
-    bankStatus: r.bankStatus,
-    accountHolder: r.accountHolder || undefined,
-    accountType: r.accountType || undefined,
-    completedAt: r.completedAt ? r.completedAt.toISOString().slice(0, 10) : undefined,
-  };
-}
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
@@ -31,6 +11,15 @@ router.get("/", requireAuth, async (req, res, next) => {
     const where = studentId ? { studentId: String(studentId) } : {};
     const rows = await prisma.studentFinancialReadiness.findMany({ where });
     res.json(rows.map(serialize));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Newest-first audit trail of every save to this student's record, from either door. */
+router.get("/:studentId/history", requireAuth, async (req, res, next) => {
+  try {
+    res.json(await listFinancialReadinessHistory(req.params.studentId));
   } catch (err) {
     next(err);
   }
@@ -55,22 +44,11 @@ router.patch("/:studentId", requireAuth, async (req, res, next) => {
       bankStatus: patch.bankStatus ?? existing?.bankStatus ?? "Not Started",
       accountHolder: patch.accountHolder !== undefined ? patch.accountHolder : existing?.accountHolder,
       accountType: patch.accountType !== undefined ? patch.accountType : existing?.accountType,
+      depositType: patch.depositType !== undefined ? patch.depositType : existing?.depositType,
     };
 
-    // Once complete, stays complete — same "never un-set completedAt on its own" rule the
-    // per-application journey stage follows; only ever set the first time the status reaches a
-    // terminal one.
-    if (!existing?.completedAt && TERMINAL_STATUSES.includes(data.bankStatus)) {
-      data.completedAt = new Date();
-    }
-
-    const updated = await prisma.studentFinancialReadiness.upsert({
-      where: { studentId },
-      create: { studentId, ...data },
-      update: data,
-    });
-
-    res.json(serialize(updated));
+    const actor = { id: req.authUser.roleUserId, role: req.authUser.role, name: req.authUser.name };
+    res.json(await saveFinancialReadiness(studentId, data, actor));
   } catch (err) {
     next(err);
   }

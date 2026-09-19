@@ -122,6 +122,8 @@ export default function ApplicationDetail() {
     d.setDate(d.getDate() - daysAgo);
     return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   });
+  // "12 Sep" — fits under a ~45px-wide step column on a phone, where the full date wouldn't.
+  const stepDatesShort = stepDates.map((full) => full?.replace(/\s\d{4}$/, "") ?? null);
 
   const linkedDocs = DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === application.id);
   const docs = [...linkedDocs, ...uploadedDocs];
@@ -325,29 +327,50 @@ export default function ApplicationDetail() {
                   <ProgressRing pct={ringPct} label={`${ringNumerator} / ${ringDenominator}`} />
                 </div>
 
-                <div className="mt-5">
-                  {STEPS.map((label, i) => {
-                    const done = i < currentIdx;
-                    const current = i === currentIdx;
-                    return (
-                      <div key={label} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                              done ? "bg-[var(--sd-teal)] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
+                {/* Compact horizontal stepper — all 7 steps always fit the card width (each step is
+                    an equal flex column that shrinks, labels wrap), so nothing scrolls or overflows
+                    on a phone; capped at a modest max width on desktop so the connectors don't
+                    stretch into long bars. The connector between step i and i+1 reads as done
+                    exactly when step i is done. */}
+                <div className="mx-auto mt-4 w-full max-w-md">
+                  <div className="flex items-start">
+                    {STEPS.map((label, i) => {
+                      const done = i < currentIdx;
+                      const current = i === currentIdx;
+                      return (
+                        <div key={label} className="flex min-w-0 flex-1 flex-col items-center">
+                          <div className="flex w-full items-center">
+                            <div className={`h-px flex-1 ${i === 0 ? "bg-transparent" : done || current ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`} />
+                            <div
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold ${
+                                done ? "bg-[var(--sd-teal)] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100 text-slate-400"
+                              }`}
+                            >
+                              {done ? <Check size={11} /> : i + 1}
+                            </div>
+                            <div className={`h-px flex-1 ${i === STEPS.length - 1 ? "bg-transparent" : done ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`} />
+                          </div>
+                          {/* Labels wrap word-by-word and hyphenate ("Appli-cation") where a word is
+                              wider than its ~45px phone column, so 7 of them sit side by side
+                              without spilling into each other. */}
+                          <p
+                            lang="en"
+                            className={`mt-1 w-full break-words px-0.5 text-center text-[8.5px] font-medium leading-[1.15] hyphens-auto sm:text-[10px] ${
+                              current ? "text-[var(--sd-ink)]" : done ? "text-slate-700" : "text-slate-400"
                             }`}
                           >
-                            {done ? <Check size={14} /> : current ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
-                          </div>
-                          {i < STEPS.length - 1 && <div className={`w-0.5 flex-1 ${done ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`} style={{ minHeight: 26 }} />}
+                            {label}
+                          </p>
+                          {stepDates[i] && (
+                            <p className="mt-0.5 w-full text-center text-[8px] leading-tight text-slate-400 sm:text-[9px]">
+                              <span className="sm:hidden">{stepDatesShort[i]}</span>
+                              <span className="hidden sm:inline">{stepDates[i]}</span>
+                            </p>
+                          )}
                         </div>
-                        <div className="pb-6">
-                          <p className={`text-[13px] font-medium ${current ? "text-[var(--sd-ink)]" : done ? "text-slate-700" : "text-slate-400"}`}>{label}</p>
-                          {stepDates[i] && <p className="text-xs text-slate-400">{stepDates[i]}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="mb-5">

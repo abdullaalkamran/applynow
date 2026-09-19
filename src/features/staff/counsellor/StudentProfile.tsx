@@ -32,8 +32,9 @@ import {
 import { setDocDueDate } from "../../../data/documentDueDatesStore";
 import { isSeenByCounsellor, markSeenByCounsellor } from "../../../data/counsellorSeenApplicationsStore";
 import {
-  StageStatusStrip, JourneyStepper, JourneyStageEditor, ResponsibleStaffCard, ApplicationTasksCard, ApplicationActivityCard,
+  JourneyStepper, JourneyStageEditor, ResponsibleStaffCard, ApplicationTasksCard, ApplicationActivityCard,
 } from "../../../components/ApplicationJourneyPanel";
+import { JourneyStageGrid } from "../../../components/JourneyStageGrid";
 import { useAuth } from "../../../context/AuthContext";
 import { loadJourney, updateStage } from "../../../data/applicationJourneyStore";
 import type { Student, University } from "../../../types";
@@ -394,8 +395,11 @@ export default function StudentProfile() {
                 </button>
 
                 {/* Every stage's status, at a glance, without expanding the card. */}
-                <div className="border-t border-slate-100 px-4 py-2.5">
-                  <StageStatusStrip journey={journey} dense />
+                <div className="border-t border-slate-100 px-4 py-4">
+                  <JourneyStageGrid
+                    journey={journey}
+                    onViewDetails={expanded ? undefined : () => { toggleExpandedApp(a.id); markSeenByCounsellor(a.id); }}
+                  />
                 </div>
 
                 {expanded && (

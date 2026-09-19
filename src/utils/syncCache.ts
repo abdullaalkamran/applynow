@@ -26,11 +26,49 @@ const listeners = new Set<() => void>();
 // showing the empty first-render state forever, even though the cache itself did get populated.
 let version = 0;
 
+// While a hold is active, cache changes still land in the stores (and still bump `version`) but
+// the shells aren't told — so the routed page isn't remounted out from under an open modal. See
+// useHoldCacheSync() below.
+let holds = 0;
+let changedWhileHeld = false;
+
 /** Call after any store's cache is mutated (initial load or after a write) so subscribed shells
  * re-render with fresh data. */
 export function notifyCacheChange() {
   version++;
+  if (holds > 0) {
+    changedWhileHeld = true;
+    return;
+  }
   listeners.forEach((l) => l());
+}
+
+/** Pauses the page remount that notifyCacheChange() normally triggers, for as long as the calling
+ * component is mounted; any change that happened meanwhile is delivered the moment it unmounts.
+ *
+ * Why: the shells key their `<Outlet>` on the cache tick (see useCacheSync), so *every* cache
+ * change remounts the current page and resets all of its local state — including whichever modal
+ * it had open. A modal that itself writes to a store (the student ApplyModal creating an
+ * application) would therefore be unmounted by its own successful save, before it could show its
+ * confirmation screen; the 12s background poll can do the same to any modal mid-flow. Mount this
+ * inside such a modal.
+ *
+ * `active` lets an inline form (always mounted, but only sometimes being edited) hold just while
+ * it's open — e.g. the Dashboard's Financial Readiness card, which otherwise snapped shut and
+ * dropped half-typed values on the next poll. When it flips back to false the deferred change
+ * is delivered then. */
+export function useHoldCacheSync(active = true) {
+  useEffect(() => {
+    if (!active) return;
+    holds++;
+    return () => {
+      holds--;
+      if (holds === 0 && changedWhileHeld) {
+        changedWhileHeld = false;
+        listeners.forEach((l) => l());
+      }
+    };
+  }, [active]);
 }
 
 /** Cheap structural-equality check for a background refresh's fetched array against what's

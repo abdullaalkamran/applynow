@@ -48,7 +48,9 @@ export default function UniversitySearch() {
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [, setShortlistTick] = useState(0);
+  // Bumped on every bookmark toggle so the memoised program list re-evaluates — matters when the
+  // "Shortlisted" chip is on and un-bookmarking a program should drop it from the list immediately.
+  const [shortlistTick, setShortlistTick] = useState(0);
 
   function toggleProgramShortlist(programKey: string) {
     toggleShortlisted(programKey);
@@ -58,9 +60,13 @@ export default function UniversitySearch() {
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("best");
   const [filters, setFilters] = useState<UniversityFilterState>(() => emptyFilters(defaultResidenceCountry));
+  // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
+  // Subjects tab with only the student's bookmarked programs showing.
+  const openOnShortlist = new URLSearchParams(location.search).get("shortlisted") === "1";
   const [tab, setTab] = useState<Tab>("subjects");
 
   // Independent, compact filters for the flat "all programs" list on the Subjects tab.
+  const [programShortlistedOnly, setProgramShortlistedOnly] = useState(openOnShortlist);
   const [programSubject, setProgramSubject] = useState("");
   const [programDestination, setProgramDestination] = useState("");
   const [programIntake, setProgramIntake] = useState("");
@@ -83,6 +89,7 @@ export default function UniversitySearch() {
   const programs = useMemo(
     () =>
       allPrograms().filter(({ university: u, course: c }) => {
+        if (programShortlistedOnly && !isShortlisted(`${u.id}::${c.name}`)) return false;
         if (programSubject && c.subject !== programSubject) return false;
         if (programDestination && u.country !== programDestination) return false;
         if (programIntake && u.openIntake !== programIntake) return false;
@@ -90,8 +97,10 @@ export default function UniversitySearch() {
         if (programScholarship === "Available" && !u.scholarshipsAvailable) return false;
         return true;
       }),
-    [programSubject, programDestination, programIntake, programFeeBand, programScholarship]
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
+    [programShortlistedOnly, programSubject, programDestination, programIntake, programFeeBand, programScholarship, shortlistTick]
   );
+  const programFiltersActive = programShortlistedOnly || !!(programSubject || programDestination || programIntake || programFeeBand || programScholarship);
 
   if (showingFilters) {
     return <Outlet context={{ filters, setFilters, resultCount: results.length } satisfies FiltersOutletContext} />;
@@ -109,6 +118,7 @@ export default function UniversitySearch() {
   }
 
   function resetProgramFilters() {
+    setProgramShortlistedOnly(false);
     setProgramSubject("");
     setProgramDestination("");
     setProgramIntake("");
@@ -185,9 +195,11 @@ export default function UniversitySearch() {
           <div className="mt-4">
             <div className="flex items-center justify-between">
               <p className="text-[13px] text-slate-500">
-                {programs.length} {programs.length === 1 ? "program" : "programs"} from top universities worldwide.
+                {programShortlistedOnly
+                  ? `${programs.length} shortlisted ${programs.length === 1 ? "program" : "programs"}.`
+                  : `${programs.length} ${programs.length === 1 ? "program" : "programs"} from top universities worldwide.`}
               </p>
-              {(programSubject || programDestination || programIntake || programFeeBand || programScholarship) && (
+              {programFiltersActive && (
                 <button onClick={resetProgramFilters} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
                   <X size={11} /> Clear
                 </button>
@@ -195,6 +207,12 @@ export default function UniversitySearch() {
             </div>
 
             <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+              <Chip
+                label="Shortlisted"
+                selected={programShortlistedOnly}
+                onClick={() => setProgramShortlistedOnly((v) => !v)}
+                icon={<Bookmark size={12} className={programShortlistedOnly ? "fill-white" : ""} />}
+              />
               <PillSelect label="Subject" value={programSubject} options={subjectOptions()} onChange={setProgramSubject} placeholder="All subjects" />
               <PillSelect label="Destination" value={programDestination} options={destinationOptions()} onChange={setProgramDestination} placeholder="All destinations" />
               <PillSelect label="Intake" value={programIntake} options={programIntakeOptions} onChange={setProgramIntake} placeholder="Any intake" />
@@ -274,10 +292,22 @@ export default function UniversitySearch() {
 
               {programs.length === 0 && (
                 <div className="p-6 text-center lg:col-span-full lg:rounded-2xl lg:bg-[var(--sd-card)] lg:shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                  <p className="text-sm font-medium text-slate-700">No programs match these filters</p>
-                  <button onClick={resetProgramFilters} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
-                    Reset filters
-                  </button>
+                  {programShortlistedOnly && !(programSubject || programDestination || programIntake || programFeeBand || programScholarship) ? (
+                    <>
+                      <p className="text-sm font-medium text-slate-700">No shortlisted programs yet</p>
+                      <p className="mt-1 text-xs text-slate-400">Tap the bookmark on any program to save it here.</p>
+                      <button onClick={() => setProgramShortlistedOnly(false)} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
+                        Browse all programs
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-slate-700">No programs match these filters</p>
+                      <button onClick={resetProgramFilters} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
+                        Reset filters
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

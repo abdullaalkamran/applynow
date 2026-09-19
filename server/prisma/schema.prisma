@@ -748,8 +748,27 @@ model StudentFinancialReadiness {
   bankStatus        String    @default("Not Started")
   accountHolder     String?
   accountType       String?
+  depositType       String?
   completedAt       DateTime?
   updatedAt         DateTime  @updatedAt
+  history           StudentFinancialReadinessHistory[]
+}
+
+// Append-only audit trail of every save to a student's Financial Readiness record — one row per
+// save that actually changed something, with who made it and the field-level before/after list.
+// Written by server/src/financialReadinessRecord.js regardless of which door the edit came in
+// through (student Dashboard form or a counsellor's Journey panel).
+model StudentFinancialReadinessHistory {
+  id            String                    @id @default(cuid())
+  studentId     String
+  record        StudentFinancialReadiness @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
+  changedAt     DateTime                  @default(now())
+  changedById   String
+  changedByRole String
+  changedByName String
+  changes       Json
+
+  @@index([studentId, changedAt])
 }
 
 model Shortlist {

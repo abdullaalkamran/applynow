@@ -42,8 +42,13 @@ function buildInitialStages(countryName) {
   const holdingPeriodDays = resolveHoldingPeriodDays(countryName);
   const base = (stageType, applicable, required, status, data) => ({ stageType, applicable, required, status, data });
 
+  // The Application row itself is created straight into "Submitted" (POST /api/applications) — a
+  // student can only reach Confirm once their profile and core documents are complete, and a
+  // counsellor creating one on their behalf is recording a submission, not a draft. So the journey's
+  // first stage must agree: "Submitted to Portal" is the stage status that maps back to "Submitted".
+  // Starting it at "Incomplete Profile" made the journey strip/summary contradict the status card.
   return {
-    application: base("application", true, true, "Incomplete Profile", { appliedVia: "Direct University Portal" }),
+    application: base("application", true, true, "Submitted to Portal", { appliedVia: "Direct University Portal" }),
     offer: base("offer", true, true, "Waiting", {}),
     financial_readiness: base("financial_readiness", true, true, "Not Started", { evidenceRequired: true, holdingPeriodDays, bankStatus: "Not Started" }),
     payment: base("payment", true, true, "Preparing", {}),
@@ -52,6 +57,52 @@ function buildInitialStages(countryName) {
     visa: base("visa", true, true, "Not Started", { visaRequired: true }),
     evisa: base("evisa", false, false, "Not Required", { shareCodeStatus: "Not Required" }),
     enrolment: base("enrolment", true, true, "Not Started", {}),
+  };
+}
+
+/** Journeys created before buildInitialStages() started at "Submitted to Portal" still carry the
+ * old "Incomplete Profile" default even though their Application row says "Submitted". Returns a
+ * corrected `stages` object when that's the case (the caller persists it), or null when nothing
+ * needs fixing. Only fires when the row's status is NOT "Profile Incomplete" — that's the one
+ * case where staff deliberately set the stage back, and it must be left alone. */
+function repairLegacyApplicationStage(stages, appStatusHuman) {
+  const record = stages?.application;
+  if (!record || record.status !== "Incomplete Profile" || record.completedAt) return null;
+  if (appStatusHuman === "Profile Incomplete") return null;
+  return { ...stages, application: { ...record, status: "Submitted to Portal" } };
+}
+
+/** Rebuilds a journey's financial_readiness stage from the student's shared
+ * StudentFinancialReadiness row — the source of truth — so the per-application copy never goes
+ * stale. Without this, a record saved before the application existed (or through a sibling
+ * application) left this journey's copy blank, and a counsellor's next one-field edit here merged
+ * into that blank copy and wrote it back over the real data. Returns `stages` unchanged when
+ * there's no shared row yet. */
+function syncFinancialReadinessStage(stages, shared) {
+  if (!shared) return stages;
+  const current = stages?.financial_readiness || { stageType: "financial_readiness", applicable: true, required: true, data: {} };
+  const toDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : undefined);
+  const data = {
+    ...current.data,
+    evidenceRequired: shared.evidenceRequired,
+    requiredAmount: shared.requiredAmount ?? undefined,
+    currency: shared.currency || undefined,
+    holdingPeriodDays: shared.holdingPeriodDays ?? current.data?.holdingPeriodDays,
+    openingDate: toDate(shared.openingDate),
+    maturityDate: toDate(shared.maturityDate),
+    bankStatus: shared.bankStatus,
+    accountHolder: shared.accountHolder || undefined,
+    accountType: shared.accountType || undefined,
+    depositType: shared.depositType || undefined,
+  };
+  return {
+    ...stages,
+    financial_readiness: {
+      ...current,
+      status: shared.bankStatus,
+      completedAt: shared.completedAt ? new Date(shared.completedAt).toISOString() : current.completedAt,
+      data,
+    },
   };
 }
 
@@ -182,6 +233,6 @@ function deriveAppStatus(stages) {
 
 module.exports = {
   STAGE_ORDER, STAGE_LABEL, STAGE_TERMINAL_STATUS,
-  resolveImmigrationDocType, resolveHoldingPeriodDays, buildInitialStages,
+  resolveImmigrationDocType, resolveHoldingPeriodDays, buildInitialStages, repairLegacyApplicationStage, syncFinancialReadinessStage,
   currentStageOf, computeBlockers, computeNextAction, deriveAppStatus,
 };

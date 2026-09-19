@@ -65,8 +65,10 @@ export function initializeJourney(
   const journey: ApplicationJourney = {
     applicationId,
     stages: {
+      // Mirrors server/src/journeyLogic.js buildInitialStages: an application only exists once it
+      // has been submitted, so the journey's first stage starts at "Submitted to Portal".
       application: stage<ApplicationStageStatus, ApplicationStageData>(
-        "application", true, true, "Incomplete Profile", { appliedVia: "Direct University Portal" }
+        "application", true, true, "Submitted to Portal", { appliedVia: "Direct University Portal" }
       ),
       offer: stage<OfferStageStatus, OfferStageData>("offer", true, true, "Waiting", {}),
       financial_readiness: sharedFinancialReadiness
@@ -86,6 +88,7 @@ export function initializeJourney(
               bankStatus: sharedFinancialReadiness.bankStatus as BankStatus,
               accountHolder: sharedFinancialReadiness.accountHolder as FinancialReadinessStageData["accountHolder"],
               accountType: sharedFinancialReadiness.accountType as FinancialReadinessStageData["accountType"],
+              depositType: sharedFinancialReadiness.depositType as FinancialReadinessStageData["depositType"],
             },
           }
         : stage<BankStatus, FinancialReadinessStageData>(

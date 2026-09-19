@@ -37,9 +37,6 @@ export function CountryHero({ country, countryDetails, actions }: { country: str
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{country}</h1>
             </div>
             {countryDetails?.tagline && <p className="mt-1 text-sm font-medium text-white/90">{countryDetails.tagline}</p>}
-            {countryDetails?.whyThisCountry && (
-              <p className="mt-2 max-w-lg text-xs leading-relaxed text-white/80">{countryDetails.whyThisCountry}</p>
-            )}
           </div>
           {countryDetails?.internationalStudentStat && (
             <div className="hidden shrink-0 items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2.5 backdrop-blur sm:flex">
@@ -104,7 +101,8 @@ export function CountryOverviewCards({
   const keyInfoRows = KEY_INFO_ROWS.filter((row) => countryDetails?.keyInfo?.[row.key]);
 
   const hasAnything =
-    !!countryDetails?.whyStudyHighlights?.length || keyInfoRows.length > 0 || !!countryDetails?.usefulLinks?.length || topUniversities.length > 0;
+    !!countryDetails?.whyThisCountry || !!countryDetails?.whyStudyHighlights?.length || keyInfoRows.length > 0 ||
+    !!countryDetails?.usefulLinks?.length || topUniversities.length > 0;
 
   if (!hasAnything) {
     return (
@@ -151,6 +149,12 @@ export function CountryOverviewCards({
                 </div>
               ))}
             </div>
+          </Card>
+        )}
+
+        {countryDetails?.whyThisCountry && (
+          <Card title="Why This Country">
+            <p className="whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{countryDetails.whyThisCountry}</p>
           </Card>
         )}
 
