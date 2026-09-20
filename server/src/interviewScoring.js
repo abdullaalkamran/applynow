@@ -5,6 +5,7 @@
 // settingsStore.js) is what actually scores the answer, same as the assistant chat route.
 const { getConfig } = require("./config");
 const { getProvider } = require("./providers");
+const { extractJson } = require("./llmJson");
 
 const RUBRIC_SYSTEM_PROMPT = `You are an expert study-visa credibility interview coach, marking one candidate's answer to one interview question.
 
@@ -31,13 +32,6 @@ function buildUserPrompt(question, answerText, priorAnswers) {
     `Current question (category: ${question.category}): ${question.prompt}`,
     `Candidate's answer: ${answerText}`,
   ].join("\n\n");
-}
-
-function extractJson(text) {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1] : text;
-  const match = candidate.match(/\{[\s\S]*\}/);
-  return match ? match[0] : candidate;
 }
 
 function clampScore(value) {

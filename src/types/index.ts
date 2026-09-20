@@ -174,6 +174,11 @@ export interface SupportContact {
   avatarColor: string;
 }
 
+export interface CourseAccreditation {
+  name: string;
+  logoUrl?: string;
+}
+
 export interface University {
   id: string;
   name: string;
@@ -219,8 +224,20 @@ export interface University {
     }[];
     // Fee currency for this course — falls back to the university's own `currencySymbol` when unset.
     currencySymbol?: string;
-    // Which of the university's campuses this course runs at, if it has more than one.
-    campusId?: string;
+    // Which of the university's campuses this course runs at (ids from `campuses` below) — absent
+    // or empty means it runs at every campus.
+    campusIds?: string[];
+    // Course-page content entered directly on the course (see Data Management's CourseForm).
+    // `description` unset → a generated one-line blurb; `studyMode` unset → "Full-time";
+    // `modules`/`careers` unset → the subject's own authored lists, then the generic curriculum
+    // (see subjectCurriculum.ts's curriculumForCourse).
+    description?: string;
+    studyMode?: string;
+    modules?: string[];
+    careers?: string[];
+    // Bodies that accredit this specific course (distinct from the university-level
+    // `accreditations` list below); `logoUrl` is a data URL, like the university's own logo.
+    accreditations?: CourseAccreditation[];
   }[];
   // Real per-campus data, where the university has told us about more than one — falls back to a
   // synthetic "Main Campus" + one generated variant (see campusesFor) when this is absent, so

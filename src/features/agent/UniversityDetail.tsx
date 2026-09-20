@@ -7,9 +7,9 @@ import {
 import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake } from "../../utils/universityFilter";
+import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
-import { curriculumFor } from "../../data/subjectCurriculum";
+import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
@@ -23,6 +23,7 @@ import { RankingCaption } from "../../components/RankingCaption";
 import { ExpandableSection } from "../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../components/EnglishTestNotices";
+import { CourseAccreditations } from "../../components/CourseAccreditations";
 import { ShortlistButton } from "./ShortlistButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
 
@@ -120,12 +121,13 @@ export default function AgentUniversityDetail() {
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <FactTile
-                      icon={<Building2 size={14} />} label="Campus" value="Main Campus"
+                      icon={<Building2 size={14} />} label="Campus" value={campusLabelFor(university, course)}
                       onClick={() => navigate(`/agent/universities/${university.id}/campuses`, { state: { courseName: course.name } })}
                     />
                     <FactTile icon={<Clock3 size={14} />} label="Duration" value={course.duration} />
                     <FactTile icon={<GraduationCap size={14} />} label="Level" value={course.level} />
                   </div>
+                  <CourseAccreditations accreditations={course.accreditations} />
                   <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} />
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
@@ -137,7 +139,7 @@ export default function AgentUniversityDetail() {
               )}
               {courseTab === "Modules" && (
                 <ul className="space-y-2">
-                  {curriculumFor(course.subject).modules.map((m) => (
+                  {curriculumForCourse(course).modules.map((m) => (
                     <li key={m} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       <CheckCircle2 size={13} className="shrink-0 text-blue-500" /> {m}
                     </li>
@@ -158,7 +160,7 @@ export default function AgentUniversityDetail() {
               )}
               {courseTab === "Careers" && (
                 <ul className="space-y-2">
-                  {curriculumFor(course.subject).careers.map((c) => (
+                  {curriculumForCourse(course).careers.map((c) => (
                     <li key={c} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       <Briefcase size={13} className="shrink-0 text-violet-500" /> {c}
                     </li>

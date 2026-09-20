@@ -24,7 +24,7 @@ export default function CampusOptions() {
   }
 
   const course = university.courses.find((c) => c.name === courseName) ?? university.courses[0];
-  const campuses = campusesFor(university, course.feeUSD);
+  const campuses = campusesFor(university, course);
 
   return (
     <div className="pb-6">

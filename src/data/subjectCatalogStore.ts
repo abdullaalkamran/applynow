@@ -12,6 +12,7 @@ export interface SubjectRecord {
   custom: boolean;
   description?: string;
   modules: string[];
+  careers: string[];
   accreditations: string[];
   createdAt: string;
   updatedAt: string;
@@ -40,6 +41,7 @@ export interface SubjectInput {
   name: string;
   description?: string;
   modules: string[];
+  careers: string[];
   accreditations: string[];
 }
 

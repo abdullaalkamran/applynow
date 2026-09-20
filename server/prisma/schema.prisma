@@ -508,6 +508,9 @@ model Subject {
   custom         Boolean  @default(false)
   description    String?
   modules        String[]
+  // Typical career outcomes for the field — the subject-level default for a course's Careers tab,
+  // the same way `modules` is for its Modules tab (see subjectCurriculum.ts's curriculumFor).
+  careers        String[] @default([])
   accreditations String[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -577,6 +580,7 @@ model University {
   createdAt                  DateTime       @default(now())
   updatedAt                  DateTime       @updatedAt
   courses                    Course[]
+  courseImports              CourseImportItem[]
 }
 
 model Course {
@@ -593,9 +597,53 @@ model Course {
   requirements        String[]
   englishRequirements Json?
   currencySymbol      String?
-  campusId            String?
+  // Which of the university's campuses this course runs at (ids from University.campuses) —
+  // empty means every campus. Replaced the single `campusId`; the migration carried old values over.
+  campusIds           String[]   @default([])
+  // Course-page content Data Management enters directly on the course. `modules`/`careers` empty
+  // means "use the subject's lists" (see subjectCurriculum.ts); `description`/`studyMode` unset
+  // fall back to a generated blurb and "Full-time".
+  description         String?
+  studyMode           String?
+  modules             String[]   @default([])
+  careers             String[]   @default([])
+  // Bodies that accredit this specific course — [{ name, logoUrl? }], the logo a data URL like the
+  // university's own `logoUrl`. Distinct from University.accreditations (institution-level).
+  accreditations      Json?
 
   @@index([universityId])
+}
+
+enum CourseImportStatus {
+  queued
+  running
+  needs_review
+  approved
+  discarded
+  failed
+}
+
+// One pasted course-page URL in Data Management's AI import queue (see routes/courseImports.js).
+// Nothing here touches Course until a staff member approves the row from the course form — the
+// model only drafts. `pageText` is the cleaned text the model saw (capped), kept so a re-run after
+// a failed extraction doesn't refetch; `extracted` is the ExtractionResult (draft course +
+// per-field confidence, evidence quotes and warnings) built by courseExtraction.js.
+model CourseImportItem {
+  id               String             @id @default(cuid())
+  universityId     String
+  university       University         @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  sourceUrl        String
+  status           CourseImportStatus @default(queued)
+  textSource       String?
+  pageText         String?
+  extracted        Json?
+  error            String?
+  createdBy        String
+  approvedCourseId String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([universityId, createdAt])
 }
 
 // A real, persisted in-app inbox row — one per (recipient, event). Distinct from the WhatsApp/email
@@ -924,4 +972,28 @@ model InterviewAnswer {
 
   @@index([sessionId])
   @@unique([sessionId, questionId])
+}
+
+// Same queue as CourseImportItem, for whole universities: one pasted university web page per row,
+// drafted by the model (universityExtraction.js), created only when staff approve it from the
+// university form. `countryHint` is the country the staff member chose for the batch — pages
+// rarely state it and it must match the catalog's country list exactly.
+model UniversityImportItem {
+  id                   String             @id @default(cuid())
+  sourceUrl            String
+  // Further pages of the same university read together with sourceUrl (fees, entry
+  // requirements, scholarships…) — a single page rarely states everything.
+  extraUrls            String[]           @default([])
+  status               CourseImportStatus @default(queued)
+  countryHint          String?
+  textSource           String?
+  pageText             String?
+  extracted            Json?
+  error                String?
+  createdBy            String
+  approvedUniversityId String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([createdAt])
 }

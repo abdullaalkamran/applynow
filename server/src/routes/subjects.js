@@ -14,6 +14,7 @@ function serialize(s) {
     custom: s.custom,
     description: s.description || undefined,
     modules: s.modules,
+    careers: s.careers,
     accreditations: s.accreditations,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
@@ -31,7 +32,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { name, description, modules, accreditations } = req.body || {};
+    const { name, description, modules, careers, accreditations } = req.body || {};
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "name is required." });
     }
@@ -41,6 +42,7 @@ router.post("/", requireAuth, async (req, res, next) => {
         custom: true,
         description: description || undefined,
         modules: Array.isArray(modules) ? modules : [],
+        careers: Array.isArray(careers) ? careers : [],
         accreditations: Array.isArray(accreditations) ? accreditations : [],
       },
     });
@@ -53,13 +55,14 @@ router.post("/", requireAuth, async (req, res, next) => {
 
 router.patch("/:id", requireAuth, async (req, res, next) => {
   try {
-    const { name, description, modules, accreditations } = req.body || {};
+    const { name, description, modules, careers, accreditations } = req.body || {};
     const row = await prisma.subject.update({
       where: { id: req.params.id },
       data: {
         name: typeof name === "string" && name.trim() ? name.trim() : undefined,
         description: description !== undefined ? description || null : undefined,
         modules: Array.isArray(modules) ? modules : undefined,
+        careers: Array.isArray(careers) ? careers : undefined,
         accreditations: Array.isArray(accreditations) ? accreditations : undefined,
       },
     });

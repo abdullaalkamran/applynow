@@ -26,7 +26,7 @@ export function ApplyModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
-  const campuses = campusesFor(university, course.feeUSD);
+  const campuses = campusesFor(university, course);
   const missingCoreDocs = buildCoreChecklist(student.id).filter((row) => !row.own);
   const openIntakes = (course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes).filter(
     (m) => !!university.intakeStatus?.[m]

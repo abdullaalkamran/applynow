@@ -23,6 +23,9 @@ function envDefaults() {
   return {
     provider: (process.env.AI_PROVIDER || "stub").toLowerCase(),
     voiceEngine: (process.env.VOICE_ENGINE || "browser").toLowerCase(),
+    // Data Management's AI course import (routes/courseImports.js) — off until an admin turns it
+    // on in Admin → AI Settings (or COURSE_IMPORT_ENABLED=true at deploy time).
+    courseImportEnabled: process.env.COURSE_IMPORT_ENABLED === "true",
     frontendOrigins: (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
       .split(",")
       .map((origin) => origin.trim())
@@ -75,6 +78,7 @@ function getConfig() {
     ...base,
     provider: saved.provider || base.provider,
     voiceEngine: saved.voiceEngine || base.voiceEngine,
+    courseImportEnabled: typeof saved.courseImportEnabled === "boolean" ? saved.courseImportEnabled : base.courseImportEnabled,
     anthropic: { ...base.anthropic, ...(saved.anthropic || {}) },
     openai: { ...base.openai, ...(saved.openai || {}) },
     gemini: { ...base.gemini, ...(saved.gemini || {}) },

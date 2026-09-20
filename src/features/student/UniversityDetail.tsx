@@ -6,9 +6,9 @@ import {
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake } from "../../utils/universityFilter";
+import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
-import { curriculumFor } from "../../data/subjectCurriculum";
+import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
@@ -22,6 +22,7 @@ import { RankingCaption } from "../../components/RankingCaption";
 import { ExpandableSection } from "../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../components/EnglishTestNotices";
+import { CourseAccreditations } from "../../components/CourseAccreditations";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 
@@ -182,8 +183,10 @@ function CourseView({
 }) {
   const navigate = useNavigate();
   const scholarshipUSD = scholarshipAmountUSD(university, course.feeUSD);
-  const { modules, careers } = curriculumFor(course.subject);
-  const description = `This ${course.level.toLowerCase()} programme gives you a strong foundation in ${course.subject}, taught by leading faculty at ${university.name}.`;
+  const { modules, careers } = curriculumForCourse(course);
+  const description =
+    course.description ||
+    `This ${course.level.toLowerCase()} programme gives you a strong foundation in ${course.subject}, taught by leading faculty at ${university.name}.`;
 
   function openCampuses() {
     navigate(`/student/universities/${university.id}/campuses`, { state: { courseName: course.name } });
@@ -227,11 +230,12 @@ function CourseView({
         {tab === "Overview" && (
           <>
             <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
+            <CourseAccreditations accreditations={course.accreditations} className="mt-4" />
             <RestrictedRegionsNotice university={university} className="mt-4" />
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <FactTile icon={<Building2 size={16} />} label="Campus" value="Main Campus" onClick={openCampuses} />
+              <FactTile icon={<Building2 size={16} />} label="Campus" value={campusLabelFor(university, course)} onClick={openCampuses} />
               <FactTile icon={<Clock size={16} />} label="Duration" value={course.duration} />
-              <FactTile icon={<Users size={16} />} label="Study Mode" value="Full-time" />
+              <FactTile icon={<Users size={16} />} label="Study Mode" value={course.studyMode || "Full-time"} />
             </div>
             <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mt-4" />
             <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">

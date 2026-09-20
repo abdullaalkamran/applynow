@@ -163,14 +163,31 @@ export interface Campus {
 // back to generic, deterministic variants on the main course fee so a university that predates
 // real campus data (or that genuinely only has one city) still offers a real choice, without
 // inventing specific real-world satellite-campus names for it.
-export function campusesFor(u: University, feeUSD: number): Campus[] {
+/** The campuses a course can be applied to: the university's real campuses, narrowed to the ones
+ * Data Management ticked on the course (`campusIds`) when it set any — a course that runs at only
+ * some campuses shouldn't offer the others. Falls back to a synthetic pair for universities that
+ * haven't entered campuses yet. */
+export function campusesFor(u: University, course: { feeUSD: number; campusIds?: string[] }): Campus[] {
+  const feeUSD = course.feeUSD;
   if (u.campuses && u.campuses.length > 0) {
-    return u.campuses.map((c) => ({ name: c.name, city: c.city, feeUSD: c.feeUSD ?? feeUSD }));
+    const ids = course.campusIds ?? [];
+    const own = ids.length ? u.campuses.filter((c) => ids.includes(c.id)) : [];
+    const list = own.length ? own : u.campuses;
+    return list.map((c) => ({ name: c.name, city: c.city, feeUSD: c.feeUSD ?? feeUSD }));
   }
   return [
     { name: "Main Campus", city: u.city, feeUSD },
     { name: `${u.city} City Campus`, city: u.city, feeUSD: Math.round((feeUSD * 0.98) / 100) * 100 },
   ];
+}
+
+/** Short label for a course's campus(es) — for the "Campus" fact tile on course pages. */
+export function campusLabelFor(u: University, course: { feeUSD: number; campusIds?: string[] }): string {
+  const list = campusesFor(u, course);
+  if (list.length === 0) return "Main Campus";
+  if (list.length === 1) return list[0].name;
+  if (!(course.campusIds ?? []).length) return `All ${list.length} campuses`;
+  return `${list[0].name} +${list.length - 1}`;
 }
 
 export interface SubjectStat {

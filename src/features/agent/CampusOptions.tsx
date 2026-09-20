@@ -25,7 +25,7 @@ export default function AgentCampusOptions() {
   }
 
   const course = university.courses.find((c) => c.name === navState?.courseName) ?? university.courses[0];
-  const campuses = course ? campusesFor(university, course.feeUSD) : [];
+  const campuses = course ? campusesFor(university, course) : [];
 
   return (
     <div className="max-w-2xl">

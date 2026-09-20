@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award, ListChecks,
+  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award, ListChecks, Sparkles,
 } from "lucide-react";
+import { fetchCourseImportConfig, listCourseImports, type CourseImportConfig } from "../../../data/courseImportsStore";
 import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
 import { Button } from "../../../components/ui";
 import { EntryRequirementsView } from "../../../components/EntryRequirementsView";
@@ -26,6 +27,26 @@ export default function DataUniversityDetail() {
   const location = useLocation();
   const navState = location.state as { tab?: (typeof TABS)[number] } | null;
   const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
+  // The AI "Import from URLs" button only exists while the admin switch is on (see
+  // routes/courseImports.js); the pending-review count is a nudge back to the queue.
+  const [importConfig, setImportConfig] = useState<CourseImportConfig | null>(null);
+  const [pendingImports, setPendingImports] = useState(0);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    fetchCourseImportConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        setImportConfig(cfg);
+        if (cfg.enabled) {
+          listCourseImports(id)
+            .then((rows) => { if (!cancelled) setPendingImports(rows.filter((r) => r.status === "needs_review").length); })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [id]);
 
   const university = id ? getUniversityById(id) : undefined;
 
@@ -204,7 +225,19 @@ export default function DataUniversityDetail() {
 
           {tab === "Courses" && (
             <div>
-              <div className="mb-2 flex justify-end">
+              <div className="mb-2 flex items-center justify-end gap-4">
+                {importConfig?.enabled && (
+                  <button
+                    onClick={() => navigate(`/staff/data/universities/${university.id}/courses/import`)}
+                    title={importConfig.providerReady ? "Paste course page links and let the AI draft them for review" : "Set an AI provider key in Admin → AI Settings first"}
+                    className="flex items-center gap-1 text-xs font-medium text-violet-700"
+                  >
+                    <Sparkles size={13} /> Import from URLs
+                    {pendingImports > 0 && (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">{pendingImports} to review</span>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={() => navigate(`/staff/data/universities/${university.id}/courses/new`)}
                   className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]"
@@ -225,14 +258,14 @@ export default function DataUniversityDetail() {
                         <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400">{c.id}</span>
                       </div>
                       <p className="truncate text-xs text-slate-400">{c.subject} · {c.level} · {c.duration}</p>
-                      {((c.intakes ?? []).length > 0 || c.campusId || (c.requirements ?? []).length > 0 || (c.englishRequirements ?? []).length > 0) && (
+                      {((c.intakes ?? []).length > 0 || (c.campusIds ?? []).length > 0 || (c.requirements ?? []).length > 0 || (c.englishRequirements ?? []).length > 0) && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {(c.intakes ?? []).length > 0 && (
                             <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">{c.intakes!.join(", ")}</span>
                           )}
-                          {c.campusId && (
+                          {(c.campusIds ?? []).length > 0 && (
                             <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                              {university.campuses?.find((cp) => cp.id === c.campusId)?.name ?? "Campus"}
+                              {c.campusIds!.map((id) => university.campuses?.find((cp) => cp.id === id)?.name ?? "Campus").join(", ")}
                             </span>
                           )}
                           {((c.requirements ?? []).length > 0 || (c.englishRequirements ?? []).length > 0) && (

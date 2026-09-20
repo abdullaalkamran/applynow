@@ -77,6 +77,8 @@ import DataUniversityDetail from "./features/staff/data/UniversityDetail";
 import DataUniversityForm from "./features/staff/data/UniversityForm";
 import DataCountryForm from "./features/staff/data/CountryForm";
 import DataCourseForm from "./features/staff/data/CourseForm";
+import DataCourseImport from "./features/staff/data/CourseImport";
+import DataUniversityImport from "./features/staff/data/UniversityImport";
 import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
 
 import AdminUsersRoles from "./features/admin/UsersRoles";
@@ -193,9 +195,11 @@ export default function App() {
             <Route path="/staff/data/countries/:country" element={<DataUniversities />} />
             <Route path="/staff/data/countries/:country/edit" element={<DataCountryForm />} />
             <Route path="/staff/data/universities" element={<DataUniversities />} />
+            <Route path="/staff/data/universities/import" element={<DataUniversityImport />} />
             <Route path="/staff/data/universities/new" element={<DataUniversityForm />} />
             <Route path="/staff/data/universities/:id" element={<DataUniversityDetail />} />
             <Route path="/staff/data/universities/:id/edit" element={<DataUniversityForm />} />
+            <Route path="/staff/data/universities/:id/courses/import" element={<DataCourseImport />} />
             <Route path="/staff/data/universities/:id/courses/new" element={<DataCourseForm />} />
             <Route path="/staff/data/universities/:id/courses/:courseId" element={<DataCourseForm />} />
             <Route path="/staff/data/subjects" element={<DataSubjects />} />

@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui";
 import { getAllSubjects, addSubject } from "../../../data/subjectsStore";
 import { getAllUgcUniversitiesBD, addUgcUniversityBD } from "../../../data/bangladeshUniversities";
 import { getAllCountries, getCountryByName, addCurrencyToCountry } from "../../../data/countryRegistry";
-import { getUniversityById, addUniversity, updateUniversity } from "../../../data/universityCatalogStore";
+import { getUniversityById, addUniversity, updateUniversity, refreshUniversities } from "../../../data/universityCatalogStore";
+import {
+  approveUniversityImport, getCachedUniversityImport, listUniversityImports, type UniversityFieldKey, type UniversityImportItem,
+} from "../../../data/universityImportsStore";
+import { useHoldCacheSync } from "../../../utils/syncCache";
 import { TEST_NAME_OPTIONS } from "../../../utils/universityFilter";
 import type { University } from "../../../types";
 
@@ -109,7 +113,7 @@ type MonthState = Record<
   { offered: boolean; open: boolean; year: string; applicationDeadline: string; casRequestDeadline: string; enrollmentDate: string }
 >;
 
-function initMonthState(existing?: University): MonthState {
+function initMonthState(existing?: Partial<University>): MonthState {
   const offered = new Set(existing?.intakes ?? []);
   const openMap = existing?.intakeStatus ?? {};
   const datesMap = existing?.intakeDates ?? {};
@@ -132,51 +136,99 @@ function initMonthState(existing?: University): MonthState {
   return state;
 }
 
+/** Resolves the route (a university being edited, or an AI import row via `?importId=`) and hands
+ * a fully-known starting point to UniversityEditor. Without `?importId=` this is exactly the
+ * add/edit form it always was — import mode only adds a review banner, per-section flags and an
+ * approve-on-save. */
 export default function DataUniversityForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  const importId = searchParams.get("importId");
   const existing = id ? getUniversityById(id) : undefined;
-  const isNew = !id;
 
-  const [name, setName] = useState(existing?.name ?? "");
-  const [city, setCity] = useState(existing?.city ?? "");
-  const [country, setCountry] = useState(existing?.country ?? searchParams.get("country") ?? "");
+  const [importItem, setImportItem] = useState<UniversityImportItem | undefined>(() => (importId ? getCachedUniversityImport(importId) : undefined));
+  const [importMissing, setImportMissing] = useState(false);
+  useEffect(() => {
+    if (!importId || importItem) return;
+    let cancelled = false;
+    listUniversityImports()
+      .then((items) => {
+        if (cancelled) return;
+        const found = items.find((i) => i.id === importId);
+        if (found) setImportItem(found);
+        else setImportMissing(true);
+      })
+      .catch(() => { if (!cancelled) setImportMissing(true); });
+    return () => { cancelled = true; };
+  }, [importId, importItem]);
+
+  if (importId && !importItem) {
+    return (
+      <div>
+        <button onClick={() => navigate("/staff/data/universities/import")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-[var(--brand-600)]">
+          <ArrowLeft size={14} /> Back to import queue
+        </button>
+        <p className="text-xs text-slate-400">{importMissing ? "That import row no longer exists." : "Loading the imported draft…"}</p>
+      </div>
+    );
+  }
+
+  return <UniversityEditor key={importId ?? id ?? "new"} existing={existing} importItem={importItem} countryParam={searchParams.get("country")} />;
+}
+
+function UniversityEditor({ existing, importItem, countryParam }: { existing?: University; importItem?: UniversityImportItem; countryParam: string | null }) {
+  const navigate = useNavigate();
+  const isNew = !existing;
+  // Import mode: the AI draft seeds every field; its review metadata drives the flags below.
+  const initial: Partial<University> | undefined = importItem?.extracted?.university;
+  const base: Partial<University> | undefined = existing ?? initial;
+  const attention = new Set<UniversityFieldKey>(importItem?.extracted?.needsAttention ?? []);
+  const evidence = importItem?.extracted?.evidence ?? {};
+  const flag = (key: UniversityFieldKey) => (importItem && attention.has(key) ? { evidence: evidence[key] } : undefined);
+  // Keeps a long, half-edited form from being wiped by the shell's remount on every cache change.
+  useHoldCacheSync();
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [name, setName] = useState(base?.name ?? "");
+  const [city, setCity] = useState(base?.city ?? "");
+  const [country, setCountry] = useState(base?.country ?? countryParam ?? "");
   const [addingNewCountry, setAddingNewCountry] = useState(
     () => !!country && !getAllCountries().some((c) => c.name.toLowerCase() === country.toLowerCase())
   );
   const [newSubject, setNewSubject] = useState("");
   const [, forceTick] = useState(0);
-  const [website, setWebsite] = useState(existing?.website ?? "");
-  const [tone, setTone] = useState<University["tone"]>(existing?.tone ?? "violet");
-  const [logoUrl, setLogoUrl] = useState(existing?.logoUrl ?? "");
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState(existing?.coverPhotoUrl ?? "");
+  const [website, setWebsite] = useState(base?.website ?? "");
+  const [tone, setTone] = useState<University["tone"]>(base?.tone ?? "violet");
+  const [logoUrl, setLogoUrl] = useState(base?.logoUrl ?? "");
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState(base?.coverPhotoUrl ?? "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [qsRanking, setQsRanking] = useState(existing?.qsRanking ?? "");
-  const [timesHigherRanking, setTimesHigherRanking] = useState(existing?.timesHigherRanking ?? "");
-  const [employability, setEmployability] = useState(existing?.employability ?? "85%");
-  const [studentCount, setStudentCount] = useState(existing?.studentCount ?? "20,000+");
-  const [description, setDescription] = useState(existing?.description ?? "");
-  const [highlights, setHighlights] = useState((existing?.highlights ?? []).join("\n"));
-  const [tags, setTags] = useState((existing?.tags ?? []).join(", "));
-  const [monthState, setMonthState] = useState<MonthState>(() => initMonthState(existing));
-  const [undergraduateRequirements, setUndergraduateRequirements] = useState((existing?.requirements?.undergraduate ?? []).join("\n"));
-  const [postgraduateRequirements, setPostgraduateRequirements] = useState((existing?.requirements?.postgraduate ?? []).join("\n"));
-  const [accreditations, setAccreditations] = useState((existing?.accreditations ?? []).join(", "));
-  const [scholarshipsAvailable, setScholarshipsAvailable] = useState(existing?.scholarshipsAvailable ?? false);
-  const [scholarships, setScholarships] = useState<Scholarship[]>(existing?.scholarships ?? []);
-  const [minGPA, setMinGPA] = useState(String(existing?.minGPA ?? 3.0));
-  const [currencySymbol, setCurrencySymbol] = useState(existing?.currencySymbol ?? "$");
+  const [qsRanking, setQsRanking] = useState(base?.qsRanking ?? "");
+  const [timesHigherRanking, setTimesHigherRanking] = useState(base?.timesHigherRanking ?? "");
+  const [employability, setEmployability] = useState(base?.employability ?? "85%");
+  const [studentCount, setStudentCount] = useState(base?.studentCount ?? "20,000+");
+  const [description, setDescription] = useState(base?.description ?? "");
+  const [highlights, setHighlights] = useState((base?.highlights ?? []).join("\n"));
+  const [tags, setTags] = useState((base?.tags ?? []).join(", "));
+  const [monthState, setMonthState] = useState<MonthState>(() => initMonthState(base));
+  const [undergraduateRequirements, setUndergraduateRequirements] = useState((base?.requirements?.undergraduate ?? []).join("\n"));
+  const [postgraduateRequirements, setPostgraduateRequirements] = useState((base?.requirements?.postgraduate ?? []).join("\n"));
+  const [accreditations, setAccreditations] = useState((base?.accreditations ?? []).join(", "));
+  const [scholarshipsAvailable, setScholarshipsAvailable] = useState(base?.scholarshipsAvailable ?? false);
+  const [scholarships, setScholarships] = useState<Scholarship[]>(base?.scholarships ?? []);
+  const [minGPA, setMinGPA] = useState(String(base?.minGPA ?? 3.0));
+  const [currencySymbol, setCurrencySymbol] = useState(base?.currencySymbol ?? "$");
   const [addingNewCurrency, setAddingNewCurrency] = useState(false);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(existing?.subjects ?? []);
-  const [fees, setFees] = useState<Fee[]>(existing?.fees ?? [blankFee()]);
-  const [depositMode, setDepositMode] = useState<"custom" | "half" | "full">(existing?.depositMode ?? "custom");
-  const [minimumDepositAmount, setMinimumDepositAmount] = useState(String(existing?.minimumDepositAmount ?? ""));
-  const [paymentDeadline, setPaymentDeadline] = useState(existing?.paymentDeadline ?? "");
-  const [depositRules, setDepositRules] = useState((existing?.depositRules ?? []).join("\n"));
-  const [admissionSteps, setAdmissionSteps] = useState((existing?.admissionSteps ?? []).join("\n"));
-  const [restrictedRegions, setRestrictedRegions] = useState((existing?.restrictedRegions ?? []).join("\n"));
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(base?.subjects ?? []);
+  const [fees, setFees] = useState<Fee[]>(base?.fees ?? [blankFee()]);
+  const [depositMode, setDepositMode] = useState<"custom" | "half" | "full">(base?.depositMode ?? "custom");
+  const [minimumDepositAmount, setMinimumDepositAmount] = useState(String(base?.minimumDepositAmount ?? ""));
+  const [paymentDeadline, setPaymentDeadline] = useState(base?.paymentDeadline ?? "");
+  const [depositRules, setDepositRules] = useState((base?.depositRules ?? []).join("\n"));
+  const [admissionSteps, setAdmissionSteps] = useState((base?.admissionSteps ?? []).join("\n"));
+  const [restrictedRegions, setRestrictedRegions] = useState((base?.restrictedRegions ?? []).join("\n"));
   const tuitionFeeAmount = fees.find((f) => f.label.trim().toLowerCase() === "tuition fee")?.amount ?? 0;
   const effectiveDepositAmount =
     depositMode === "half" ? Math.round(tuitionFeeAmount * 0.5)
@@ -185,17 +237,17 @@ export default function DataUniversityForm() {
   // Courses are only ever added/edited from an already-created university's own Courses tab (see
   // the "Courses" section below) — a brand-new university has none yet, which is fine: `courses`
   // is only read here (for the derived subjects preview and the payload), never written.
-  const courses = existing?.courses ?? [];
-  const [campuses, setCampuses] = useState<Campus[]>(existing?.campuses ?? []);
-  const [undergraduateEnglishTests, setUndergraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.undergraduate ?? []);
-  const [postgraduateEnglishTests, setPostgraduateEnglishTests] = useState<EnglishReq[]>(existing?.englishRequirements?.postgraduate ?? []);
-  const [moiAccepted, setMoiAccepted] = useState(existing?.moiAccepted ?? false);
-  const [moiUniversities, setMoiUniversities] = useState<string[]>(existing?.moiAcceptedUniversities ?? []);
+  const courses = base?.courses ?? [];
+  const [campuses, setCampuses] = useState<Campus[]>(base?.campuses ?? []);
+  const [undergraduateEnglishTests, setUndergraduateEnglishTests] = useState<EnglishReq[]>(base?.englishRequirements?.undergraduate ?? []);
+  const [postgraduateEnglishTests, setPostgraduateEnglishTests] = useState<EnglishReq[]>(base?.englishRequirements?.postgraduate ?? []);
+  const [moiAccepted, setMoiAccepted] = useState(base?.moiAccepted ?? false);
+  const [moiUniversities, setMoiUniversities] = useState<string[]>(base?.moiAcceptedUniversities ?? []);
   const [moiSearch, setMoiSearch] = useState("");
   const [newMoiUniversity, setNewMoiUniversity] = useState("");
-  const [internalTestOffered, setInternalTestOffered] = useState(existing?.internalEnglishTestOffered ?? false);
-  const [internalTestFree, setInternalTestFree] = useState(existing?.internalEnglishTestFree ?? true);
-  const [internalTestFee, setInternalTestFee] = useState(String(existing?.internalEnglishTestFee ?? ""));
+  const [internalTestOffered, setInternalTestOffered] = useState(base?.internalEnglishTestOffered ?? false);
+  const [internalTestFree, setInternalTestFree] = useState(base?.internalEnglishTestFree ?? true);
+  const [internalTestFee, setInternalTestFee] = useState(String(base?.internalEnglishTestFee ?? ""));
 
   const canSubmit = name.trim() && city.trim() && country.trim() && courses.every((c) => c.name.trim());
   // The selected country's own currencies first, then the generic fallbacks, deduped — so the
@@ -204,9 +256,11 @@ export default function DataUniversityForm() {
   const currencyOptions = Array.from(
     new Set([...(getCountryByName(country)?.currencySymbols ?? []), ...DEFAULT_CURRENCY_SYMBOLS, currencySymbol])
   );
-  const backTarget = existing
-    ? `/staff/data/universities/${existing.id}`
-    : country.trim() ? `/staff/data/countries/${encodeURIComponent(country.trim())}` : "/staff/data";
+  const backTarget = importItem
+    ? "/staff/data/universities/import"
+    : existing
+      ? `/staff/data/universities/${existing.id}`
+      : country.trim() ? `/staff/data/countries/${encodeURIComponent(country.trim())}` : "/staff/data";
 
   function handleAddSubject() {
     const trimmed = newSubject.trim();
@@ -357,6 +411,20 @@ export default function DataUniversityForm() {
       courses: courses.filter((c) => c.name.trim()).map((c) => ({ ...c, subject: c.subject || getAllSubjects()[0] })),
     };
 
+    if (importItem) {
+      setSaving(true);
+      setSaveError("");
+      approveUniversityImport(importItem.id, data)
+        .then(async ({ university }) => {
+          await refreshUniversities();
+          navigate(`/staff/data/universities/${university.id}`);
+        })
+        .catch((err) => {
+          setSaveError(err instanceof Error ? err.message : "Couldn't approve this university.");
+          setSaving(false);
+        });
+      return;
+    }
     if (existing) {
       updateUniversity(existing.id, data);
       navigate(`/staff/data/universities/${existing.id}`);
@@ -369,21 +437,23 @@ export default function DataUniversityForm() {
   return (
     <div className="max-w-3xl">
       <button onClick={() => navigate(backTarget)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-[var(--brand-600)]">
-        <ArrowLeft size={14} /> {existing ? `Back to ${existing.name}` : "Back to Universities"}
+        <ArrowLeft size={14} /> {importItem ? "Back to import queue" : existing ? `Back to ${existing.name}` : "Back to Universities"}
       </button>
 
-      <h1 className="mb-1 text-xl font-semibold text-slate-900">{isNew ? "Add University" : `Edit — ${existing?.name}`}</h1>
+      <h1 className="mb-1 text-xl font-semibold text-slate-900">{importItem ? "Review imported university" : isNew ? "Add University" : `Edit — ${existing?.name}`}</h1>
       <p className="mb-6 text-xs text-slate-500">
         Every field here is what agents, students, and counsellors see on the university and course detail pages.
       </p>
 
+      {importItem && <ImportReviewBanner item={importItem} />}
+
       <div className="space-y-5">
         <Section title="Identity">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="University name"><Input value={name} onChange={setName} placeholder="e.g. University of Leeds" /></Field>
+            <Field label="University name" attention={flag("name")}><Input value={name} onChange={setName} placeholder="e.g. University of Leeds" /></Field>
             <Field label="Website domain"><Input value={website} onChange={setWebsite} placeholder="e.g. leeds.ac.uk" /></Field>
-            <Field label="City"><Input value={city} onChange={setCity} placeholder="e.g. Leeds" /></Field>
-            <Field label="Country">
+            <Field label="City" attention={flag("city")}><Input value={city} onChange={setCity} placeholder="e.g. Leeds" /></Field>
+            <Field label="Country" attention={flag("country")}>
               <select
                 value={addingNewCountry ? "__new__" : country}
                 onChange={(e) => {
@@ -469,7 +539,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Campuses" action={
+        <Section title="Campuses" attention={flag("campuses")} action={
           <button onClick={() => setCampuses((prev) => [...prev, blankCampus(city)])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
             <Plus size={13} /> Add campus
           </button>
@@ -543,7 +613,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Intakes">
+        <Section title="Intakes" attention={flag("intakes")}>
           <p className="text-xs text-slate-400">
             Toggle every month this university runs an intake, then mark which of those are currently open for applications — more than
             one can be open at once, each with its own year, e.g. "September 2026" and "January 2027" open at the same time.
@@ -612,7 +682,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Academic Requirements">
+        <Section title="Academic Requirements" attention={flag("requirements")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Minimum GPA (out of 4.0)"><Input type="number" value={minGPA} onChange={setMinGPA} /></Field>
             <Field label="Accreditations (comma separated)"><Input value={accreditations} onChange={setAccreditations} placeholder="Russell Group" /></Field>
@@ -640,7 +710,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Scholarship Amount" action={
+        <Section title="Scholarship Amount" attention={flag("scholarships")} action={
           <button onClick={() => setScholarships((prev) => [...prev, blankScholarship()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
             <Plus size={13} /> Add scholarship
           </button>
@@ -671,7 +741,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="English Requirements">
+        <Section title="English Requirements" attention={flag("englishRequirements")}>
           <p className="text-[11px] text-slate-400">Accepted tests and minimum scores, entered separately for each degree level.</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -782,7 +852,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Fees" action={
+        <Section title="Fees" attention={flag("fees")} action={
           <button onClick={() => setFees((prev) => [...prev, blankFee()])} className="flex items-center gap-1 text-xs font-medium text-[var(--brand-600)]">
             <Plus size={13} /> Add line item
           </button>
@@ -822,7 +892,7 @@ export default function DataUniversityForm() {
           </div>
         </Section>
 
-        <Section title="Minimum Fees Deposit & Deposit Rules">
+        <Section title="Minimum Fees Deposit & Deposit Rules" attention={flag("minimumDepositAmount")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={`Minimum deposit amount (${currencySymbol})`}>
               <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
@@ -924,9 +994,12 @@ export default function DataUniversityForm() {
         )}
       </div>
 
-      <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
+      <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
+        {saveError && <p className="mr-auto text-[11.5px] text-rose-600">{saveError}</p>}
         <Button variant="secondary" onClick={() => navigate(backTarget)}>Cancel</Button>
-        <Button disabled={!canSubmit} onClick={handleSubmit}>{isNew ? "Add University" : "Save Changes"}</Button>
+        <Button disabled={!canSubmit || saving} onClick={handleSubmit}>
+          {importItem ? (saving ? "Approving…" : "Approve & add university") : isNew ? "Add University" : "Save Changes"}
+        </Button>
       </div>
     </div>
   );
@@ -936,23 +1009,67 @@ const BASE_INPUT_CLASS = "rounded-lg border border-slate-200 px-3 py-2 text-xs t
 const SELECT_CLASS = `w-full ${BASE_INPUT_CLASS}`;
 const TEXTAREA_CLASS = `w-full resize-none ${BASE_INPUT_CLASS}`;
 
-function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+/** `attention` (import mode only) marks a section the reviewer must verify against the source
+ * page, with the page's own words when the extractor captured them. */
+function Section({ title, action, children, attention }: { title: string; action?: React.ReactNode; children: React.ReactNode; attention?: { evidence?: string } }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className={`rounded-xl border bg-white p-4 ${attention ? "border-amber-300" : "border-slate-200"}`}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold text-slate-800">{title}</p>
+        <p className="flex items-center gap-2 text-xs font-semibold text-slate-800">{title} {attention && <CheckPill />}</p>
         {action}
       </div>
+      {attention?.evidence && <p className="mb-2 text-[11px] italic text-slate-400">Page says: “{attention.evidence}”</p>}
       <div className="space-y-3">{children}</div>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function CheckPill() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+      <AlertTriangle size={10} /> Check
+    </span>
+  );
+}
+
+/** Everything the reviewer should know before trusting the draft: where it came from, what the
+ * extractor wasn't sure about, and whether it looks like a university already in the catalog. */
+function ImportReviewBanner({ item }: { item: UniversityImportItem }) {
+  const extracted = item.extracted;
+  const host = (() => { try { return new URL(item.sourceUrl).hostname; } catch { return item.sourceUrl; } })();
+  return (
+    <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
+        <Sparkles size={13} /> AI-drafted from{" "}
+        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2">
+          {host} <ExternalLink size={11} />
+        </a>
+        {extracted?.meta?.model && <span className="font-normal text-amber-700">· {extracted.meta.model}</span>}
+      </p>
+      <p className="mt-1 text-[11.5px] text-amber-800">
+        Nothing is saved until you approve. Sections marked <CheckPill /> must be verified against the page — fees and deposits always are. Courses are
+        added afterwards from the university's Courses tab (or imported from URLs there).
+      </p>
+      {extracted?.possibleDuplicateOf && (
+        <p className="mt-2 rounded-lg bg-rose-100 px-2.5 py-1.5 text-[11.5px] font-medium text-rose-800">
+          Looks like "{extracted.possibleDuplicateOf.name}" is already in the catalog.
+        </p>
+      )}
+      {!!extracted?.warnings?.length && (
+        <ul className="mt-2 list-disc space-y-0.5 pl-4 text-[11.5px] text-amber-800">
+          {extracted.warnings.map((w, i) => <li key={i}>{w}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children, attention }: { label: string; children: React.ReactNode; attention?: { evidence?: string } }) {
   return (
     <label className="block text-xs font-medium text-slate-500">
-      {label}
+      <span className="flex items-center gap-2">{label} {attention && <CheckPill />}</span>
       <div className="mt-1">{children}</div>
+      {attention?.evidence && <p className="mt-1 text-[11px] italic text-slate-400">Page says: “{attention.evidence}”</p>}
     </label>
   );
 }

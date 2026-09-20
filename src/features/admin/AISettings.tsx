@@ -74,6 +74,7 @@ export default function AISettings() {
         },
         gemini: { model: settings.gemini.model, liveModel: settings.gemini.liveModel, ...(geminiKey ? { apiKey: geminiKey } : {}) },
         ollama: { baseUrl: settings.ollama.baseUrl, model: settings.ollama.model },
+        courseImportEnabled: !!settings.courseImportEnabled,
       });
       setAnthropicKey("");
       setOpenaiKey("");
@@ -173,7 +174,7 @@ export default function AISettings() {
             <input className={inputClass} value={settings.anthropic.model} onChange={(e) => setSettings({ ...settings, anthropic: { ...settings.anthropic, model: e.target.value } })} />
           </div>
           <div>
-            <label className={labelClass}>API key {settings.anthropic.apiKeySet && <span className="text-slate-400">(saved: {settings.anthropic.apiKeyMasked})</span>}</label>
+            <label className={labelClass}>API key <KeyStatus set={settings.anthropic.apiKeySet} masked={settings.anthropic.apiKeyMasked} /></label>
             <input type="password" className={inputClass} value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder={settings.anthropic.apiKeySet ? "Leave blank to keep current key" : "sk-ant-…"} />
           </div>
         </div>
@@ -188,7 +189,7 @@ export default function AISettings() {
             <input className={inputClass} value={settings.openai.model} onChange={(e) => setSettings({ ...settings, openai: { ...settings.openai, model: e.target.value } })} />
           </div>
           <div>
-            <label className={labelClass}>API key {settings.openai.apiKeySet && <span className="text-slate-400">(saved: {settings.openai.apiKeyMasked})</span>}</label>
+            <label className={labelClass}>API key <KeyStatus set={settings.openai.apiKeySet} masked={settings.openai.apiKeyMasked} /></label>
             <input type="password" className={inputClass} value={openaiKey} onChange={(e) => setOpenaiKey(e.target.value)} placeholder={settings.openai.apiKeySet ? "Leave blank to keep current key" : "sk-…"} />
           </div>
           <div>
@@ -215,7 +216,7 @@ export default function AISettings() {
             <input className={inputClass} value={settings.gemini.model} onChange={(e) => setSettings({ ...settings, gemini: { ...settings.gemini, model: e.target.value } })} />
           </div>
           <div>
-            <label className={labelClass}>API key {settings.gemini.apiKeySet && <span className="text-slate-400">(saved: {settings.gemini.apiKeyMasked})</span>}</label>
+            <label className={labelClass}>API key <KeyStatus set={settings.gemini.apiKeySet} masked={settings.gemini.apiKeyMasked} /></label>
             <input type="password" className={inputClass} value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder={settings.gemini.apiKeySet ? "Leave blank to keep current key" : "AIza…"} />
           </div>
           <div>
@@ -239,7 +240,47 @@ export default function AISettings() {
         </div>
       </section>
 
-      <Button onClick={save} className="w-full justify-center sm:w-auto">Save changes</Button>
+      <section className="rounded-2xl border border-slate-100 bg-white p-5">
+        <h2 className="text-[13px] font-semibold text-slate-800">Data Management features</h2>
+        <label className="mt-3 flex cursor-pointer items-start justify-between gap-4">
+          <span>
+            <span className="block text-[13px] font-medium text-slate-800">AI course import from URLs</span>
+            <span className="mt-0.5 block text-[11.5px] leading-relaxed text-slate-500">
+              Lets Data Management paste course-page links on a university and have the AI draft each course for review. Every draft still
+              has to be checked and approved by a person before it's added. Uses the AI provider selected above.
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!settings.courseImportEnabled}
+            onClick={() => setSettings({ ...settings, courseImportEnabled: !settings.courseImportEnabled })}
+            className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${settings.courseImportEnabled ? "bg-[var(--brand-600)]" : "bg-slate-200"}`}
+          >
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${settings.courseImportEnabled ? "left-[22px]" : "left-0.5"}`} />
+          </button>
+        </label>
+        <p className="mt-2 text-[11px] text-slate-400">
+          {settings.courseImportEnabled ? "On — Data Management sees \"Import from URLs\" on every university's Courses tab." : "Off — the import button is hidden and the import API is blocked."}
+        </p>
+      </section>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={save} className="w-full justify-center sm:w-auto">Save changes</Button>
+        {status && <p className="text-[12.5px] font-medium text-emerald-700">{status}</p>}
+        {error && <p className="text-[12.5px] font-medium text-rose-700">{error}</p>}
+      </div>
     </div>
+  );
+}
+
+/** Makes it unmistakable that a key is on file: the input itself stays blank on purpose (keys are
+  * never sent back), so without this a saved key looked like an empty, unsaved field. */
+function KeyStatus({ set, masked }: { set: boolean; masked: string }) {
+  if (!set) return <span className="font-normal text-slate-400">— not set</span>;
+  return (
+    <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+      ✓ Key saved <span className="font-mono font-normal">{masked}</span>
+    </span>
   );
 }

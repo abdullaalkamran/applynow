@@ -7,7 +7,7 @@ const router = express.Router();
 
 function mask(key) {
   if (!key) return "";
-  return key.length <= 4 ? "••••" : `${"•".repeat(key.length - 4)}${key.slice(-4)}`;
+  return key.length <= 4 ? "••••" : `••••••••${key.slice(-4)}`;
 }
 
 router.get("/", requireAdmin, (_req, res) => {
@@ -50,6 +50,7 @@ router.get("/", requireAdmin, (_req, res) => {
       apiKeySet: !!cfg.email.apiKey,
       apiKeyMasked: mask(cfg.email.apiKey),
     },
+    courseImportEnabled: cfg.courseImportEnabled,
   });
 });
 
@@ -74,6 +75,7 @@ router.put("/", requireAdmin, (req, res) => {
   if (typeof body.voiceEngine === "string") patch.voiceEngine = body.voiceEngine;
   if (typeof body.whatsappProvider === "string") patch.whatsappProvider = body.whatsappProvider;
   if (typeof body.emailProvider === "string") patch.emailProvider = body.emailProvider;
+  if (typeof body.courseImportEnabled === "boolean") patch.courseImportEnabled = body.courseImportEnabled;
 
   for (const key of Object.keys(SECRET_FIELD)) {
     if (body[key] && typeof body[key] === "object") {

@@ -41,7 +41,10 @@ function toAnthropicTools(tools) {
   }));
 }
 
-async function send({ systemPrompt, messages, tools }) {
+// `maxTokens` lets a caller that expects a long structured reply (courseExtraction.js) raise the
+// default; `jsonMode` is accepted for parity with the other providers but Anthropic has no native
+// JSON mode — the caller's prompt has to ask for JSON.
+async function send({ systemPrompt, messages, tools, maxTokens }) {
   const config = getConfig();
   if (!config.anthropic.apiKey) {
     throw Object.assign(new Error("ANTHROPIC_API_KEY is not set"), { status: 500 });
@@ -56,7 +59,7 @@ async function send({ systemPrompt, messages, tools }) {
     },
     body: JSON.stringify({
       model: config.anthropic.model,
-      max_tokens: 1024,
+      max_tokens: maxTokens ?? 1024,
       system: systemPrompt,
       messages: toAnthropicMessages(messages),
       tools: toAnthropicTools(tools),

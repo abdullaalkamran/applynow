@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
-import { curriculumFor } from "../../../data/subjectCurriculum";
+import { curriculumForCourse } from "../../../data/subjectCurriculum";
 import { getCountryByName } from "../../../data/countryRegistry";
 import { CostCalculator } from "../../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../../components/VisaCostBreakdown";
@@ -23,7 +23,8 @@ import { RankingCaption } from "../../../components/RankingCaption";
 import { ExpandableSection } from "../../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
-import { depositLabel } from "../../../utils/universityFilter";
+import { CourseAccreditations } from "../../../components/CourseAccreditations";
+import { depositLabel, campusLabelFor } from "../../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 
 const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
@@ -110,9 +111,10 @@ export default function CounsellorUniversityDetail() {
                     <StatTile icon={<GraduationCap size={14} />} label="Level" value={course.level} />
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <FactTile icon={<Building2 size={14} />} label="Campus" value="Main Campus" />
+                    <FactTile icon={<Building2 size={14} />} label="Campus" value={campusLabelFor(university, course)} />
                     <FactTile icon={<Clock3 size={14} />} label="Duration" value={course.duration} />
                   </div>
+                  <CourseAccreditations accreditations={course.accreditations} />
                   <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} />
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
@@ -124,7 +126,7 @@ export default function CounsellorUniversityDetail() {
               )}
               {courseTab === "Modules" && (
                 <ul className="space-y-2">
-                  {curriculumFor(course.subject).modules.map((m) => (
+                  {curriculumForCourse(course).modules.map((m) => (
                     <li key={m} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       <CheckCircle2 size={13} className="shrink-0 text-[var(--brand-500)]" /> {m}
                     </li>
@@ -145,7 +147,7 @@ export default function CounsellorUniversityDetail() {
               )}
               {courseTab === "Careers" && (
                 <ul className="space-y-2">
-                  {curriculumFor(course.subject).careers.map((c) => (
+                  {curriculumForCourse(course).careers.map((c) => (
                     <li key={c} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       <BriefcaseIcon size={13} className="shrink-0 text-violet-500" /> {c}
                     </li>

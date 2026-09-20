@@ -16,6 +16,8 @@ export interface AdminSettings {
   openai: ProviderModelSettings & { whisperModel: string; ttsModel: string; ttsVoice: string };
   gemini: ProviderModelSettings & { liveModel: string };
   ollama: { baseUrl: string; model: string };
+  // Data Management's AI "Import from URLs" (see server/src/routes/courseImports.js) — off by default.
+  courseImportEnabled: boolean;
 }
 
 export function loadAdminToken(): string {

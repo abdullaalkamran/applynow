@@ -38,7 +38,7 @@ export function CreateApplicationModal({
   const openCourses = university?.courses.filter((c) => courseHasOpenIntake(university, c)) ?? [];
   const [courseName, setCourseName] = useState(initialCourseName ?? firstOpenCourse(university ?? initialUniversity)?.name ?? "");
   const course = university?.courses.find((c) => c.name === courseName);
-  const campuses = university && course ? campusesFor(university, course.feeUSD) : [];
+  const campuses = university && course ? campusesFor(university, course) : [];
   const [campus, setCampus] = useState(campuses[0]?.name ?? "");
   const openIntakes = university && course ? openIntakesFor(university, course) : [];
   const [intake, setIntake] = useState(openIntakes[0] ?? "");
@@ -66,7 +66,7 @@ export function CreateApplicationModal({
               setUniversityId(u?.id ?? "");
               const c = firstOpenCourse(u);
               setCourseName(c?.name ?? "");
-              setCampus((u && c ? campusesFor(u, c.feeUSD) : [])[0]?.name ?? "");
+              setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
             className={SELECT_CLASS}
@@ -85,7 +85,7 @@ export function CreateApplicationModal({
               const u = UNIVERSITIES.find((x) => x.id === v);
               const c = firstOpenCourse(u);
               setCourseName(c?.name ?? "");
-              setCampus((u && c ? campusesFor(u, c.feeUSD) : [])[0]?.name ?? "");
+              setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
             className={SELECT_CLASS}
@@ -102,7 +102,7 @@ export function CreateApplicationModal({
               onChange={(v) => {
                 setCourseName(v);
                 const c = university.courses.find((x) => x.name === v);
-                setCampus((c ? campusesFor(university, c.feeUSD) : [])[0]?.name ?? "");
+                setCampus((c ? campusesFor(university, c) : [])[0]?.name ?? "");
                 setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
               }}
               options={openCourses.map((c) => c.name)}

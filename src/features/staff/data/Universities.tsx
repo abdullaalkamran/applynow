@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Search, Plus, Pencil, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase, FileText } from "lucide-react";
+import { ArrowLeft, Search, Plus, Pencil, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase, FileText, Sparkles } from "lucide-react";
+import { fetchCourseImportConfig } from "../../../data/courseImportsStore";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { getAllUniversities, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
@@ -14,6 +15,13 @@ export default function DataUniversities() {
   const { country: countryParam } = useParams();
   const scopedCountry = countryParam ? decodeURIComponent(countryParam) : null;
   const [query, setQuery] = useState("");
+  // "Import from URLs" only exists while the admin switch is on (see routes/courseImports.js).
+  const [importEnabled, setImportEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCourseImportConfig().then((cfg) => { if (!cancelled) setImportEnabled(cfg.enabled); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [country, setCountry] = useState(scopedCountry ?? "All");
   const [, forceTick] = useState(0);
 
@@ -64,7 +72,14 @@ export default function DataUniversities() {
             ? `Every partner university your catalog has in ${scopedCountry}.`
             : "The catalog agents, students, and counsellors browse and apply against. Add a university in a new country to make that country available as a destination everywhere."
         }
-        action={<Button onClick={() => navigate(addUniversityHref)}><Plus size={15} /> Add University</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            {importEnabled && (
+              <Button variant="secondary" onClick={() => navigate("/staff/data/universities/import")}><Sparkles size={15} /> Import from URLs</Button>
+            )}
+            <Button onClick={() => navigate(addUniversityHref)}><Plus size={15} /> Add University</Button>
+          </div>
+        }
       />
 
       {scopedCountry && <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Country Overview</p>}

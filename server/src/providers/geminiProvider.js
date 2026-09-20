@@ -56,25 +56,34 @@ function toGeminiTools(tools) {
   ];
 }
 
-async function send({ systemPrompt, messages, tools }) {
+// `maxTokens` / `jsonMode` are optional extras for callers that want a long, strictly-JSON reply
+// (courseExtraction.js); the assistant's tool-calling callers pass neither and behave as before.
+// Tools are only sent when there are some — Gemini rejects responseMimeType combined with
+// function declarations.
+async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const config = getConfig();
   if (!config.gemini.apiKey) {
     throw Object.assign(new Error("GEMINI_API_KEY is not set"), { status: 500 });
   }
 
+  const hasTools = Array.isArray(tools) && tools.length > 0;
   const response = await fetch(apiUrl(config), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: toGeminiContents(messages),
-      tools: toGeminiTools(tools),
+      ...(hasTools ? { tools: toGeminiTools(tools) } : {}),
       // gemini-3.6-flash is a thinking model — without this it reasons internally before every
       // single reply *and* every intermediate tool-call step, and a multi-tool turn (e.g. check
       // profile, then search universities) pays that cost multiple times in one request.
       // Gemini 3.x models use thinkingLevel (2.5-generation models used thinkingBudget instead,
       // e.g. the Live relay's native-audio model) — thinkingBudget is rejected outright here.
-      generationConfig: { thinkingConfig: { thinkingLevel: "minimal" } },
+      generationConfig: {
+        thinkingConfig: { thinkingLevel: "minimal" },
+        ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+        ...(jsonMode ? { responseMimeType: "application/json" } : {}),
+      },
     }),
   });
 

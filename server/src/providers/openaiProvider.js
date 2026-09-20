@@ -41,12 +41,15 @@ function toOpenAiTools(tools) {
   }));
 }
 
-async function send({ systemPrompt, messages, tools }) {
+// `maxTokens` / `jsonMode` are optional extras for callers that want a long, strictly-JSON reply
+// (courseExtraction.js); the assistant's tool-calling callers pass neither and behave as before.
+async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const config = getConfig();
   if (!config.openai.apiKey) {
     throw Object.assign(new Error("OPENAI_API_KEY is not set"), { status: 500 });
   }
 
+  const hasTools = Array.isArray(tools) && tools.length > 0;
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
@@ -56,8 +59,9 @@ async function send({ systemPrompt, messages, tools }) {
     body: JSON.stringify({
       model: config.openai.model,
       messages: toOpenAiMessages(systemPrompt, messages),
-      tools: toOpenAiTools(tools),
-      tool_choice: "auto",
+      ...(hasTools ? { tools: toOpenAiTools(tools), tool_choice: "auto" } : {}),
+      ...(maxTokens ? { max_completion_tokens: maxTokens } : {}),
+      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 

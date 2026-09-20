@@ -35,7 +35,9 @@ function toOllamaTools(tools) {
   }));
 }
 
-async function send({ systemPrompt, messages, tools }) {
+// `maxTokens` / `jsonMode` are optional extras for callers that want a long, strictly-JSON reply
+// (courseExtraction.js); the assistant's tool-calling callers pass neither and behave as before.
+async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const config = getConfig();
   const response = await fetch(`${config.ollama.baseUrl}/api/chat`, {
     method: "POST",
@@ -45,6 +47,8 @@ async function send({ systemPrompt, messages, tools }) {
       messages: toOllamaMessages(systemPrompt, messages),
       tools: toOllamaTools(tools),
       stream: false,
+      ...(jsonMode ? { format: "json" } : {}),
+      ...(maxTokens ? { options: { num_predict: maxTokens } } : {}),
     }),
   });
 

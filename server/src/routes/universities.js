@@ -21,7 +21,12 @@ function serializeCourse(c) {
     requirements: c.requirements.length ? c.requirements : undefined,
     englishRequirements: c.englishRequirements || undefined,
     currencySymbol: c.currencySymbol || undefined,
-    campusId: c.campusId || undefined,
+    campusIds: c.campusIds.length ? c.campusIds : undefined,
+    description: c.description || undefined,
+    studyMode: c.studyMode || undefined,
+    modules: c.modules.length ? c.modules : undefined,
+    careers: c.careers.length ? c.careers : undefined,
+    accreditations: Array.isArray(c.accreditations) && c.accreditations.length ? c.accreditations : undefined,
   };
 }
 
@@ -138,7 +143,12 @@ function courseWriteData(c) {
     requirements: c.requirements ?? [],
     englishRequirements: c.englishRequirements ?? undefined,
     currencySymbol: c.currencySymbol || null,
-    campusId: c.campusId || null,
+    campusIds: Array.isArray(c.campusIds) ? c.campusIds : [],
+    description: c.description || null,
+    studyMode: c.studyMode || null,
+    modules: Array.isArray(c.modules) ? c.modules : [],
+    careers: Array.isArray(c.careers) ? c.careers : [],
+    accreditations: Array.isArray(c.accreditations) ? c.accreditations : [],
   };
 }
 
@@ -245,7 +255,14 @@ router.post("/:id/courses", requireAuth, async (req, res, next) => {
 
 router.patch("/:id/courses/:courseId", requireAuth, async (req, res, next) => {
   try {
-    const course = await prisma.course.update({ where: { id: req.params.courseId }, data: courseWriteData(req.body) });
+    // A real merge: only the keys the caller sent change. courseWriteData() maps an absent key to
+    // null/[] (right for create), which here would silently blank every field a partial patch —
+    // updateCourse(id, Partial<Course>) on the frontend — happened to leave out.
+    const existing = await prisma.course.findUnique({ where: { id: req.params.courseId } });
+    if (!existing) return res.status(404).json({ error: "Course not found." });
+    const full = courseWriteData(req.body || {});
+    const data = Object.fromEntries(Object.entries(full).filter(([key]) => key in (req.body || {})));
+    const course = await prisma.course.update({ where: { id: req.params.courseId }, data });
     const university = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
     if (university) {
       await prisma.university.update({ where: { id: req.params.id }, data: { subjects: mergedSubjects(university.subjects, university.courses) } });
@@ -267,4 +284,7 @@ router.delete("/:id/courses/:courseId", requireAuth, async (req, res, next) => {
   }
 });
 
-module.exports = router;
+// The course write/read helpers are shared with routes/courseImports.js so an approved import
+// is created exactly the way a hand-entered course is. Attaching them to the router keeps
+// `app.use("/api/universities", require(...))` working unchanged.
+module.exports = Object.assign(router, { courseWriteData, serializeCourse, mergedSubjects, universityWriteData, serializeUniversity });
