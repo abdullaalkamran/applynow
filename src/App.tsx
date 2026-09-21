@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { GOOGLE_CLIENT_ID } from "./utils/googleClientId";
 import { RequireAuth } from "./layouts/RequireAuth";
 import { ROLE_HOME } from "./layouts/nav";
 import Login from "./features/auth/Login";
+import Signup from "./features/auth/Signup";
 import AppLayout from "./layouts/AppLayout";
 import StudentShell from "./layouts/StudentShell";
 import CounsellorShell from "./layouts/CounsellorShell";
@@ -32,6 +35,7 @@ import AcademicDetails from "./features/student/AcademicDetails";
 import EnglishProficiency from "./features/student/EnglishProficiency";
 import WorkExperience from "./features/student/WorkExperience";
 import Preferences from "./features/student/Preferences";
+import ChangePassword from "./features/student/ChangePassword";
 
 import AgentDashboard from "./features/agent/Dashboard";
 import AgentStudents from "./features/agent/Students";
@@ -48,6 +52,7 @@ import AgentVisaCompliance from "./features/agent/VisaCompliance";
 import AgentCommissions from "./features/agent/Commissions";
 import AgentStatements from "./features/agent/Statements";
 import AgentTasks from "./features/agent/Tasks";
+import AgentProfile from "./features/agent/Profile";
 import AgentMessages from "./features/agent/Messages";
 
 import CounsellorDashboard from "./features/staff/counsellor/Dashboard";
@@ -100,13 +105,22 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, retry: 1 } },
 });
 
+// Only mounts the real provider once a Google OAuth client is actually configured — GoogleLogin
+// buttons stay hidden (see GoogleSignInButton.tsx) until then, so there's nothing for it to back.
+function MaybeGoogleOAuthProvider({ children }: { children: React.ReactNode }) {
+  if (!GOOGLE_CLIENT_ID) return <>{children}</>;
+  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+    <MaybeGoogleOAuthProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
           {/* Student — mobile app shell (no sidebar/topbar) */}
           <Route element={<RequireAuth roles={["student"]} />}>
@@ -135,6 +149,7 @@ export default function App() {
             <Route path="/student/profile/english-proficiency" element={<EnglishProficiency />} />
             <Route path="/student/profile/work-experience" element={<WorkExperience />} />
             <Route path="/student/profile/preferences" element={<Preferences />} />
+            <Route path="/student/profile/security" element={<ChangePassword />} />
           </Route>
           </Route>
 
@@ -177,6 +192,7 @@ export default function App() {
             <Route path="/agent/commissions" element={<AgentCommissions />} />
             <Route path="/agent/statements" element={<AgentStatements />} />
             <Route path="/agent/tasks" element={<AgentTasks />} />
+            <Route path="/agent/profile" element={<AgentProfile />} />
             <Route path="/agent/messages" element={<AgentMessages />} />
           </Route>
           </Route>
@@ -223,6 +239,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </MaybeGoogleOAuthProvider>
     </QueryClientProvider>
   );
 }

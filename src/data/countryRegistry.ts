@@ -61,6 +61,12 @@ export interface CountryKeyInfo {
 export interface CountryRecord {
   id: string;
   name: string;
+  // The country's own small logo/flag image — shown as its identity badge on the Country Detail
+  // page's hero and on every "country card" list (Data Management's Countries page, a counsellor's
+  // Partners page), same data: URL upload convention as photoUrl below. Distinct from photoUrl,
+  // which is the large hero banner image, not a compact badge. Falls back to the static dial-code
+  // list's flag emoji (see countries.ts), then a generic globe icon, when unset.
+  logoUrl?: string;
   whyThisCountry?: string;
   recommendedFundsUSD?: number;
   visaCostConfig?: VisaCostConfig;

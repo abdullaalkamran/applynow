@@ -39,6 +39,16 @@ function toGeminiContents(messages) {
       return { role: "model", parts };
     }
 
+    if (message.image) {
+      return {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: message.image.mimeType, data: message.image.base64 } },
+          { text: message.text || "" },
+        ],
+      };
+    }
+
     return { role: "user", parts: [{ text: message.text || "" }] };
   });
 }

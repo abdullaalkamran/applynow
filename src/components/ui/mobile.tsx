@@ -175,7 +175,7 @@ export function FieldShell({
   );
 }
 
-export type ScanStatus = "idle" | "scanning" | "done";
+export type ScanStatus = "idle" | "scanning" | "done" | "unavailable";
 export interface UploadedDoc { name: string; previewUrl?: string }
 
 /** Labeled on/off switch used on settings-style screens (e.g. notification preferences). */
@@ -330,9 +330,10 @@ export function SuggestInput({
   );
 }
 
-/** Tap-to-upload card that simulates scanning a document (passport, certificate, transcript) and reports back a status. */
+/** Tap-to-upload card that scans a document (passport, certificate, transcript) and reports back a status. */
 export function DocumentUpload({
-  file, status, title, description, scanningLabel = "Scanning…", doneLabel = "Details extracted", onPick, onRemove,
+  file, status, title, description, scanningLabel = "Scanning…", doneLabel = "Details extracted",
+  unavailableLabel = "Couldn't auto-fill — check the details below", onPick, onRemove,
 }: {
   file: UploadedDoc | null;
   status: ScanStatus;
@@ -340,6 +341,7 @@ export function DocumentUpload({
   description: string;
   scanningLabel?: string;
   doneLabel?: string;
+  unavailableLabel?: string;
   onPick: () => void;
   onRemove: () => void;
 }) {
@@ -372,6 +374,11 @@ export function DocumentUpload({
         {status === "scanning" && (
           <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-400">
             <Loader2 size={12} className="animate-spin" /> {scanningLabel}
+          </p>
+        )}
+        {status === "unavailable" && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
+            <AlertCircle size={12} /> {unavailableLabel}
           </p>
         )}
         {status === "done" && (

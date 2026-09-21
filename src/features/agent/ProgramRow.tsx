@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Wallet, CalendarDays, GraduationCap, AlertTriangle } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
-import { scholarshipAmountUSD, courseHasOpenIntake } from "../../utils/universityFilter";
+import { scholarshipLabel, courseHasOpenIntake } from "../../utils/universityFilter";
 import { ShortlistButton } from "./ShortlistButton";
 import type { Student, University } from "../../types";
 
@@ -13,7 +13,7 @@ export function ProgramRow({
   university, course, students, onApply,
 }: { university: University; course: Course; students: Student[]; onApply: (university: University, course: Course) => void }) {
   const navigate = useNavigate();
-  const scholarship = scholarshipAmountUSD(university, course.feeUSD);
+  const scholarship = scholarshipLabel(university);
   const openDetail = () => navigate(`/agent/universities/${university.id}`, { state: { selectedCourseName: course.name, subject: course.subject } });
 
   return (
@@ -34,10 +34,10 @@ export function ProgramRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-        <span className="flex items-center gap-1"><Wallet size={11} /> ${course.feeUSD.toLocaleString()}/yr</span>
+        <span className="flex items-center gap-1"><Wallet size={11} /> {course.currencySymbol ?? university.currencySymbol}{course.feeUSD.toLocaleString()}/yr</span>
         <span className="flex items-center gap-1"><CalendarDays size={11} /> {university.openIntake}</span>
         {scholarship !== null && (
-          <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> Up to ${scholarship.toLocaleString()}</span>
+          <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> {scholarship}</span>
         )}
         {(university.restrictedRegions ?? []).length > 0 && (
           <span className="flex items-center gap-1 text-amber-600"><AlertTriangle size={11} /> Restricted regions</span>

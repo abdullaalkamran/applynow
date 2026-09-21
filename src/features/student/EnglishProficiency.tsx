@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Check, AlertTriangle } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, monthsUntil, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete } from "../../data/profileCompletion";
-import { saveEnglishTests } from "../../data/studentProfileDetailsStore";
+import { loadEnglishTests, saveEnglishTests, type EnglishTestDetails } from "../../data/studentProfileDetailsStore";
 
 const TEST_NAMES = [
   "IELTS", "TOEFL iBT", "TOEFL Essentials", "PTE Academic", "Duolingo English Test",
@@ -65,14 +65,15 @@ function emptyEntry(id: string, testName: string): TestEntry {
   };
 }
 
-const INITIAL_ENTRIES: TestEntry[] = [
-  {
-    id: "t1", testName: "IELTS", testType: "UKVI Academic", overallScore: "7.5",
-    listening: "8.0", reading: "7.5", writing: "6.5", speaking: "7.5",
-    testDate: "2026-03-14", expiryDate: "2028-03-14", reportNumber: "24GB123456ABCD", issuingInstitution: "",
-    file: null, scanStatus: "idle", autoFilled: new Set(),
-  },
-];
+function fromSaved(id: string, t: EnglishTestDetails): TestEntry {
+  return { id, ...t, file: null, scanStatus: "idle", autoFilled: new Set() };
+}
+
+// Real, previously-saved test results — falls back to an empty list (via loadEnglishTests' own
+// ?? []) for anyone who hasn't filled this in yet, rather than a fabricated sample score.
+function initialEntries(): TestEntry[] {
+  return loadEnglishTests().map((t, i) => fromSaved(`t${i + 1}`, t));
+}
 
 function getExpiryWarning(expiryDate: string): string | null {
   const monthsLeft = monthsUntil(expiryDate);
@@ -83,11 +84,11 @@ function getExpiryWarning(expiryDate: string): string | null {
 }
 
 export default function EnglishProficiency() {
-  const [entries, setEntries] = useState<TestEntry[]>(INITIAL_ENTRIES);
+  const [entries, setEntries] = useState<TestEntry[]>(initialEntries);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const nextId = useRef(INITIAL_ENTRIES.length + 1);
+  const nextId = useRef(entries.length + 1);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const savedTimeoutRef = useRef<number | null>(null);
 

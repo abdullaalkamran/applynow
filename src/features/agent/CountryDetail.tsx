@@ -5,7 +5,7 @@
 // names), and "Subjects" (every distinct field of study offered here).
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Plus, Share2 } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Plus, Share2, Wallet } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
@@ -14,7 +14,7 @@ import { CountryHero, CountryOverviewCards } from "../../components/CountryOverv
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { CreateApplicationModal } from "./CreateApplicationModal";
 
-const TABS = ["Overview", "Universities", "Subjects"] as const;
+const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
 export default function AgentCountryDetail() {
   const navigate = useNavigate();
@@ -26,6 +26,10 @@ export default function AgentCountryDetail() {
 
   function openUniversityProfile(universityId: string) {
     navigate(`/agent/universities/${universityId}`);
+  }
+
+  function openCourse(universityId: string, courseName: string) {
+    navigate(`/agent/universities/${universityId}`, { state: { selectedCourseName: courseName } });
   }
 
   async function shareWithStudent() {
@@ -48,6 +52,8 @@ export default function AgentCountryDetail() {
     universities.forEach((u) => u.courses.forEach((c) => counts.set(c.subject, (counts.get(c.subject) ?? 0) + 1)));
     return Array.from(counts.entries()).map(([subjectName, count]) => ({ subject: subjectName, count })).sort((a, b) => b.count - a.count);
   })();
+
+  const courseOfferings = universities.flatMap((u) => u.courses.map((c) => ({ university: u, course: c })));
 
   function openSubject(subjectName: string) {
     navigate(`/agent/subjects/${encodeURIComponent(subjectName)}`, { state: { destination: country } });
@@ -110,6 +116,31 @@ export default function AgentCountryDetail() {
           <div className="mt-5">
             <CountryGuideDisclosure country={countryDetails} />
           </div>
+        </div>
+      ) : tab === "Courses" ? (
+        <div className="mt-4 space-y-2.5">
+          {courseOfferings.map(({ university: u, course: c }) => (
+            <button
+              key={`${u.id}::${c.name}`}
+              onClick={() => openCourse(u.id, c.name)}
+              className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
+            >
+              <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
+                <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
+                <p className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-slate-700">
+                  <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                </p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-slate-300" />
+            </button>
+          ))}
+          {courseOfferings.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+              <p className="text-xs text-slate-400">No courses listed in {country} yet.</p>
+            </div>
+          )}
         </div>
       ) : tab === "Subjects" ? (
         <div className="mt-4 space-y-2.5">

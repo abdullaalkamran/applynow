@@ -28,6 +28,17 @@ function toOpenAiMessages(systemPrompt, messages) {
       continue;
     }
 
+    if (message.image) {
+      converted.push({
+        role: message.role,
+        content: [
+          { type: "text", text: message.text || "" },
+          { type: "image_url", image_url: { url: `data:${message.image.mimeType};base64,${message.image.base64}` } },
+        ],
+      });
+      continue;
+    }
+
     converted.push({ role: message.role, content: message.text || "" });
   }
 

@@ -39,6 +39,8 @@ export default function DataCountryForm() {
 
   const vc = existing?.visaCostConfig;
   const [name, setName] = useState(existing?.name ?? "");
+  const [logoUrl, setLogoUrl] = useState(existing?.logoUrl ?? "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [currencySymbols, setCurrencySymbols] = useState((existing?.currencySymbols ?? []).join(", "));
   const [whyThisCountry, setWhyThisCountry] = useState(existing?.whyThisCountry ?? "");
   const [recommendedFunds, setRecommendedFunds] = useState(existing?.recommendedFundsUSD != null ? String(existing.recommendedFundsUSD) : "");
@@ -91,6 +93,16 @@ export default function DataCountryForm() {
 
   function updateLink(i: number, patch: Partial<UsefulLink>) {
     setLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  async function handleLogoPicked(file: File | undefined) {
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      setLogoUrl(await readFileAsDataUrl(file));
+    } finally {
+      setUploadingLogo(false);
+    }
   }
 
   async function handlePhotoPicked(file: File | undefined) {
@@ -156,6 +168,7 @@ export default function DataCountryForm() {
       requiredDocuments: documents.filter((d) => d.name.trim()),
       applicationProcedure: applicationProcedure.trim() || undefined,
       visaProcedure: visaProcedure.trim() || undefined,
+      logoUrl: logoUrl || undefined,
       photoUrl: photoUrl || undefined,
       tagline: tagline.trim() || undefined,
       internationalStudentStat: internationalStudentStat.trim() || undefined,
@@ -184,6 +197,24 @@ export default function DataCountryForm() {
       <div className="space-y-5">
         <Section title="Identity">
           <Field label="Country name"><Input value={name} onChange={setName} placeholder="e.g. Japan" /></Field>
+          <Field label="Country logo / flag">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+                {logoUrl && <img src={logoUrl} alt="Country logo preview" className="h-full w-full object-cover" />}
+              </div>
+              <div className="flex flex-col items-start gap-1.5">
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-slate-600 hover:border-slate-300">
+                  <Upload size={12} />
+                  {uploadingLogo ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoPicked(e.target.files?.[0])} />
+                </label>
+                {logoUrl && (
+                  <button onClick={() => setLogoUrl("")} className="text-[11px] font-medium text-rose-500">Remove logo</button>
+                )}
+                {!logoUrl && <p className="text-[11px] text-slate-400">Shown on the Country Detail page and every country card — falls back to a flag emoji, then a globe icon.</p>}
+              </div>
+            </div>
+          </Field>
           <Field label="Currency symbols (comma separated)">
             <Input value={currencySymbols} onChange={setCurrencySymbols} placeholder="e.g. ¥, $" />
           </Field>

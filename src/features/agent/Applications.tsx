@@ -10,7 +10,8 @@ import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
 import { loadDocDueDate } from "../../data/documentDueDatesStore";
-import { UNIVERSITIES, DOCUMENTS } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
+import { DOCUMENTS } from "../../data/mockData";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
 import { pipelineBucketFor, CLOSED_STATUSES, daysAgo, type PipelineBucket } from "../../utils/counsellorData";
@@ -22,6 +23,7 @@ const PAGE_SIZE = 8;
 
 export default function AgentApplications() {
   const navigate = useNavigate();
+  const UNIVERSITIES = getAllUniversities();
   const students = loadAgentStudents();
   const [tab, setTab] = useState<(typeof BUCKET_TABS)[number]>("All");
   const [countryTab, setCountryTab] = useState<string>("All");

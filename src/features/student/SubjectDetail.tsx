@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertTriangle } from "lucide-react";
 import { LogoBadge, PillSelect } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { matchingCourse, scholarshipAmountUSD, depositLabel, courseHasOpenIntake, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
+import { matchingCourse, scholarshipLabel, depositLabel, courseHasOpenIntake, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted as isProgramShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
@@ -98,7 +98,7 @@ export default function SubjectDetail() {
 
         <div className="mt-4">
           {offerings.map(({ university: u, course: c }, i) => {
-            const scholarshipUSD = scholarshipAmountUSD(u, c.feeUSD);
+            const scholarshipText = scholarshipLabel(u);
             const key = `${u.id}::${c.name}`;
             const isShortlisted = isProgramShortlisted(key);
             return (
@@ -133,9 +133,9 @@ export default function SubjectDetail() {
                       <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
                       {Math.round(c.feeUSD).toLocaleString()}
                     </span>
-                    {scholarshipUSD && (
+                    {scholarshipText && (
                       <span className="inline-flex shrink-0 items-center gap-1">
-                        <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
+                        <GraduationCap size={11} className="text-slate-400" /> {scholarshipText}
                       </span>
                     )}
                     {depositLabel(u) && (

@@ -4,7 +4,7 @@ import { Search, GraduationCap, Award, Globe2, ChevronRight } from "lucide-react
 import { LogoBadge } from "../../../components/ui/mobile";
 import { BackButton } from "../../../components/ui";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
-import { getAllCountries } from "../../../data/countryRegistry";
+import { getAllCountries, getCountryByName } from "../../../data/countryRegistry";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 
@@ -85,8 +85,12 @@ export default function CounsellorUniversityPartners() {
               className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-50)] text-[var(--brand-700)]">
-                  <Globe2 size={18} />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--brand-50)] text-[var(--brand-700)]">
+                  {getCountryByName(c.country)?.logoUrl ? (
+                    <img src={getCountryByName(c.country)!.logoUrl} alt={`${c.country} logo`} className="h-full w-full object-cover" />
+                  ) : (
+                    <Globe2 size={18} />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-800">{c.country}</p>

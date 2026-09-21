@@ -125,12 +125,17 @@ export function courseFeeForSubject(u: University, subjectOrCourseText: string):
   return matchingCourse(u, subjectOrCourseText)?.feeUSD ?? tuitionInUSD(u);
 }
 
-// Approximate "up to" scholarship value for a course — real per-course scholarship amounts aren't
-// in the data model, so this derives a plausible figure (~30% of tuition, rounded) whenever the
-// university offers scholarships at all. Returns null when it doesn't, so callers can hide the stat.
-export function scholarshipAmountUSD(u: University, feeUSD: number): number | null {
-  if (!u.scholarshipsAvailable) return null;
-  return Math.round((feeUSD * 0.3) / 500) * 500;
+// A real scholarship figure to show alongside a course/fee — the university's own first named
+// scholarship's amount (as Data Management typed it, e.g. "Up to £10,000", already in the right
+// currency) when one's been entered, falling back to a bare "Scholarships available" when the flag
+// is set but nothing's been named yet, and null (hide the stat entirely) when the university has no
+// scholarships at all. Previously this derived a fabricated ~30%-of-tuition estimate instead of the
+// university's actual scholarship data, which both invented a number nobody entered and showed it
+// with the wrong currency symbol.
+export function scholarshipLabel(u: University): string | null {
+  const named = u.scholarships ?? [];
+  if (named.length > 0) return named[0].amount;
+  return u.scholarshipsAvailable ? "Scholarships available" : null;
 }
 
 /** Short, single-line form of the minimum deposit — for compact program-row chips, not the full

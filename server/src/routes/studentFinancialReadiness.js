@@ -42,6 +42,7 @@ router.patch("/:studentId", requireAuth, async (req, res, next) => {
       openingDate: patch.openingDate !== undefined ? (patch.openingDate ? new Date(patch.openingDate) : null) : existing?.openingDate,
       maturityDate: patch.maturityDate !== undefined ? (patch.maturityDate ? new Date(patch.maturityDate) : null) : existing?.maturityDate,
       bankStatus: patch.bankStatus ?? existing?.bankStatus ?? "Not Started",
+      bankName: patch.bankName !== undefined ? patch.bankName : existing?.bankName,
       accountHolder: patch.accountHolder !== undefined ? patch.accountHolder : existing?.accountHolder,
       accountType: patch.accountType !== undefined ? patch.accountType : existing?.accountType,
       depositType: patch.depositType !== undefined ? patch.depositType : existing?.depositType,

@@ -56,14 +56,21 @@ export default function CreateStudentProfile() {
   const [englishTests, setEnglishTests] = useState<EnglishTestDetails[]>([]);
   const [workExperience, setWorkExperience] = useState<WorkExperienceDetails[]>([]);
   const [preferences, setPreferences] = useState<PreferencesDetails>(EMPTY_PREFERENCES);
-  const [createdStudent, setCreatedStudent] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [createdStudent, setCreatedStudent] = useState<{ id: string; name: string; email: string; password?: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [password, setPassword] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const [passportFile, setPassportFile] = useState<UploadedDoc | null>(null);
   const [passportScanStatus, setPassportScanStatus] = useState<ScanStatus>("idle");
   const [autoFilledPersonal, setAutoFilledPersonal] = useState<Set<keyof PersonalInfoDetails>>(new Set());
 
-  const canProceedPersonal = personal.firstName.trim().length > 1 && /\S+@\S+\.\S+/.test(personal.email) && personal.country.trim().length > 1;
+  const canProceedPersonal =
+    personal.firstName.trim().length > 1 &&
+    /\S+@\S+\.\S+/.test(personal.email) &&
+    personal.country.trim().length > 1 &&
+    (password.length === 0 || password.length >= 8);
   const step = STEPS[stepIndex];
 
   function updatePersonal<K extends keyof PersonalInfoDetails>(key: K, value: PersonalInfoDetails[K]) {
@@ -90,9 +97,18 @@ export default function CreateStudentProfile() {
     }, 1200);
   }
 
-  function createProfile() {
+  async function createProfile() {
+    setCreateError("");
+    setCreating(true);
     const name = `${personal.firstName.trim()} ${personal.lastName.trim()}`.trim();
-    const student = addAgentStudent(name, personal.email.trim(), personal.country.trim());
+    let student;
+    try {
+      student = await addAgentStudent(name, personal.email.trim(), personal.country.trim(), password || undefined);
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create this student's profile.");
+      setCreating(false);
+      return;
+    }
 
     savePersonalInfo(personal, student.id);
     markStepComplete("personal-information", student.id);
@@ -114,7 +130,8 @@ export default function CreateStudentProfile() {
       markStepComplete("preferences", student.id);
     }
 
-    setCreatedStudent({ id: student.id, name, email: personal.email.trim() });
+    setCreating(false);
+    setCreatedStudent({ id: student.id, name, email: personal.email.trim(), password: password || undefined });
   }
 
   if (createdStudent) {
@@ -124,8 +141,11 @@ export default function CreateStudentProfile() {
       `Hi ${createdStudent.name.split(" ")[0]},`,
       "",
       "Your student profile has been created. Sign in to the student portal to review your details, track your applications, and upload documents:",
-      `${window.location.origin}/student`,
+      `${window.location.origin}/login`,
       "",
+      ...(createdStudent.password
+        ? [`Email: ${createdStudent.email}`, `Temporary password: ${createdStudent.password}`, "", "Please change this password once you've signed in.", ""]
+        : []),
       "Talk soon,",
     ].join("\n");
 
@@ -137,6 +157,13 @@ export default function CreateStudentProfile() {
           </div>
           <h1 className="mt-3 text-base font-semibold text-slate-900">Profile created for {createdStudent.name}</h1>
           <p className="mt-1 text-xs text-slate-500">Share portal access so they can sign in and see their own profile, documents, and applications.</p>
+
+          {!createdStudent.password && (
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-left text-[11.5px] text-amber-800">
+              No password was set for this profile, so {createdStudent.name.split(" ")[0]} can't sign in yet — go to their profile and set one,
+              or have them sign up themselves at {window.location.origin}/signup using this email.
+            </p>
+          )}
 
           <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4 text-left">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
@@ -219,6 +246,17 @@ export default function CreateStudentProfile() {
               <Field label="Father's name"><Input value={personal.fatherName} onChange={(v) => updatePersonal("fatherName", v)} /></Field>
               <Field label="Mother's name"><Input value={personal.motherName} onChange={(v) => updatePersonal("motherName", v)} /></Field>
             </FieldGrid>
+
+            <SectionLabel>Account access</SectionLabel>
+            <FieldGrid>
+              <Field label="Password (optional)">
+                <Input type="password" value={password} onChange={setPassword} placeholder="Leave blank to set up later" />
+              </Field>
+            </FieldGrid>
+            <p className="-mt-2 text-[11px] text-slate-400">
+              Set a password so {personal.firstName.trim() || "the student"} can sign in right away. Without one, this profile has no login
+              yet and they won't be able to access the portal until a password is set.
+            </p>
 
             <SectionLabel>Passport</SectionLabel>
             <FieldGrid>
@@ -405,11 +443,12 @@ export default function CreateStudentProfile() {
             Next <ArrowRight size={14} />
           </Button>
         ) : (
-          <Button disabled={!canProceedPersonal} onClick={createProfile}>
-            Create Profile <Check size={14} />
+          <Button disabled={!canProceedPersonal || creating} onClick={createProfile}>
+            {creating ? "Creating…" : "Create Profile"} <Check size={14} />
           </Button>
         )}
       </div>
+      {createError && <p className="mt-2 text-right text-xs text-rose-600">{createError}</p>}
     </div>
   );
 }

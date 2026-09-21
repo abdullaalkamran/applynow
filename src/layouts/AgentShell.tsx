@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Landmark, Award, ShieldCheck, Wallet, MessageCircle,
-  BarChart3, FolderOpen, Settings, Bell, Compass, Globe2, ArrowRight, X, ListChecks, LogOut,
+  BarChart3, FolderOpen, Settings, Bell, Compass, Globe2, ArrowRight, X, ListChecks, LogOut, UserCircle,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
@@ -39,7 +39,7 @@ export default function AgentShell() {
     { label: "Reports", path: "/agent/statements", icon: BarChart3 },
     { label: "Tasks", path: "/agent/tasks", icon: ListChecks },
     { label: "Resources", icon: FolderOpen },
-    { label: "Settings", icon: Settings },
+    { label: "Profile", path: "/agent/profile", icon: Settings },
   ];
 
   function handleLogout() {
@@ -177,6 +177,12 @@ export default function AgentShell() {
                     <p className="text-sm font-medium text-slate-800">{currentUser.name}</p>
                     <p className="text-[11px] text-slate-400">Agent</p>
                   </div>
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate("/agent/profile"); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    <UserCircle size={14} /> My Profile
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-600 hover:bg-slate-50"

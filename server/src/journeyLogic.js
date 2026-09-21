@@ -91,6 +91,7 @@ function syncFinancialReadinessStage(stages, shared) {
     openingDate: toDate(shared.openingDate),
     maturityDate: toDate(shared.maturityDate),
     bankStatus: shared.bankStatus,
+    bankName: shared.bankName || undefined,
     accountHolder: shared.accountHolder || undefined,
     accountType: shared.accountType || undefined,
     depositType: shared.depositType || undefined,

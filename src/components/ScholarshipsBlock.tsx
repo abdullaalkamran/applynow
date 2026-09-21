@@ -1,6 +1,6 @@
 // A university's named scholarships, each with its own award amount and eligibility note — the
-// full detail behind the plain `scholarshipsAvailable` flag and the terser scholarshipAmountUSD()
-// estimate shown elsewhere. Shown on the Overview tab of every role's University Detail page.
+// full detail behind the plain `scholarshipsAvailable` flag and the terser scholarshipLabel()
+// summary shown elsewhere. Shown on the Overview tab of every role's University Detail page.
 import type { University } from "../types";
 
 export function ScholarshipsBlock({ university }: { university: University }) {

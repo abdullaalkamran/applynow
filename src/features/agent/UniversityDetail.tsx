@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
-  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks,
+  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, BookOpen,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { scholarshipAmountUSD, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
+import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
+import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
@@ -115,9 +115,9 @@ export default function AgentUniversityDetail() {
                 <div className="space-y-4">
                   <RestrictedRegionsNotice university={university} />
                   <div className="grid grid-cols-3 gap-3">
-                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={`$${course.feeUSD.toLocaleString()}`} />
+                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={`${university.currencySymbol}${course.feeUSD.toLocaleString()}`} />
                     <StatTile icon={<CalendarDays size={14} />} label="Intake" value={university.openIntake} />
-                    <StatTile icon={<GraduationCap size={14} />} label="Scholarship" value={scholarshipAmountUSD(university, course.feeUSD) ? `Up to $${scholarshipAmountUSD(university, course.feeUSD)!.toLocaleString()}` : "—"} />
+                    <StatTile icon={<GraduationCap size={14} />} label="Scholarship" value={scholarshipLabel(university) ?? "—"} />
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <FactTile
@@ -210,6 +210,27 @@ export default function AgentUniversityDetail() {
                   </div>
                   <RankingCaption university={university} />
                   <div className="space-y-2">
+                    {university.courses.length > 0 && (
+                      <ExpandableSection icon={<BookOpen size={13} />} title="Courses" preview={coursesPreview(university)} defaultExpanded className="bg-slate-50">
+                        <div className="space-y-1.5">
+                          {university.courses.map((c) => (
+                            <button
+                              key={c.name}
+                              onClick={() => { setActiveCourseName(c.name); setCourseTab("Overview"); }}
+                              className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white p-2.5 text-left hover:bg-slate-50"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-slate-800">{c.name}</p>
+                                <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+                                {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </ExpandableSection>
+                    )}
                     {university.subjects.length > 0 && (
                       <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)} className="bg-slate-50">
                         <div className="flex flex-wrap gap-1.5">
@@ -266,7 +287,7 @@ export default function AgentUniversityDetail() {
                         <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
-                        ${c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                        {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
                       </div>
                     </button>
                   ))}

@@ -5,14 +5,14 @@
 // "Subjects" (every distinct field of study offered here).
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Search, GraduationCap, BookOpen, ChevronRight } from "lucide-react";
+import { Search, GraduationCap, BookOpen, ChevronRight, Wallet } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
 
-const TABS = ["Overview", "Universities", "Subjects"] as const;
+const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
 export default function CountryDetail() {
   const { country: countryParam } = useParams();
@@ -31,8 +31,17 @@ export default function CountryDetail() {
     return Array.from(counts.entries()).map(([subjectName, count]) => ({ subject: subjectName, count })).sort((a, b) => b.count - a.count);
   }, [universities]);
 
+  const courseOfferings = useMemo(
+    () => universities.flatMap((u) => u.courses.map((c) => ({ university: u, course: c }))),
+    [universities]
+  );
+
   function openUniversityProfile(universityId: string) {
     navigate(`/student/universities/${universityId}`);
+  }
+
+  function openCourse(universityId: string, courseName: string) {
+    navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName } });
   }
 
   function openSubject(subjectName: string) {
@@ -100,6 +109,33 @@ export default function CountryDetail() {
             <div className="mt-5">
               <CountryGuideDisclosure country={countryDetails} />
             </div>
+          </div>
+        )}
+
+        {tab === "Courses" && (
+          <div className="mt-4 space-y-2.5 px-5">
+            {courseOfferings.map(({ university: u, course: c }) => (
+              <button
+                key={`${u.id}::${c.name}`}
+                onClick={() => openCourse(u.id, c.name)}
+                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+              >
+                <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{c.name}</p>
+                  <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
+                  <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold text-slate-700">
+                    <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                  </p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+              </button>
+            ))}
+            {courseOfferings.length === 0 && (
+              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <p className="text-sm font-medium text-slate-700">No courses listed in {country} yet</p>
+              </div>
+            )}
           </div>
         )}
 

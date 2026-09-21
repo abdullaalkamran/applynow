@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award, ListChecks, Sparkles,
+  ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award, ListChecks, Sparkles, BookOpen,
 } from "lucide-react";
 import { fetchCourseImportConfig, listCourseImports, type CourseImportConfig } from "../../../data/courseImportsStore";
 import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
@@ -16,7 +16,7 @@ import { ExpandableSection } from "../../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
 import { depositLabel } from "../../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
+import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 import { getUniversityById, deleteUniversity } from "../../../data/universityCatalogStore";
 
 const TABS = ["Overview", "Campuses", "Courses", "Requirements", "Fees"] as const;
@@ -141,6 +141,37 @@ export default function DataUniversityDetail() {
                 </div>
               )}
               <div className="space-y-2">
+                <ExpandableSection
+                  icon={<BookOpen size={14} />}
+                  title="Courses"
+                  preview={university.courses.length === 0 ? "No courses added yet" : coursesPreview(university)}
+                  defaultExpanded
+                  className="bg-slate-50"
+                >
+                  {university.courses.length === 0 ? (
+                    <p className="text-xs text-slate-400">No courses added yet — use "Add course" on the Courses tab.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {university.courses.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => navigate(`/staff/data/universities/${university.id}/courses/${c.id}`)}
+                          className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white p-2.5 text-left hover:bg-slate-100"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium text-slate-800">{c.name}</p>
+                            <p className="truncate text-xs text-slate-400">{c.subject} · {c.level} · {c.duration}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-700">{c.currencySymbol ?? university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
+                            <ChevronRight size={14} className="text-slate-300" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ExpandableSection>
+
                 {university.highlights.length > 0 && (
                   <ExpandableSection title="Why study here?" preview={highlightsPreview(university)} className="bg-slate-50">
                     <ul className="space-y-1.5">
@@ -212,7 +243,7 @@ export default function DataUniversityDetail() {
                       <p className="truncate text-xs text-slate-400">{c.city}</p>
                     </div>
                   </div>
-                  {c.feeUSD !== undefined && <span className="shrink-0 text-xs font-semibold text-slate-700">${c.feeUSD.toLocaleString()}/yr</span>}
+                  {c.feeUSD !== undefined && <span className="shrink-0 text-xs font-semibold text-slate-700">{university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>}
                 </div>
               ))}
               {(university.campuses ?? []).length === 0 && (

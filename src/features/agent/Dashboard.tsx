@@ -5,7 +5,8 @@ import {
   ListChecks, Check, Clock, MessageSquare, Globe2, Plus, TrendingUp, AlertCircle, CalendarDays,
 } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
-import { AGENTS, CURRENT_AGENT_ID, UNIVERSITIES } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
+import { AGENTS, CURRENT_AGENT_ID } from "../../data/mockData";
 import { getAllApplications, getStatusHistory } from "../../data/applicationsStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getStatTrends } from "../../data/staffStatsSnapshotStore";
@@ -39,6 +40,7 @@ function daysAgo(dateStr: string): string {
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
+  const UNIVERSITIES = getAllUniversities();
   const [, forceTick] = useState(0);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);

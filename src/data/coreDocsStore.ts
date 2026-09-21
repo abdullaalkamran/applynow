@@ -114,6 +114,15 @@ export function requestCoreDocType(studentId: string, type: string): void {
     .catch((err) => console.warn("Failed to request core document type:", err));
 }
 
+/** Guarantees a core-doc slot of this type exists for the student, without ever duplicating or
+ * regressing one that's already there (uploaded, verified, rejected, or already requested) — used
+ * to auto-require a document the moment some event (e.g. a fresh application submission) first
+ * makes it relevant. */
+export function ensureCoreDocRequested(studentId: string, type: string): void {
+  if (loadCoreDocs(studentId).some((d) => d.type === type)) return;
+  requestCoreDocType(studentId, type);
+}
+
 /** Counsellor-only — approves an uploaded core document. */
 export function verifyCoreDoc(id: string): void {
   cache = cache.map((d) => (d.id === id ? { ...d, status: "verified" } : d));

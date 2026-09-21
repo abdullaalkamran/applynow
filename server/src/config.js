@@ -32,6 +32,11 @@ function envDefaults() {
       .filter(Boolean),
     adminToken: process.env.ADMIN_SETTINGS_TOKEN || "",
     jwtSecret: jwtSecret(),
+    // "Sign in / up with Google" (see routes/auth.js's POST /google) — the same Client ID must also
+    // be set as VITE_GOOGLE_CLIENT_ID on the frontend so its button is issued for the same OAuth
+    // client the server verifies tokens against. Empty until a real Google Cloud OAuth client
+    // exists — the route fails closed (503) rather than silently accepting unverifiable tokens.
+    googleClientId: process.env.GOOGLE_CLIENT_ID || "",
     anthropic: {
       apiKey: process.env.ANTHROPIC_API_KEY || "",
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",

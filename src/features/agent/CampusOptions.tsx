@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MapPin, Wallet, CalendarDays, GraduationCap } from "lucide-react";
 import { SkylineArt } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { campusesFor, scholarshipAmountUSD } from "../../utils/universityFilter";
+import { campusesFor, scholarshipLabel } from "../../utils/universityFilter";
 
 export default function AgentCampusOptions() {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export default function AgentCampusOptions() {
 
       <div className="mt-4 space-y-3">
         {campuses.map((c) => {
-          const scholarship = course ? scholarshipAmountUSD(university, c.feeUSD) : null;
+          const scholarship = course ? scholarshipLabel(university) : null;
           return (
             <div key={c.name} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.05)]">
               {university.coverPhotoUrl ? (
@@ -52,10 +52,10 @@ export default function AgentCampusOptions() {
                 <p className="text-xs font-semibold text-slate-800">{c.name}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400"><MapPin size={11} /> {c.city}, {university.country}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1"><Wallet size={11} /> ${c.feeUSD.toLocaleString()}/yr</span>
+                  <span className="flex items-center gap-1"><Wallet size={11} /> {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
                   <span className="flex items-center gap-1"><CalendarDays size={11} /> {university.openIntake}</span>
                   {scholarship !== null && (
-                    <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> Up to ${scholarship.toLocaleString()}</span>
+                    <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> {scholarship}</span>
                   )}
                 </div>
               </div>

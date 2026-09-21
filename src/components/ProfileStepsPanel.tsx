@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Pencil, Plus, Trash2, X, Lock } from "lucide-react";
 import { getProfileCompletion, markStepComplete } from "../data/profileCompletion";
 import { loadAcademicLevels, saveAcademicLevels, type AcademicLevelEntry } from "../data/academicProfileStore";
 import {
@@ -86,6 +86,20 @@ function EditSelect({ label, value, options, onChange }: { label: string; value:
   );
 }
 
+/** Shown in place of EditField for a field a given editor isn't allowed to change (see
+ * ProfileStepsPanel's `lockedFields`) — the current value stays visible, just not editable, rather
+ * than disappearing from the form entirely. */
+function LockedField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="block">
+      <span className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400">
+        <Lock size={9} /> {label}
+      </span>
+      <p className={`${editInputClass} cursor-not-allowed bg-slate-100 text-slate-500`}>{value || "—"}</p>
+    </div>
+  );
+}
+
 /** Small header-row button that starts editing a section — only rendered when the caller passes
  * `editable` (counsellor views of a student's profile), never on the student's own read view. */
 function EditButton({ onClick }: { onClick: () => void }) {
@@ -115,7 +129,9 @@ function SaveCancelRow({ onSave, onCancel }: { onSave: () => void; onCancel: () 
  * since it's driven entirely by real stored data rather than role-specific state. Pass `editable`
  * to let a counsellor fill in or correct a student's answers on their behalf — every save goes
  * through the same store functions the student's own onboarding forms use, keyed to `studentId`. */
-export function ProfileStepsPanel({ studentId, editable = false }: { studentId: string; editable?: boolean }) {
+export function ProfileStepsPanel({
+  studentId, editable = false, lockedPersonalFields = [],
+}: { studentId: string; editable?: boolean; lockedPersonalFields?: (keyof PersonalInfoDetails)[] }) {
   const [, forceTick] = useState(0);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [personalDraft, setPersonalDraft] = useState<PersonalInfoDetails | null>(null);
@@ -221,7 +237,7 @@ export function ProfileStepsPanel({ studentId, editable = false }: { studentId: 
               {s.key === "personal-information" && (
                 editingThis && personalDraft ? (
                   <div className="ml-11 mt-2.5 space-y-3">
-                    <PersonalInfoForm draft={personalDraft} onChange={setPersonalDraft} />
+                    <PersonalInfoForm draft={personalDraft} onChange={setPersonalDraft} lockedFields={lockedPersonalFields} />
                     <SaveCancelRow onSave={savePersonal} onCancel={cancelEdit} />
                   </div>
                 ) : personalInfo ? (
@@ -537,17 +553,24 @@ export function ProfileStepsPanel({ studentId, editable = false }: { studentId: 
   );
 }
 
-function PersonalInfoForm({ draft, onChange }: { draft: PersonalInfoDetails; onChange: (v: PersonalInfoDetails) => void }) {
+function PersonalInfoForm({
+  draft, onChange, lockedFields = [],
+}: { draft: PersonalInfoDetails; onChange: (v: PersonalInfoDetails) => void; lockedFields?: (keyof PersonalInfoDetails)[] }) {
   function set<K extends keyof PersonalInfoDetails>(key: K, value: PersonalInfoDetails[K]) {
     onChange({ ...draft, [key]: value });
   }
+  const locked = new Set(lockedFields);
   return (
     <>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-3">
         <EditField label="First name" value={draft.firstName} onChange={(v) => set("firstName", v)} />
         <EditField label="Last name" value={draft.lastName} onChange={(v) => set("lastName", v)} />
-        <EditField label="Email" type="email" value={draft.email} onChange={(v) => set("email", v)} />
-        <EditField label="Phone" value={draft.phone} onChange={(v) => set("phone", v)} />
+        {locked.has("email") ? <LockedField label="Email" value={draft.email} /> : (
+          <EditField label="Email" type="email" value={draft.email} onChange={(v) => set("email", v)} />
+        )}
+        {locked.has("phone") ? <LockedField label="Phone" value={draft.phone} /> : (
+          <EditField label="Phone" value={draft.phone} onChange={(v) => set("phone", v)} />
+        )}
         <EditField label="Date of birth" type="date" value={draft.dob} onChange={(v) => set("dob", v)} />
         <EditSelect label="Gender" value={draft.gender} options={GENDERS} onChange={(v) => set("gender", v)} />
         <EditField label="Nationality" value={draft.nationality} onChange={(v) => set("nationality", v)} />

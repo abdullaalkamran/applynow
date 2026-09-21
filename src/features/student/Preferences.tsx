@@ -3,7 +3,7 @@ import { Check, Bell, GraduationCap, Globe2, BookOpen, Wallet } from "lucide-rea
 import { MobileHeader, Toggle, Chip, Section, SubLabel, ChipRow } from "../../components/ui/mobile";
 import { COUNTRIES } from "../../data/countries";
 import { markStepComplete } from "../../data/profileCompletion";
-import { savePreferences } from "../../data/studentProfileDetailsStore";
+import { loadPreferences, savePreferences } from "../../data/studentProfileDetailsStore";
 import { getAllSubjects } from "../../data/subjectsStore";
 
 const STUDY_LEVELS = ["Bachelor's", "Master's", "PhD", "Diploma"];
@@ -17,23 +17,27 @@ const DESTINATIONS = DESTINATION_CODES
   .map((code) => COUNTRIES.find((c) => c.iso2 === code))
   .filter((c): c is NonNullable<typeof c> => Boolean(c));
 
-const DEFAULT_DESTINATIONS = new Set(["GB", "AU", "CA"]);
-const DEFAULT_FIELDS = new Set(["Data Science & AI", "Computer Science & IT"]);
-
 export default function Preferences() {
   const FIELDS = [...getAllSubjects(), "Other"];
-  const [destinations, setDestinations] = useState<Set<string>>(new Set(DEFAULT_DESTINATIONS));
-  const [studyLevel, setStudyLevel] = useState("Master's");
-  const [fields, setFields] = useState<Set<string>>(new Set(DEFAULT_FIELDS));
-  const [intake, setIntake] = useState("January");
-  const [budget, setBudget] = useState("£30k – £40k");
-  const [accommodation, setAccommodation] = useState("University Halls");
-  const [scholarshipInterest, setScholarshipInterest] = useState(true);
-  const [emailUpdates, setEmailUpdates] = useState(true);
-  const [smsUpdates, setSmsUpdates] = useState(true);
-  const [whatsappUpdates, setWhatsappUpdates] = useState(false);
-  const [pushUpdates, setPushUpdates] = useState(true);
-  const [contactLanguage, setContactLanguage] = useState("English");
+  // Real, previously-saved preferences for whoever's actually logged in — genuinely unset (not a
+  // fabricated "sample" choice like a specific destination/field/budget) for anyone who hasn't
+  // saved anything of their own yet; the "Choose at least one..." validation in handleSave exists
+  // precisely to make sure a first-time save reflects a real choice, not a pre-filled default.
+  const saved0 = loadPreferences();
+  const [destinations, setDestinations] = useState<Set<string>>(
+    () => new Set(saved0 ? saved0.destinations.map((name) => COUNTRIES.find((c) => c.name === name)?.iso2).filter((c): c is string => !!c) : [])
+  );
+  const [studyLevel, setStudyLevel] = useState(saved0?.studyLevel ?? "");
+  const [fields, setFields] = useState<Set<string>>(() => new Set(saved0 ? saved0.fields : []));
+  const [intake, setIntake] = useState(saved0?.intake ?? "");
+  const [budget, setBudget] = useState(saved0?.budget ?? "");
+  const [accommodation, setAccommodation] = useState(saved0?.accommodation ?? "");
+  const [scholarshipInterest, setScholarshipInterest] = useState(saved0?.scholarshipInterest ?? true);
+  const [emailUpdates, setEmailUpdates] = useState(saved0?.emailUpdates ?? true);
+  const [smsUpdates, setSmsUpdates] = useState(saved0?.smsUpdates ?? true);
+  const [whatsappUpdates, setWhatsappUpdates] = useState(saved0?.whatsappUpdates ?? false);
+  const [pushUpdates, setPushUpdates] = useState(saved0?.pushUpdates ?? true);
+  const [contactLanguage, setContactLanguage] = useState(saved0?.contactLanguage ?? "English");
 
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);

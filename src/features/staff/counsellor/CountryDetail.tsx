@@ -5,7 +5,7 @@
 // study offered here).
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { GraduationCap, Award, BookOpen } from "lucide-react";
+import { GraduationCap, Award, BookOpen, Wallet, ChevronRight } from "lucide-react";
 import { BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { CountryGuideDisclosure } from "../../../components/CountryGuideSection";
@@ -15,7 +15,7 @@ import { getCountryByName } from "../../../data/countryRegistry";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 
-const TABS = ["Overview", "Universities", "Subjects"] as const;
+const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
 export default function CounsellorCountryDetail() {
   const navigate = useNavigate();
@@ -33,6 +33,12 @@ export default function CounsellorCountryDetail() {
     universities.forEach((u) => u.courses.forEach((c) => counts.set(c.subject, (counts.get(c.subject) ?? 0) + 1)));
     return Array.from(counts.entries()).map(([subject, count]) => ({ subject, count })).sort((a, b) => b.count - a.count);
   })();
+
+  const courseOfferings = universities.flatMap((u) => u.courses.map((c) => ({ university: u, course: c })));
+
+  function openCourse(universityId: string, courseName: string) {
+    navigate(`/staff/counsellor/partners/universities/${universityId}`, { state: { selectedCourseName: courseName } });
+  }
 
   return (
     <div>
@@ -109,6 +115,31 @@ export default function CounsellorCountryDetail() {
           {universities.length === 0 && (
             <p className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
               No partner universities in {country} yet.
+            </p>
+          )}
+        </div>
+      ) : tab === "Courses" ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {courseOfferings.map(({ university: u, course: c }) => (
+            <button
+              key={`${u.id}::${c.name}`}
+              onClick={() => openCourse(u.id, c.name)}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
+            >
+              <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
+                <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
+                <p className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-slate-700">
+                  <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                </p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-slate-300" />
+            </button>
+          ))}
+          {courseOfferings.length === 0 && (
+            <p className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
+              No courses listed in {country} yet.
             </p>
           )}
         </div>

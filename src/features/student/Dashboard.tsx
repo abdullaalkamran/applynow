@@ -2,27 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
-  ChevronRight, Check, TrendingUp, Calendar, Award, MapPin, AlertCircle, Wallet, ClipboardCheck,
+  ChevronRight, Check, Calendar, MapPin, AlertCircle, Wallet, ClipboardCheck,
+  BookOpen, Plane, Landmark, Laptop, Wrench, HeartPulse, Palette, Scale, FlaskConical, GraduationCap,
+  BarChart3,
 } from "lucide-react";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
-import { STUDENTS, DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs } from "../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
 import { shortlistedCount } from "../../data/shortlistStore";
 import { getProfileCompletion } from "../../data/profileCompletion";
+import { loadPreferences } from "../../data/studentProfileDetailsStore";
+import { getCountryByName } from "../../data/countryRegistry";
+import { countryStats, subjectStats } from "../../utils/universityFilter";
+import { COUNTRIES } from "../../data/countries";
 import { APPLICATION_STAGES, applicationStageIndex, applicationBucket, applicationStatusTone } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
 import { getStudentTasks, type DisplayTask } from "../../utils/taskBoard";
 import { FinancialReadinessCard } from "../../components/FinancialReadinessCard";
 import { useAuth } from "../../context/AuthContext";
-
-const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
-const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
-const firstName = student.name.split(" ")[0];
-const myCounsellor = COUNSELLORS.find((c) => c.id === student.counsellorId);
-const myAgent = AGENTS.find((a) => a.id === student.agentId);
 
 function greeting() {
   const h = new Date().getHours();
@@ -70,11 +71,56 @@ function rankNumber(rank: string) {
   return parseInt(rank.replace(/\D/g, ""), 10) || Infinity;
 }
 
+// Same deterministic name→tone hash CountryOverview.tsx's CountryHero uses for its own SkylineArt
+// fallback — duplicated here (not exported there) so a destination photo card always falls back to
+// the same illustrated tone for a given country instead of a random one on every render.
+const SKYLINE_TONES = ["violet", "amber", "teal", "rose"] as const;
+function skylineToneFor(name: string): (typeof SKYLINE_TONES)[number] {
+  const seed = [...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return SKYLINE_TONES[seed % SKYLINE_TONES.length];
+}
+
+// Purely decorative, rotating icon set for the "Study Guide" rows — one per destination, cycling
+// through this fixed list rather than meaning anything topic-specific.
+const GUIDE_ICON_TONES = ["violet", "green", "blue", "rose"] as const;
+const GUIDE_ICONS = [BookOpen, Plane, Landmark, ShieldCheck];
+
+// Same field-of-study → icon matcher CountryOverview.tsx's "Popular Study Areas" card uses —
+// duplicated here (not exported there) for the "Recommended Subjects" row icons.
+const SUBJECT_ICONS: { match: RegExp; icon: typeof BookOpen }[] = [
+  { match: /business|management|finance|account/i, icon: Briefcase },
+  { match: /computer|software|it\b|data|tech/i, icon: Laptop },
+  { match: /engineer/i, icon: Wrench },
+  { match: /health|medic|nursing|life science/i, icon: HeartPulse },
+  { match: /art|design|humanit/i, icon: Palette },
+  { match: /law|legal/i, icon: Scale },
+  { match: /educat/i, icon: GraduationCap },
+  { match: /science/i, icon: FlaskConical },
+];
+function subjectIcon(subject: string) {
+  return (SUBJECT_ICONS.find((s) => s.match.test(subject)) ?? { icon: BookOpen }).icon;
+}
+
+/** Small circular "next" affordance — the one true precedent for this shape elsewhere in the app is
+ * the round arrow button on Onboarding.tsx's hero (`rounded-full bg-[var(--sd-card)]
+ * text-[var(--sd-ink)] shadow`), scaled down here for reuse inside cards/rows. */
+function RoundIconButton({ icon }: { icon: React.ReactNode }) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-[0_0_8px_rgba(0,0,0,0.1)]">
+      {icon}
+    </span>
+  );
+}
+
 const STEP_WIDTH = 58;
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Read fresh on every render (not a module-level snapshot) so this reflects whoever's actually
+  // logged in — allStudentsStore's cache warms in the background right after login, and the shell
+  // remounts this page once it lands (see syncCache.ts's useCacheSync).
+  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
   const financeCardRef = useRef<HTMLDivElement>(null);
   const [, forceTick] = useState(0);
   const [currentApplicationIndex, setCurrentApplicationIndex] = useState(0);
@@ -138,6 +184,74 @@ export default function Dashboard() {
     .filter((u) => u.scholarshipsAvailable && !appliedTo.has(u.name))
     .sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank))[0];
   const recommendedCourse = recommended?.courses[0];
+
+  // Real destinations to spotlight, ranked by real university count (countryStats(), same helper
+  // Explore's "Countries" tab uses) — the student's own saved Preferences sort first since that's
+  // an explicit choice, but only ever among countries that actually have universities on file.
+  // Never padded with fabricated filler: both "Top Destinations" and "Study Guide" below render
+  // however many of these (0-4) are real, and hide entirely when there are none.
+  const preferredDestinations = loadPreferences()?.destinations ?? [];
+  const realCountryStats = countryStats().filter((s) => s.universityCount > 0);
+  const rankedCountryStats = [
+    ...realCountryStats.filter((s) => preferredDestinations.includes(s.name)),
+    ...realCountryStats.filter((s) => !preferredDestinations.includes(s.name)),
+  ];
+  const topDestinations = rankedCountryStats.slice(0, 4).map((s) => ({
+    ...s,
+    details: getCountryByName(s.name),
+    flag: COUNTRIES.find((c) => c.name === s.name)?.flag,
+  }));
+
+  // Same idea as topDestinations above, for fields of study — the student's own saved Preferences
+  // (Preferences.fields, minus the catch-all "Other") sort first, each ranked among themselves by
+  // real university count, filled out with the catalog's next most-offered real subjects. Both
+  // groups are already filtered to universityCount > 0 by subjectStats() itself.
+  const preferredFields = (loadPreferences()?.fields ?? []).filter((f) => f !== "Other");
+  const bySubjectPopularity = (a: { universityCount: number }, b: { universityCount: number }) => b.universityCount - a.universityCount;
+  const realSubjectStats = subjectStats();
+  const recommendedSubjects = [
+    ...realSubjectStats.filter((s) => preferredFields.includes(s.name)).sort(bySubjectPopularity),
+    ...realSubjectStats.filter((s) => !preferredFields.includes(s.name)).sort(bySubjectPopularity),
+  ].slice(0, 4);
+
+  // Only reachable once allStudentsStore's cache has actually resolved — brief on a fresh login,
+  // matching the same trade-off every other migrated store makes (see syncCache.ts's doc comment).
+  if (!student) {
+    return <p className="p-5 text-sm text-slate-400">Loading your dashboard…</p>;
+  }
+  const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
+  const firstName = student.name.split(" ")[0];
+  const myCounsellor = COUNSELLORS.find((c) => c.id === student.counsellorId);
+  const myAgent = AGENTS.find((a) => a.id === student.agentId);
+
+  // Nothing else on the home page — recommendations, applications, tasks — means anything until the
+  // required parts of the profile are filled in (same gate as Explore/Apply); showing any of it
+  // early just invites exploring/applying from a profile no one downstream can actually act on.
+  if (requiredRemaining > 0) {
+    const nextStep = pendingSteps.find((s) => s.required) ?? pendingSteps[0];
+    return (
+      <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
+        <div className="lg:mx-auto lg:max-w-6xl">
+          <h1 className="text-[15px] font-bold text-slate-900">StudyOne</h1>
+          <div className="mt-10 flex flex-col items-center px-4 py-16 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+              <AlertCircle size={26} />
+            </div>
+            <h2 className="mt-4 text-[19px] font-bold text-slate-900">Welcome, {firstName} — let's finish your profile</h2>
+            <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-slate-500">
+              We need {requiredRemaining} more required step{requiredRemaining > 1 ? "s" : ""} before your dashboard, recommendations, and applications become available.
+            </p>
+            <button
+              onClick={() => navigate(nextStep.path)}
+              className="mt-5 rounded-xl bg-[image:var(--sd-gradient)] px-6 py-3 text-[13px] font-semibold text-white"
+            >
+              Complete Profile
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
@@ -208,7 +322,24 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-              {nextStepTasks.length === 0 ? (
+              {requiredRemaining > 0 && (
+                <button
+                  onClick={() => navigate((pendingSteps.find((s) => s.required) ?? pendingSteps[0]).path)}
+                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left bg-rose-50/60 ${nextStepTasks.length > 0 ? "border-b border-slate-50" : ""}`}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <AlertCircle size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-rose-700">Complete your profile</p>
+                    <p className="truncate text-xs text-rose-500">
+                      {requiredRemaining} required step{requiredRemaining > 1 ? "s" : ""} left — needed to explore and apply to programs
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className="shrink-0 text-rose-300" />
+                </button>
+              )}
+              {nextStepTasks.length === 0 && requiredRemaining === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
               ) : (
                 nextStepTasks.map((t, i) => {
@@ -376,21 +507,17 @@ export default function Dashboard() {
               </div>
             )}
 
-            <h2 className="mt-6 text-[15px] font-semibold text-slate-900">Quick Actions</h2>
-            <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
+            <h2 className="text-[15px] font-semibold text-slate-900">Quick Actions</h2>
+            <div className="mt-3 flex items-start justify-between gap-2">
               {QUICK_ACTIONS.map((a) => (
-                <button
-                  key={a.title}
-                  onClick={() => navigate(a.path)}
-                  className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-2 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)] sm:p-4"
-                >
-                  <div className={`flex h-7 w-7 items-center justify-center rounded-full sm:h-10 sm:w-10 ${iconBg[a.tone]}`}>
-                    <a.icon size={14} className="sm:hidden" />
-                    <a.icon size={18} className="hidden sm:block" />
-                  </div>
-                  <p className="mt-2 text-[10.5px] font-semibold leading-tight text-slate-900 sm:mt-3 sm:text-[13px]">{a.title}</p>
-                  <p className="mt-0.5 hidden text-[11px] text-slate-400 sm:block">{a.subtitle}</p>
-                  <ChevronRight size={13} className="mt-2 hidden text-slate-300 sm:block" />
+                <button key={a.title} onClick={() => navigate(a.path)} className="flex flex-col items-center gap-1.5">
+                  <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full sm:h-16 sm:w-16 ${iconBg[a.tone]}`}>
+                    <a.icon size={22} className="sm:hidden" />
+                    <a.icon size={26} className="hidden sm:block" />
+                  </span>
+                  <span className="max-w-[64px] text-center text-[10.5px] font-medium leading-tight text-slate-600 sm:max-w-[76px] sm:text-[11.5px]">
+                    {a.title}
+                  </span>
                 </button>
               ))}
             </div>
@@ -398,44 +525,150 @@ export default function Dashboard() {
             {recommended && recommendedCourse && (
               <>
                 <div className="mt-6 flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900">Recommended for You</h2>
-                  <button onClick={() => navigate("/student/search")} className="text-[13px] font-medium text-[#2955C4]">
-                    View All
+                  <h2 className="text-[15px] font-semibold text-slate-900">Recommended</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                    See all <ChevronRight size={14} />
                   </button>
                 </div>
                 <button
                   onClick={() => navigate(`/student/universities/${recommended.id}`, { state: { selectedCourseName: recommendedCourse.name } })}
-                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
                 >
-                  <LogoBadge name={recommended.name} tone={recommended.tone} logoUrl={recommended.logoUrl} className="h-16 w-16 text-base" />
+                  <LogoBadge name={recommended.name} tone={recommended.tone} logoUrl={recommended.logoUrl} className="h-14 w-14 shrink-0 text-sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold text-slate-900">{recommendedCourse.name}</p>
+                    <p className="truncate text-[13.5px] font-semibold text-slate-900">{recommendedCourse.name}</p>
                     <p className="truncate text-xs text-slate-400">{recommended.name}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500">
                       <span className="inline-flex items-center gap-1">
-                        <TrendingUp size={11} className="text-slate-400" /> {recommended.worldRank}
+                        <BarChart3 size={11} className="text-slate-400" /> {recommended.worldRank}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Calendar size={11} className="text-slate-400" /> {recommended.openIntake}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[#12805A]">
-                        <Award size={11} /> Scholarships Available
-                      </span>
+                      {recommended.scholarshipsAvailable && (
+                        <span className="inline-flex items-center gap-1 text-[#12805A]">
+                          <ShieldCheck size={12} />
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                  <RoundIconButton icon={<ChevronRight size={16} />} />
                 </button>
               </>
             )}
 
-            {pendingSteps.length > 0 && (
+            {topDestinations.length > 0 && (
+              <>
+                <div className="mt-6 flex items-center justify-between">
+                  <h2 className="text-[15px] font-semibold text-slate-900">Top Destinations</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                    See all <ChevronRight size={14} />
+                  </button>
+                </div>
+                <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-3">
+                  {topDestinations.map((d) => (
+                    <button
+                      key={d.name}
+                      onClick={() => navigate(`/student/countries/${encodeURIComponent(d.name)}`)}
+                      aria-label={d.name}
+                      className="relative aspect-[4/5] overflow-hidden rounded-2xl"
+                    >
+                      {d.details?.photoUrl ? (
+                        <img src={d.details.photoUrl} alt={d.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <SkylineArt tone={skylineToneFor(d.name)} className="h-full w-full" />
+                      )}
+                      {d.flag && (
+                        <span className="absolute bottom-2 left-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg leading-none shadow">
+                          {d.flag}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {topDestinations.length > 0 && (
+              <>
+                <div className="mt-6 flex items-center justify-between">
+                  <h2 className="text-[15px] font-semibold text-slate-900">Study Guide</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                    See all <ChevronRight size={14} />
+                  </button>
+                </div>
+                {topDestinations.map((d, i) => {
+                  const GuideIcon = GUIDE_ICONS[i % GUIDE_ICONS.length];
+                  const tone = GUIDE_ICON_TONES[i % GUIDE_ICON_TONES.length];
+                  return (
+                    <button
+                      key={d.name}
+                      onClick={() => navigate(`/student/countries/${encodeURIComponent(d.name)}`)}
+                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                    >
+                      <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
+                        <GuideIcon size={24} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold text-slate-900">Studying in {d.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {d.universityCount} {d.universityCount === 1 ? "university" : "universities"}
+                        </p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                          {d.details?.whyThisCountry?.split("\n")[0] ?? `${d.courseCount} programs available`}
+                        </p>
+                      </div>
+                      <RoundIconButton icon={<ChevronRight size={16} />} />
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            {recommendedSubjects.length > 0 && (
+              <>
+                <div className="mt-6 flex items-center justify-between">
+                  <h2 className="text-[15px] font-semibold text-slate-900">Recommended Subjects</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                    See all <ChevronRight size={14} />
+                  </button>
+                </div>
+                {recommendedSubjects.map((s, i) => {
+                  const SubjectIcon = subjectIcon(s.name);
+                  const tone = GUIDE_ICON_TONES[i % GUIDE_ICON_TONES.length];
+                  return (
+                    <button
+                      key={s.name}
+                      onClick={() => navigate(`/student/subjects/${encodeURIComponent(s.name)}`)}
+                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                    >
+                      <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
+                        <SubjectIcon size={24} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14px] font-semibold text-slate-900">{s.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {s.universityCount} {s.universityCount === 1 ? "university" : "universities"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">offering this subject</p>
+                      </div>
+                      <RoundIconButton icon={<ChevronRight size={16} />} />
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            {/* The urgent, required case is already surfaced at the top of "Your Next Steps" above —
+                this is only the softer "finish the optional bits" nudge once nothing required is
+                left, so the same message isn't shown twice. */}
+            {pendingSteps.length > 0 && requiredRemaining === 0 && (
               <button
                 onClick={() => navigate(pendingSteps[0].path)}
                 className="mt-6 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
               >
                 <span className="text-[12.5px] text-slate-600">
-                  Profile {percent}% complete
-                  {requiredRemaining > 0 ? ` · ${requiredRemaining} required step${requiredRemaining > 1 ? "s" : ""} left` : " · finish up"}
+                  Profile {percent}% complete · finish up
                   {outstandingDocs > 0 ? ` · ${outstandingDocs} document${outstandingDocs > 1 ? "s" : ""} needed` : ""}
                 </span>
                 <ChevronRight size={14} className="shrink-0 text-slate-300" />

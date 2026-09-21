@@ -145,6 +145,9 @@ model Staff {
   organization String?
   phone        String?
   avatarColor  String
+  // Short public code (agents only, lazily generated on first self-fetch — see GET /staff/me)
+  // shared as a link/QR so a prospective student's signup auto-connects to this agent.
+  referralCode String?     @unique
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -851,6 +854,7 @@ model StudentFinancialReadiness {
   openingDate       DateTime? @db.Date
   maturityDate      DateTime? @db.Date
   bankStatus        String    @default("Not Started")
+  bankName          String?
   accountHolder     String?
   accountType       String?
   depositType       String?

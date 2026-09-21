@@ -6,13 +6,14 @@ import {
 } from "lucide-react";
 import { LogoBadge, DocChecklistRow, SupportRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import {
-  DOCUMENTS, CURRENT_STUDENT_ID, STUDENTS,
+  DOCUMENTS, CURRENT_STUDENT_ID,
   COUNSELLORS, AGENTS, ADMISSION_OFFICERS, COMPLIANCE_OFFICERS,
 } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs, addUploadedDoc as addUploadedDocToStore } from "../../data/applicationDocsStore";
-import { scholarshipAmountUSD } from "../../utils/universityFilter";
+import { scholarshipLabel } from "../../utils/universityFilter";
 import { docMatchesType, buildChecklist, buildCoreChecklist, coreDocTypes } from "../../utils/documentChecklist";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
@@ -136,9 +137,9 @@ export default function ApplicationDetail() {
   // requirement) isn't something the student only discovers by clicking into the Documents tab.
   const missingAppDocs = checklistRows.filter((row) => !row.own && !row.reused);
 
-  const scholarshipUSD = course ? scholarshipAmountUSD(university!, course.feeUSD) : null;
+  const scholarship = course ? scholarshipLabel(university!) : null;
 
-  const student = STUDENTS.find((s) => s.id === application.studentId);
+  const student = getAllStudents().find((s) => s.id === application.studentId);
   const reviewTeam = [
     student && COUNSELLORS.find((c) => c.id === student.counsellorId),
     student && AGENTS.find((a) => a.id === student.agentId),
@@ -382,7 +383,7 @@ export default function ApplicationDetail() {
                         <InfoRow icon={<Landmark size={15} />} label="Tuition Fee" value={`${university.currencySymbol}${course.feeUSD.toLocaleString()} per year`} />
                         <InfoRow icon={<Calendar size={15} />} label="Intake" value={application.intake} />
                         <InfoRow icon={<MapPin size={15} />} label="Campus" value={application.campus ?? "Main Campus"} />
-                        <InfoRow icon={<GraduationCap size={15} />} label="Scholarship" value={scholarshipUSD ? `Up to $${scholarshipUSD.toLocaleString()}` : "Not available"} last />
+                        <InfoRow icon={<GraduationCap size={15} />} label="Scholarship" value={scholarship ?? "Not available"} last />
                       </div>
                     )}
                   </div>

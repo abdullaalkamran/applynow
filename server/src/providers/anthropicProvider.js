@@ -29,6 +29,16 @@ function toAnthropicMessages(messages) {
       return { role: "assistant", content };
     }
 
+    if (message.image) {
+      return {
+        role: message.role,
+        content: [
+          { type: "image", source: { type: "base64", media_type: message.image.mimeType, data: message.image.base64 } },
+          { type: "text", text: message.text || "" },
+        ],
+      };
+    }
+
     return { role: message.role, content: message.text || "" };
   });
 }

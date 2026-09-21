@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { BookOpen, Wallet, CalendarDays, GraduationCap, ChevronRight } from "lucide-react";
 import { MobileHeader, SkylineArt } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { scholarshipAmountUSD, campusesFor } from "../../utils/universityFilter";
+import { scholarshipLabel, campusesFor } from "../../utils/universityFilter";
 
 export default function CampusOptions() {
   const { id } = useParams();
@@ -46,7 +46,7 @@ export default function CampusOptions() {
 
           <div className="mt-4 space-y-3">
             {campuses.map((c) => {
-              const scholarshipUSD = scholarshipAmountUSD(university, c.feeUSD);
+              const scholarship = scholarshipLabel(university);
               return (
                 <button
                   key={c.name}
@@ -73,9 +73,9 @@ export default function CampusOptions() {
                       <span className="inline-flex items-center gap-1">
                         <CalendarDays size={11} className="text-slate-400" /> {university.openIntake}
                       </span>
-                      {scholarshipUSD && (
+                      {scholarship && (
                         <span className="inline-flex items-center gap-1">
-                          <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
+                          <GraduationCap size={11} className="text-slate-400" /> {scholarship}
                         </span>
                       )}
                     </div>

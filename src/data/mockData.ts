@@ -36,7 +36,16 @@ export const STUDENTS: Student[] = [
   { id: "s12", name: "Meher Nabila", email: "meher.nabila@example.com", phone: "+880 1912-987654", country: "Bangladesh", agentId: "a1", avatarColor: "bg-rose-400", riskFlag: "none" },
 ];
 
-export const CURRENT_STUDENT_ID = "s1";
+// A live binding, not a frozen constant: every module that imports `CURRENT_STUDENT_ID` (as a
+// default parameter value or read inline) sees the *current* value on each read, per ES module
+// semantics — so calling `setCurrentStudentId` once, from AuthContext.tsx whenever a real student
+// session is established, is enough to make every one of those call sites resolve to whoever's
+// actually logged in, with no changes needed at each of them. Defaults to the seeded demo student
+// so nothing breaks before a session exists (there's no student page reachable pre-login anyway).
+export let CURRENT_STUDENT_ID = "s1";
+export function setCurrentStudentId(id: string) {
+  CURRENT_STUDENT_ID = id;
+}
 
 export const COUNSELLORS: SupportContact[] = [
   { id: "c1", name: "Maria Fernandez", role: "Study Counsellor", phone: "+44 7700 900123", email: "maria.fernandez@studyone.dev", avatarColor: "bg-sky-500" },

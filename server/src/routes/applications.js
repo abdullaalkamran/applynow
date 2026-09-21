@@ -562,6 +562,7 @@ async function upsertSharedFinancialReadiness(studentId, updatedStage, actor) {
     openingDate: d.openingDate ? new Date(d.openingDate) : null,
     maturityDate: d.maturityDate ? new Date(d.maturityDate) : null,
     bankStatus: updatedStage.status || existing?.bankStatus || "Not Started",
+    bankName: d.bankName ?? null,
     accountHolder: d.accountHolder ?? null,
     accountType: d.accountType ?? null,
     depositType: d.depositType ?? null,

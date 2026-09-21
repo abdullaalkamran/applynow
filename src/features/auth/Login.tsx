@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { GraduationCap, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_HOME } from "../../layouts/nav";
+import { GoogleSignInButton } from "../../components/GoogleSignInButton";
 
 const DEMO_ACCOUNTS = [
   { email: "student@studyone.dev", label: "Student" },
@@ -16,7 +17,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -25,16 +26,30 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
 
+  const redirectTo = (location.state as { from?: string } | null)?.from;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
       const user = await login(email.trim(), password);
-      const redirectTo = (location.state as { from?: string } | null)?.from;
       navigate(redirectTo || ROLE_HOME[user.role], { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle(credential: string) {
+    setError("");
+    setLoading(true);
+    try {
+      const { user } = await loginWithGoogle(credential);
+      navigate(redirectTo || ROLE_HOME[user.role], { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +103,21 @@ export default function Login() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-slate-100" />
+          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">or</span>
+          <div className="h-px flex-1 bg-slate-100" />
+        </div>
+
+        <GoogleSignInButton onCredential={handleGoogle} onError={() => setError("Google sign-in failed.")} />
+
+        <button
+          onClick={() => navigate("/signup")}
+          className="mt-4 flex w-full items-center justify-center text-[12.5px] font-medium text-slate-400"
+        >
+          New here? <span className="ml-1 text-[var(--sd-ink)]">Create an account</span>
+        </button>
 
         <button
           onClick={() => setShowDemo((v) => !v)}

@@ -13,6 +13,12 @@ export interface StaffMember {
   role: Role;
   status: StaffStatus;
   avatarColor: string;
+  // Whether this member actually has a working login (a User row) yet — an "Invited" member added
+  // without a password has a directory row but no way to ever log in until one is set (see
+  // setStaffPassword below). Independent of `status`: an Active member could in principle still
+  // lack a login if one was never set, same as an Inactive one who does have a login just can't
+  // currently use it (server/src/routes/auth.js enforces that at login and on every request).
+  hasLogin: boolean;
 }
 
 let cache: StaffMember[] = [];
@@ -28,17 +34,15 @@ export function loadStaff(): StaffMember[] {
   return cache;
 }
 
-export function inviteStaff(name: string, email: string, role: Role): StaffMember {
-  const optimistic: StaffMember = { id: `u-${Date.now().toString(36)}`, name, email, role, status: "Invited", avatarColor: "bg-sky-500" };
-  cache = [...cache, optimistic];
+/** `password` is optional — without one this member has no way to log in until an admin sets one
+ * later (see setStaffPassword), same trade-off agentStudentsStore.ts's addAgentStudent makes for
+ * students. Genuinely async (not optimistic-then-reconcile): the caller needs the real server
+ * record, including `hasLogin`, before it can render correctly. */
+export async function inviteStaff(name: string, email: string, role: Role, password?: string): Promise<StaffMember> {
+  const member = await apiPost<StaffMember>("/api/staff", { name, email, role, password });
+  cache = [...cache, member];
   notifyCacheChange();
-  apiPost<StaffMember>("/api/staff", { name, email, role })
-    .then((member) => {
-      cache = cache.map((m) => (m.id === optimistic.id ? member : m));
-      notifyCacheChange();
-    })
-    .catch((err) => console.warn("Failed to persist new staff member:", err));
-  return optimistic;
+  return member;
 }
 
 export function updateStaffRole(id: string, role: Role) {
@@ -51,6 +55,16 @@ export function setStaffStatus(id: string, status: StaffStatus) {
   cache = cache.map((m) => (m.id === id ? { ...m, status } : m));
   notifyCacheChange();
   apiPatch(`/api/staff/${id}`, { status }).catch((err) => console.warn("Failed to persist staff status change:", err));
+}
+
+/** Sets a working login password for a member — the only way to fix an "Invited" member who was
+ * added without one, or to reset an existing member's password. Reconciles from the real server
+ * response (not optimistic) since this can also flip `status` to Active and `hasLogin` to true. */
+export async function setStaffPassword(id: string, password: string): Promise<StaffMember> {
+  const member = await apiPatch<StaffMember>(`/api/staff/${id}`, { password });
+  cache = cache.map((m) => (m.id === id ? member : m));
+  notifyCacheChange();
+  return member;
 }
 
 export function removeStaff(id: string) {

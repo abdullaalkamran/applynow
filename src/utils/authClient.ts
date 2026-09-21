@@ -1,4 +1,5 @@
 import { BACKEND_BASE } from "./backendBase";
+import { apiPost } from "./apiClient";
 import type { Role } from "../types";
 
 export interface AuthUser {
@@ -45,6 +46,47 @@ export async function login(email: string, password: string): Promise<{ token: s
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Login failed (${response.status})`);
   return data;
+}
+
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+  country: string;
+  referralCode?: string;
+}
+
+/** Public student self-signup — optionally arriving via an agent's referral link/QR/code, which
+ * auto-connects the new account to that agent server-side (see server/src/routes/auth.js). */
+export async function register(input: RegisterInput): Promise<{ token: string; user: AuthUser; agentName?: string }> {
+  const response = await fetch(`${BACKEND_BASE}/api/auth/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Sign up failed (${response.status})`);
+  return data;
+}
+
+/** Sign in (existing account, any role) or self-signup (new student account, optionally via an
+ * agent's referral code) with a Google Identity Services ID token — verified server-side, see
+ * server/src/routes/auth.js's POST /google. */
+export async function googleAuth(credential: string, referralCode?: string): Promise<{ token: string; user: AuthUser; agentName?: string }> {
+  const response = await fetch(`${BACKEND_BASE}/api/auth/google`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ credential, referralCode }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Google sign-in failed (${response.status})`);
+  return data;
+}
+
+/** Self-service password change for the logged-in account (any role) — requires the current
+ * password, matching the server's own check (see server/src/routes/auth.js's POST /change-password). */
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return apiPost<{ success: true }>("/api/auth/change-password", { currentPassword, newPassword }).then(() => undefined);
 }
 
 export async function fetchMe(token: string): Promise<AuthUser> {

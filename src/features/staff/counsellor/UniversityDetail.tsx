@@ -2,10 +2,10 @@
 // has entered, laid out the same way, minus any apply/shortlist actions since a counsellor doesn't
 // apply on a student's behalf from here (mirrors CountryDetail.tsx's view-only convention).
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
-  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, Briefcase as BriefcaseIcon,
+  Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, Briefcase as BriefcaseIcon, BookOpen,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
@@ -25,7 +25,7 @@ import { RestrictedRegionsNotice } from "../../../components/RestrictedRegionsNo
 import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
 import { CourseAccreditations } from "../../../components/CourseAccreditations";
 import { depositLabel, campusLabelFor } from "../../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
+import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 
 const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
@@ -33,10 +33,12 @@ const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as 
 export default function CounsellorUniversityDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
+  const navState = location.state as { selectedCourseName?: string } | null;
   const UNIVERSITIES = getAllUniversities();
   const university = UNIVERSITIES.find((u) => u.id === id);
 
-  const [activeCourseName, setActiveCourseName] = useState<string | null>(null);
+  const [activeCourseName, setActiveCourseName] = useState<string | null>(navState?.selectedCourseName ?? null);
   const [uniTab, setUniTab] = useState<(typeof UNI_TABS)[number]>("Overview");
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
 
@@ -187,6 +189,27 @@ export default function CounsellorUniversityDetail() {
                   </div>
                   <RankingCaption university={university} />
                   <div className="space-y-2">
+                    {university.courses.length > 0 && (
+                      <ExpandableSection icon={<BookOpen size={13} />} title="Courses" preview={coursesPreview(university)} defaultExpanded className="bg-slate-50">
+                        <div className="space-y-1.5">
+                          {university.courses.map((c) => (
+                            <button
+                              key={c.name}
+                              onClick={() => { setActiveCourseName(c.name); setCourseTab("Overview"); }}
+                              className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white p-2.5 text-left hover:bg-slate-50"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-slate-800">{c.name}</p>
+                                <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
+                                {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </ExpandableSection>
+                    )}
                     {university.subjects.length > 0 && (
                       <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)} className="bg-slate-50">
                         <div className="flex flex-wrap gap-1.5">

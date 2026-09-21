@@ -13,6 +13,11 @@ export function subjectsPreview(university: University): string {
   return joinWithMore(university.subjects, 3);
 }
 
+export function coursesPreview(university: University): string {
+  if (university.courses.length === 0) return "";
+  return joinWithMore(university.courses.map((c) => c.name), 2);
+}
+
 export function campusesPreview(university: University): string {
   return joinWithMore((university.campuses ?? []).map((c) => c.name), 2);
 }

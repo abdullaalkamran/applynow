@@ -1,4 +1,6 @@
-import { STUDENTS, UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
+import { getAllStudents } from "../data/allStudentsStore";
+import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
@@ -16,11 +18,13 @@ export const AI_SUGGESTIONS = [
 ];
 
 // Minimal shape for the experimental Web Speech Recognition API — not yet in TypeScript's DOM lib.
+// `resultIndex`/`isFinal` are only used by continuous-mode consumers (useSpeechToText.ts) — a
+// single-shot caller (`continuous: false`) can safely ignore them.
 export interface SpeechRecognitionLike extends EventTarget {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onresult: ((event: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
@@ -32,7 +36,12 @@ export function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export const aiStudent = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
+/** Read fresh each call (not a module-level snapshot) so this reflects whoever's actually logged
+ * in — see mockData.ts's CURRENT_STUDENT_ID doc comment. Falls back to a generic greeting for the
+ * brief window right after login before allStudentsStore's cache resolves. */
+export function currentAiStudentName(): string {
+  return getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID)?.name ?? "there";
+}
 
 function activeApplications() {
   return getAllApplications().filter(
@@ -42,8 +51,9 @@ function activeApplications() {
 
 function missingDocSummary() {
   const missing: string[] = buildCoreChecklist(CURRENT_STUDENT_ID).filter((r) => !r.own).map((r) => r.type);
+  const universities = getAllUniversities();
   activeApplications().forEach((app) => {
-    const university = UNIVERSITIES.find((u) => u.name === app.university);
+    const university = universities.find((u) => u.name === app.university);
     if (!university) return;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),
@@ -58,7 +68,7 @@ function missingDocSummary() {
 
 function bestUnappliedPick() {
   const applied = new Set(activeApplications().map((a) => a.university));
-  return [...UNIVERSITIES]
+  return getAllUniversities()
     .filter((u) => !applied.has(u.name))
     .sort((a, b) => (parseInt(a.worldRank.replace(/\D/g, ""), 10) || 999) - (parseInt(b.worldRank.replace(/\D/g, ""), 10) || 999))[0];
 }
@@ -105,7 +115,7 @@ export function buildAnswer(question: string): string {
   }
 
   if (/scholarship/.test(q)) {
-    const options = UNIVERSITIES.filter((u) => u.scholarshipsAvailable).slice(0, 3).map((u) => u.name);
+    const options = getAllUniversities().filter((u) => u.scholarshipsAvailable).slice(0, 3).map((u) => u.name);
     return `${options.length} universities in our catalogue currently offer scholarships, including ${options.join(", ")}. Filter by "Scholarship" on Explore to see them all.`;
   }
 
@@ -126,7 +136,7 @@ export function buildAnswer(question: string): string {
   }
 
   if (/hello|hi\b|hey/.test(q)) {
-    return `Hi ${aiStudent.name.split(" ")[0]}! Ask me about finding a university, applying, uploading documents, visas, or your application status.`;
+    return `Hi ${currentAiStudentName().split(" ")[0]}! Ask me about finding a university, applying, uploading documents, visas, or your application status.`;
   }
 
   return `I can help with that. Right now you have ${applications.length} active application${applications.length === 1 ? "" : "s"} and your profile is ${percent}% complete. Try asking me to find a university, walk you through applying or uploading documents, or check your application status.`;

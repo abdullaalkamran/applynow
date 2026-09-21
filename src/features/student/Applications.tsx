@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Calendar, MapPin, ChevronRight, Plus, ListChecks, AlertCircle } from "lucide-react";
 import { LogoBadge, Pill } from "../../components/ui/mobile";
-import { CURRENT_STUDENT_ID, STUDENTS } from "../../data/mockData";
+import { CURRENT_STUDENT_ID } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { applicationStatusTone, applicationBucket as bucketOf } from "../../utils/applicationStatus";
@@ -20,8 +21,8 @@ const TABS: { key: Bucket; label: string }[] = [
 
 export default function Applications() {
   const navigate = useNavigate();
-  const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
-  const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
+  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
+  const initials = student ? student.name.split(" ").map((n) => n[0]).slice(0, 2).join("") : "";
   const [tab, setTab] = useState<Bucket>("all");
   const universities = getAllUniversities();
   const missingCoreDocs = buildCoreChecklist(CURRENT_STUDENT_ID).filter((row) => !row.own);

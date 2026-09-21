@@ -4,6 +4,7 @@ import { fetchFinancialReadinessHistory, type FinancialReadinessHistoryEntry } f
 
 const FIELD_LABELS: Record<string, string> = {
   bankStatus: "Status",
+  bankName: "Bank name",
   depositType: "Deposit type",
   openingDate: "Cash-in date",
   requiredAmount: "Amount",

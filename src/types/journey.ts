@@ -99,6 +99,7 @@ export interface FinancialReadinessStageData {
   openingDate?: string;
   maturityDate?: string; // computed: openingDate + holdingPeriodDays
   bankStatus: BankStatus;
+  bankName?: string;
   accountHolder?: "Student" | "Mother" | "Father" | "Brother/Sister" | "Other";
   accountType?: "Savings" | "Current" | "FDR" | "Other";
   depositType?: DepositType;

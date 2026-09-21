@@ -1,4 +1,5 @@
-import { UNIVERSITIES, DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
+import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
@@ -114,8 +115,9 @@ export function getNotifications(): NotificationItem[] {
     });
   }
 
+  const universities = getAllUniversities();
   applications.forEach((app) => {
-    const university = UNIVERSITIES.find((u) => u.name === app.university);
+    const university = universities.find((u) => u.name === app.university);
     if (!university) return;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),

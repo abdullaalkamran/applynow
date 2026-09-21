@@ -16,6 +16,7 @@ export interface StudentFinancialReadiness {
   openingDate?: string;
   maturityDate?: string;
   bankStatus: string;
+  bankName?: string;
   accountHolder?: string;
   accountType?: string;
   depositType?: string;

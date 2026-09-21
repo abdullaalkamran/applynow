@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
 const { threadIdFor } = require("./messages");
@@ -33,28 +34,47 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 // Ownership (agentId/counsellorId) is derived from the caller's own identity, not the request
 // body — an agent can only create students under themselves, same for a counsellor, so one role
 // can never assign another's ownership by supplying a different id in the payload.
+//
+// `password` is optional: without it, this student has a Student record but no User row at all,
+// so they have no way to ever log in (the pre-existing behavior). Passing one creates their login
+// alongside their profile in the same transaction, so the person creating this account can hand
+// them working credentials immediately instead of a dead-end "sign in" link.
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { name, email, country } = req.body || {};
+    const { name, email, country, password } = req.body || {};
     if (!name || !email || !country) {
       return res.status(400).json({ error: "name, email and country are required." });
     }
+    if (password && String(password).length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
 
     const count = await prisma.student.count();
-    const student = await prisma.student.create({
-      data: {
-        id: `st-${Date.now().toString(36)}`,
-        name,
-        email,
-        country,
-        agentId: req.authUser.role === "agent" ? req.authUser.roleUserId : undefined,
-        counsellorId: req.authUser.role === "counsellor" ? req.authUser.roleUserId : undefined,
-        avatarColor: AVATAR_COLORS[count % AVATAR_COLORS.length],
-        riskFlag: "none",
-      },
-    });
+    const studentData = {
+      id: `st-${Date.now().toString(36)}`,
+      name,
+      email,
+      country,
+      agentId: req.authUser.role === "agent" ? req.authUser.roleUserId : undefined,
+      counsellorId: req.authUser.role === "counsellor" ? req.authUser.roleUserId : undefined,
+      avatarColor: AVATAR_COLORS[count % AVATAR_COLORS.length],
+      riskFlag: "none",
+    };
+
+    const student = password
+      ? await prisma.$transaction(async (tx) => {
+          const created = await tx.student.create({ data: studentData });
+          const passwordHash = await bcrypt.hash(password, 10);
+          await tx.user.create({
+            data: { email: String(email).trim().toLowerCase(), passwordHash, name, role: "student", roleUserId: created.id },
+          });
+          return created;
+        })
+      : await prisma.student.create({ data: studentData });
+
     res.status(201).json(student);
   } catch (err) {
+    if (err.code === "P2002") return res.status(409).json({ error: "That email is already registered." });
     next(err);
   }
 });
@@ -67,6 +87,28 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
       data: { name, email, phone, country, riskFlag, counsellorId, agentId },
     });
     res.json(student);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Self-service — a student connecting to an agent via a shared referral code, distinct from the
+// unrestricted PATCH /:id above: only the student themselves may set their own agentId this way,
+// and only by way of a real agent's code (never by supplying an id directly).
+router.post("/:id/connect-agent", requireAuth, async (req, res, next) => {
+  try {
+    if (req.authUser.role !== "student" || req.authUser.roleUserId !== req.params.id) {
+      return res.status(403).json({ error: "You can only connect your own account to an agent." });
+    }
+    const { code } = req.body || {};
+    if (!code || typeof code !== "string") {
+      return res.status(400).json({ error: "A referral code is required." });
+    }
+    const agent = await prisma.staff.findFirst({ where: { referralCode: code.toUpperCase(), role: "agent" } });
+    if (!agent) return res.status(404).json({ error: "Referral code not recognized." });
+
+    const student = await prisma.student.update({ where: { id: req.params.id }, data: { agentId: agent.id } });
+    res.json({ ...student, agentName: agent.name });
   } catch (err) {
     next(err);
   }

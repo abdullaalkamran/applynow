@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowRight, CheckCircle2, RotateCcw, Mic, Square } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { Button, ProgressBar } from "../../components/ui";
+import { useSpeechToText } from "../../utils/useSpeechToText";
 import {
   listInterviewQuestionSets, startInterviewSession, submitInterviewAnswer, getInterviewSession,
   type InterviewQuestionSetSummary, type InterviewQuestion, type InterviewAnswerResult, type InterviewSessionDetail,
 } from "../../data/interviewPrepClient";
+
+const RECORDING_LIMIT_SECONDS = 60;
 
 const CRITERIA: { key: keyof InterviewAnswerResult["scores"]; label: string }[] = [
   { key: "relevance", label: "Relevance & Directness" },
@@ -31,6 +34,48 @@ export default function InterviewPrep() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [summary, setSummary] = useState<InterviewSessionDetail | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(RECORDING_LIMIT_SECONDS);
+  const draftRef = useRef(draft);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  const { isRecording, supported: micSupported, error: micError, start: startRecording, stop: stopRecording } = useSpeechToText(
+    (chunk) => setDraft((prev) => (prev ? `${prev} ${chunk}` : chunk))
+  );
+
+  // A fresh question always starts with recording off and the full minute available, even if the
+  // previous question's recording somehow didn't get stopped (e.g. the "Next Question" click).
+  useEffect(() => {
+    if (stage.name !== "answering") return;
+    stopRecording();
+    setSecondsLeft(RECORDING_LIMIT_SECONDS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage.name === "answering" ? stage.question.id : null]);
+
+  // Counts down while recording; hitting zero stops the mic and auto-submits whatever's been
+  // transcribed so far, moving the student on rather than leaving them stuck mid-recording.
+  useEffect(() => {
+    if (!isRecording) return;
+    if (secondsLeft <= 0) {
+      stopRecording();
+      submit(draftRef.current);
+      return;
+    }
+    const timer = window.setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, secondsLeft]);
+
+  function toggleRecording() {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      setSecondsLeft(RECORDING_LIMIT_SECONDS);
+      startRecording();
+    }
+  }
 
   useEffect(() => {
     if (stage.name !== "pick" || sets !== null) return;
@@ -59,14 +104,16 @@ export default function InterviewPrep() {
     }
   }
 
-  async function submit() {
-    if (stage.name !== "answering" || !draft.trim()) return;
+  async function submit(textOverride?: string) {
+    const text = (textOverride ?? draft).trim();
+    if (stage.name !== "answering" || !text) return;
+    stopRecording();
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await submitInterviewAnswer(stage.sessionId, stage.question.id, draft.trim());
+      const result = await submitInterviewAnswer(stage.sessionId, stage.question.id, text);
       setStage({
-        name: "result", sessionId: stage.sessionId, result, answeredText: draft.trim(),
+        name: "result", sessionId: stage.sessionId, result, answeredText: text,
         question: stage.question, questionIndex: stage.questionIndex, totalQuestions: stage.totalQuestions,
       });
       setDraft("");
@@ -142,11 +189,35 @@ export default function InterviewPrep() {
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Type your answer as you would say it in the real interview…"
+              placeholder="Type your answer, or tap the mic to speak it…"
               rows={7}
               disabled={submitting}
               className="mt-4 w-full resize-none rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-[13.5px] text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.06)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--sd-ink)]/10 disabled:opacity-60"
             />
+
+            {micSupported && (
+              <div className="mt-2 flex items-center gap-2.5">
+                <button
+                  onClick={toggleRecording}
+                  disabled={submitting}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition disabled:opacity-50 ${
+                    isRecording ? "bg-rose-500 text-white" : "bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+                  }`}
+                  aria-label={isRecording ? "Stop recording" : "Record your answer"}
+                >
+                  {isRecording ? <Square size={14} fill="currentColor" /> : <Mic size={16} />}
+                </button>
+                {isRecording ? (
+                  <p className="flex items-center gap-1.5 text-[12px] font-medium text-rose-500">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+                    Recording — auto-submits in {secondsLeft}s
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-slate-400">Tap to record your answer (up to 1 minute)</p>
+                )}
+              </div>
+            )}
+            {micError && <p className="mt-2 text-[12.5px] text-rose-600">{micError}</p>}
             {submitError && <p className="mt-2 text-[12.5px] text-rose-600">{submitError}</p>}
             <Button onClick={submit} disabled={!draft.trim() || submitting} className="mt-4 w-full justify-center">
               {submitting ? (

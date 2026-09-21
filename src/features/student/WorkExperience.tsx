@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Check } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete } from "../../data/profileCompletion";
-import { saveWorkExperience } from "../../data/studentProfileDetailsStore";
+import { loadWorkExperience, saveWorkExperience, type WorkExperienceDetails } from "../../data/studentProfileDetailsStore";
 
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Internship", "Contract", "Freelance", "Volunteer"] as const;
 
@@ -63,21 +63,22 @@ function emptyEntry(id: string, type: string): WorkEntry {
   };
 }
 
-const INITIAL_ENTRIES: WorkEntry[] = [
-  {
-    id: "w1", type: "Full-time", company: "bKash Limited", title: "Business Analyst", industry: "Fintech",
-    startDate: "2025-09-01", endDate: "", currentlyWorking: true,
-    description: "Supporting product teams with requirements analysis and process documentation for digital payment features.",
-    file: null, scanStatus: "idle", autoFilled: new Set(),
-  },
-];
+function fromSaved(id: string, w: WorkExperienceDetails): WorkEntry {
+  return { id, ...w, file: null, scanStatus: "idle", autoFilled: new Set() };
+}
+
+// Real, previously-saved work history — falls back to an empty list (via loadWorkExperience's own
+// ?? []) for anyone who hasn't filled this in yet, rather than a fabricated sample job.
+function initialEntries(): WorkEntry[] {
+  return loadWorkExperience().map((w, i) => fromSaved(`w${i + 1}`, w));
+}
 
 export default function WorkExperience() {
-  const [entries, setEntries] = useState<WorkEntry[]>(INITIAL_ENTRIES);
+  const [entries, setEntries] = useState<WorkEntry[]>(initialEntries);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const nextId = useRef(INITIAL_ENTRIES.length + 1);
+  const nextId = useRef(entries.length + 1);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const savedTimeoutRef = useRef<number | null>(null);
 

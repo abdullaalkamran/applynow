@@ -19,21 +19,14 @@ export function loadAgentStudents(): Student[] {
   return cache;
 }
 
-export function addAgentStudent(name: string, email: string, country: string): Student {
-  const optimistic: Student = {
-    id: `ast-${Date.now().toString(36)}`,
-    name, email, country,
-    agentId: CURRENT_AGENT_ID,
-    avatarColor: "bg-sky-500",
-    riskFlag: "none",
-  };
-  cache = [...cache, optimistic];
+// Genuinely async (not the optimistic-then-reconcile pattern most of this store uses) — the
+// caller (CreateStudentProfile.tsx) immediately keys a whole wizard's worth of localStorage writes
+// (personal info, academic levels, English tests, ...) off this student's id, so it needs the
+// server's real id back, not a throwaway client-generated one that would leave all of that data
+// orphaned once the real record reconciled into the cache.
+export async function addAgentStudent(name: string, email: string, country: string, password?: string): Promise<Student> {
+  const student = await apiPost<Student>("/api/students", { name, email, country, password });
+  cache = [...cache, student];
   notifyCacheChange();
-  apiPost<Student>("/api/students", { name, email, country })
-    .then((student) => {
-      cache = cache.map((s) => (s.id === optimistic.id ? student : s));
-      notifyCacheChange();
-    })
-    .catch((err) => console.warn("Failed to persist new student:", err));
-  return optimistic;
+  return student;
 }

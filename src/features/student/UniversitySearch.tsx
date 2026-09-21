@@ -2,15 +2,17 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock, Award,
-  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send,
+  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
 import { BackButton, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
-import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { CURRENT_STUDENT_ID } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { countryByName } from "../../data/countries";
+import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
-  allPrograms, FEE_BANDS, feeBandMax, scholarshipAmountUSD, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
+  allPrograms, FEE_BANDS, feeBandMax, scholarshipLabel, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
   countryStats, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -34,9 +36,6 @@ function employabilityNumber(emp: string) {
   return parseInt(emp.replace(/\D/g, ""), 10) || 0;
 }
 
-const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
-const defaultResidenceCountry = countryByName(student.country)?.iso2 ?? "";
-
 export interface FiltersOutletContext {
   filters: UniversityFilterState;
   setFilters: Dispatch<SetStateAction<UniversityFilterState>>;
@@ -46,6 +45,8 @@ export interface FiltersOutletContext {
 export default function UniversitySearch() {
   const navigate = useNavigate();
   const location = useLocation();
+  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
+  const defaultResidenceCountry = countryByName(student?.country ?? "")?.iso2 ?? "";
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   // Bumped on every bookmark toggle so the memoised program list re-evaluates — matters when the
@@ -101,6 +102,32 @@ export default function UniversitySearch() {
     [programShortlistedOnly, programSubject, programDestination, programIntake, programFeeBand, programScholarship, shortlistTick]
   );
   const programFiltersActive = programShortlistedOnly || !!(programSubject || programDestination || programIntake || programFeeBand || programScholarship);
+
+  // Explore/apply is gated on having filled in the required parts of the profile — a counsellor or
+  // admission officer needs that information to actually process an application, so letting someone
+  // browse into applying without it just produces applications no one can act on. Only checked once
+  // the student record has actually loaded (see the `!student` trade-off noted above).
+  const profileCompletion = student ? getProfileCompletion(student.id) : null;
+  if (profileCompletion && profileCompletion.requiredRemaining > 0) {
+    const nextStep = profileCompletion.pendingSteps.find((s) => s.required) ?? profileCompletion.pendingSteps[0];
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center px-8 py-16 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <AlertCircle size={26} />
+        </div>
+        <h1 className="mt-4 text-[17px] font-bold text-slate-900">Complete your profile first</h1>
+        <p className="mt-2 max-w-xs text-[13px] leading-relaxed text-slate-500">
+          We need a few more details before you can explore and apply to programs — it only takes a couple of minutes.
+        </p>
+        <button
+          onClick={() => navigate(nextStep.path)}
+          className="mt-5 rounded-xl bg-[image:var(--sd-gradient)] px-6 py-3 text-[13px] font-semibold text-white"
+        >
+          Complete Profile
+        </button>
+      </div>
+    );
+  }
 
   if (showingFilters) {
     return <Outlet context={{ filters, setFilters, resultCount: results.length } satisfies FiltersOutletContext} />;
@@ -222,7 +249,7 @@ export default function UniversitySearch() {
 
             <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:grid lg:grid-cols-2 lg:gap-x-6 lg:rounded-none lg:bg-transparent lg:shadow-none">
               {programs.map(({ university: u, course: c }, i) => {
-                const scholarshipUSD = scholarshipAmountUSD(u, c.feeUSD);
+                const scholarship = scholarshipLabel(u);
                 const programKey = `${u.id}::${c.name}`;
                 const shortlisted = isShortlisted(programKey);
                 return (
@@ -259,9 +286,9 @@ export default function UniversitySearch() {
                           <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
                           {Math.round(c.feeUSD).toLocaleString()}
                         </span>
-                        {scholarshipUSD && (
+                        {scholarship && (
                           <span className="inline-flex shrink-0 items-center gap-1">
-                            <GraduationCap size={11} className="text-slate-400" /> Up to ${scholarshipUSD.toLocaleString()}
+                            <GraduationCap size={11} className="text-slate-400" /> {scholarship}
                           </span>
                         )}
                         {depositLabel(u) && (

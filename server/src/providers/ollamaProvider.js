@@ -22,6 +22,14 @@ function toOllamaMessages(systemPrompt, messages) {
       continue;
     }
 
+    if (message.image) {
+      // Ollama's vision-capable local models (e.g. llava) take raw base64 strings in an `images`
+      // array alongside the plain text content — no separate content-block shape like the hosted
+      // providers.
+      converted.push({ role: message.role, content: message.text || "", images: [message.image.base64] });
+      continue;
+    }
+
     converted.push({ role: message.role, content: message.text || "" });
   }
 

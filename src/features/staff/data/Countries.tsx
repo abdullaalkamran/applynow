@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Plus, Pencil, Trash2, Globe2, GraduationCap, ChevronRight } from "lucide-react";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
-import { getAllCountries, getCountryId, deleteCountry } from "../../../data/countryRegistry";
+import { getAllCountries, getCountryByName, getCountryId, deleteCountry } from "../../../data/countryRegistry";
 
 export default function DataCountries() {
   const navigate = useNavigate();
@@ -82,8 +82,12 @@ export default function DataCountries() {
             className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-50)] text-[var(--brand-700)]">
-                <Globe2 size={18} />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--brand-50)] text-[var(--brand-700)]">
+                {getCountryByName(c.country)?.logoUrl ? (
+                  <img src={getCountryByName(c.country)!.logoUrl} alt={`${c.country} logo`} className="h-full w-full object-cover" />
+                ) : (
+                  <Globe2 size={18} />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-slate-800">{c.country}</p>

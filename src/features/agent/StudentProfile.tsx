@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, ListChecks, Check, FileText, ChevronDown, ChevronUp, FileCheck2, History, AlertCircle, CalendarDays, Upload, Bookmark, X,
+  ArrowLeft, ListChecks, Check, FileText, ChevronDown, ChevronUp, FileCheck2, History, AlertCircle, CalendarDays, Clock3, Upload, Bookmark, X,
   CheckCircle2, ShieldCheck, MessageCircle,
 } from "lucide-react";
-import { StatusBadge, ProgressBar, Badge } from "../../components/ui";
-import { LogoBadge } from "../../components/ui/mobile";
+import { StatusBadge, Badge } from "../../components/ui";
+import { LogoBadge, DocChecklistRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { ProfileStepsPanel } from "../../components/ProfileStepsPanel";
-import { ChecklistCard } from "../../components/ChecklistCard";
-import { ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
+import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
 import { ApplicationChecklistCard } from "../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../components/DocViewButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
@@ -18,11 +17,14 @@ import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStor
 import { loadDocDueDate } from "../../data/documentDueDatesStore";
 import { getAgentTasks, getStudentTasks } from "../../utils/taskBoard";
 import { loadShortlistFor, removeShortlistFor } from "../../data/agentShortlistStore";
-import { buildChecklist, buildCoreChecklist, academicProfileIncomplete } from "../../utils/documentChecklist";
+import {
+  buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
+} from "../../utils/documentChecklist";
 import { addCoreDoc } from "../../data/coreDocsStore";
-import { CoreDocumentCard, AddCoreDocumentButton } from "../../components/CoreDocumentCard";
+import { AddCoreDocumentButton } from "../../components/CoreDocumentCard";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
-import { UNIVERSITIES, DOCUMENTS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { getAllUniversities } from "../../data/universityCatalogStore";
+import { DOCUMENTS, CURRENT_AGENT_ID } from "../../data/mockData";
 import { daysAgo } from "../../utils/counsellorData";
 import { loadOpenNextStepsFor } from "../../utils/agentNextSteps";
 
@@ -30,8 +32,23 @@ const CLOSED_STATUSES = new Set(["Enrolled", "Deferred", "Withdrawn", "Rejected"
 const TABS = ["Overview", "Applications", "Shortlist", "Documents", "Tasks"] as const;
 type Tab = (typeof TABS)[number];
 
+const CORE_KEY = "core";
+
+interface FlatDocRow extends ChecklistRow {
+  scope: string; // CORE_KEY or an applicationId
+  scopeLabel: string; // "Core Documents" or the university name
+}
+
+/** Mirrors the student's own Documents page (src/features/student/Documents.tsx) — same
+ * status-grouped sections (Required/Pending/Verified/Other), so an agent sees exactly the same
+ * picture the student would, instead of the old core-vs-per-application split. */
+function displayDocType(row: FlatDocRow): string {
+  return row.scope === CORE_KEY ? row.type : `${row.type} — ${row.scopeLabel}`;
+}
+
 export default function AgentStudentProfile() {
   const navigate = useNavigate();
+  const UNIVERSITIES = getAllUniversities();
   const { id } = useParams();
   const location = useLocation();
   const navState = location.state as { tab?: Tab; appId?: string } | null;
@@ -41,6 +58,10 @@ export default function AgentStudentProfile() {
   const [expandedAppId, setExpandedAppId] = useState<string | null>(navState?.appId ?? null);
   const [applyTarget, setApplyTarget] = useState<{ universityId: string; courseName: string } | null>(null);
   const [, forceTick] = useState(0);
+  const [uploadKey, setUploadKey] = useState<string | null>(null); // `${CORE_KEY | applicationId}::${type}`
+  const [uploadingFile, setUploadingFile] = useState<UploadedDoc | null>(null);
+  const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Any document upload below calls notifyCacheChange(), which forces the shell to remount this
   // whole page (see syncCache.ts's useCacheSync). A plain setTab/setExpandedAppId gets wiped by
@@ -55,6 +76,27 @@ export default function AgentStudentProfile() {
     const next = expandedAppId === appId ? null : appId;
     setExpandedAppId(next);
     navigate(location.pathname, { replace: true, state: { tab, appId: next } });
+  }
+
+  function startDocUpload(scope: string, type: string) {
+    setUploadKey(`${scope}::${type}`);
+    setUploadingFile(null);
+    setScanStatus("idle");
+    window.setTimeout(() => fileInputRef.current?.click(), 0);
+  }
+
+  function handleDocFile(studentId: string, file: File) {
+    if (!uploadKey) return;
+    const [scope, type] = uploadKey.split("::");
+    const isImage = file.type.startsWith("image/");
+    setUploadingFile({ name: file.name, previewUrl: isImage ? URL.createObjectURL(file) : undefined });
+    setScanStatus("scanning");
+    window.setTimeout(() => {
+      setScanStatus("done");
+      if (scope === CORE_KEY) addCoreDoc(studentId, type, file);
+      else addUploadedDoc(scope, type, file);
+      window.setTimeout(() => { setUploadKey(null); setUploadingFile(null); setScanStatus("idle"); }, 600);
+    }, 1200);
   }
 
   if (!student) {
@@ -89,6 +131,44 @@ export default function AgentStudentProfile() {
   }, 0);
   const totalMissing = coreMissing.length + perAppMissing;
   const shortlist = loadShortlistFor(student.id);
+
+  const coreRows = buildCoreChecklist(student.id);
+  const coreTypes = coreDocTypes(student.id);
+  const flatCoreRows: FlatDocRow[] = coreRows.map((r) => ({ ...r, scope: CORE_KEY, scopeLabel: "Core Documents" }));
+
+  const extraDocsByApp: { id: string; name: string; type: string; status: string }[] = [];
+  const flatAppRows: FlatDocRow[] = activeApps.flatMap((a) => {
+    const uni = UNIVERSITIES.find((u) => u.name === a.university);
+    const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)];
+    const rows = buildChecklist(uni, student.id, a.id, docs);
+    extraDocsByApp.push(
+      ...docs.filter((d) => !rows.some((r) => docMatchesType(d.name, r.type)) && !coreTypes.some((t) => docMatchesType(d.name, t)))
+    );
+    return rows.map((r) => ({ ...r, scope: a.id, scopeLabel: a.university }));
+  });
+
+  const allDocRows = [...flatCoreRows, ...flatAppRows];
+  const requiredDocRows = allDocRows.filter((r) => !r.own && !r.reused);
+  const pendingDocRows = allDocRows.filter((r) => r.own && r.own.status !== "verified");
+  const verifiedDocRows = allDocRows.filter((r) => r.reused || r.own?.status === "verified");
+
+  function renderDocRow(row: FlatDocRow) {
+    return (
+      <DocChecklistRow
+        key={`${row.scope}::${row.type}`}
+        type={displayDocType(row)}
+        own={row.own}
+        reused={row.reused}
+        rejected={row.rejected}
+        requested={row.requested}
+        isUploading={uploadKey === `${row.scope}::${row.type}`}
+        uploadingFile={uploadingFile}
+        scanStatus={scanStatus}
+        onStartUpload={() => startDocUpload(row.scope, row.type)}
+        onCancelUpload={() => { setUploadKey(null); setUploadingFile(null); setScanStatus("idle"); }}
+      />
+    );
+  }
 
   return (
     <div className="max-w-5xl">
@@ -188,7 +268,10 @@ export default function AgentStudentProfile() {
             </p>
           </div>
           <div className="mt-4">
-            <ProfileStepsPanel studentId={student.id} />
+            {/* Agents can correct/fill in a student's profile like a counsellor can, but never
+               change the student's own email or phone — those stay locked to prevent an agent
+               from redirecting a student's contact details without their knowledge. */}
+            <ProfileStepsPanel studentId={student.id} editable lockedPersonalFields={["email", "phone"]} />
           </div>
         </>
       )}
@@ -225,11 +308,6 @@ export default function AgentStudentProfile() {
                     </span>
                     <StatusBadge status={a.status} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ProgressBar value={a.progress} size="sm" />
-                    <span className="shrink-0 text-[11px] text-slate-400">{a.progress}%</span>
-                  </div>
-                  <p className="text-xs text-slate-500">{a.nextAction}</p>
                 </button>
 
                 {!expanded && (appNextSteps.length > 0 || missingDocs.length > 0) && (
@@ -302,7 +380,10 @@ export default function AgentStudentProfile() {
                       <Detail label="Country" value={a.country} />
                       <Detail label="Waiting on" value={a.waitingOn} />
                       <Detail label="Updated" value={daysAgo(a.updatedAt)} />
-                      <Detail label="Next action" value={a.nextAction} />
+                    </div>
+
+                    <div className="mt-4">
+                      <ApplicationJourneyPanel applicationId={a.id} mode="student" />
                     </div>
 
                     <p className="mb-2 mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -468,60 +549,103 @@ export default function AgentStudentProfile() {
       )}
 
       {tab === "Documents" && (
-        <div className="mt-4 space-y-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-slate-800">Core documents</p>
+        <div className="mt-4 space-y-5">
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <AlertCircle size={13} />
+              </span>
+              <p className="text-[13px] font-semibold text-slate-900">Required — not uploaded yet</p>
+              <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+                {requiredDocRows.length}
+              </span>
+            </div>
+            {academicProfileIncomplete(student.id) && (
+              <p className="mb-2 rounded-xl bg-slate-50 px-3 py-2 text-[11.5px] leading-relaxed text-slate-500">
+                {student.name}'s academic profile isn't fully filled in yet, so we can't always tell exactly which
+                transcript or certificate is needed. If something's missing from the list below, add it yourself.
+              </p>
+            )}
+            <div className="space-y-2">
+              {requiredDocRows.length === 0 && (
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                  Nothing required right now — {student.name.split(" ")[0]} is all caught up.
+                </p>
+              )}
+              {requiredDocRows.map(renderDocRow)}
               <AddCoreDocumentButton
                 studentId={student.id}
-                existingTypes={buildCoreChecklist(student.id).map((r) => r.type)}
+                existingTypes={coreRows.map((r) => r.type)}
                 onAdded={() => forceTick((t) => t + 1)}
               />
             </div>
-            {academicProfileIncomplete(student.id) && (
-              <p className="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
-                {student.name}'s academic profile isn't fully filled in yet — use "Add a document type" above for
-                anything the list below doesn't already cover.
-              </p>
-            )}
-            {buildCoreChecklist(student.id).length === 0 ? (
-              <p className="text-xs text-slate-400">No core document requirements found.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {buildCoreChecklist(student.id).map((r) => (
-                  <CoreDocumentCard
-                    key={r.type}
-                    row={r}
-                    canUpload
-                    canVerify={false}
-                    onUpload={(file) => {
-                      addCoreDoc(student.id, r.type, file);
-                      forceTick((t) => t + 1);
-                    }}
-                  />
+          </section>
+
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                <Clock3 size={13} />
+              </span>
+              <p className="text-[13px] font-semibold text-slate-900">Pending review</p>
+              <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                {pendingDocRows.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {pendingDocRows.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                  Nothing awaiting review at the moment.
+                </p>
+              ) : (
+                pendingDocRows.map(renderDocRow)
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle2 size={13} />
+              </span>
+              <p className="text-[13px] font-semibold text-slate-900">Uploaded &amp; verified</p>
+              <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                {verifiedDocRows.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {verifiedDocRows.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                  Nothing verified yet.
+                </p>
+              ) : (
+                verifiedDocRows.map(renderDocRow)
+              )}
+            </div>
+          </section>
+
+          {extraDocsByApp.length > 0 && (
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+              <p className="mb-2 text-[13px] font-semibold text-slate-900">Other documents on file</p>
+              <div className="space-y-2">
+                {extraDocsByApp.map((d) => (
+                  <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-medium text-slate-700">{d.name}</p>
+                      <p className="text-[11px] text-slate-400">{d.type}</p>
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
+            </section>
+          )}
 
-          {activeApps.map((a) => {
-            const university = UNIVERSITIES.find((u) => u.name === a.university);
-            const docs = [...DOCUMENTS.filter((d) => d.studentId === student.id && d.applicationId === a.id), ...loadUploadedDocs(a.id)];
-            const checklist = buildChecklist(university, student.id, a.id, docs);
-            return (
-              <div key={a.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-                <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                  <FileText size={14} className="text-slate-400" /> {a.university} — {a.course}
-                </p>
-                <div className="space-y-1.5">
-                  {checklist.map((r) => (
-                    <ChecklistCard key={r.type} row={r} />
-                  ))}
-                  {checklist.length === 0 && <p className="text-[12.5px] text-slate-400">No checklist items for this application.</p>}
-                </div>
-              </div>
-            );
-          })}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.[0]) handleDocFile(student.id, e.target.files[0]); e.target.value = ""; }}
+          />
         </div>
       )}
 

@@ -1,9 +1,9 @@
 // Postgres-backed via /api/students?counsellorId=... (server/src/routes/students.js) — same
 // synchronous-cache pattern as applicationsStore.ts. Server-side, "assigned to me" also includes
-// agent-referred students with no counsellor yet (see students.js/prisma query — actually resolved
-// client-side below since that "unclaimed but agent-referred" rule isn't a plain counsellorId
-// filter); this store fetches both the assigned set and the unclaimed set and merges them,
-// preserving the exact visibility rule this store had before the migration.
+// every unclaimed student, agent-referred or fully independent (see students.js/prisma query —
+// actually resolved client-side below since "unclaimed" isn't a plain counsellorId filter); this
+// store fetches both the assigned set and the unclaimed set and merges them, preserving the exact
+// visibility rule this store had before the migration.
 import { COUNSELLOR_ID } from "../utils/counsellorData";
 import { apiGet, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
@@ -16,9 +16,14 @@ export async function refreshAssignedStudents(): Promise<void> {
     apiGet<Student[]>(`/api/students?counsellorId=${encodeURIComponent(COUNSELLOR_ID)}`),
     apiGet<Student[]>("/api/students"),
   ]);
-  const unclaimedWithAgent = all.filter((s) => !s.counsellorId && !!s.agentId);
+  // Any student with no counsellor yet is a lead every counsellor should be able to see and pick
+  // up — not just the ones an agent happened to refer. A fully independent self-signup (no agent,
+  // no counsellor) used to fall through this filter entirely and was invisible everywhere in the
+  // counsellor portal (Leads, Dashboard, Case Queue, ...) until someone noticed and assigned one
+  // manually, which could never happen if no one could see it in the first place.
+  const unclaimed = all.filter((s) => !s.counsellorId);
   const byId = new Map(assigned.map((s) => [s.id, s]));
-  for (const s of unclaimedWithAgent) byId.set(s.id, s);
+  for (const s of unclaimed) byId.set(s.id, s);
   const next = [...byId.values()];
   if (!cacheChanged(next, cache)) return;
   cache = next;

@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Plus, X, Check } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete } from "../../data/profileCompletion";
-import { saveAcademicLevels } from "../../data/academicProfileStore";
+import { loadAcademicLevels, saveAcademicLevels, type AcademicLevelEntry } from "../../data/academicProfileStore";
 
 const LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Bachelor's", "Master's", "PhD", "Other"] as const;
 const GROUPS = ["Science", "Arts", "Commerce"];
@@ -54,18 +54,27 @@ function emptyEntry(id: string, level: string): EducationEntry {
   };
 }
 
-const INITIAL_ENTRIES: EducationEntry[] = [
-  { id: "e1", level: "SSC / O-Level", institution: "Dhaka Residential Model College", board: "Dhaka", group: "Science", major: "", grade: "5.00", passingYear: "2019", certificateFile: null, certificateStatus: "idle", transcriptFile: null, transcriptStatus: "idle", autoFilled: new Set() },
-  { id: "e2", level: "HSC / A-Level", institution: "Notre Dame College, Dhaka", board: "Dhaka", group: "Science", major: "", grade: "5.00", passingYear: "2021", certificateFile: null, certificateStatus: "idle", transcriptFile: null, transcriptStatus: "idle", autoFilled: new Set() },
-  { id: "e3", level: "Bachelor's", institution: "University of Dhaka", board: "", group: "", major: "Computer Science and Engineering", grade: "3.85 / 4.00", passingYear: "2025", certificateFile: null, certificateStatus: "idle", transcriptFile: null, transcriptStatus: "idle", autoFilled: new Set() },
-];
+function fromSaved(id: string, e: AcademicLevelEntry): EducationEntry {
+  return {
+    id, level: e.level, institution: e.institution, board: e.board ?? "", group: e.group ?? "", major: e.major ?? "",
+    grade: e.grade ?? "", passingYear: e.passingYear ?? "",
+    certificateFile: null, certificateStatus: "idle", transcriptFile: null, transcriptStatus: "idle", autoFilled: new Set(),
+  };
+}
+
+// Real, previously-saved entries for whoever's actually logged in — falls back to an empty list
+// (via loadAcademicLevels' own ?? []) for anyone who hasn't filled this in yet, rather than a
+// fabricated "sample" education history that isn't theirs.
+function initialEntries(): EducationEntry[] {
+  return loadAcademicLevels().map((e, i) => fromSaved(`e${i + 1}`, e));
+}
 
 export default function AcademicDetails() {
-  const [entries, setEntries] = useState<EducationEntry[]>(INITIAL_ENTRIES);
+  const [entries, setEntries] = useState<EducationEntry[]>(initialEntries);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const nextId = useRef(INITIAL_ENTRIES.length + 1);
+  const nextId = useRef(entries.length + 1);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const savedTimeoutRef = useRef<number | null>(null);
 

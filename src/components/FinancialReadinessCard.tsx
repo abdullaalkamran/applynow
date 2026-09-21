@@ -50,6 +50,7 @@ export function FinancialReadinessCard({
   const [savedTick, setSavedTick] = useState(0);
 
   const [bankStatus, setBankStatus] = useState(existing?.bankStatus && existing.bankStatus !== "Not Required" ? existing.bankStatus : "Not Started");
+  const [bankName, setBankName] = useState(existing?.bankName ?? "");
   const [depositType, setDepositType] = useState(existing?.depositType ?? DEPOSIT_TYPES[0]);
   const [openingDate, setOpeningDate] = useState(existing?.openingDate ?? "");
   const [requiredAmount, setRequiredAmount] = useState(existing?.requiredAmount?.toString() ?? "");
@@ -71,6 +72,7 @@ export function FinancialReadinessCard({
     };
   }
   const changeBankStatus = field(setBankStatus);
+  const changeBankName = field(setBankName);
   const changeDepositType = field(setDepositType);
   const changeOpeningDate = field(setOpeningDate);
   const changeRequiredAmount = field(setRequiredAmount);
@@ -98,6 +100,7 @@ export function FinancialReadinessCard({
         // restores what was entered.
         ...(showDetails
           ? {
+              bankName,
               depositType: depositType as never,
               openingDate,
               requiredAmount: Number(requiredAmount),
@@ -124,6 +127,7 @@ export function FinancialReadinessCard({
       ["Status", statusLabel(existing.bankStatus)],
       ...(savedDetails
         ? ([
+            ["Bank name", existing.bankName ?? "—"],
             ["Deposit type", existing.depositType ?? "—"],
             ["Cash-in date", existing.openingDate ?? "—"],
             [`Amount (${CURRENCY})`, existing.requiredAmount ? existing.requiredAmount.toLocaleString() : "—"],
@@ -183,6 +187,16 @@ export function FinancialReadinessCard({
 
         {showDetails && (
           <>
+            <label className="block text-xs font-medium text-slate-500">
+              Bank name
+              <input
+                type="text"
+                value={bankName}
+                onChange={(e) => changeBankName(e.target.value)}
+                placeholder="e.g. Islami Bank Bangladesh"
+                className={inputClass}
+              />
+            </label>
             <label className="block text-xs font-medium text-slate-500">
               Deposit type
               <select value={depositType} onChange={(e) => changeDepositType(e.target.value)} className={inputClass}>

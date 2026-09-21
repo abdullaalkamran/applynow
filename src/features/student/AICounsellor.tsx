@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Send, Sparkles, Mic, Volume2, VolumeX } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { VoiceModePanel } from "../../components/ui/VoiceMode";
-import { type ChatMessage, aiStudent } from "../../utils/aiCounsellorEngine";
+import { type ChatMessage, currentAiStudentName } from "../../utils/aiCounsellorEngine";
 import { useAssistant } from "../../context/AssistantContext";
 
 export default function AICounsellor() {
   const navigate = useNavigate();
   const { ask, suggestions } = useAssistant();
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "m0", from: "ai", text: `Hi ${aiStudent.name.split(" ")[0]}! 👋 How can I help you today?` },
+    { id: "m0", from: "ai", text: `Hi ${currentAiStudentName().split(" ")[0]}! 👋 How can I help you today?` },
   ]);
   const [input, setInput] = useState("");
   // A tool-calling turn can take several sequential round trips to the AI provider before a reply

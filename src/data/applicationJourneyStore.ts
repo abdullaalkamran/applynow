@@ -85,6 +85,7 @@ export function initializeJourney(
               openingDate: sharedFinancialReadiness.openingDate,
               maturityDate: sharedFinancialReadiness.maturityDate,
               bankStatus: sharedFinancialReadiness.bankStatus as BankStatus,
+              bankName: sharedFinancialReadiness.bankName,
               accountHolder: sharedFinancialReadiness.accountHolder as FinancialReadinessStageData["accountHolder"],
               accountType: sharedFinancialReadiness.accountType as FinancialReadinessStageData["accountType"],
               depositType: sharedFinancialReadiness.depositType as FinancialReadinessStageData["depositType"],

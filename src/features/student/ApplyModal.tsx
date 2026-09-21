@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { Chip } from "../../components/ui/mobile";
-import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { CURRENT_STUDENT_ID } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { createApplication, getAllApplications } from "../../data/applicationsStore";
 import { campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
 import { buildCoreChecklist } from "../../utils/documentChecklist";
+import { getProfileCompletion } from "../../data/profileCompletion";
 import { useHoldCacheSync } from "../../utils/syncCache";
 import type { University } from "../../types";
 
@@ -25,7 +27,10 @@ export function ApplyModal({
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
+  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID)!;
+  const profileCompletion = getProfileCompletion(student.id);
+  const profileIncomplete = profileCompletion.requiredRemaining > 0;
+  const nextProfileStep = profileCompletion.pendingSteps.find((s) => s.required) ?? profileCompletion.pendingSteps[0];
   const campuses = campusesFor(university, course);
   const missingCoreDocs = buildCoreChecklist(student.id).filter((row) => !row.own);
   const openIntakes = (course.intakes && course.intakes.length > 0 ? course.intakes : university.intakes).filter(
@@ -107,7 +112,21 @@ export function ApplyModal({
               </button>
             </div>
 
-            {alreadyApplied ? (
+            {profileIncomplete ? (
+              <div className="mt-4 rounded-xl bg-rose-50 p-3 text-[13px] text-rose-800">
+                <p>
+                  Complete your profile before applying — {profileCompletion.requiredRemaining} required step
+                  {profileCompletion.requiredRemaining > 1 ? "s" : ""} left.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); navigate(nextProfileStep.path); }}
+                  className="mt-2 font-semibold underline underline-offset-2"
+                >
+                  Complete Profile
+                </button>
+              </div>
+            ) : alreadyApplied ? (
               <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
                 You've already applied to {course.name} at {university.name}. Check your{" "}
                 <button

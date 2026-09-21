@@ -23,14 +23,17 @@ function withTimeout(promise, ms, label) {
 /** One JSON-reply round trip with the configured provider: `validate(parsed)` must return the
  * cleaned value or throw. A parse/validation failure (or a provider hiccup) is retried once with
  * the same prompt; a second failure surfaces as a 502 the route can pass straight to the client.
- * `timeoutMs` bounds each attempt so a hung upstream call can't pin a request worker. */
-async function callForJson({ systemPrompt, userPrompt, validate, maxTokens = 4096, timeoutMs = 60_000, label = "AI request" }) {
+ * `timeoutMs` bounds each attempt so a hung upstream call can't pin a request worker. `image`
+ * (optional `{ mimeType, base64 }`) attaches a photo to the user turn for vision-capable extraction
+ * (see passportExtraction.js) — every provider's message mapper knows how to fold it into that
+ * provider's own multipart content shape. */
+async function callForJson({ systemPrompt, userPrompt, image, validate, maxTokens = 4096, timeoutMs = 60_000, label = "AI request" }) {
   const provider = getProvider(getConfig().provider);
   let lastError;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const reply = await withTimeout(
-        provider.send({ systemPrompt, messages: [{ role: "user", text: userPrompt }], tools: [], maxTokens, jsonMode: true }),
+        provider.send({ systemPrompt, messages: [{ role: "user", text: userPrompt, ...(image ? { image } : {}) }], tools: [], maxTokens, jsonMode: true }),
         timeoutMs,
         label
       );

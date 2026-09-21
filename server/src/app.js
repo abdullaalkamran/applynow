@@ -25,6 +25,7 @@ const universitiesRoute = require("./routes/universities");
 const courseImportsRoute = require("./routes/courseImports");
 const universityImportsRoute = require("./routes/universityImports");
 const interviewPrepRoute = require("./routes/interviewPrep");
+const passportExtractionRoute = require("./routes/passportExtraction");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -64,6 +65,7 @@ app.use("/api/universities", universitiesRoute);
 app.use("/api/course-imports", courseImportsRoute);
 app.use("/api/university-imports", universityImportsRoute);
 app.use("/api/interview-prep", interviewPrepRoute);
+app.use("/api/passport-extraction", passportExtractionRoute);
 
 app.use(errorHandler);
 

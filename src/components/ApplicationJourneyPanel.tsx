@@ -470,6 +470,7 @@ function FullDepthFields({ stageType, data, status, onPatch, readOnly, studentId
     return (
       <>
         <SelectFieldInline label="Bank status" value={data.bankStatus} options={["Not Required", "Not Started", "Preparing", "Maintaining", "Matured", "Ready", "Expired"]} onChange={(v) => onPatch({ bankStatus: v, status: v })} readOnly={readOnly} />
+        <Field label="Bank name" value={data.bankName} onChange={(v) => onPatch({ bankName: v })} readOnly={readOnly} />
         <SelectFieldInline label="Deposit" value={data.depositType} options={DEPOSIT_TYPES} onChange={(v) => onPatch({ depositType: v })} readOnly={readOnly} />
         <Field label="Cash-in" value={data.openingDate} type="date" onChange={(v) => onPatch({ openingDate: v })} readOnly={readOnly} />
         <Field label="Amt (BDT)" value={data.requiredAmount} type="number" onChange={(v) => onPatch({ requiredAmount: Number(v), currency: "BDT" })} readOnly={readOnly} />

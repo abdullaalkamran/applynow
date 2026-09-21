@@ -12,7 +12,7 @@ const TERMINAL_STATUSES = ["Ready", "Matured"];
 
 // Every field a save can change, in the order the history entry lists them.
 const TRACKED_FIELDS = [
-  "bankStatus", "depositType", "openingDate", "requiredAmount", "currency",
+  "bankStatus", "bankName", "depositType", "openingDate", "requiredAmount", "currency",
   "accountHolder", "accountType", "holdingPeriodDays", "maturityDate",
 ];
 
@@ -28,6 +28,7 @@ function serialize(r) {
     openingDate: toDateString(r.openingDate),
     maturityDate: toDateString(r.maturityDate),
     bankStatus: r.bankStatus,
+    bankName: r.bankName || undefined,
     accountHolder: r.accountHolder || undefined,
     accountType: r.accountType || undefined,
     depositType: r.depositType || undefined,

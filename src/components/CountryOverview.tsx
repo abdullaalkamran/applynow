@@ -33,7 +33,13 @@ export function CountryHero({ country, countryDetails, actions }: { country: str
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              {flag ? <span className="text-3xl leading-none">{flag}</span> : <Globe2 size={28} className="text-white" />}
+              {countryDetails?.logoUrl ? (
+                <img src={countryDetails.logoUrl} alt={`${country} logo`} className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-white/40" />
+              ) : flag ? (
+                <span className="text-3xl leading-none">{flag}</span>
+              ) : (
+                <Globe2 size={28} className="text-white" />
+              )}
               <h1 className="text-2xl font-bold text-white sm:text-3xl">{country}</h1>
             </div>
             {countryDetails?.tagline && <p className="mt-1 text-sm font-medium text-white/90">{countryDetails.tagline}</p>}

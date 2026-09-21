@@ -1,14 +1,13 @@
 import { useRef, useState } from "react";
 import { Camera, Check, ShieldCheck, Loader2, AlertTriangle, LifeBuoy } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, monthsUntil, type ScanStatus } from "../../components/ui/mobile";
-import { STUDENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { CURRENT_STUDENT_ID } from "../../data/mockData";
+import { getAllStudents } from "../../data/allStudentsStore";
 import { COUNTRIES, countryByName, countryByIso2 } from "../../data/countries";
 import { markStepComplete } from "../../data/profileCompletion";
-import { savePersonalInfo } from "../../data/studentProfileDetailsStore";
-
-const student = STUDENTS.find((s) => s.id === CURRENT_STUDENT_ID)!;
-const [DEFAULT_FIRST, ...DEFAULT_LAST] = student.name.split(" ");
-const DEFAULT_COUNTRY = countryByName(student.country)?.iso2 ?? "BD";
+import { loadPersonalInfo, savePersonalInfo, type PersonalInfoDetails } from "../../data/studentProfileDetailsStore";
+import { apiPostForm } from "../../utils/apiClient";
+import type { Student } from "../../types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEMO_OTP = "123456";
@@ -38,37 +37,81 @@ interface FormState {
   country: string;
 }
 
-const PASSPORT_MOCK = {
-  firstName: DEFAULT_FIRST,
-  lastName: DEFAULT_LAST.join(" "),
-  passportNumber: "BN1234567",
-  personalNumber: "1234567890123",
-  nationality: DEFAULT_COUNTRY,
-  dob: "2003-04-12",
-  gender: "Female",
-  fatherName: "Abdul Karim",
-  motherName: "Rowshan Ara Begum",
-  placeOfBirth: "Dhaka, Bangladesh",
-  issuingAuthority: "Department of Immigration & Passports, Dhaka",
-  issueDate: "2017-01-20",
-  expiryDate: "2027-01-20",
-  permanentAddress: "House 12, Road 5, Banani",
-  // Not printed on the passport itself, but reliably inferred from nationality/address once scanned.
-  country: DEFAULT_COUNTRY,
-  city: countryByIso2(DEFAULT_COUNTRY)?.cities[0] ?? "",
-  phoneCountry: DEFAULT_COUNTRY,
-};
+// The server's real AI-vision extraction result (see server/src/passportExtraction.js) — only
+// fields the model actually read off the image are present; everything else is genuinely absent
+// rather than a fabricated guess, so the caller only marks real hits as "auto-filled".
+interface PassportExtractionResult {
+  fields: Partial<Record<keyof FormState, string>>;
+  emergencyContact?: Partial<Record<keyof EmergencyContact, string>>;
+  extractedKeys: string[];
+  warnings: string[];
+  available: boolean;
+}
 
-const initialForm: FormState = {
-  ...PASSPORT_MOCK,
-  email: student.email,
-  phone: "1711-000000",
-  maritalStatus: "Single",
-  previousPassportNumber: "",
-  presentAddress: PASSPORT_MOCK.permanentAddress,
-};
+// The real starting point for anyone who hasn't saved personal info yet — only name/email/country
+// are known (from their actual account), everything else genuinely is blank rather than a
+// fabricated "sample" passport that isn't theirs.
+function emptyForm(student: Student): FormState {
+  const [firstName, ...lastParts] = student.name.split(" ");
+  const defaultCountry = countryByName(student.country)?.iso2 ?? "";
+  return {
+    firstName, lastName: lastParts.join(" "), email: student.email,
+    phoneCountry: defaultCountry, phone: "",
+    dob: "", gender: "", nationality: defaultCountry, fatherName: "", motherName: "", maritalStatus: "",
+    passportNumber: "", personalNumber: "", previousPassportNumber: "", placeOfBirth: "",
+    issuingAuthority: "", issueDate: "", expiryDate: "",
+    permanentAddress: "", presentAddress: "", city: "", country: defaultCountry,
+  };
+}
 
-const EXTRACTED_FIELDS = Object.keys(PASSPORT_MOCK) as (keyof FormState)[];
+// savePersonalInfo stores the phone as one combined string ("<dial code> <local number>") and the
+// country/nationality as full names — split/matched back into the form's own iso2 + local-number
+// shape here so a reload shows exactly what was saved, not a re-guessed approximation.
+function splitPhone(combined: string, fallbackCountry: string): { phoneCountry: string; phone: string } {
+  const [dial, ...rest] = combined.trim().split(" ");
+  const match = COUNTRIES.find((c) => c.dial === dial);
+  return { phoneCountry: match?.iso2 ?? fallbackCountry, phone: match ? rest.join(" ") : combined };
+}
+
+function fromSavedPersonalInfo(saved: PersonalInfoDetails, defaultCountry: string): FormState {
+  const { phoneCountry, phone } = splitPhone(saved.phone, defaultCountry);
+  return {
+    firstName: saved.firstName,
+    lastName: saved.lastName,
+    email: saved.email,
+    phoneCountry,
+    phone,
+    dob: saved.dob,
+    gender: saved.gender,
+    nationality: countryByName(saved.nationality)?.iso2 ?? defaultCountry,
+    fatherName: saved.fatherName,
+    motherName: saved.motherName,
+    maritalStatus: saved.maritalStatus,
+    passportNumber: saved.passportNumber,
+    personalNumber: saved.personalNumber,
+    previousPassportNumber: saved.previousPassportNumber,
+    placeOfBirth: saved.placeOfBirth,
+    issuingAuthority: saved.issuingAuthority,
+    issueDate: saved.issueDate,
+    expiryDate: saved.passportExpiry,
+    permanentAddress: saved.permanentAddress,
+    presentAddress: saved.presentAddress,
+    city: saved.city,
+    country: countryByName(saved.country)?.iso2 ?? defaultCountry,
+  };
+}
+
+function emergencyContactFromSaved(saved: PersonalInfoDetails, defaultCountry: string): EmergencyContact {
+  const { phoneCountry, phone } = splitPhone(saved.emergencyContactPhone, defaultCountry);
+  return {
+    name: saved.emergencyContactName,
+    relationship: saved.emergencyContactRelationship,
+    address: saved.emergencyContactAddress,
+    phoneCountry,
+    phone,
+    email: saved.emergencyContactEmail,
+  };
+}
 
 interface EmergencyContact {
   name: string;
@@ -81,23 +124,24 @@ interface EmergencyContact {
 
 const RELATIONSHIPS = ["Parent", "Guardian", "Sibling", "Spouse", "Relative", "Friend", "Other"];
 
-// Some passport booklets include a holder-completed "Personal Data and Emergency Contact" page —
-// name, relationship, address and telephone number — so a scan can plausibly fill this section in too.
-const EMERGENCY_CONTACT_MOCK: EmergencyContact = {
-  name: "Rehana Khan",
-  relationship: "Parent",
-  address: "House 12, Road 5, Banani, Dhaka",
-  phoneCountry: DEFAULT_COUNTRY,
-  phone: "1911-222333",
-  email: "rehana.khan@email.com",
-};
-
-const initialEmergencyContact: EmergencyContact = { ...EMERGENCY_CONTACT_MOCK };
+// The real starting point before any scan or save — genuinely blank, not a fabricated person.
+function emptyEmergencyContact(defaultCountry: string): EmergencyContact {
+  return { name: "", relationship: "", address: "", phoneCountry: defaultCountry, phone: "", email: "" };
+}
 
 type PhoneStatus = "unverified" | "sending" | "code-sent" | "verifying" | "verified";
 
 export default function PersonalInformation() {
-  const [form, setForm] = useState<FormState>(initialForm);
+  // Undefined only for the brief window right after login before allStudentsStore's cache
+  // resolves — same accepted trade-off as every other migrated store (see syncCache.ts).
+  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
+  const defaultCountry = countryByName(student?.country ?? "")?.iso2 ?? "BD";
+  // Real, previously-saved details for whoever's actually logged in — a genuinely blank form
+  // (just name/email/country, which are real) for anyone who hasn't saved anything yet.
+  const savedInfo = loadPersonalInfo();
+  const [form, setForm] = useState<FormState>(
+    () => savedInfo ? fromSavedPersonalInfo(savedInfo, defaultCountry) : emptyForm(student ?? { id: "", name: "", email: "", country: "", avatarColor: "" })
+  );
   const [autoFilled, setAutoFilled] = useState<Set<keyof FormState>>(new Set());
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -106,14 +150,17 @@ export default function PersonalInformation() {
 
   const [passportFile, setPassportFile] = useState<{ name: string; previewUrl?: string } | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
+  const [scanWarning, setScanWarning] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedTimeoutRef = useRef<number | null>(null);
 
-  const [phoneStatus, setPhoneStatus] = useState<PhoneStatus>("unverified");
+  const [phoneStatus, setPhoneStatus] = useState<PhoneStatus>(savedInfo ? "verified" : "unverified");
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState("");
 
-  const [ec, setEc] = useState<EmergencyContact>(initialEmergencyContact);
+  const [ec, setEc] = useState<EmergencyContact>(
+    () => savedInfo ? emergencyContactFromSaved(savedInfo, defaultCountry) : emptyEmergencyContact(defaultCountry)
+  );
   const [ecAutoFilled, setEcAutoFilled] = useState<Set<keyof EmergencyContact>>(new Set());
 
   const emailValid = form.email.length === 0 || EMAIL_RE.test(form.email);
@@ -161,22 +208,56 @@ export default function PersonalInformation() {
     setSaved(false);
   }
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     const isImage = file.type.startsWith("image/");
     setPassportFile({ name: file.name, previewUrl: isImage ? URL.createObjectURL(file) : undefined });
     setScanStatus("scanning");
-    window.setTimeout(() => {
-      setForm((f) => ({ ...f, ...PASSPORT_MOCK }));
-      setAutoFilled(new Set(EXTRACTED_FIELDS));
-      setEc((e) => ({ ...e, ...EMERGENCY_CONTACT_MOCK }));
-      setEcAutoFilled(new Set(Object.keys(EMERGENCY_CONTACT_MOCK) as (keyof EmergencyContact)[]));
-      setScanStatus("done");
-    }, 1400);
+    setScanWarning("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const result = await apiPostForm<PassportExtractionResult>("/api/passport-extraction", body);
+
+      // "nationality" comes back as a plain country name (what the model actually read) — the form
+      // itself stores it as an ISO2 code, same as every other country field here, so it's mapped
+      // here rather than trusting the model to know our internal codes.
+      const extracted: Partial<Record<keyof FormState, string>> = { ...result.fields };
+      const autoFilledKeys = new Set(result.extractedKeys) as Set<keyof FormState>;
+      if (extracted.nationality) {
+        const iso2 = countryByName(extracted.nationality)?.iso2;
+        if (iso2) {
+          extracted.nationality = iso2;
+          extracted.country = iso2;
+          extracted.phoneCountry = iso2;
+          const city = countryByIso2(iso2)?.cities[0];
+          if (city) { extracted.city = city; autoFilledKeys.add("city"); }
+          autoFilledKeys.add("country");
+          autoFilledKeys.add("phoneCountry");
+        } else {
+          delete extracted.nationality;
+          autoFilledKeys.delete("nationality");
+        }
+      }
+      if (Object.keys(extracted).length > 0) {
+        setForm((f) => ({ ...f, ...extracted }));
+        setAutoFilled(autoFilledKeys);
+      }
+      if (result.emergencyContact) {
+        setEc((e) => ({ ...e, ...result.emergencyContact }));
+        setEcAutoFilled(new Set(Object.keys(result.emergencyContact)) as Set<keyof EmergencyContact>);
+      }
+      setScanStatus(result.extractedKeys.length > 0 || result.emergencyContact ? "done" : "unavailable");
+      setScanWarning(result.warnings[0] ?? "");
+    } catch (err) {
+      setScanStatus("unavailable");
+      setScanWarning(err instanceof Error ? err.message : "Couldn't scan this image — fill the form in by hand.");
+    }
   }
 
   function removePassport() {
     setPassportFile(null);
     setScanStatus("idle");
+    setScanWarning("");
   }
 
   function sendOtp() {
@@ -271,15 +352,20 @@ export default function PersonalInformation() {
           file={passportFile}
           status={scanStatus}
           title="Upload your passport"
-          description="We'll scan it and auto-fill almost everything below — name, gender, nationality, parents' names, place of birth, passport details, issue/expiry dates, address, country/city, and your emergency contact."
-          scanningLabel="Scanning passport…"
+          description="A clear photo of the passport's data page — we'll read it with AI and auto-fill whatever it can make out below."
+          scanningLabel="Reading passport…"
           onPick={() => fileInputRef.current?.click()}
           onRemove={removePassport}
         />
+        {scanWarning && (
+          <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-amber-600">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {scanWarning}
+          </p>
+        )}
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf"
+          accept="image/*"
           className="hidden"
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />

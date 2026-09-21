@@ -1,11 +1,12 @@
 import { Fragment, useState } from "react";
 import {
-  ChevronDown, ChevronUp, Headset, FileCheck2, ShieldAlert, Database, Wallet, Settings, Users, Trash2, Send,
+  ChevronDown, ChevronUp, Headset, FileCheck2, ShieldAlert, Database, Wallet, Settings, Users, Trash2, KeyRound,
 } from "lucide-react";
 import { Badge, PageHeader, Button, Avatar, Modal } from "../../components/ui";
 import { ROLES } from "../../data/mockData";
 import {
-  loadStaff, inviteStaff, updateStaffRole, setStaffStatus, removeStaff, type StaffMember, type StaffStatus,
+  loadStaff, inviteStaff, updateStaffRole, setStaffStatus, setStaffPassword, removeStaff,
+  type StaffMember, type StaffStatus,
 } from "../../data/staffStore";
 import { getTeamLeadOverride, setTeamLead } from "../../data/teamsStore";
 import type { Role } from "../../types";
@@ -41,12 +42,6 @@ export default function AdminUsersRoles() {
     setStaff(loadStaff());
   }
 
-  function handleInvite(name: string, email: string, role: Role) {
-    inviteStaff(name, email, role);
-    refresh();
-    setInviteRole(null);
-  }
-
   function handleRoleChange(id: string, role: Role) {
     updateStaffRole(id, role);
     refresh();
@@ -54,6 +49,11 @@ export default function AdminUsersRoles() {
 
   function handleStatus(id: string, status: StaffStatus) {
     setStaffStatus(id, status);
+    refresh();
+  }
+
+  async function handleSetPassword(id: string, password: string) {
+    await setStaffPassword(id, password);
     refresh();
   }
 
@@ -203,7 +203,12 @@ export default function AdminUsersRoles() {
                         </div>
                       </td>
                       <td className="px-5 py-3"><Badge tone="blue">{roleMeta.label}</Badge></td>
-                      <td className="px-5 py-3"><Badge tone={STATUS_TONE[u.status]}>{u.status}</Badge></td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <Badge tone={STATUS_TONE[u.status]}>{u.status}</Badge>
+                          {!u.hasLogin && <Badge tone="neutral">No login yet</Badge>}
+                        </div>
+                      </td>
                       <td className="px-5 py-3">
                         <button
                           onClick={() => setManagingId(managing ? null : u.id)}
@@ -216,36 +221,13 @@ export default function AdminUsersRoles() {
                     {managing && (
                       <tr className="bg-slate-50">
                         <td colSpan={4} className="px-5 py-4">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-slate-500">
-                              Role
-                              <select
-                                value={u.role}
-                                onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
-                                className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-700"
-                              >
-                                {ASSIGNABLE_ROLES.map((r) => (
-                                  <option key={r.id} value={r.id}>{r.label}</option>
-                                ))}
-                              </select>
-                            </label>
-
-                            {u.status === "Invited" && (
-                              <Button variant="secondary" onClick={() => handleStatus(u.id, "Active")}>
-                                <Send size={13} /> Mark active
-                              </Button>
-                            )}
-                            {u.status === "Active" && (
-                              <Button variant="secondary" onClick={() => handleStatus(u.id, "Inactive")}>Deactivate</Button>
-                            )}
-                            {u.status === "Inactive" && (
-                              <Button variant="secondary" onClick={() => handleStatus(u.id, "Active")}>Reactivate</Button>
-                            )}
-
-                            <Button variant="danger" onClick={() => handleRemove(u.id)}>
-                              <Trash2 size={13} /> Remove
-                            </Button>
-                          </div>
+                          <ManagePanel
+                            member={u}
+                            onRoleChange={(role) => handleRoleChange(u.id, role)}
+                            onStatus={(status) => handleStatus(u.id, status)}
+                            onSetPassword={(password) => handleSetPassword(u.id, password)}
+                            onRemove={() => handleRemove(u.id)}
+                          />
                         </td>
                       </tr>
                     )}
@@ -261,8 +243,94 @@ export default function AdminUsersRoles() {
         <InviteModal
           defaultRole={inviteRole}
           onClose={() => setInviteRole(null)}
-          onInvite={handleInvite}
+          onInvited={() => refresh()}
         />
+      )}
+    </div>
+  );
+}
+
+function ManagePanel({
+  member, onRoleChange, onStatus, onSetPassword, onRemove,
+}: {
+  member: StaffMember;
+  onRoleChange: (role: Role) => void;
+  onStatus: (status: StaffStatus) => void;
+  onSetPassword: (password: string) => Promise<void>;
+  onRemove: () => void;
+}) {
+  const [settingPassword, setSettingPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submitPassword() {
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await onSetPassword(password);
+      setSettingPassword(false);
+      setPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't set that password.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          Role
+          <select
+            value={member.role}
+            onChange={(e) => onRoleChange(e.target.value as Role)}
+            className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-700"
+          >
+            {ASSIGNABLE_ROLES.map((r) => (
+              <option key={r.id} value={r.id}>{r.label}</option>
+            ))}
+          </select>
+        </label>
+
+        <Button variant="secondary" onClick={() => setSettingPassword((v) => !v)}>
+          <KeyRound size={13} /> {member.hasLogin ? "Reset password" : "Set password"}
+        </Button>
+
+        {member.status === "Active" && (
+          <Button variant="secondary" onClick={() => onStatus("Inactive")}>Deactivate</Button>
+        )}
+        {member.status === "Inactive" && (
+          <Button variant="secondary" onClick={() => onStatus("Active")}>Reactivate</Button>
+        )}
+
+        <Button variant="danger" onClick={onRemove}>
+          <Trash2 size={13} /> Remove
+        </Button>
+      </div>
+
+      {settingPassword && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="New password"
+            className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-700"
+          />
+          <Button onClick={submitPassword} disabled={submitting}>{submitting ? "Saving…" : "Save password"}</Button>
+          {error && <p className="text-xs text-rose-600">{error}</p>}
+          {!member.hasLogin && (
+            <p className="w-full text-[11px] text-slate-400">
+              This member has no login yet — setting a password here also moves them to Active.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -271,16 +339,58 @@ export default function AdminUsersRoles() {
 function InviteModal({
   defaultRole,
   onClose,
-  onInvite,
+  onInvited,
 }: {
   defaultRole: Role;
   onClose: () => void;
-  onInvite: (name: string, email: string, role: Role) => void;
+  onInvited: () => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>(defaultRole);
-  const canSubmit = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
+  const [password, setPassword] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState("");
+  const [invited, setInvited] = useState<{ name: string; email: string; password?: string } | null>(null);
+  const canSubmit = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && (password.length === 0 || password.length >= 8);
+
+  async function handleSubmit() {
+    setError("");
+    setInviting(true);
+    try {
+      await inviteStaff(name.trim(), email.trim(), role, password || undefined);
+      onInvited();
+      setInvited({ name: name.trim(), email: email.trim(), password: password || undefined });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't invite this person.");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  if (invited) {
+    return (
+      <Modal title="Invite sent" onClose={onClose}>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            {invited.name} has been added{invited.password ? " with a working login" : ""}.
+          </p>
+          {invited.password ? (
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+              <p>Email: <span className="font-medium text-slate-800">{invited.email}</span></p>
+              <p className="mt-1">Temporary password: <span className="font-mono font-medium text-slate-800">{invited.password}</span></p>
+              <p className="mt-2 text-slate-400">Share this with them directly — it won't be shown again. They should change it once they sign in.</p>
+            </div>
+          ) : (
+            <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+              No password was set, so they can't sign in yet — reopen this member from the Members tab and set a password once they're ready.
+            </p>
+          )}
+          <Button className="w-full justify-center" onClick={onClose}>Done</Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal title="Invite team member" onClose={onClose}>
@@ -315,13 +425,24 @@ function InviteModal({
             ))}
           </select>
         </label>
+        <label className="block text-xs font-medium text-slate-500">
+          Password (optional)
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to set up later"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--brand-600)] focus:outline-none"
+          />
+        </label>
+        <p className="text-[11px] text-slate-400">
+          Set a password so they can sign in right away. Without one, this is just a directory entry with no login until a password is set later.
+        </p>
 
-        <Button
-          className="w-full justify-center"
-          disabled={!canSubmit}
-          onClick={() => onInvite(name.trim(), email.trim(), role)}
-        >
-          Send invite
+        {error && <p className="text-xs text-rose-600">{error}</p>}
+
+        <Button className="w-full justify-center" disabled={!canSubmit || inviting} onClick={handleSubmit}>
+          {inviting ? "Inviting…" : "Send invite"}
         </Button>
       </div>
     </Modal>
