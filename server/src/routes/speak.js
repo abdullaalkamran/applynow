@@ -2,6 +2,8 @@ const express = require("express");
 const { getConfig } = require("../config");
 const requireAuth = require("../middleware/requireAuth");
 
+const UPSTREAM_TIMEOUT_MS = 30_000;
+
 // The other half of turn-based real voice: takes the assistant's final text reply and returns
 // spoken audio (mp3) from OpenAI's TTS endpoint, for the frontend to play instead of speechSynthesis.
 const router = express.Router();
@@ -19,9 +21,14 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (typeof text !== "string" || !text.trim()) {
       return res.status(400).json({ error: "Request must include { text: string }" });
     }
+    if (text.length > 4096) {
+      return res.status(400).json({ error: "Text is too long to speak in one request." });
+    }
 
     const response = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
+      // Bounded so a hung upstream can never pin a request worker indefinitely.
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${config.openai.apiKey}`,

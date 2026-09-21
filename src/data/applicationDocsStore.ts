@@ -47,11 +47,15 @@ function toAppDoc(d: ServerDocument): AppDoc {
 }
 
 let cache: ServerDocument[] = [];
+let refreshSeq = 0;
 
 /** Every application's uploaded documents the caller's account can see — call once after login
  * (see utils/warmCaches.ts), same as every other migrated store. */
 export async function refreshApplicationDocs(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<ServerDocument[]>("/api/documents?scope=application");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -81,6 +85,7 @@ export function addUploadedDoc(applicationId: string, name: string, file: File):
     id: optimisticId, studentId, applicationId, scope: "application", name, type: name,
     status: "uploaded", fileUrl: optimisticPreview, createdAt: new Date().toISOString(),
   };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
 
@@ -97,12 +102,20 @@ export function addUploadedDoc(applicationId: string, name: string, file: File):
       notifyCacheChange();
       URL.revokeObjectURL(optimisticPreview);
     })
-    .catch((err) => console.warn("Failed to persist application document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist application document:", err);
+    });
   return loadUploadedDocs(applicationId);
 }
 
 /** Counsellor-only — approves an uploaded application document. */
 export function verifyAppDoc(id: string): void {
+  const prev = cache;
   cache = cache.map((d) => (d.id === id ? { ...d, status: "verified" } : d));
   notifyCacheChange();
   apiPatch<ServerDocument>(`/api/documents/${id}`, { status: "verified" })
@@ -110,12 +123,20 @@ export function verifyAppDoc(id: string): void {
       cache = cache.map((d) => (d.id === id ? serverDoc : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to verify application document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to verify application document:", err);
+    });
 }
 
 /** Counsellor-only — rejects an uploaded application document with a reason, which the student
  * then sees on the checklist prompting a re-upload. */
 export function rejectAppDoc(id: string, reason: string): void {
+  const prev = cache;
   cache = cache.map((d) => (d.id === id ? { ...d, status: "rejected", rejectionReason: reason } : d));
   notifyCacheChange();
   apiPatch<ServerDocument>(`/api/documents/${id}`, { status: "rejected", rejectionReason: reason })
@@ -123,7 +144,14 @@ export function rejectAppDoc(id: string, reason: string): void {
       cache = cache.map((d) => (d.id === id ? serverDoc : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to reject application document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to reject application document:", err);
+    });
 }
 
 // Ad-hoc document requests a counsellor adds for a specific application, beyond the automatic
@@ -163,6 +191,7 @@ export function addCustomDocRequest(applicationId: string, type: string, note?: 
     id: optimisticId, studentId, applicationId, scope: "application", name: trimmed, type: trimmed,
     status: "requested", custom: true, note: note?.trim() || undefined, createdAt: new Date().toISOString(),
   };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
 
@@ -173,14 +202,35 @@ export function addCustomDocRequest(applicationId: string, type: string, note?: 
       cache = cache.map((d) => (d.id === optimisticId ? serverDoc : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist document request:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist document request:", err);
+    });
 }
 
 /** Withdraws a request before anything's been uploaded against it. */
 export function removeCustomDocRequest(applicationId: string, type: string): void {
   const match = cache.find((d) => d.applicationId === applicationId && d.custom && d.status === "requested" && d.type === type);
   if (!match) return;
+  const prev = cache;
   cache = cache.filter((d) => d.id !== match.id);
   notifyCacheChange();
-  apiDelete(`/api/documents/${match.id}`).catch((err) => console.warn("Failed to remove document request:", err));
+  apiDelete(`/api/documents/${match.id}`).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to remove document request:", err);
+    });
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearApplicationDocsCache() {
+  cache = [];
 }

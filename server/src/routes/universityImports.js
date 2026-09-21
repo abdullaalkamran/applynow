@@ -67,7 +67,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
       const normalizedParts = [];
       let bad = null;
       for (const part of parts) {
-        try { normalizedParts.push(assertFetchableUrl(part)); } catch (err) { bad = `${part}: ${err.message}`; break; }
+        try { normalizedParts.push(await assertFetchableUrl(part)); } catch (err) { bad = `${part}: ${err.message}`; break; }
       }
       if (bad) { skipped.push({ url: rawLine, reason: bad }); continue; }
       const [sourceUrl, ...extraUrls] = [...new Set(normalizedParts)];
@@ -114,7 +114,7 @@ router.post("/:itemId/run", requireAuth, requireDataRole, async (req, res, next)
       if (textSource !== "paste" && Array.isArray(item.extraUrls) && item.extraUrls.length && (!item.pageText || body.refetch === true)) {
         for (const extraUrl of item.extraUrls) {
           try {
-            const page = await fetchPage(assertFetchableUrl(extraUrl));
+            const page = await fetchPage(await assertFetchableUrl(extraUrl));
             const cleaned = htmlToText(page.html);
             if (detectBlockedPage(cleaned.text)) throw new FetchError("blocked", "bot protection");
             text += `\n\n===== Additional page: ${extraUrl} =====\n${cleaned.text.slice(0, MAX_PAGE_CHARS)}`;

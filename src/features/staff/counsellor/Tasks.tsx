@@ -4,13 +4,13 @@ import type { GetTaskTarget } from "../../../components/tasks/TaskListSection";
 import { BackButton } from "../../../components/ui";
 import { getCounsellorTasks, staffTaskTarget } from "../../../utils/taskBoard";
 import { COUNSELLOR_ID } from "../../../utils/counsellorData";
-import { COUNSELLORS } from "../../../data/mockData";
+import { staffContact } from "../../../utils/currentStaff";
 
 const getTaskTarget: GetTaskTarget = (task) => staffTaskTarget(task, "/staff/counsellor/students");
 
 export default function CounsellorTasks() {
   const [, forceTick] = useState(0);
-  const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
+  const counsellor = staffContact(COUNSELLOR_ID, "counsellor");
   const tasks = getCounsellorTasks(COUNSELLOR_ID);
   const openCount = tasks.filter((t) => !t.done).length;
 

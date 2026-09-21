@@ -8,6 +8,7 @@ import { ROLE_HOME } from "./layouts/nav";
 import Login from "./features/auth/Login";
 import Signup from "./features/auth/Signup";
 import AppLayout from "./layouts/AppLayout";
+import AdminShell from "./layouts/AdminShell";
 import StudentShell from "./layouts/StudentShell";
 import CounsellorShell from "./layouts/CounsellorShell";
 import AgentShell from "./layouts/AgentShell";
@@ -87,12 +88,24 @@ import DataUniversityImport from "./features/staff/data/UniversityImport";
 import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
 
 import AdminUsersRoles from "./features/admin/UsersRoles";
+import AdminStudents from "./features/admin/Students";
 import AdminWorkflowTemplates from "./features/admin/WorkflowTemplates";
 import AdminCommissionRules from "./features/admin/CommissionRules";
 import AdminAuditLogs from "./features/admin/AuditLogs";
 import AdminTasks from "./features/admin/Tasks";
 import AdminAISettings from "./features/admin/AISettings";
 import AdminNotifications from "./features/admin/Notifications";
+import AdminDashboard from "./features/admin/Dashboard";
+import AdminApplications from "./features/admin/Applications";
+import AdminCalendar from "./features/admin/Calendar";
+import AdminSettings from "./features/admin/Settings";
+
+// Admin gets its own ApplyNow-branded shell (see layouts/AdminShell.tsx); the other staff roles
+// share AppLayout. Same route table underneath either way.
+function StaffShell() {
+  const { user } = useAuth();
+  return user?.role === "admin" ? <AdminShell /> : <AppLayout />;
+}
 
 // Where "/" and any unmatched path should land — depends on which role is actually logged in,
 // not a fixed guess, since this app now has more than one possible home.
@@ -198,7 +211,7 @@ export default function App() {
           </Route>
 
           <Route element={<RequireAuth roles={["admission", "compliance", "data", "finance", "admin"]} />}>
-          <Route element={<AppLayout />}>
+          <Route element={<StaffShell />}>
             <Route path="/" element={<RoleHomeRedirect />} />
 
             <Route path="/messages" element={<SharedMessages />} />
@@ -224,16 +237,26 @@ export default function App() {
             <Route path="/staff/data/catalog" element={<DataCatalog />} />
             <Route path="/staff/finance" element={<FinanceCommissionApprovals />} />
 
-            {/* Admin */}
-            <Route path="/admin" element={<AdminUsersRoles />} />
+            <Route path="*" element={<RoleHomeRedirect />} />
+          </Route>
+          </Route>
+
+          {/* Admin — same shell, but only the admin role; the other staff roles above are bounced
+              to their own home if they type an /admin URL. */}
+          <Route element={<RequireAuth roles={["admin"]} />}>
+          <Route element={<StaffShell />}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/applications" element={<AdminApplications />} />
+            <Route path="/admin/teams" element={<AdminUsersRoles />} />
+            <Route path="/admin/calendar" element={<AdminCalendar />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/students" element={<AdminStudents />} />
             <Route path="/admin/workflows" element={<AdminWorkflowTemplates />} />
             <Route path="/admin/commission-rules" element={<AdminCommissionRules />} />
             <Route path="/admin/audit-logs" element={<AdminAuditLogs />} />
             <Route path="/admin/tasks" element={<AdminTasks />} />
             <Route path="/admin/ai-settings" element={<AdminAISettings />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
-
-            <Route path="*" element={<RoleHomeRedirect />} />
           </Route>
           </Route>
         </Routes>

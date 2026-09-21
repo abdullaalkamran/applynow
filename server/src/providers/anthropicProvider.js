@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const LLM_TIMEOUT_MS = 90_000;
+
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
@@ -62,6 +64,8 @@ async function send({ systemPrompt, messages, tools, maxTokens }) {
 
   const response = await fetch(API_URL, {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: {
       "content-type": "application/json",
       "x-api-key": config.anthropic.apiKey,

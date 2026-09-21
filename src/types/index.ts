@@ -54,6 +54,10 @@ export interface Student {
   counsellorId?: string;
   avatarColor: string;
   riskFlag?: "none" | "watch" | "high";
+  // Whether this student has a working login (a User row) — a student registered by an agent or
+  // counsellor without a password has a profile but can't sign in until an admin sets one (see
+  // allStudentsStore.ts's setStudentPassword). Absent on seeded mock data.
+  hasLogin?: boolean;
 }
 
 // A "lead" isn't a separate record — it's any Student account that's been created (signed up,

@@ -1,61 +1,87 @@
-// Per-university commission rates — set by admin, read by every agent. A single shared store
-// (not per-agent) since the rate a university pays is a platform-level agreement, not something
-// each agent negotiates individually. Bonuses are the platform's own promotional top-up on
-// selected universities (e.g. a push campaign), layered on top of the base rate.
+// Per-university commission rates — set by admin, read by every agent. Postgres-backed via
+// /api/commission-rates (server/src/routes/commissionRates.js), same synchronous-cache pattern as
+// staffStore.ts. A single shared store (not per-agent) since the rate a university pays is a
+// platform-level agreement, not something each agent negotiates individually. Bonuses are the
+// platform's own promotional top-up on selected universities, layered on top of the base rate.
+//
+// A university with no saved rate has *no* rate (see hasCommissionRate) — nothing is invented for
+// it, so agents never see a figure an admin didn't actually set.
+import { apiGet, apiPut, apiDelete } from "../utils/apiClient";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+
+export type CommissionMode = "percent" | "fixed";
 
 export interface CommissionRate {
+  // "percent": ratePercent of the course tuition fee. "fixed": fixedAmountUSD per enrolment,
+  // regardless of tuition.
+  mode: CommissionMode;
   ratePercent: number;
-  bonusPercent: number; // 0 = no bonus
+  fixedAmountUSD: number;
+  // Platform bonus — always a % of tuition, whichever mode the base is in. 0 = no bonus.
+  bonusPercent: number;
   bonusLabel: string; // "" = no bonus
 }
 
-const STORAGE_KEY = "commission-rates-v1";
-
-// Deterministic variety across the catalogue without hand-listing every university id — a stable
-// 10-18% base band derived from the id, so rates look realistic before admin ever edits them.
-function defaultRateFor(universityId: string): CommissionRate {
-  const seed = [...universityId].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-  return { ratePercent: 10 + (seed % 9), bonusPercent: 0, bonusLabel: "" };
+interface StoredRate extends CommissionRate {
+  universityId: string;
+  updatedAt: string;
 }
 
-// A couple of universities ship with a platform bonus already active, so the "extra bonus for
-// selected universities" feature is visible out of the box rather than only after an admin edits it.
-const BONUS_SEED: Record<string, { bonusPercent: number; bonusLabel: string }> = {
-  u9: { bonusPercent: 3, bonusLabel: "Spring Intake Push" },
-  u7: { bonusPercent: 2, bonusLabel: "Priority Partner Bonus" },
-};
+export const EMPTY_RATE: CommissionRate = { mode: "percent", ratePercent: 0, fixedAmountUSD: 0, bonusPercent: 0, bonusLabel: "" };
 
-function loadAll(): Record<string, CommissionRate> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, CommissionRate>) : {};
-  } catch {
-    return {};
-  }
+let cache: StoredRate[] = [];
+let refreshSeq = 0;
+
+export async function refreshCommissionRates(): Promise<void> {
+  const seq = ++refreshSeq;
+  const next = await apiGet<StoredRate[]>("/api/commission-rates");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
+  notifyCacheChange();
 }
 
-function saveAll(map: Record<string, CommissionRate>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+export function hasCommissionRate(universityId: string): boolean {
+  return cache.some((r) => r.universityId === universityId);
 }
 
+/** The saved rate, or EMPTY_RATE (0%) when none has been set — check hasCommissionRate() to tell
+ * "not set" apart from a genuine 0. */
 export function getCommissionRate(universityId: string): CommissionRate {
-  const stored = loadAll()[universityId];
-  if (stored) return stored;
-  const base = defaultRateFor(universityId);
-  const bonus = BONUS_SEED[universityId];
-  return bonus ? { ...base, ...bonus } : base;
+  const stored = cache.find((r) => r.universityId === universityId);
+  if (!stored) return EMPTY_RATE;
+  const { universityId: _id, updatedAt: _at, ...rate } = stored;
+  return rate;
 }
 
-export function setCommissionRate(universityId: string, rate: CommissionRate) {
-  const all = loadAll();
-  all[universityId] = rate;
-  saveAll(all);
+/** Admin-only on the server. Awaited (not optimistic) so the caller can surface a validation
+ * error instead of showing a value that was never saved. */
+export async function setCommissionRate(universityId: string, rate: CommissionRate): Promise<void> {
+  const saved = await apiPut<StoredRate>(`/api/commission-rates/${universityId}`, rate);
+  cache = [...cache.filter((r) => r.universityId !== universityId), saved];
+  notifyCacheChange();
+}
+
+export async function clearCommissionRate(universityId: string): Promise<void> {
+  await apiDelete<void>(`/api/commission-rates/${universityId}`);
+  cache = cache.filter((r) => r.universityId !== universityId);
+  notifyCacheChange();
 }
 
 export function loadCommissionRatesFor(universityIds: string[]): Record<string, CommissionRate> {
   const out: Record<string, CommissionRate> = {};
   universityIds.forEach((id) => { out[id] = getCommissionRate(id); });
   return out;
+}
+
+/** Human-readable summary of a rate, e.g. "12% of tuition" or "$500 per enrolment". */
+export function describeCommissionRate(rate: CommissionRate): string {
+  return rate.mode === "fixed" ? `$${rate.fixedAmountUSD.toLocaleString()} per enrolment` : `${rate.ratePercent}% of tuition`;
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearCommissionRatesCache() {
+  cache = [];
 }

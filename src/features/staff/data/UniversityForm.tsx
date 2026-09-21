@@ -1,3 +1,4 @@
+import { safeHref } from "../../../utils/safeHref";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ExternalLink, Plus, Sparkles, Trash2, Upload } from "lucide-react";
@@ -1041,7 +1042,7 @@ function ImportReviewBanner({ item }: { item: UniversityImportItem }) {
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-900">
         <Sparkles size={13} /> AI-drafted from{" "}
-        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2">
+        <a href={safeHref(item.sourceUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2">
           {host} <ExternalLink size={11} />
         </a>
         {extracted?.meta?.model && <span className="font-normal text-amber-700">· {extracted.meta.model}</span>}

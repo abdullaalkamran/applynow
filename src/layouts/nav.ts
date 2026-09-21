@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, FileText, Folder, Compass, MessageCircle, User, Users, Wallet, BarChart3,
-  ClipboardList, ShieldAlert, Globe2, Landmark, BookOpen, Percent, ScrollText, GitBranch, ListChecks,
-  Sparkles, Bell, type LucideIcon,
+  ClipboardList, ShieldAlert, Globe2, Landmark, BookOpen, Percent, ScrollText, ListChecks,
+  GraduationCap, CalendarDays, Settings, type LucideIcon,
 } from "lucide-react";
 import type { Role } from "../types";
 
@@ -50,14 +50,16 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   admin: [
-    { label: "Teams & Roles", path: "/admin", icon: Users },
-    { label: "Workflow Templates", path: "/admin/workflows", icon: GitBranch },
-    { label: "Commission Rules", path: "/admin/commission-rules", icon: Percent },
-    { label: "Audit Logs", path: "/admin/audit-logs", icon: ScrollText },
+    { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+    { label: "Applications", path: "/admin/applications", icon: FileText },
+    { label: "Students", path: "/admin/students", icon: GraduationCap },
+    { label: "Universities", path: "/staff/data/universities", icon: Landmark },
+    { label: "Counselors", path: "/admin/teams", icon: Users },
     { label: "Tasks", path: "/admin/tasks", icon: ListChecks },
     { label: "Messages", path: "/messages", icon: MessageCircle },
-    { label: "AI Settings", path: "/admin/ai-settings", icon: Sparkles },
-    { label: "Notifications", path: "/admin/notifications", icon: Bell },
+    { label: "Reports", path: "/admin/audit-logs", icon: ScrollText },
+    { label: "Calendar", path: "/admin/calendar", icon: CalendarDays },
+    { label: "Settings", path: "/admin/settings", icon: Settings },
   ],
 };
 

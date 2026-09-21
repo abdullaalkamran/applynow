@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { AGENTS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { CURRENT_AGENT_ID } from "../../data/mockData";
+import { staffContact } from "../../utils/currentStaff";
 import { getAllApplications, getStatusHistory } from "../../data/applicationsStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getStatTrends } from "../../data/staffStatsSnapshotStore";
@@ -45,7 +46,7 @@ export default function AgentDashboard() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
 
-  const agent = AGENTS.find((a) => a.id === CURRENT_AGENT_ID)!;
+  const agent = staffContact(CURRENT_AGENT_ID, "agent");
   const students = loadAgentStudents();
   const allApps = getAllApplications().filter((a) => students.some((s) => s.id === a.studentId));
   const activeApps = allApps.filter((a) => !CLOSED_STATUSES.has(a.status));

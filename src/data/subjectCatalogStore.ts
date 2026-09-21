@@ -19,9 +19,13 @@ export interface SubjectRecord {
 }
 
 let cache: SubjectRecord[] = [];
+let refreshSeq = 0;
 
 export async function refreshSubjectCatalog(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<SubjectRecord[]>("/api/subjects");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -57,4 +61,10 @@ export async function updateSubjectRecord(id: string, patch: Partial<SubjectInpu
   cache = cache.map((s) => (s.id === id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name));
   notifyCacheChange();
   return updated;
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearSubjectCatalogCache() {
+  cache = [];
 }

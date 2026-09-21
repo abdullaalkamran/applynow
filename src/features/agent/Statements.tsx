@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Printer, FileText } from "lucide-react";
-import { CURRENT_AGENT_ID, AGENTS } from "../../data/mockData";
+import { CURRENT_AGENT_ID } from "../../data/mockData";
+import { staffContact } from "../../utils/currentStaff";
 import { loadInvoicesFor } from "../../data/agentInvoicesStore";
 
 export default function AgentStatements() {
-  const agent = AGENTS.find((a) => a.id === CURRENT_AGENT_ID)!;
+  const agent = staffContact(CURRENT_AGENT_ID, "agent");
   const invoices = [...loadInvoicesFor(CURRENT_AGENT_ID)].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const [openId, setOpenId] = useState<string | null>(null);
 

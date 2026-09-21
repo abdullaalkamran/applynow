@@ -20,9 +20,13 @@ export interface InboxNotification {
 }
 
 let cache: InboxNotification[] = [];
+let refreshSeq = 0;
 
 export async function refreshInbox(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<InboxNotification[]>("/api/inbox");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -39,14 +43,36 @@ export function unreadInboxCount(): number {
 export function markInboxItemRead(id: string) {
   const already = cache.find((n) => n.id === id)?.read;
   if (already) return;
+  const prev = cache;
   cache = cache.map((n) => (n.id === id ? { ...n, read: true } : n));
   notifyCacheChange();
-  apiPatch(`/api/inbox/${id}/read`, {}).catch((err) => console.warn("Failed to mark notification read:", err));
+  apiPatch(`/api/inbox/${id}/read`, {}).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to mark notification read:", err);
+    });
 }
 
 export function markAllInboxRead() {
   if (cache.every((n) => n.read)) return;
+  const prev = cache;
   cache = cache.map((n) => ({ ...n, read: true }));
   notifyCacheChange();
-  apiPatch(`/api/inbox/read-all`, {}).catch((err) => console.warn("Failed to mark all notifications read:", err));
+  apiPatch(`/api/inbox/read-all`, {}).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to mark all notifications read:", err);
+    });
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearInboxCache() {
+  cache = [];
 }

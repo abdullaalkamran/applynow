@@ -6,9 +6,13 @@ import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
+let refreshSeq = 0;
 
 export async function refreshAgentStudents(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -29,4 +33,10 @@ export async function addAgentStudent(name: string, email: string, country: stri
   cache = [...cache, student];
   notifyCacheChange();
   return student;
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearAgentStudentsCache() {
+  cache = [];
 }

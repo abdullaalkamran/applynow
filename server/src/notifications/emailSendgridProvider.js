@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const UPSTREAM_TIMEOUT_MS = 30_000;
+
 // SendGrid's HTTP API — no SDK, one raw POST per message, same convention as every LLM provider
 // in ../providers/.
 async function send({ to, subject, message }) {
@@ -10,6 +12,8 @@ async function send({ to, subject, message }) {
 
   const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
       "content-type": "application/json",

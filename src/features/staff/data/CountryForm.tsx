@@ -1,6 +1,7 @@
 // Add/Edit Country — mirrors UniversityForm.tsx's pattern (full page, sectioned cards, one Save
 // button) rather than a small modal, since this now captures the full Country Guide content shown
 // on every university page in that country (see countryRegistry.ts).
+import { websiteHref } from "../../../utils/safeHref";
 import { useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
@@ -174,7 +175,11 @@ export default function DataCountryForm() {
       internationalStudentStat: internationalStudentStat.trim() || undefined,
       whyStudyHighlights: highlights.filter((h) => h.title.trim()),
       keyInfo: hasKeyInfo ? keyInfo : undefined,
-      usefulLinks: links.filter((l) => l.label.trim() && l.url.trim()),
+      // Only real web links are kept: a bare domain gets https://, anything with another scheme
+      // (javascript:, data:, …) is dropped — the rendered link refuses those anyway (safeHref).
+      usefulLinks: links
+        .map((l) => ({ ...l, url: websiteHref(l.url) ?? "" }))
+        .filter((l) => l.label.trim() && l.url),
     };
 
     const id = existing ? existing.id : getCountryId(trimmedName);

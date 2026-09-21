@@ -32,12 +32,16 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user) return;
-    apiGet<Student>(`/api/students/${user.roleUserId}`).then(setStudent);
+    apiGet<Student>(`/api/students/${user.roleUserId}`)
+      .then(setStudent)
+      .catch((err) => console.warn("Failed to load student profile:", err));
   }, [user]);
 
   useEffect(() => {
     if (!student?.agentId) { setAgentName(null); return; }
-    apiGet<{ name: string }>(`/api/staff/${student.agentId}`).then((agent) => setAgentName(agent.name));
+    apiGet<{ name: string }>(`/api/staff/${student.agentId}`)
+      .then((agent) => setAgentName(agent.name))
+      .catch(() => setAgentName(null));
   }, [student?.agentId]);
 
   async function handleConnect() {

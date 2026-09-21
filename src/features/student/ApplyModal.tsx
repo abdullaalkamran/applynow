@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { X, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react";
 import { Chip } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
-import { getAllStudents } from "../../data/allStudentsStore";
 import { createApplication, getAllApplications } from "../../data/applicationsStore";
 import { campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
 import { buildCoreChecklist } from "../../utils/documentChecklist";
@@ -27,7 +26,9 @@ export function ApplyModal({
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID)!;
+  // The session already says who the student is — no need to wait for (or crash on) the
+  // student-list cache, which may not have loaded yet when this modal opens.
+  const student = { id: CURRENT_STUDENT_ID };
   const profileCompletion = getProfileCompletion(student.id);
   const profileIncomplete = profileCompletion.requiredRemaining > 0;
   const nextProfileStep = profileCompletion.pendingSteps.find((s) => s.required) ?? profileCompletion.pendingSteps[0];

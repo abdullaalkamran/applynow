@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const LLM_TIMEOUT_MS = 90_000;
+
 // Ollama's /api/chat speaks an OpenAI-flavored dialect for tool-capable local models
 // (e.g. llama3.1). Intended for local dev/testing, not production — no API key involved.
 function toOllamaMessages(systemPrompt, messages) {
@@ -49,6 +51,8 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const config = getConfig();
   const response = await fetch(`${config.ollama.baseUrl}/api/chat`, {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model: config.ollama.model,
@@ -76,7 +80,7 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
         name: call.function.name,
         arguments:
           typeof call.function.arguments === "string"
-            ? JSON.parse(call.function.arguments || "{}")
+            ? parseToolArguments(call.function.arguments)
             : call.function.arguments || {},
       })),
       raw: data,
@@ -84,6 +88,18 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   }
 
   return { kind: "text", text: message.content || "", raw: data };
+}
+
+/** Model output isn't guaranteed to be valid JSON — a malformed argument string becomes an
+ * empty argument set rather than crashing the whole assistant turn. */
+function parseToolArguments(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 module.exports = { send };

@@ -5,6 +5,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { requireDataRole } = require("../middleware/access");
 
 const router = express.Router();
 
@@ -173,10 +174,11 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 
 // `id` is client-supplied (same scheme as before: u-custom-<timestamp>) so the caller can navigate
 // straight to it without waiting on a round trip — same convention Task ids already use.
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     const { id, courses } = req.body || {};
-    if (!id || !req.body.name) return res.status(400).json({ error: "id and name are required." });
+    if (typeof id !== "string" || !id || typeof req.body.name !== "string" || !req.body.name) return res.status(400).json({ error: "id and name are required." });
+    if (courses !== undefined && !Array.isArray(courses)) return res.status(400).json({ error: "courses must be an array." });
     const courseInputs = (courses ?? []).map((c, i) => ({ id: c.id || `crs-custom-${Date.now().toString(36)}-${i}`, ...courseWriteData(c) }));
 
     const university = await prisma.university.create({
@@ -197,11 +199,12 @@ router.post("/", requireAuth, async (req, res, next) => {
 // A courses-array patch fully replaces the course list (matches the old store's behavior, where
 // addCourse/updateCourse/removeCourse each re-saved the whole array) — everything else here is a
 // plain field patch merged onto the existing row.
-router.patch("/:id", requireAuth, async (req, res, next) => {
+router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     const existing = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
     if (!existing) return res.status(404).json({ error: "University not found." });
 
+    if (req.body.courses !== undefined && !Array.isArray(req.body.courses)) return res.status(400).json({ error: "courses must be an array." });
     const merged = { ...serializeUniversity(existing), ...req.body };
     const courseInputs = (req.body.courses ?? existing.courses).map((c, i) => ({
       id: c.id || `crs-custom-${Date.now().toString(36)}-${i}`,
@@ -227,7 +230,7 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/:id", requireAuth, async (req, res, next) => {
+router.delete("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     await prisma.university.delete({ where: { id: req.params.id } });
     res.status(204).end();
@@ -237,7 +240,7 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/:id/courses", requireAuth, async (req, res, next) => {
+router.post("/:id/courses", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     const university = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
     if (!university) return res.status(404).json({ error: "University not found." });
@@ -253,7 +256,7 @@ router.post("/:id/courses", requireAuth, async (req, res, next) => {
   }
 });
 
-router.patch("/:id/courses/:courseId", requireAuth, async (req, res, next) => {
+router.patch("/:id/courses/:courseId", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     // A real merge: only the keys the caller sent change. courseWriteData() maps an absent key to
     // null/[] (right for create), which here would silently blank every field a partial patch —
@@ -274,7 +277,7 @@ router.patch("/:id/courses/:courseId", requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/:id/courses/:courseId", requireAuth, async (req, res, next) => {
+router.delete("/:id/courses/:courseId", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     await prisma.course.delete({ where: { id: req.params.courseId } });
     res.status(204).end();

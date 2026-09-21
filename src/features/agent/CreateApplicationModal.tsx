@@ -3,6 +3,7 @@ import { Modal, Button, SearchableSelect } from "../../components/ui";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { createApplication } from "../../data/applicationsStore";
 import { destinationOptions, campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
+import { useHoldCacheSync } from "../../utils/syncCache";
 import type { Student, University } from "../../types";
 
 /** The open intake months for one course — same fallback (course's own `intakes` subset, else the
@@ -43,6 +44,11 @@ export function CreateApplicationModal({
   const openIntakes = university && course ? openIntakesFor(university, course) : [];
   const [intake, setIntake] = useState(openIntakes[0] ?? "");
   const student = students.find((s) => s.id === studentId);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  // Creating the application updates the applications cache, which would remount the page (and
+  // unmount this modal) before onCreated/onClose could run — see syncCache.ts.
+  useHoldCacheSync();
   const canSubmit = !!student && !!university && !!course && courseHasOpenIntake(university, course) && !!campus && !!intake;
 
   return (
@@ -128,20 +134,29 @@ export function CreateApplicationModal({
           </select>
           {openIntakes.length === 0 && <p className="mt-1 text-[11px] text-rose-500">This course has no open intake right now.</p>}
         </Field>
+        {error && <p className="text-xs text-rose-600">{error}</p>}
         <Button
           className="w-full justify-center"
-          disabled={!canSubmit}
+          disabled={!canSubmit || submitting}
           onClick={async () => {
-            if (!student || !university) return;
-            await createApplication({
-              studentId: student.id, university: university.name, course: courseName,
-              intake, country: university.country, campus,
-            });
-            onCreated();
-            onClose();
+            if (!student || !university || submitting) return;
+            setSubmitting(true);
+            setError("");
+            try {
+              await createApplication({
+                studentId: student.id, university: university.name, course: courseName,
+                intake, country: university.country, campus,
+              });
+              onCreated();
+              onClose();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Couldn't create this application.");
+            } finally {
+              setSubmitting(false);
+            }
           }}
         >
-          Create application
+          {submitting ? "Creating…" : "Create application"}
         </Button>
       </div>
     </Modal>

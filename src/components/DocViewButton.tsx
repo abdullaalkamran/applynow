@@ -1,3 +1,4 @@
+import { safeFileHref } from "../utils/safeHref";
 import { useRef, useState, type WheelEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { Eye, X, Download, ZoomIn, ZoomOut, RotateCcw, ExternalLink } from "lucide-react";
 
@@ -103,7 +104,7 @@ export function DocViewButton({ name, previewUrl, className }: { name: string; p
                   </>
                 )}
                 <a
-                  href={previewUrl}
+                  href={safeFileHref(previewUrl)}
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Open in new tab"
@@ -123,11 +124,11 @@ export function DocViewButton({ name, previewUrl, className }: { name: string; p
               style={{ minHeight: isPdf ? "70vh" : "50vh" }}
             >
               {isPdf ? (
-                <iframe title={name} src={previewUrl} className="h-full min-h-[70vh] w-full border-0" />
+                <iframe title={name} src={safeFileHref(previewUrl)} className="h-full min-h-[70vh] w-full border-0" />
               ) : !imgFailed ? (
                 <div className="flex h-full min-h-[50vh] items-center justify-center">
                   <img
-                    src={previewUrl}
+                    src={safeFileHref(previewUrl)}
                     alt={name}
                     draggable={false}
                     onError={() => setImgFailed(true)}
@@ -148,7 +149,7 @@ export function DocViewButton({ name, previewUrl, className }: { name: string; p
 
             <div className="border-t border-slate-100 p-3.5">
               <a
-                href={previewUrl}
+                href={safeFileHref(previewUrl)}
                 download={name}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
               >

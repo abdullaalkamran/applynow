@@ -3,6 +3,7 @@
 // so the layout stays identical everywhere per the design brief, with only the hero's call-to-action
 // buttons swapped in by the caller. Every content section hides itself when Data Management hasn't
 // filled in that specific field yet, the same convention CountryGuideSection.tsx already uses.
+import { safeHref } from "../utils/safeHref";
 import type { ReactNode } from "react";
 import {
   Globe2, Users, Calendar, Wallet, Home, Briefcase, Clock, Gem, GraduationCap, Star, ExternalLink,
@@ -187,7 +188,7 @@ export function CountryOverviewCards({
               {countryDetails.usefulLinks.map((link) => (
                 <a
                   key={link.id}
-                  href={link.url}
+                  href={safeHref(link.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:border-slate-300"

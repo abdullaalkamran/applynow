@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const UPSTREAM_TIMEOUT_MS = 30_000;
+
 // Twilio's WhatsApp API — a common alternative to Meta's own Cloud API (often an easier trial
 // signup). No SDK: one raw POST per message, same convention as every LLM provider in ../providers/.
 async function send({ to, message }) {
@@ -18,6 +20,8 @@ async function send({ to, message }) {
 
   const response = await fetch(url, {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     headers: {
       Authorization: `Basic ${basicAuth}`,
       "content-type": "application/x-www-form-urlencoded",

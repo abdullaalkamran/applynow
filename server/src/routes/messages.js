@@ -97,10 +97,16 @@ router.get("/threads", requireAuth, async (req, res, next) => {
   }
 });
 
+// Thread ids are deterministic ("role:id__role:id"), so the thread itself is only readable by
+// one of its two participants — same predicate /threads already uses.
 router.get("/:threadId", requireAuth, async (req, res, next) => {
   try {
+    const actor = actorFrom(req);
     const messages = await prisma.message.findMany({
-      where: { threadId: req.params.threadId },
+      where: {
+        threadId: req.params.threadId,
+        OR: [{ fromId: actor.id, fromRole: actor.role }, { toId: actor.id, toRole: actor.role }],
+      },
       orderBy: { createdAt: "asc" },
     });
     res.json(messages.map(serializeMessage));
@@ -125,17 +131,23 @@ router.patch("/:threadId/read", requireAuth, async (req, res, next) => {
 router.post("/", requireAuth, async (req, res, next) => {
   try {
     const { to, text } = req.body || {};
-    if (!to?.id || !to?.role || !text) {
+    if (!to?.id || !to?.role || typeof text !== "string" || !text.trim()) {
       return res.status(400).json({ error: "to and text are required." });
     }
+    if (text.length > 10_000) return res.status(400).json({ error: "Message is too long." });
     const from = actorFrom(req);
-    const threadId = threadIdFor(from, to);
+    // The recipient must be someone this user is actually allowed to talk to (see getContactsFor),
+    // and their display name comes from the directory, never from the request.
+    const contacts = await getContactsFor(from);
+    const recipient = contacts.find((c) => c.id === String(to.id) && c.role === String(to.role));
+    if (!recipient) return res.status(404).json({ error: "Recipient not found." });
+    const threadId = threadIdFor(from, recipient);
     const message = await prisma.message.create({
       data: {
-        id: `msg-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`,
+        id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
         threadId,
         fromId: from.id, fromRole: from.role, fromName: from.name,
-        toId: to.id, toRole: to.role, toName: to.name,
+        toId: recipient.id, toRole: recipient.role, toName: recipient.name,
         text,
       },
     });

@@ -13,7 +13,8 @@ const port = process.env.PORT || 8787;
 // A plain http.Server wrapping the Express app, so the same server can also accept the Gemini
 // Live relay's WebSocket upgrade on /api/assistant/gemini-live — Express itself only speaks HTTP.
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: "/api/assistant/gemini-live" });
+// 1 MiB cap on a client frame — audio chunks are a few KB; without a cap ws accepts 100 MB frames.
+const wss = new WebSocketServer({ server, path: "/api/assistant/gemini-live", maxPayload: 1024 * 1024 });
 attachGeminiLiveRelay(wss);
 
 server.listen(port, () => {

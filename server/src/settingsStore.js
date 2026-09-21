@@ -18,7 +18,11 @@ function writeSettings(patch) {
   const dir = path.dirname(FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const next = { ...readSettings(), ...patch };
-  fs.writeFileSync(FILE, JSON.stringify(next, null, 2));
+  // Write-then-rename so a crash mid-write can never leave a truncated file (which readSettings
+  // would silently read back as {} — wiping every admin-saved key and API secret).
+  const tmp = `${FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, FILE);
   return next;
 }
 

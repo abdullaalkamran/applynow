@@ -1,6 +1,7 @@
 // Read-only equivalent of the student/agent University Detail page — every field Data Management
 // has entered, laid out the same way, minus any apply/shortlist actions since a counsellor doesn't
 // apply on a student's behalf from here (mirrors CountryDetail.tsx's view-only convention).
+import { websiteHref } from "../../../utils/safeHref";
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -306,7 +307,7 @@ export default function CounsellorUniversityDetail() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4">
-              <a href={`https://www.${university.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
+              <a href={websiteHref(university.website)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
                 Website <ExternalLink size={12} />
               </a>
               <button onClick={() => setUniTab("Courses")} className="rounded-full bg-[var(--brand-600)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--brand-700)]">

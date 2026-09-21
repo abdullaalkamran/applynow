@@ -124,3 +124,11 @@ export function getContacts(): MessageParticipant[] {
 export function refreshCachedMessageThreads(): void {
   Object.keys(cache).forEach((threadId) => refreshThread(threadId));
 }
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearMessagesCache() {
+  for (const key of Object.keys(cache)) delete cache[key];
+  contacts = [];
+  threads = [];
+}

@@ -356,7 +356,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/30" />
-      <div className="relative w-full max-w-sm rounded-xl border border-slate-200 bg-white shadow-xl">
+      <div className="relative max-h-full w-full max-w-sm overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
           <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">

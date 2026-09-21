@@ -16,11 +16,15 @@ interface DueDateEntry {
 }
 
 let cache: DueDateEntry[] = [];
+let refreshSeq = 0;
 
 /** Every document due date the caller's account can see — call once after login (see
  * utils/warmCaches.ts), same as every other migrated store. */
 export async function refreshDocDueDates(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<DueDateEntry[]>("/api/document-due-dates");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -44,6 +48,7 @@ export function setDocDueDate(applicationId: string, type: string, dueDate: stri
 
   const optimisticId = `duedate-${Date.now()}`;
   const hadExisting = cache.some((d) => d.applicationId === applicationId && d.docType === type);
+  const prev = cache;
   cache = hadExisting
     ? cache.map((d) => (d.applicationId === applicationId && d.docType === type ? { ...d, dueDate } : d))
     : [...cache, { id: optimisticId, applicationId, docType: type, dueDate }];
@@ -54,7 +59,14 @@ export function setDocDueDate(applicationId: string, type: string, dueDate: stri
       cache = [...cache.filter((d) => !(d.applicationId === applicationId && d.docType === type)), serverEntry];
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist document due date:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist document due date:", err);
+    });
 }
 
 /** "Overdue" / "Due soon" / "On track" classification for showing urgency. */
@@ -64,4 +76,10 @@ export function dueDateTone(dueDate: string | undefined): "overdue" | "soon" | "
   if (days < 0) return "overdue";
   if (days <= 3) return "soon";
   return "normal";
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearDocumentDueDatesCache() {
+  cache = [];
 }

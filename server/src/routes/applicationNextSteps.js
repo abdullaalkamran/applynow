@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { applicationWhere, accessibleApplication } = require("../middleware/access");
 
 const router = express.Router();
 
@@ -16,10 +17,28 @@ function serialize(s) {
   };
 }
 
+const parseDate = (v) => {
+  if (v === undefined) return undefined;
+  if (!v) return null;
+  if (typeof v !== "string") return NaN;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? NaN : d;
+};
+
+/** The step if it exists and belongs to an application the caller may access, else null. */
+async function accessibleStep(authUser, id) {
+  const step = await prisma.applicationNextStep.findUnique({ where: { id } });
+  if (!step) return null;
+  return (await accessibleApplication(authUser, step.applicationId)) ? step : null;
+}
+
+// Scoped through the application: a student sees their own applications' steps, an agent their
+// students', internal staff any (see middleware/access.js).
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const { applicationId } = req.query;
-    const where = {};
+    const scope = applicationWhere(req.authUser);
+    const where = Object.keys(scope).length ? { application: scope } : {};
     if (applicationId) where.applicationId = String(applicationId);
     const steps = await prisma.applicationNextStep.findMany({ where, orderBy: { createdAt: "asc" } });
     res.json(steps.map(serialize));
@@ -31,11 +50,14 @@ router.get("/", requireAuth, async (req, res, next) => {
 router.post("/", requireAuth, async (req, res, next) => {
   try {
     const { applicationId, title, dueDate } = req.body || {};
-    if (!applicationId || !title?.trim()) {
+    if (!applicationId || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ error: "applicationId and title are required." });
     }
+    const due = parseDate(dueDate);
+    if (Number.isNaN(due)) return res.status(400).json({ error: "dueDate must be a valid date." });
+    if (!(await accessibleApplication(req.authUser, applicationId))) return res.status(404).json({ error: "Application not found." });
     const step = await prisma.applicationNextStep.create({
-      data: { applicationId, title: title.trim(), dueDate: dueDate ? new Date(dueDate) : undefined },
+      data: { applicationId: String(applicationId), title: title.trim(), dueDate: due ?? undefined },
     });
     res.status(201).json(serialize(step));
   } catch (err) {
@@ -48,19 +70,21 @@ router.post("/", requireAuth, async (req, res, next) => {
 // happened rather than something a later click can quietly erase.
 router.patch("/:id", requireAuth, async (req, res, next) => {
   try {
-    const existing = await prisma.applicationNextStep.findUnique({ where: { id: req.params.id } });
+    const existing = await accessibleStep(req.authUser, req.params.id);
     if (!existing) return res.status(404).json({ error: "Next step not found." });
     if (existing.done) {
       return res.status(400).json({ error: "This step is already completed and locked." });
     }
 
     const { done, dueDate } = req.body || {};
+    const due = parseDate(dueDate);
+    if (Number.isNaN(due)) return res.status(400).json({ error: "dueDate must be a valid date." });
     const data = {};
     if (done !== undefined) {
       data.done = !!done;
       if (data.done) data.completedAt = new Date();
     }
-    if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null;
+    if (due !== undefined) data.dueDate = due;
     const step = await prisma.applicationNextStep.update({ where: { id: req.params.id }, data });
     res.json(serialize(step));
   } catch (err) {
@@ -70,6 +94,8 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
 
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
+    const existing = await accessibleStep(req.authUser, req.params.id);
+    if (!existing) return res.status(404).json({ error: "Next step not found." });
     await prisma.applicationNextStep.delete({ where: { id: req.params.id } });
     res.status(204).end();
   } catch (err) {

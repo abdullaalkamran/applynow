@@ -13,6 +13,7 @@ export interface StaffMember {
   role: Role;
   status: StaffStatus;
   avatarColor: string;
+  organization?: string | null;
   // Whether this member actually has a working login (a User row) yet — an "Invited" member added
   // without a password has a directory row but no way to ever log in until one is set (see
   // setStaffPassword below). Independent of `status`: an Active member could in principle still
@@ -22,9 +23,13 @@ export interface StaffMember {
 }
 
 let cache: StaffMember[] = [];
+let refreshSeq = 0;
 
 export async function refreshStaff(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<StaffMember[]>("/api/staff");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -46,15 +51,31 @@ export async function inviteStaff(name: string, email: string, role: Role, passw
 }
 
 export function updateStaffRole(id: string, role: Role) {
+  const prev = cache;
   cache = cache.map((m) => (m.id === id ? { ...m, role } : m));
   notifyCacheChange();
-  apiPatch(`/api/staff/${id}`, { role }).catch((err) => console.warn("Failed to persist staff role change:", err));
+  apiPatch(`/api/staff/${id}`, { role }).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist staff role change:", err);
+    });
 }
 
 export function setStaffStatus(id: string, status: StaffStatus) {
+  const prev = cache;
   cache = cache.map((m) => (m.id === id ? { ...m, status } : m));
   notifyCacheChange();
-  apiPatch(`/api/staff/${id}`, { status }).catch((err) => console.warn("Failed to persist staff status change:", err));
+  apiPatch(`/api/staff/${id}`, { status }).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist staff status change:", err);
+    });
 }
 
 /** Sets a working login password for a member — the only way to fix an "Invited" member who was
@@ -68,7 +89,21 @@ export async function setStaffPassword(id: string, password: string): Promise<St
 }
 
 export function removeStaff(id: string) {
+  const prev = cache;
   cache = cache.filter((m) => m.id !== id);
   notifyCacheChange();
-  apiDelete(`/api/staff/${id}`).catch((err) => console.warn("Failed to delete staff member on server:", err));
+  apiDelete(`/api/staff/${id}`).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to delete staff member on server:", err);
+    });
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearStaffCache() {
+  cache = [];
 }

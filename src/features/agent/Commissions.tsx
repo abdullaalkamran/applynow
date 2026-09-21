@@ -7,7 +7,7 @@ import { getAllApplications } from "../../data/applicationsStore";
 import { CURRENT_AGENT_ID } from "../../data/mockData";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { commissionFor } from "../../utils/commissionEngine";
-import { getCommissionRate } from "../../data/commissionRatesStore";
+import { getCommissionRate, hasCommissionRate, describeCommissionRate } from "../../data/commissionRatesStore";
 import { loadClaimedApplicationIds, loadInvoicesFor, createInvoice } from "../../data/agentInvoicesStore";
 import { formatStudentId, formatApplicationId } from "../../utils/displayId";
 
@@ -34,9 +34,11 @@ export default function AgentCommissions() {
   const invoicedTotal = invoices.filter((i) => i.status === "Issued").reduce((s, i) => s + i.totalAmount, 0);
   const paidTotal = invoices.filter((i) => i.status === "Paid").reduce((s, i) => s + i.totalAmount, 0);
 
+  // Only universities with an agreed rate — an unset one has nothing to show an agent.
   const universityRates = UNIVERSITIES
+    .filter((u) => hasCommissionRate(u.id))
     .map((u) => ({ university: u, rate: getCommissionRate(u.id) }))
-    .sort((a, b) => (b.rate.ratePercent + b.rate.bonusPercent) - (a.rate.ratePercent + a.rate.bonusPercent));
+    .sort((a, b) => a.university.name.localeCompare(b.university.name));
 
   function toggleSelect(appId: string) {
     setSelected((prev) => {
@@ -81,7 +83,7 @@ export default function AgentCommissions() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11.5px] font-medium text-slate-800">{university.name}</p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                  <span className="text-[11px] font-semibold text-slate-700">{rate.ratePercent}%</span>
+                  <span className="text-[11px] font-semibold text-slate-700">{describeCommissionRate(rate)}</span>
                   {rate.bonusPercent > 0 && (
                     <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-700">
                       +{rate.bonusPercent}% {rate.bonusLabel}
@@ -91,6 +93,11 @@ export default function AgentCommissions() {
               </div>
             </div>
           ))}
+          {universityRates.length === 0 && (
+            <p className="col-span-full rounded-xl border border-dashed border-slate-200 p-4 text-center text-[11px] text-slate-400">
+              No commission rates have been agreed yet — the platform admin sets these per university.
+            </p>
+          )}
         </div>
       </div>
 
@@ -141,7 +148,11 @@ export default function AgentCommissions() {
                   <div className="shrink-0 text-right">
                     <span className="text-xs font-semibold text-slate-900">${commission.totalAmount.toLocaleString()}</span>
                     <span className="ml-1.5 text-[10px] text-slate-400">
-                      {commission.ratePercent}%{commission.bonusPercent > 0 ? ` +${commission.bonusPercent}%` : ""} of ${commission.tuitionFeeUSD.toLocaleString()}
+                      {!commission.rateSet
+                        ? "Rate not set"
+                        : commission.mode === "fixed"
+                          ? `Fixed${commission.bonusPercent > 0 ? ` +${commission.bonusPercent}% of ${commission.tuitionFeeUSD.toLocaleString()}` : ""}`
+                          : `${commission.ratePercent}%${commission.bonusPercent > 0 ? ` +${commission.bonusPercent}%` : ""} of ${commission.tuitionFeeUSD.toLocaleString()}`}
                     </span>
                   </div>
                 </div>

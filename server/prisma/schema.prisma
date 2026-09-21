@@ -363,12 +363,18 @@ model CommissionTx {
   updatedAt  DateTime         @updatedAt
 }
 
+// Per-university commission agreement, set by admin (see routes/commissionRates.js). Either a
+// percentage of the course tuition fee or a fixed USD amount per enrolment — the platform bonus is
+// always a percentage of tuition layered on top. A university with no row simply has no rate yet.
 model CommissionRate {
-  id           String @id @default(cuid())
-  universityId String @unique
-  ratePercent  Int
-  bonusPercent Int    @default(0)
-  bonusLabel   String @default("")
+  id             String   @id @default(cuid())
+  universityId   String   @unique
+  mode           String   @default("percent") // "percent" | "fixed"
+  ratePercent    Float    @default(0)
+  fixedAmountUSD Float    @default(0)
+  bonusPercent   Float    @default(0)
+  bonusLabel     String   @default("")
+  updatedAt      DateTime @default(now()) @updatedAt
 }
 
 model AgentInvoice {

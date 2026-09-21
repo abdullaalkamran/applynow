@@ -61,9 +61,10 @@ router.post("/sessions", requireAuth, async (req, res, next) => {
 router.post("/sessions/:id/answers", requireAuth, async (req, res, next) => {
   try {
     const { question_id: questionId, answer_text: answerText } = req.body || {};
-    if (!questionId || typeof answerText !== "string" || !answerText.trim()) {
+    if (typeof questionId !== "string" || !questionId || typeof answerText !== "string" || !answerText.trim()) {
       return res.status(400).json({ error: "question_id and answer_text are required." });
     }
+    if (answerText.length > 8000) return res.status(400).json({ error: "Answer is too long." });
 
     const session = await prisma.interviewSession.findUnique({ where: { id: req.params.id } });
     if (!session || session.userId !== req.authUser.sub) return res.status(404).json({ error: "Session not found." });
@@ -126,6 +127,8 @@ router.post("/sessions/:id/answers", requireAuth, async (req, res, next) => {
       next_question: nextQuestion ? serializeQuestion(nextQuestion) : null,
     });
   } catch (err) {
+    // Two submits of the same question racing past the check above collide on the unique key.
+    if (err.code === "P2002") return res.status(409).json({ error: "This question has already been answered in this session." });
     next(err);
   }
 });

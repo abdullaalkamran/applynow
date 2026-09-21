@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const LLM_TIMEOUT_MS = 90_000;
+
 function apiUrl(config) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`;
 }
@@ -79,6 +81,8 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const hasTools = Array.isArray(tools) && tools.length > 0;
   const response = await fetch(apiUrl(config), {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },

@@ -98,13 +98,19 @@ async function main() {
     await prisma.task.upsert({ where: { id }, update: data, create: { id, ...data } });
   }
 
+  // The fixed demo password is only ever written when a login is *created* — re-running the seed
+  // (which `prisma migrate dev` does automatically) must never reset a password an admin or user
+  // has since changed, and a production database should never receive it at all.
+  if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DEMO_PASSWORD) {
+    throw new Error("Refusing to seed demo logins with the fixed demo password in production. Set ALLOW_DEMO_PASSWORD=1 to override.");
+  }
   const passwordHash = bcrypt.hashSync(SEED_PASSWORD, 10);
   for (let i = 0; i < USERS.length; i++) {
     const u = USERS[i];
     const id = `u${i + 1}`;
     await prisma.user.upsert({
       where: { email: u.email },
-      update: { ...u, passwordHash },
+      update: { name: u.name, role: u.role, roleUserId: u.roleUserId },
       create: { id, ...u, passwordHash },
     });
   }

@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Check, LogOut } from "lucide-react";
 import { Toggle } from "../../../components/ui/mobile";
 import { BackButton } from "../../../components/ui";
-import { COUNSELLORS } from "../../../data/mockData";
+import { staffContact } from "../../../utils/currentStaff";
 import { COUNSELLOR_ID } from "../../../utils/counsellorData";
 import { loadCounsellorSettings, saveCounsellorSettings } from "../../../data/counsellorSettingsStore";
 
 export default function CounsellorSettings() {
   const navigate = useNavigate();
-  const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
+  const counsellor = staffContact(COUNSELLOR_ID, "counsellor");
   const [settings, setSettings] = useState(() => loadCounsellorSettings());
   const [saved, setSaved] = useState(false);
 

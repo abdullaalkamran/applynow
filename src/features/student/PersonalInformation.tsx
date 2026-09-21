@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Check, ShieldCheck, Loader2, AlertTriangle, LifeBuoy } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, monthsUntil, type ScanStatus } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
@@ -149,6 +149,12 @@ export default function PersonalInformation() {
   const [sameAsPermanent, setSameAsPermanent] = useState(true);
 
   const [passportFile, setPassportFile] = useState<{ name: string; previewUrl?: string } | null>(null);
+  // A blob: preview URL holds the picked file in memory until revoked — release it when it is
+  // replaced or this screen closes.
+  useEffect(() => {
+    const url = passportFile?.previewUrl;
+    return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
+  }, [passportFile?.previewUrl]);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
   const [scanWarning, setScanWarning] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -433,7 +439,7 @@ export default function PersonalInformation() {
               </div>
             )}
             {otpError && <span className="mt-1 block text-[11px] font-medium text-rose-500">{otpError}</span>}
-            {phoneStatus === "code-sent" && !otpError && (
+            {import.meta.env.DEV && phoneStatus === "code-sent" && !otpError && (
               <span className="mt-1 block text-[11px] text-slate-400">Demo code: {DEMO_OTP}</span>
             )}
           </FieldShell>

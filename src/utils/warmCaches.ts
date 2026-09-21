@@ -19,6 +19,27 @@ import { refreshInbox } from "../data/inboxStore";
 import { refreshCachedStudentComments } from "../data/studentCommentsStore";
 import { refreshThreadsList, refreshContacts, refreshCachedMessageThreads } from "../data/messagesStore";
 import { refreshSubjectCatalog } from "../data/subjectCatalogStore";
+import { refreshCommissionRates } from "../data/commissionRatesStore";
+import { clearApplicationsCache } from "../data/applicationsStore";
+import { clearTasksCache } from "../data/tasksStore";
+import { clearStaffCache } from "../data/staffStore";
+import { clearAgentStudentsCache } from "../data/agentStudentsStore";
+import { clearCounsellorStudentsCache } from "../data/counsellorStudentsStore";
+import { clearAllStudentsCache } from "../data/allStudentsStore";
+import { clearCoreDocsCache } from "../data/coreDocsStore";
+import { clearApplicationDocsCache } from "../data/applicationDocsStore";
+import { clearApplicationNextStepsCache } from "../data/applicationNextStepsStore";
+import { clearDocumentDueDatesCache } from "../data/documentDueDatesStore";
+import { clearStudentFinancialReadinessCache } from "../data/studentFinancialReadinessStore";
+import { clearApplicationJourneyCache } from "../data/applicationJourneyStore";
+import { clearApplicationActivityCache } from "../data/applicationActivityStore";
+import { clearInboxCache } from "../data/inboxStore";
+import { clearStudentCommentsCache } from "../data/studentCommentsStore";
+import { clearMessagesCache } from "../data/messagesStore";
+import { clearSubjectCatalogCache } from "../data/subjectCatalogStore";
+import { clearUniversityCatalogCache } from "../data/universityCatalogStore";
+import { clearCommissionRatesCache } from "../data/commissionRatesStore";
+import { notifyCacheChange } from "./syncCache";
 import { refreshUniversities, migrateLegacyLocalUniversities } from "../data/universityCatalogStore";
 
 export function warmCaches() {
@@ -39,6 +60,7 @@ export function warmCaches() {
   refreshContacts().catch((err) => console.warn("Failed to warm message-contacts cache:", err));
   refreshCachedMessageThreads();
   refreshSubjectCatalog().catch((err) => console.warn("Failed to warm subject-catalog cache:", err));
+  refreshCommissionRates().catch((err) => console.warn("Failed to warm commission-rates cache:", err));
   migrateLegacyLocalUniversities()
     .then(() => refreshUniversities())
     .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
@@ -82,4 +104,30 @@ export function stopCachePolling() {
     pollHandle = null;
   }
   document.removeEventListener("visibilitychange", handleVisibilityChange);
+}
+
+/** Empties every store above — run on logout and again right before a new login warms them, so
+ * nothing from the previous session (a different user on a shared browser, or the same user
+ * whose permissions changed) can be rendered before the fresh fetches land. */
+export function clearAllCaches() {
+  clearApplicationsCache();
+  clearTasksCache();
+  clearStaffCache();
+  clearAgentStudentsCache();
+  clearCounsellorStudentsCache();
+  clearAllStudentsCache();
+  clearCoreDocsCache();
+  clearApplicationDocsCache();
+  clearApplicationNextStepsCache();
+  clearDocumentDueDatesCache();
+  clearStudentFinancialReadinessCache();
+  clearApplicationJourneyCache();
+  clearApplicationActivityCache();
+  clearInboxCache();
+  clearStudentCommentsCache();
+  clearMessagesCache();
+  clearSubjectCatalogCache();
+  clearUniversityCatalogCache();
+  clearCommissionRatesCache();
+  notifyCacheChange();
 }

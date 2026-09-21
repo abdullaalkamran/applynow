@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, ArrowRight, Check, Plus, X, User, GraduationCap, Languages, Briefcase,
@@ -63,6 +63,12 @@ export default function CreateStudentProfile() {
   const [creating, setCreating] = useState(false);
 
   const [passportFile, setPassportFile] = useState<UploadedDoc | null>(null);
+  // A blob: preview URL holds the picked file in memory until revoked — release it when it is
+  // replaced or this screen closes.
+  useEffect(() => {
+    const url = passportFile?.previewUrl;
+    return () => { if (url?.startsWith("blob:")) URL.revokeObjectURL(url); };
+  }, [passportFile?.previewUrl]);
   const [passportScanStatus, setPassportScanStatus] = useState<ScanStatus>("idle");
   const [autoFilledPersonal, setAutoFilledPersonal] = useState<Set<keyof PersonalInfoDetails>>(new Set());
 

@@ -41,8 +41,9 @@ async function callForJson({ systemPrompt, userPrompt, image, validate, maxToken
       return validate(JSON.parse(extractJson(reply.text)));
     } catch (err) {
       lastError = err;
-      // A missing key is a configuration problem, not a flaky reply — don't retry it.
-      if (err && err.status === 500) throw err;
+      // A missing key is a configuration problem, not a flaky reply — don't retry it. Nor is a
+      // 4xx from the provider (oversized image, bad request): the same payload fails the same way.
+      if (err && (err.status === 500 || (err.status >= 400 && err.status < 500))) throw err;
     }
   }
   throw Object.assign(new Error(`${label} failed: ${lastError?.message || "unknown error"}`), { status: lastError?.status === 504 ? 504 : 502 });

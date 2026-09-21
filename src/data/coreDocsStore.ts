@@ -78,6 +78,7 @@ export function addCoreDoc(studentId: string, name: string, file: File): CoreDoc
   // server's persisted URL once that resolves.
   const optimisticPreview = URL.createObjectURL(file);
   const optimistic: CoreDoc = { id: `core-${Date.now()}`, studentId, name, type: name, status: "uploaded", uploadedAt: now.slice(0, 10), createdAt: now, previewUrl: optimisticPreview };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
 
@@ -93,7 +94,14 @@ export function addCoreDoc(studentId: string, name: string, file: File): CoreDoc
       notifyCacheChange();
       URL.revokeObjectURL(optimisticPreview);
     })
-    .catch((err) => console.warn("Failed to persist core document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist core document:", err);
+    });
   return cache.filter((d) => d.studentId === studentId);
 }
 
@@ -104,6 +112,7 @@ export function addCoreDoc(studentId: string, name: string, file: File): CoreDoc
 export function requestCoreDocType(studentId: string, type: string): void {
   const now = new Date().toISOString();
   const optimistic: CoreDoc = { id: `core-req-${Date.now()}`, studentId, name: type, type, status: "requested", uploadedAt: now.slice(0, 10), createdAt: now, custom: true };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
   apiPost<ServerDocument>("/api/documents", { studentId, scope: "core", name: type, type, custom: true, status: "requested" })
@@ -111,7 +120,14 @@ export function requestCoreDocType(studentId: string, type: string): void {
       cache = cache.map((d) => (d.id === optimistic.id ? toCoreDoc(serverDoc) : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to request core document type:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to request core document type:", err);
+    });
 }
 
 /** Guarantees a core-doc slot of this type exists for the student, without ever duplicating or
@@ -125,6 +141,7 @@ export function ensureCoreDocRequested(studentId: string, type: string): void {
 
 /** Counsellor-only — approves an uploaded core document. */
 export function verifyCoreDoc(id: string): void {
+  const prev = cache;
   cache = cache.map((d) => (d.id === id ? { ...d, status: "verified" } : d));
   notifyCacheChange();
   apiPatch<ServerDocument>(`/api/documents/${id}`, { status: "verified" })
@@ -132,12 +149,20 @@ export function verifyCoreDoc(id: string): void {
       cache = cache.map((d) => (d.id === id ? toCoreDoc(serverDoc) : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to verify core document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to verify core document:", err);
+    });
 }
 
 /** Counsellor-only — rejects an uploaded core document with a reason, which the student then sees
  * on the checklist prompting a re-upload. */
 export function rejectCoreDoc(id: string, reason: string): void {
+  const prev = cache;
   cache = cache.map((d) => (d.id === id ? { ...d, status: "rejected", rejectionReason: reason } : d));
   notifyCacheChange();
   apiPatch<ServerDocument>(`/api/documents/${id}`, { status: "rejected", rejectionReason: reason })
@@ -145,5 +170,18 @@ export function rejectCoreDoc(id: string, reason: string): void {
       cache = cache.map((d) => (d.id === id ? toCoreDoc(serverDoc) : d));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to reject core document:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to reject core document:", err);
+    });
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearCoreDocsCache() {
+  cache = [];
 }

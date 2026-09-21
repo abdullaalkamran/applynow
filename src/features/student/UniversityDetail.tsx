@@ -1,3 +1,4 @@
+import { websiteHref } from "../../utils/safeHref";
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -81,7 +82,7 @@ export default function UniversityDetail() {
           University <ArrowUpRight size={13} />
         </button>
         <a
-          href={`https://www.${university.website}`}
+          href={websiteHref(university.website)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700"
@@ -311,7 +312,7 @@ function UniversityView({
         {university.accreditations.map((a) => <Pill key={a} tone="navy">{a}</Pill>)}
       </div>
       <a
-        href={`https://www.${university.website}`}
+        href={websiteHref(university.website)}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--sd-ink)]"

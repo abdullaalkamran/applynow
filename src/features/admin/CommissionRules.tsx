@@ -1,75 +1,77 @@
 import { useState } from "react";
-import { Card, CardHeader, CardBody, PageHeader, Badge, Button } from "../../components/ui";
-import { AGENTS } from "../../data/mockData";
+import { Search, Save, Trash2 } from "lucide-react";
+import { Card, CardBody, PageHeader, Badge, Button, EmptyState } from "../../components/ui";
+import { loadStaff } from "../../data/staffStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { getCommissionRate, setCommissionRate } from "../../data/commissionRatesStore";
+import {
+  getCommissionRate, hasCommissionRate, setCommissionRate, clearCommissionRate, describeCommissionRate, EMPTY_RATE,
+  type CommissionRate, type CommissionMode,
+} from "../../data/commissionRatesStore";
 import { loadAllInvoices, markInvoicePaid } from "../../data/agentInvoicesStore";
+import { useHoldCacheSync } from "../../utils/syncCache";
+import type { University } from "../../types";
+
+const inputClass = "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--brand-600)] focus:outline-none";
 
 export default function AdminCommissionRules() {
   const [, forceTick] = useState(0);
-  const UNIVERSITIES = getAllUniversities();
-  const invoices = [...loadAllInvoices(AGENTS.map((a) => a.id))].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const [query, setQuery] = useState("");
+  const [onlyUnset, setOnlyUnset] = useState(false);
+  const universities = getAllUniversities();
+  const agents = loadStaff().filter((m) => m.role === "agent");
+  const invoices = [...loadAllInvoices(agents.map((a) => a.id))].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const q = query.trim().toLowerCase();
+  const shown = universities
+    .filter((u) => !q || u.name.toLowerCase().includes(q) || u.country.toLowerCase().includes(q) || u.city.toLowerCase().includes(q))
+    .filter((u) => !onlyUnset || !hasCommissionRate(u.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const setCount = universities.filter((u) => hasCommissionRate(u.id)).length;
 
   return (
     <div>
       <PageHeader
         title="Commission Rules"
-        subtitle="Set the commission rate each university pays on tuition, plus any platform-sponsored bonus — agents see these live on their Finance page."
+        subtitle="The commission each university pays per enrolled student — a percentage of tuition or a fixed amount — plus any platform-sponsored bonus. Agents see these live on their Finance page."
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 sm:max-w-sm">
+          <Search size={14} className="shrink-0 text-slate-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search university, city or country…"
+            className="w-full min-w-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-600">
+          <input type="checkbox" checked={onlyUnset} onChange={(e) => setOnlyUnset(e.target.checked)} className="h-4 w-4 accent-[var(--brand-600)]" />
+          Only universities without a rate
+        </label>
+        <span className="ml-auto text-xs text-slate-400">{setCount} of {universities.length} universities have a rate</span>
+      </div>
+
       <div className="mb-8 space-y-3">
-        {UNIVERSITIES.map((u) => {
-          const rate = getCommissionRate(u.id);
-          return (
-            <Card key={u.id}>
-              <CardHeader
-                title={u.name}
-                subtitle={`${u.city}, ${u.country}`}
-                action={<Badge tone="blue">{rate.ratePercent + rate.bonusPercent}% effective</Badge>}
-              />
-              <CardBody>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <label className="block text-xs font-medium text-slate-500">
-                    Base rate (% of tuition)
-                    <input
-                      type="number" min={0} max={100} value={rate.ratePercent}
-                      onChange={(e) => { setCommissionRate(u.id, { ...rate, ratePercent: Number(e.target.value) || 0 }); forceTick((t) => t + 1); }}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
-                    />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-500">
-                    Bonus (% extra)
-                    <input
-                      type="number" min={0} max={100} value={rate.bonusPercent}
-                      onChange={(e) => { setCommissionRate(u.id, { ...rate, bonusPercent: Number(e.target.value) || 0 }); forceTick((t) => t + 1); }}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
-                    />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-500">
-                    Bonus campaign label
-                    <input
-                      type="text" value={rate.bonusLabel} placeholder="e.g. Spring Intake Push"
-                      onChange={(e) => { setCommissionRate(u.id, { ...rate, bonusLabel: e.target.value }); forceTick((t) => t + 1); }}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
-                    />
-                  </label>
-                </div>
-              </CardBody>
-            </Card>
-          );
-        })}
+        {shown.map((u) => <RateCard key={u.id} university={u} />)}
+        {shown.length === 0 && (
+          <EmptyState
+            title={universities.length === 0 ? "No universities in the catalog yet" : "No universities match"}
+            subtitle={universities.length === 0 ? "Add universities under Data Management first; their commission terms are set here." : "Try a different search or clear the filter."}
+          />
+        )}
       </div>
 
       <PageHeader title="Agent Invoices" subtitle="Invoices agents have generated from confirmed enrolments, across all agents." />
       <div className="space-y-3">
         {invoices.map((inv) => {
-          const agent = AGENTS.find((a) => a.id === inv.agentId);
+          const agent = agents.find((a) => a.id === inv.agentId);
           return (
             <Card key={inv.id}>
               <CardBody className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-medium text-slate-800">{inv.id}</p>
-                  <p className="text-sm text-slate-500">{agent?.name ?? inv.agentId} · {agent?.organization} · {inv.createdAt} · {inv.lines.length} line{inv.lines.length === 1 ? "" : "s"}</p>
+                  <p className="text-sm text-slate-500">{agent?.name ?? inv.agentId} · {inv.createdAt} · {inv.lines.length} line{inv.lines.length === 1 ? "" : "s"}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-slate-900">${inv.totalAmount.toLocaleString()}</span>
@@ -89,5 +91,114 @@ export default function AdminCommissionRules() {
         )}
       </div>
     </div>
+  );
+}
+
+/** One university's commission terms — edited locally and saved explicitly (not on every
+ * keystroke, which would fire a request per character and could persist a half-typed value). */
+function RateCard({ university }: { university: University }) {
+  const saved = getCommissionRate(university.id);
+  const isSet = hasCommissionRate(university.id);
+  const [draft, setDraft] = useState<CommissionRate>(saved);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const tuition = university.fees.find((f) => f.label === "Tuition Fee")?.amount;
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  // Hold the page remount while there are unsaved edits so the 12s background poll doesn't
+  // discard them (see syncCache.ts).
+  useHoldCacheSync(dirty);
+
+  const patch = (p: Partial<CommissionRate>) => { setDraft((d) => ({ ...d, ...p })); setError(""); };
+  const num = (v: string) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      await setCommissionRate(university.id, draft);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save this rate.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clear() {
+    setBusy(true);
+    setError("");
+    try {
+      await clearCommissionRate(university.id);
+      setDraft(EMPTY_RATE);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't clear this rate.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Worked example against the university's listed tuition, so a fixed vs. percentage choice is
+  // easy to sanity-check at a glance.
+  const exampleBase = draft.mode === "fixed" ? draft.fixedAmountUSD : tuition ? tuition * (draft.ratePercent / 100) : null;
+  const exampleBonus = tuition ? tuition * (draft.bonusPercent / 100) : 0;
+
+  return (
+    <Card>
+      <CardBody>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-800">{university.name}</p>
+            <p className="text-xs text-slate-400">{university.city}, {university.country}{tuition ? ` · Tuition $${tuition.toLocaleString()}` : ""}</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isSet ? <Badge tone="blue">{describeCommissionRate(saved)}{saved.bonusPercent > 0 ? ` + ${saved.bonusPercent}% bonus` : ""}</Badge> : <Badge tone="neutral">Not set</Badge>}
+            {dirty && <Badge tone="amber">Unsaved</Badge>}
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="block text-xs font-medium text-slate-500">
+            Commission type
+            <select value={draft.mode} onChange={(e) => patch({ mode: e.target.value as CommissionMode })} className={inputClass}>
+              <option value="percent">% of tuition fee</option>
+              <option value="fixed">Fixed amount per enrolment</option>
+            </select>
+          </label>
+          {draft.mode === "percent" ? (
+            <label className="block text-xs font-medium text-slate-500">
+              Base rate (% of tuition)
+              <input type="number" min={0} max={100} step={0.5} value={draft.ratePercent} onChange={(e) => patch({ ratePercent: Math.min(100, num(e.target.value)) })} className={inputClass} />
+            </label>
+          ) : (
+            <label className="block text-xs font-medium text-slate-500">
+              Fixed amount (USD per enrolment)
+              <input type="number" min={0} step={50} value={draft.fixedAmountUSD} onChange={(e) => patch({ fixedAmountUSD: num(e.target.value) })} className={inputClass} />
+            </label>
+          )}
+          <label className="block text-xs font-medium text-slate-500">
+            Bonus (% of tuition, extra)
+            <input type="number" min={0} max={100} step={0.5} value={draft.bonusPercent} onChange={(e) => patch({ bonusPercent: Math.min(100, num(e.target.value)) })} className={inputClass} />
+          </label>
+          <label className="block text-xs font-medium text-slate-500">
+            Bonus campaign label
+            <input type="text" value={draft.bonusLabel} placeholder="e.g. Spring Intake Push" onChange={(e) => patch({ bonusLabel: e.target.value })} className={inputClass} />
+          </label>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button onClick={save} disabled={busy || !dirty}><Save size={13} /> {busy ? "Saving…" : isSet ? "Save changes" : "Set rate"}</Button>
+          {isSet && <Button variant="secondary" onClick={clear} disabled={busy}><Trash2 size={13} /> Clear rate</Button>}
+          {exampleBase !== null && (
+            <span className="text-xs text-slate-500">
+              Per enrolment: <span className="font-semibold text-slate-800">${Math.round(exampleBase + exampleBonus).toLocaleString()}</span>
+              {draft.bonusPercent > 0 && ` (incl. $${Math.round(exampleBonus).toLocaleString()} bonus)`}
+              {draft.mode === "percent" && tuition ? " on listed tuition" : ""}
+            </span>
+          )}
+          {exampleBase === null && draft.mode === "percent" && <span className="text-xs text-slate-400">No tuition fee listed — add one on the university to preview the amount.</span>}
+          {error && <p className="text-xs text-rose-600">{error}</p>}
+        </div>
+      </CardBody>
+    </Card>
   );
 }

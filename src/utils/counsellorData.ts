@@ -4,9 +4,13 @@ import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
 import type { AppStatus } from "../types";
 
-// Fixed to the demo counsellor account — there's no auth backend, mirrors how the student side
-// is fixed to CURRENT_STUDENT_ID.
-export const COUNSELLOR_ID = "c1";
+// Live binding, mirroring mockData.ts's CURRENT_STUDENT_ID / CURRENT_AGENT_ID — set from
+// AuthContext.tsx whenever a counsellor session is established, so the counsellor portal shows the
+// logged-in counsellor's own caseload rather than the seeded demo account's.
+export let COUNSELLOR_ID = "c1";
+export function setCounsellorId(id: string) {
+  COUNSELLOR_ID = id;
+}
 
 export const CLOSED_STATUSES = new Set(["Withdrawn", "Rejected", "Deferred"]);
 

@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Modal, Button } from "../../../components/ui";
 import { SkylineArt } from "../../../components/ui/mobile";
-import { COUNSELLORS } from "../../../data/mockData";
+import { staffContact } from "../../../utils/currentStaff";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { createApplication } from "../../../data/applicationsStore";
 import { campusesFor, courseHasOpenIntake } from "../../../utils/universityFilter";
@@ -99,7 +99,7 @@ function StatCard({
 
 export default function CounsellorDashboard() {
   const navigate = useNavigate();
-  const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
+  const counsellor = staffContact(COUNSELLOR_ID, "counsellor");
   const [, forceTick] = useState(0);
   const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [createAppOpen, setCreateAppOpen] = useState(false);

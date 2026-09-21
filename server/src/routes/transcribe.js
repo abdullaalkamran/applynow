@@ -3,6 +3,8 @@ const multer = require("multer");
 const { getConfig } = require("../config");
 const requireAuth = require("../middleware/requireAuth");
 
+const UPSTREAM_TIMEOUT_MS = 30_000;
+
 // Turn-based real voice input: the browser records a clip (MediaRecorder) and posts it here as
 // multipart/form-data; we forward it to OpenAI's Whisper endpoint and hand back plain text, which
 // then flows through the exact same runAssistantTurn/tool-calling loop as typed chat.
@@ -29,6 +31,8 @@ router.post("/", requireAuth, upload.single("audio"), async (req, res, next) => 
 
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
+      // Bounded so a hung upstream can never pin a request worker indefinitely.
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       headers: { authorization: `Bearer ${config.openai.apiKey}` },
       body: form,
     });

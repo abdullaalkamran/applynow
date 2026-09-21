@@ -1,6 +1,6 @@
 const WebSocket = require("ws");
-const jwt = require("jsonwebtoken");
 const { getConfig } = require("../config");
+const { resolveAuthUser } = require("../middleware/resolveAuthUser");
 const { toGeminiTools, toGeminiFunctionResponse } = require("../providers/geminiProvider");
 
 const googleLiveUrl = (apiKey) =>
@@ -73,18 +73,24 @@ function attachGeminiLiveRelay(wss) {
       }
     }
 
-    function startGoogleSession(init) {
+    async function startGoogleSession(init) {
       const config = getConfig();
 
+      // One upstream session per client connection — a repeated `init` would otherwise open
+      // another paid Google session while the first kept running.
+      if (googleSocket) return;
+
       // Opening this session spends real Gemini API cost — same gate as the REST assistant
-      // endpoints (requireAuth), just applied to a WebSocket's first message instead of a header,
-      // since a browser WebSocket can't set a custom Authorization header on the handshake.
+      // endpoints (requireAuth, including the live deactivated/deleted-account checks), just
+      // applied to a WebSocket's first message instead of a header, since a browser WebSocket
+      // can't set a custom Authorization header on the handshake.
       try {
-        jwt.verify(init.token || "", config.jwtSecret);
+        await resolveAuthUser(init.token || "");
       } catch {
         closeAll("Not authenticated — please log in again.");
         return;
       }
+      if (closed || googleSocket) return;
 
       if (!config.gemini.apiKey) {
         closeAll("GEMINI_API_KEY is not set on the server.");
@@ -138,7 +144,10 @@ function attachGeminiLiveRelay(wss) {
       }
 
       if (message.type === "init") {
-        startGoogleSession(message);
+        startGoogleSession(message).catch((err) => {
+          console.error("Gemini Live session failed to start:", err);
+          closeAll("Couldn't start the voice session.");
+        });
         return;
       }
 

@@ -4,6 +4,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { requireDataRole } = require("../middleware/access");
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     const { name, description, modules, careers, accreditations } = req.body || {};
     if (typeof name !== "string" || !name.trim()) {
@@ -53,7 +54,7 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.patch("/:id", requireAuth, async (req, res, next) => {
+router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     const { name, description, modules, careers, accreditations } = req.body || {};
     const row = await prisma.subject.update({

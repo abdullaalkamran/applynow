@@ -7,6 +7,8 @@
 // Keep the option lists here in sync with src/features/staff/data/CourseForm.tsx and
 // src/utils/universityFilter.ts (TEST_NAME_OPTIONS) — the server has no shared module with the
 // frontend, so these are deliberate duplicates.
+const net = require("net");
+const dns = require("dns").promises;
 const { getConfig } = require("./config");
 const { callForJson } = require("./llmJson");
 
@@ -23,6 +25,7 @@ const CURRENCY_BY_CODE = { USD: "$", GBP: "£", EUR: "€", CAD: "C$", AUD: "A$"
 const CONFIDENCE = ["high", "medium", "low"];
 
 const MAX_HTML_BYTES = 2_000_000;
+const MAX_REDIRECTS = 5;
 const MAX_PAGE_CHARS = 40_000;
 const MIN_USEFUL_CHARS = 800;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -36,9 +39,32 @@ class FetchError extends Error {
   }
 }
 
+/** True for any IP a server-side fetch must never be pointed at: loopback, RFC1918, link-local
+ * (cloud metadata lives at 169.254.169.254), CGNAT, multicast/reserved, and their IPv6
+ * equivalents including IPv4-mapped forms. */
+function isPrivateIp(ip) {
+  const kind = net.isIP(ip);
+  if (kind === 4) {
+    const [a, b] = ip.split(".").map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19)) || a >= 224
+    );
+  }
+  if (kind === 6) {
+    const v6 = ip.toLowerCase();
+    if (v6 === "::" || v6 === "::1") return true;
+    const mapped = v6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return /^(fc|fd|fe[89ab])/.test(v6) || v6.startsWith("ff") || v6.startsWith("64:ff9b:");
+  }
+  return true; // not an IP literal at all — treat as unsafe
+}
+
 /** Staff paste arbitrary URLs and the server fetches them — refuse anything that could reach
- * the server's own network (SSRF guard). Public http(s) hosts only. */
-function assertFetchableUrl(raw) {
+ * the server's own network (SSRF guard). Public http(s) hosts only; the hostname is resolved and
+ * every address it points at is checked, not just the literal text. */
+async function assertFetchableUrl(raw) {
   let url;
   try {
     url = new URL(String(raw).trim());
@@ -46,12 +72,20 @@ function assertFetchableUrl(raw) {
     throw Object.assign(new Error("Not a valid URL."), { status: 400 });
   }
   if (!["http:", "https:"].includes(url.protocol)) throw Object.assign(new Error("Only http(s) URLs can be fetched."), { status: 400 });
-  const host = url.hostname.toLowerCase();
-  const privateHost =
-    host === "localhost" || host.endsWith(".localhost") || host === "::1" || host === "[::1]" ||
-    /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^0\./.test(host);
-  if (privateHost) throw Object.assign(new Error("Local and private-network addresses can't be imported."), { status: 400 });
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const refuse = () => { throw Object.assign(new Error("Local and private-network addresses can't be imported."), { status: 400 }); };
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) refuse();
+  if (net.isIP(host)) {
+    if (isPrivateIp(host)) refuse();
+  } else {
+    let addresses;
+    try {
+      addresses = await dns.lookup(host, { all: true });
+    } catch {
+      throw Object.assign(new Error("Couldn't resolve that host name."), { status: 400 });
+    }
+    if (!addresses.length || addresses.some((a) => isPrivateIp(a.address))) refuse();
+  }
   return url.toString();
 }
 
@@ -60,16 +94,29 @@ function assertFetchableUrl(raw) {
 async function fetchPage(url) {
   let response;
   try {
-    response = await fetch(url, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "accept-language": "en-GB,en;q=0.9",
-      },
-    });
+    // Redirects are followed by hand so each hop goes through the same SSRF check as the
+    // original URL — a public page 302-ing to an internal address must not be fetched.
+    let current = url;
+    for (let hop = 0; ; hop++) {
+      response = await fetch(current, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        headers: {
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+          accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "accept-language": "en-GB,en;q=0.9",
+        },
+      });
+      const location = response.headers.get("location");
+      if (![301, 302, 303, 307, 308].includes(response.status) || !location) break;
+      await response.body?.cancel().catch(() => {});
+      if (hop >= MAX_REDIRECTS) throw new FetchError("network", "The page redirected too many times.");
+      current = await assertFetchableUrl(new URL(location, current).toString());
+    }
+    if (!response.url) Object.defineProperty(response, "url", { value: current });
   } catch (err) {
+    if (err instanceof FetchError) throw err;
+    if (err?.status === 400) throw new FetchError("blocked", err.message);
     if (err && (err.name === "TimeoutError" || err.name === "AbortError")) {
       throw new FetchError("timeout", `The page didn't respond within ${FETCH_TIMEOUT_MS / 1000}s — try again later, or paste the page's text instead.`);
     }
@@ -100,8 +147,33 @@ async function fetchPage(url) {
   const declared = Number(response.headers.get("content-length") || 0);
   if (declared > MAX_HTML_BYTES) throw new FetchError("too_large", "The page is too large to import.");
 
-  const html = (await response.text()).slice(0, MAX_HTML_BYTES);
+  const html = await readBodyCapped(response, MAX_HTML_BYTES);
   return { html, finalUrl: response.url || url, status: response.status };
+}
+
+/** Reads at most `limit` bytes of a response body — a chunked/undeclared body can't be trusted to
+ * respect Content-Length, and `response.text()` would buffer all of it. */
+async function readBodyCapped(response, limit) {
+  if (!response.body) return "";
+  const chunks = [];
+  let total = 0;
+  const reader = response.body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        chunks.push(value.subarray(0, value.byteLength - (total - limit)));
+        await reader.cancel().catch(() => {});
+        break;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
 }
 
 // --- HTML → text -------------------------------------------------------------------------------
@@ -123,20 +195,58 @@ function stripTags(fragment) {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|section|article|tr|table|ul|ol|dl|dd|dt|blockquote|figure|fieldset|form)>/gi, "\n")
     .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<h[1-6][^>]*>/gi, "\n## ")
-    .replace(/<li[^>]*>/gi, "\n- ")
+    .replace(/<h[1-6][^<>]*>/gi, "\n## ")
+    .replace(/<li[^<>]*>/gi, "\n- ")
     .replace(/<\/li>/gi, "\n")
     .replace(/<\/(td|th)>/gi, " | ")
-    .replace(/<[^>]+>/g, " ");
+    // `[^<>]` (not `[^>]`): a run of unclosed `<` characters must fail in constant time per
+    // position rather than re-scanning to the end of the document for each one.
+    .replace(/<[^<>]*>/g, " ");
 }
 
+/** Text between the first `<tag ...>` and its closing `</tag>` — indexOf-based, so a page full of
+ * unclosed tags costs O(n), not O(n²) as the equivalent lazy regex would. */
 function tagContent(html, tag) {
-  const match = html.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
-  return match ? match[1] : "";
+  const lower = html.toLowerCase();
+  const open = findOpenTag(lower, tag, 0);
+  if (open === -1) return "";
+  const start = lower.indexOf(">", open);
+  if (start === -1) return "";
+  const end = lower.indexOf(`</${tag}>`, start + 1);
+  return end === -1 ? "" : html.slice(start + 1, end);
+}
+
+/** Index of `<tag` followed by whitespace, `>` or `/` at or after `from` (in lower-cased html). */
+function findOpenTag(lower, tag, from) {
+  const needle = `<${tag}`;
+  let i = lower.indexOf(needle, from);
+  while (i !== -1) {
+    const next = lower[i + needle.length];
+    if (next === undefined || next === ">" || next === "/" || /\s/.test(next)) return i;
+    i = lower.indexOf(needle, i + 1);
+  }
+  return -1;
+}
+
+/** Removes every `<tag ...>…</tag>` block for the given tags; an unclosed opener drops the rest
+ * of the document (it would never have rendered anyway). */
+function stripBlocks(html, tags) {
+  let out = html;
+  for (const tag of tags) {
+    let lower = out.toLowerCase();
+    let i = findOpenTag(lower, tag, 0);
+    while (i !== -1) {
+      const end = lower.indexOf(`</${tag}>`, i);
+      out = end === -1 ? out.slice(0, i) : out.slice(0, i) + out.slice(end + tag.length + 3);
+      lower = out.toLowerCase();
+      i = findOpenTag(lower, tag, i);
+    }
+  }
+  return out;
 }
 
 function metaContent(html, attr, value) {
-  const re = new RegExp(`<meta\\s+[^>]*${attr}=["']${value}["'][^>]*>`, "i");
+  const re = new RegExp(`<meta\\s+[^<>]*${attr}=["']${value}["'][^<>]*>`, "i");
   const tag = html.match(re)?.[0];
   if (!tag) return "";
   return tag.match(/content=["']([^"']*)["']/i)?.[1] ?? "";
@@ -150,10 +260,10 @@ function htmlToText(html) {
   const title = decodeEntities(stripTags(tagContent(source, "title"))).trim();
   const description = decodeEntities(metaContent(source, "name", "description") || metaContent(source, "property", "og:description")).trim();
 
-  let body = source
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(script|style|noscript|svg|template|iframe|canvas|video|audio|picture|select)\b[\s\S]*?<\/\1>/gi, "")
-    .replace(/<(header|nav|footer|aside)\b[\s\S]*?<\/\1>/gi, "");
+  let body = stripBlocks(
+    source.replace(/<!--[\s\S]*?-->/g, ""),
+    ["script", "style", "noscript", "svg", "template", "iframe", "canvas", "video", "audio", "picture", "select", "header", "nav", "footer", "aside"]
+  );
 
   // Prefer the page's main content when it's clearly marked and substantial.
   const main = tagContent(body, "main") || tagContent(body, "article");
@@ -460,7 +570,7 @@ async function obtainPageText({ item, body }) {
   if (item.pageText && body.refetch !== true) {
     return { text: item.pageText, title: item.pageText.match(/^Title: (.+)$/m)?.[1] || "", truncated: false, textSource: item.textSource || "fetch" };
   }
-  const url = assertFetchableUrl(item.sourceUrl);
+  const url = await assertFetchableUrl(item.sourceUrl);
   const page = await fetchPage(url);
   const cleaned = htmlToText(page.html);
   if (detectBlockedPage(cleaned.text)) {

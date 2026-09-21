@@ -7,8 +7,11 @@ const journey = require("../journeyLogic");
 const { saveFinancialReadiness } = require("../financialReadinessRecord");
 const { sendStatusNotification } = require("../notifications/dispatch");
 const { threadIdFor } = require("./messages");
+const { requireInternal, applicationWhere, accessibleApplication, accessibleStudent, isInternal } = require("../middleware/access");
 
 const router = express.Router();
+
+const NOT_FOUND = { error: "Application not found." };
 
 function serializeApplication(a) {
   return {
@@ -67,7 +70,9 @@ async function recipientsAndVariablesFor(application) {
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const { studentId, status, responsibleCounsellorId } = req.query;
-    const where = {};
+    // Scoped to what the caller may see (own applications for a student, own students' for an
+    // agent) — the query filters below only ever narrow that further.
+    const where = { ...applicationWhere(req.authUser) };
     if (studentId) where.studentId = String(studentId);
     if (status) where.status = toEnum(String(status));
     if (responsibleCounsellorId) where.responsibleCounsellorId = String(responsibleCounsellorId);
@@ -80,8 +85,8 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
-    const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-    if (!app) return res.status(404).json({ error: "Application not found." });
+    const app = await accessibleApplication(req.authUser, req.params.id);
+    if (!app) return res.status(404).json(NOT_FOUND);
     res.json(serializeApplication(app));
   } catch (err) {
     next(err);
@@ -90,10 +95,19 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { studentId, university, course, intake, country, campus, source } = req.body || {};
+    const { university, course, intake, country, campus } = req.body || {};
+    // A student can only ever apply as themselves; an agent only for a student they referred.
+    // `source` is derived from who's actually calling, not trusted from the body — it decides
+    // whether the counsellor gets a "review this" task below.
+    const studentId = req.authUser.role === "student" ? req.authUser.roleUserId : req.body?.studentId;
+    const source = req.authUser.role === "student" ? "student" : "counsellor";
     if (!studentId || !university || !course || !intake || !country) {
       return res.status(400).json({ error: "studentId, university, course, intake and country are required." });
     }
+    for (const [key, value] of Object.entries({ university, course, intake, country })) {
+      if (typeof value !== "string") return res.status(400).json({ error: `${key} must be a string.` });
+    }
+    if (!(await accessibleStudent(req.authUser, studentId))) return res.status(404).json({ error: "Student not found." });
 
     // A withdrawn or rejected application doesn't block a fresh attempt — anything else in
     // flight (or already successful) for the same student/university/course does.
@@ -109,18 +123,18 @@ router.post("/", requireAuth, async (req, res, next) => {
       return res.status(409).json({ error: `You've already applied to ${course} at ${university}.` });
     }
 
-    const id = `app-custom-${Date.now()}`;
+    const id = `app-custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const actor = actorFrom(req);
     const app = await prisma.$transaction(async (tx) => {
       const created = await tx.application.create({
         data: {
-          id, studentId, university, course, intake, country, campus,
+          id, studentId, university, course, intake, country, campus: typeof campus === "string" ? campus : undefined,
           status: "Submitted",
           progress: 15,
           nextAction: "Awaiting university confirmation of receipt",
           waitingOn: "university",
           stages: workflowStages(2),
-          source: source || "counsellor",
+          source,
         },
       });
       // A student who already filled in Financial Readiness (it's one shared record per student,
@@ -177,10 +191,11 @@ router.post("/", requireAuth, async (req, res, next) => {
 // The funnel route every status change goes through — replaces applicationsStore.ts's
 // updateApplicationStatus(): writes the status, a history row, an activity row (if the status
 // actually changed), then fires the WhatsApp/email notification in-process (no second round trip).
-router.patch("/:id/status", requireAuth, async (req, res, next) => {
+router.patch("/:id/status", requireAuth, requireInternal, async (req, res, next) => {
   try {
     const { status, nextAction } = req.body || {};
     if (typeof status !== "string") return res.status(400).json({ error: "status is required." });
+    if (nextAction !== undefined && typeof nextAction !== "string") return res.status(400).json({ error: "nextAction must be a string." });
     const statusEnum = toEnum(status);
     const actor = actorFrom(req);
 
@@ -228,10 +243,10 @@ router.patch("/:id/status", requireAuth, async (req, res, next) => {
 // counsellor UI's own dropdown offers that option), it's only ever *rejected* outright if the body
 // is missing the field altogether in a way that suggests a malformed request... which in practice
 // never happens here, so this just accepts empty/absent equally and clears the field.
-router.patch("/:id/assign-counsellor", requireAuth, async (req, res, next) => {
+router.patch("/:id/assign-counsellor", requireAuth, requireInternal, async (req, res, next) => {
   try {
     const { counsellorId } = req.body || {};
-    const value = counsellorId || null;
+    const value = typeof counsellorId === "string" && counsellorId ? counsellorId : null;
     const actor = actorFrom(req);
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -255,10 +270,10 @@ router.patch("/:id/assign-counsellor", requireAuth, async (req, res, next) => {
 });
 
 // Same "empty clears it" rule as assign-counsellor above.
-router.patch("/:id/assign-admission-officer", requireAuth, async (req, res, next) => {
+router.patch("/:id/assign-admission-officer", requireAuth, requireInternal, async (req, res, next) => {
   try {
     const { officerId } = req.body || {};
-    const value = officerId || null;
+    const value = typeof officerId === "string" && officerId ? officerId : null;
     const actor = actorFrom(req);
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -283,6 +298,7 @@ router.patch("/:id/assign-admission-officer", requireAuth, async (req, res, next
 
 router.get("/:id/status-history", requireAuth, async (req, res, next) => {
   try {
+    if (!(await accessibleApplication(req.authUser, req.params.id))) return res.status(404).json(NOT_FOUND);
     const rows = await prisma.applicationStatusHistory.findMany({
       where: { applicationId: req.params.id },
       orderBy: { changedAt: "asc" },
@@ -337,15 +353,14 @@ function serializeActivity(r) {
   };
 }
 
-// No ownership check here, matching every other route in this file (GET /, GET /:id, the status/
-// assignment PATCHes) — any authenticated user can already see any application, so gating just
-// its comments would be a one-off inconsistency, and would also lock out a legitimate staff
-// member who isn't yet the officially-assigned responsible party for this specific application
-// (e.g. an admission officer before one's been assigned).
+// Same access rule as GET /:id (see middleware/access.js): a student sees their own application's
+// activity, an agent their students', internal staff any — including a legitimate staff member
+// who isn't yet the officially-assigned responsible party for this specific application (e.g. an
+// admission officer before one's been assigned).
 router.get("/:id/activity", requireAuth, async (req, res, next) => {
   try {
-    const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-    if (!app) return res.status(404).json({ error: "Application not found." });
+    const app = await accessibleApplication(req.authUser, req.params.id);
+    if (!app) return res.status(404).json(NOT_FOUND);
 
     const rows = await prisma.applicationActivity.findMany({
       where: { applicationId: req.params.id },
@@ -371,8 +386,18 @@ router.post("/:id/activity", requireAuth, async (req, res, next) => {
     if (typeof action !== "string" || !action.trim()) {
       return res.status(400).json({ error: "action is required." });
     }
-    const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-    if (!app) return res.status(404).json({ error: "Application not found." });
+    const app = await accessibleApplication(req.authUser, req.params.id);
+    if (!app) return res.status(404).json(NOT_FOUND);
+    // Students and agents can comment; only internal staff can record anything that reads like an
+    // audit event (status_changed, document_requested, ...) — otherwise the trail could be forged.
+    if (!isInternal(req.authUser) && action !== "comment_added") {
+      return res.status(403).json({ error: "Only comments can be posted here." });
+    }
+    for (const [key, value] of Object.entries({ stageType, oldValue, newValue, notes })) {
+      if (value !== undefined && value !== null && typeof value !== "string") {
+        return res.status(400).json({ error: `${key} must be a string.` });
+      }
+    }
     const actor = actorFrom(req);
 
     const row = await prisma.applicationActivity.create({
@@ -435,10 +460,10 @@ async function withSharedFinancialReadiness(journeyRecord) {
 
 router.get("/:id/journey", requireAuth, async (req, res, next) => {
   try {
+    const app = await accessibleApplication(req.authUser, req.params.id);
+    if (!app) return res.status(404).json(NOT_FOUND);
     let record = await prisma.applicationJourney.findUnique({ where: { applicationId: req.params.id } });
     if (!record) {
-      const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-      if (!app) return res.status(404).json({ error: "Application not found." });
       record = await prisma.applicationJourney.create({
         data: { applicationId: req.params.id, stages: journey.buildInitialStages(app.country) },
       });
@@ -446,8 +471,7 @@ router.get("/:id/journey", requireAuth, async (req, res, next) => {
       // One-time repair of journeys created with the old "Incomplete Profile" default — see
       // journeyLogic.repairLegacyApplicationStage. Done here on read (not a migration) so it also
       // covers rows restored from a dump after the migrations have already run.
-      const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-      const repaired = app && journey.repairLegacyApplicationStage(record.stages, toHuman(app.status));
+      const repaired = journey.repairLegacyApplicationStage(record.stages, toHuman(app.status));
       if (repaired) {
         record = await prisma.applicationJourney.update({ where: { applicationId: req.params.id }, data: { stages: repaired } });
       }
@@ -493,7 +517,13 @@ function computeUpdatedStage(currentStages, stageType, patch) {
  * the application actually being edited and, for Financial Readiness only, every sibling
  * application the edit gets broadcast to — same effect either way, so they can never end up
  * showing different things for what is now one shared piece of data. */
-async function applyStageToApplication(applicationId, stageType, updatedStage, oldStatus, actor) {
+// Statuses that a journey edit must never pull an application back out of — for a *sibling*
+// application that merely receives a broadcast Financial Readiness update, re-deriving the flat
+// status would otherwise flip a Withdrawn/Rejected/Enrolled application back to "Submitted" and
+// notify everyone about it.
+const SETTLED_STATUSES = new Set(["Withdrawn", "Rejected", "Deferred", "Enrolled"]);
+
+async function applyStageToApplication(applicationId, stageType, updatedStage, oldStatus, actor, { skipIfSettled = false } = {}) {
   let record = await prisma.applicationJourney.findUnique({ where: { applicationId } });
   if (!record) {
     const app = await prisma.application.findUnique({ where: { id: applicationId } });
@@ -515,11 +545,13 @@ async function applyStageToApplication(applicationId, stageType, updatedStage, o
     });
   });
 
+  const current = await prisma.application.findUnique({ where: { id: applicationId } });
+  if (!current) return nextStages;
+  const previousStatus = toHuman(current.status);
+  if (skipIfSettled && SETTLED_STATUSES.has(previousStatus)) return nextStages;
+
   const derivedStatus = journey.deriveAppStatus(nextStages);
   const derivedNextAction = journey.computeNextAction(nextStages)?.title ?? "Every stage of the journey is complete.";
-
-  const current = await prisma.application.findUnique({ where: { id: applicationId } });
-  const previousStatus = toHuman(current.status);
   const updatedApp = await prisma.$transaction(async (tx) => {
     const updated = await tx.application.update({ where: { id: applicationId }, data: { status: toEnum(derivedStatus), nextAction: derivedNextAction } });
     await tx.applicationStatusHistory.create({ data: { applicationId, status: toEnum(derivedStatus) } });
@@ -574,19 +606,40 @@ async function upsertSharedFinancialReadiness(studentId, updatedStage, actor) {
   await saveFinancialReadiness(studentId, data, actor);
 }
 
-router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
+/** Only plain scalar fields (and short string arrays) may land in a stage's `data` — the body is
+ * persisted as JSON on the journey row, so without this an arbitrary nested payload would be
+ * stored verbatim and grow unbounded. */
+function sanitizeStagePatch(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(body)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(key)) return null;
+    if (value === null || ["string", "number", "boolean"].includes(typeof value)) {
+      if (typeof value === "string" && value.length > 4000) return null;
+      out[key] = value;
+    } else if (Array.isArray(value) && value.length <= 100 && value.every((v) => typeof v === "string" && v.length <= 500)) {
+      out[key] = value;
+    } else {
+      return null;
+    }
+  }
+  return out;
+}
+
+router.patch("/:id/journey/:stageType", requireAuth, requireInternal, async (req, res, next) => {
   try {
     const { stageType } = req.params;
     if (!journey.STAGE_ORDER.includes(stageType)) {
       return res.status(400).json({ error: `Unknown stage type "${stageType}".` });
     }
-    const patch = req.body || {};
+    const patch = sanitizeStagePatch(req.body || {});
+    if (!patch) return res.status(400).json({ error: "Stage data must be flat key/value fields." });
     const actor = actorFrom(req);
 
     let record = await prisma.applicationJourney.findUnique({ where: { applicationId: req.params.id } });
     if (!record) {
       const app = await prisma.application.findUnique({ where: { id: req.params.id } });
-      if (!app) return res.status(404).json({ error: "Application not found." });
+      if (!app) return res.status(404).json(NOT_FOUND);
       record = await prisma.applicationJourney.create({
         data: { applicationId: req.params.id, stages: journey.buildInitialStages(app.country) },
       });
@@ -614,7 +667,9 @@ router.patch("/:id/journey/:stageType", requireAuth, async (req, res, next) => {
         for (const sibling of siblings) {
           const siblingRecord = await prisma.applicationJourney.findUnique({ where: { applicationId: sibling.id } });
           const siblingOldStatus = siblingRecord?.stages?.[stageType]?.status;
-          await applyStageToApplication(sibling.id, stageType, updatedStage, siblingOldStatus, actor);
+          // A sibling that's already settled (withdrawn, enrolled, ...) gets the shared record
+          // copied in but keeps its status — see SETTLED_STATUSES.
+          await applyStageToApplication(sibling.id, stageType, updatedStage, siblingOldStatus, actor, { skipIfSettled: true });
         }
       }
     }

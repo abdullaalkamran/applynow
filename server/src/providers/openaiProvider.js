@@ -1,5 +1,7 @@
 const { getConfig } = require("../config");
 
+const LLM_TIMEOUT_MS = 90_000;
+
 const API_URL = "https://api.openai.com/v1/chat/completions";
 
 function toOpenAiMessages(systemPrompt, messages) {
@@ -63,6 +65,8 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const hasTools = Array.isArray(tools) && tools.length > 0;
   const response = await fetch(API_URL, {
     method: "POST",
+    // Bounded so a hung upstream can never pin a request worker indefinitely.
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.openai.apiKey}`,
@@ -90,13 +94,25 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
       toolCalls: message.tool_calls.map((call) => ({
         id: call.id,
         name: call.function.name,
-        arguments: JSON.parse(call.function.arguments || "{}"),
+        arguments: parseToolArguments(call.function.arguments),
       })),
       raw: data,
     };
   }
 
   return { kind: "text", text: message.content || "", raw: data };
+}
+
+/** Model output isn't guaranteed to be valid JSON — a malformed argument string becomes an
+ * empty argument set rather than crashing the whole assistant turn. */
+function parseToolArguments(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 module.exports = { send };

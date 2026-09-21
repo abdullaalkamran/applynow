@@ -16,12 +16,16 @@ import type { Application, AppStatus, Role } from "../types";
 type Actor = { id: string; role: Role; name: string };
 
 let cache: Application[] = [];
+let refreshSeq = 0;
 
 /** Fetches every application the caller's account can see and replaces the cache — call once
  * after login (see utils/warmCaches.ts) and after this store isn't the source of a write itself
  * (e.g. nothing needed here beyond the initial warm-up, since mutations update the cache directly). */
 export async function refreshApplications(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<Application[]>("/api/applications");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -160,3 +164,9 @@ export async function createApplication(input: NewApplicationInput): Promise<App
 }
 
 export { refreshOne as refreshApplicationFromServer };
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearApplicationsCache() {
+  cache = [];
+}

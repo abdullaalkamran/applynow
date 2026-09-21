@@ -1,3 +1,4 @@
+import { websiteHref } from "../../utils/safeHref";
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -325,7 +326,7 @@ export default function AgentUniversityDetail() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 p-4">
-              <a href={`https://www.${university.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
+              <a href={websiteHref(university.website)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
                 Website <ExternalLink size={12} />
               </a>
               <button onClick={() => setUniTab("Courses")} className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">

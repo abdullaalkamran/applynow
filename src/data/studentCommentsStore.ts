@@ -59,3 +59,9 @@ export function postStudentComment(studentId: string, notes: string, performedBy
 export function refreshCachedStudentComments(): void {
   Object.keys(cache).forEach((studentId) => refreshFromServer(studentId));
 }
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearStudentCommentsCache() {
+  for (const key of Object.keys(cache)) delete cache[key];
+}

@@ -79,7 +79,18 @@ export function useHoldCacheSync(active = true) {
  * whether or not another account had actually changed anything. */
 export function cacheChanged<T>(next: T[], current: T[]): boolean {
   if (next.length !== current.length) return true;
-  return JSON.stringify(next) !== JSON.stringify(current);
+  // Order-insensitive: Postgres is free to return the same rows in a different physical order
+  // after an update, and a list that merely re-ordered must not count as "changed" — that would
+  // remount the open page (dropping scroll position and half-typed input) for nothing.
+  return JSON.stringify(sortedForCompare(next)) !== JSON.stringify(sortedForCompare(current));
+}
+
+function sortedForCompare<T>(rows: T[]): T[] {
+  const key = (row: T): string => {
+    const r = row as Record<string, unknown>;
+    return String(r.id ?? r.studentId ?? r.applicationId ?? r.universityId ?? r.threadId ?? JSON.stringify(row));
+  };
+  return [...rows].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
 }
 
 /** Mounted once per role shell (AppLayout, StudentShell, CounsellorShell, AgentShell). Returns a

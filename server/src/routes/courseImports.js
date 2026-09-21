@@ -95,7 +95,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
       }
       let normalized;
       try {
-        normalized = assertFetchableUrl(raw);
+        normalized = await assertFetchableUrl(raw);
       } catch (err) {
         skipped.push({ url: raw, reason: err.message });
         continue;

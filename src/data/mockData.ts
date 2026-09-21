@@ -105,7 +105,13 @@ export const COMMISSIONS: CommissionTx[] = [
   { id: "cm6", agentId: "a1", studentId: "s1", university: "University of Manchester", amount: 1450, currency: "USD", status: "Paid", milestone: "Enrolment (prior intake)", updatedAt: "2026-05-20" },
 ];
 
-export const CURRENT_AGENT_ID = "a1";
+// Live binding, same mechanism as CURRENT_STUDENT_ID above — set from AuthContext.tsx whenever an
+// agent session is established, so every agent page resolves to whoever is actually logged in
+// instead of the seeded demo agent.
+export let CURRENT_AGENT_ID = "a1";
+export function setCurrentAgentId(id: string) {
+  CURRENT_AGENT_ID = id;
+}
 
 export const COMPLIANCE_CASES: ComplianceCase[] = [
   { id: "cc1", subjectType: "Document", subjectName: "Sponsor_Bank_Statement.pdf (Duy Nguyen)", reason: "Formatting anomaly detected by Document AI", riskLevel: "high", status: "Investigating", openedAt: "2026-09-03", evidence: ["AI anomaly score: 0.91", "Font inconsistency on page 2", "Metadata edited after issue date"] },

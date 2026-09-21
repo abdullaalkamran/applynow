@@ -2,8 +2,11 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { requireStaff, isInternal, publicStaff } = require("../middleware/access");
 
 const router = express.Router();
+
+const STAFF_STATUSES = ["Active", "Invited", "Inactive"];
 
 const AVATAR_COLORS = ["bg-sky-500", "bg-rose-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-indigo-500", "bg-teal-500"];
 
@@ -57,11 +60,16 @@ function requireAdminRole(req, res, next) {
   next();
 }
 
+// Internal staff get the full directory; a student or agent only what they'd see next to a name
+// in the UI (never emails, phones or referral codes — with those any student could enumerate
+// every agent's code and re-attach themselves to whichever agent they liked).
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const { role } = req.query;
+    if (role && !STAFF_ROLES.concat("agent").includes(String(role))) return res.json([]);
     const where = role ? { role: String(role) } : undefined;
     const staff = await prisma.staff.findMany({ where, orderBy: { createdAt: "asc" } });
+    if (!isInternal(req.authUser)) return res.json(staff.map(publicStaff));
     res.json(await attachHasLogin(staff));
   } catch (err) {
     next(err);
@@ -110,10 +118,16 @@ router.get("/referral/:code", async (req, res, next) => {
 // account), so copying one into the other on every save would silently change someone's login
 // email as a side effect of editing their contact details. Changing a login email is a separate,
 // more sensitive action this endpoint doesn't attempt.
-router.patch("/me", requireAuth, async (req, res, next) => {
+router.patch("/me", requireAuth, requireStaff, async (req, res, next) => {
   try {
     const { name, email, phone, organization } = req.body || {};
     const id = req.authUser.roleUserId;
+    for (const [key, value] of Object.entries({ phone, organization })) {
+      if (value !== undefined && value !== null && typeof value !== "string") {
+        return res.status(400).json({ error: `${key} must be a string.` });
+      }
+    }
+    if (!(await prisma.staff.findUnique({ where: { id } }))) return res.status(404).json({ error: "Staff record not found." });
     const trimmedName = typeof name === "string" && name.trim() ? name.trim() : undefined;
 
     const staff = await prisma.$transaction(async (tx) => {
@@ -143,6 +157,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const staff = await prisma.staff.findUnique({ where: { id: req.params.id } });
     if (!staff) return res.status(404).json({ error: "Staff member not found." });
+    if (!isInternal(req.authUser)) return res.json(publicStaff(staff));
     res.json(await attachHasLogin(staff));
   } catch (err) {
     next(err);
@@ -208,8 +223,16 @@ router.patch("/:id", requireAuth, requireAdminRole, async (req, res, next) => {
     if (role && !STAFF_ROLES.includes(role)) {
       return res.status(400).json({ error: `role must be one of: ${STAFF_ROLES.join(", ")}` });
     }
-    if (password && String(password).length < 8) {
+    if (password !== undefined && password !== null && (typeof password !== "string" || password.length < 8)) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
+    if (status !== undefined && !STAFF_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${STAFF_STATUSES.join(", ")}` });
+    }
+    for (const [key, value] of Object.entries({ name, email, phone, organization })) {
+      if (value !== undefined && value !== null && typeof value !== "string") {
+        return res.status(400).json({ error: `${key} must be a string.` });
+      }
     }
 
     const existing = await prisma.staff.findUnique({ where: { id: req.params.id } });
@@ -253,11 +276,34 @@ router.patch("/:id", requireAuth, requireAdminRole, async (req, res, next) => {
   }
 });
 
+// Removing a member also removes their login — otherwise they'd keep signing in with their old
+// role (login and requireAuth only ever consulted the Staff row for *status*, and a missing row
+// looked exactly like a demo login that never had one). Students/applications they were
+// responsible for are unassigned; commission/invoice history stays and blocks the delete (409).
 router.delete("/:id", requireAuth, requireAdminRole, async (req, res, next) => {
   try {
-    await prisma.staff.delete({ where: { id: req.params.id } });
+    const existing = await prisma.staff.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "Staff member not found." });
+    if (existing.id === req.authUser.roleUserId) {
+      return res.status(409).json({ error: "You can't remove your own account." });
+    }
+    const id = existing.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.student.updateMany({ where: { agentId: id }, data: { agentId: null } });
+      await tx.student.updateMany({ where: { counsellorId: id }, data: { counsellorId: null } });
+      await tx.application.updateMany({ where: { responsibleCounsellorId: id }, data: { responsibleCounsellorId: null } });
+      await tx.application.updateMany({ where: { responsibleAdmissionOfficerId: id }, data: { responsibleAdmissionOfficerId: null } });
+      await tx.teamLead.deleteMany({ where: { staffId: id } });
+      await tx.counsellorSettings.deleteMany({ where: { staffId: id } });
+      await tx.meeting.deleteMany({ where: { staffId: id } });
+      await tx.user.deleteMany({ where: { roleUserId: id, role: existing.role } });
+      await tx.staff.delete({ where: { id } });
+    });
     res.status(204).end();
   } catch (err) {
+    if (err.code === "P2003") {
+      return res.status(409).json({ error: "This member still has commission or invoice records — deactivate them instead of removing." });
+    }
     next(err);
   }
 });

@@ -39,11 +39,15 @@ export function fetchFinancialReadinessHistory(studentId: string): Promise<Finan
 }
 
 let cache: StudentFinancialReadiness[] = [];
+let refreshSeq = 0;
 
 /** Every student's Financial Readiness record the caller's account can see — call once after
  * login (see utils/warmCaches.ts), same as every other migrated store. */
 export async function refreshFinancialReadiness(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<StudentFinancialReadiness[]>("/api/financial-readiness");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -69,6 +73,7 @@ export function updateFinancialReadiness(studentId: string, patch: Partial<Stude
     ...current,
     ...patch,
   };
+  const prev = cache;
   cache = current ? cache.map((r) => (r.studentId === studentId ? optimistic : r)) : [...cache, optimistic];
   notifyCacheChange();
 
@@ -77,7 +82,20 @@ export function updateFinancialReadiness(studentId: string, patch: Partial<Stude
       cache = cache.map((r) => (r.studentId === studentId ? serverRecord : r));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist financial readiness:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist financial readiness:", err);
+    });
 
   return optimistic;
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearStudentFinancialReadinessCache() {
+  cache = [];
 }

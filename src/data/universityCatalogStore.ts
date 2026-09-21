@@ -4,6 +4,7 @@
 // dozens of existing call sites — student/agent/counsellor browse pages, the AI tool registry,
 // universityFilter.ts — never need to change), backed by a cache warmed after login and kept
 // current after every write.
+import { loadStoredAuth } from "../utils/authClient";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import { getCountryId } from "./countryRegistry";
@@ -12,9 +13,13 @@ import type { University } from "../types";
 type Course = University["courses"][number];
 
 let cache: University[] = [];
+let refreshSeq = 0;
 
 export async function refreshUniversities(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<University[]>("/api/universities");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -38,6 +43,7 @@ export function isCustomUniversity(_id: string): boolean {
 export function addUniversity(data: Omit<University, "id">): University {
   const id = `u-custom-${Date.now().toString(36)}`;
   const optimistic: University = { ...data, id };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
   getCountryId(optimistic.country);
@@ -47,13 +53,21 @@ export function addUniversity(data: Omit<University, "id">): University {
       cache = cache.map((u) => (u.id === id ? created : u));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist new university:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist new university:", err);
+    });
 
   return optimistic;
 }
 
 export function updateUniversity(id: string, patch: Partial<University>) {
   if (patch.country) getCountryId(patch.country);
+  const prev = cache;
   cache = cache.map((u) => (u.id === id ? { ...u, ...patch } : u));
   notifyCacheChange();
 
@@ -62,18 +76,34 @@ export function updateUniversity(id: string, patch: Partial<University>) {
       cache = cache.map((u) => (u.id === id ? updated : u));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist university update:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist university update:", err);
+    });
 }
 
 export function deleteUniversity(id: string) {
+  const prev = cache;
   cache = cache.filter((u) => u.id !== id);
   notifyCacheChange();
-  apiDelete(`/api/universities/${id}`).catch((err) => console.warn("Failed to delete university:", err));
+  apiDelete(`/api/universities/${id}`).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to delete university:", err);
+    });
 }
 
 export function addCourse(universityId: string, course: Omit<Course, "id">): Course {
   const id = `crs-custom-${Date.now().toString(36)}`;
   const newCourse: Course = { ...course, id };
+  const prev = cache;
   cache = cache.map((u) => (u.id === universityId ? { ...u, courses: [...u.courses, newCourse] } : u));
   notifyCacheChange();
 
@@ -84,7 +114,14 @@ export function addCourse(universityId: string, course: Omit<Course, "id">): Cou
       );
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist new course:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist new course:", err);
+    });
 
   return newCourse;
 }
@@ -121,6 +158,10 @@ const MIGRATED_KEY = "data-mgmt-universities-migrated-to-server";
 
 export async function migrateLegacyLocalUniversities(): Promise<void> {
   if (typeof window === "undefined" || window.localStorage.getItem(MIGRATED_KEY)) return;
+  // Only Data Management (or an admin) may write the catalog — any other role would just get a
+  // 403 from the server for every legacy row, on every load.
+  const role = loadStoredAuth()?.user.role;
+  if (role !== "data" && role !== "admin") return;
   let legacy: University[] = [];
   try {
     const raw = window.localStorage.getItem(LEGACY_CREATED_KEY);
@@ -142,4 +183,10 @@ export async function migrateLegacyLocalUniversities(): Promise<void> {
   }
   window.localStorage.setItem(MIGRATED_KEY, "true");
   await refreshUniversities();
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearUniversityCatalogCache() {
+  cache = [];
 }

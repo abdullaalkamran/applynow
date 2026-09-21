@@ -20,11 +20,15 @@ export interface NextStep {
 }
 
 let cache: NextStep[] = [];
+let refreshSeq = 0;
 
 /** Every next step the caller's account can see — call once after login (see utils/warmCaches.ts),
  * same as every other migrated store. */
 export async function refreshNextSteps(): Promise<void> {
+  const seq = ++refreshSeq;
   const next = await apiGet<NextStep[]>("/api/next-steps");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
   if (!cacheChanged(next, cache)) return;
   cache = next;
   notifyCacheChange();
@@ -44,6 +48,7 @@ export function addNextStep(applicationId: string, title: string, dueDate?: stri
     id: optimisticId, applicationId, title: trimmed, createdAt: new Date().toISOString().slice(0, 10),
     done: false, dueDate: dueDate || undefined,
   };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
   apiPost<NextStep>("/api/next-steps", { applicationId, title: trimmed, dueDate: dueDate || undefined })
@@ -51,7 +56,14 @@ export function addNextStep(applicationId: string, title: string, dueDate?: stri
       cache = cache.map((s) => (s.id === optimisticId ? serverStep : s));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist next step:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist next step:", err);
+    });
   return optimistic;
 }
 
@@ -62,6 +74,7 @@ export function toggleNextStepDone(_applicationId: string, stepId: string) {
   const current = cache.find((s) => s.id === stepId);
   if (!current || current.done) return;
   const completedAt = new Date().toISOString().slice(0, 10);
+  const prev = cache;
   cache = cache.map((s) => (s.id === stepId ? { ...s, done: true, completedAt } : s));
   notifyCacheChange();
   apiPatch<NextStep>(`/api/next-steps/${stepId}`, { done: true })
@@ -69,12 +82,20 @@ export function toggleNextStepDone(_applicationId: string, stepId: string) {
       cache = cache.map((s) => (s.id === stepId ? serverStep : s));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to complete next step:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to complete next step:", err);
+    });
 }
 
 export function setNextStepDueDate(_applicationId: string, stepId: string, dueDate: string) {
   const current = cache.find((s) => s.id === stepId);
   if (!current || current.done) return; // locked — same rule as toggleNextStepDone
+  const prev = cache;
   cache = cache.map((s) => (s.id === stepId ? { ...s, dueDate: dueDate || undefined } : s));
   notifyCacheChange();
   apiPatch<NextStep>(`/api/next-steps/${stepId}`, { dueDate: dueDate || null })
@@ -82,13 +103,28 @@ export function setNextStepDueDate(_applicationId: string, stepId: string, dueDa
       cache = cache.map((s) => (s.id === stepId ? serverStep : s));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to set next step due date:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to set next step due date:", err);
+    });
 }
 
 export function removeNextStep(_applicationId: string, stepId: string) {
+  const prev = cache;
   cache = cache.filter((s) => s.id !== stepId);
   notifyCacheChange();
-  apiDelete(`/api/next-steps/${stepId}`).catch((err) => console.warn("Failed to remove next step:", err));
+  apiDelete(`/api/next-steps/${stepId}`).catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to remove next step:", err);
+    });
 }
 
 /** "Overdue" / "Due soon" / "On track" classification for showing urgency. */
@@ -99,4 +135,10 @@ export function dueDateTone(dueDate: string | undefined, done: boolean): "overdu
   if (days < 0) return "overdue";
   if (days <= 3) return "soon";
   return "normal";
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearApplicationNextStepsCache() {
+  cache = [];
 }

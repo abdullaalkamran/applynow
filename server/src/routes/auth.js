@@ -11,6 +11,23 @@ const router = express.Router();
 
 const AVATAR_COLORS = ["bg-sky-500", "bg-rose-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-indigo-500", "bg-teal-500"];
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_PASSWORD_LENGTH = 200; // bcrypt only reads 72 bytes; this just bounds the hashing work
+
+// Compared against when the email isn't registered, so a login attempt costs the same time whether
+// or not the account exists — otherwise the skipped bcrypt round trip reveals which emails are real.
+const DUMMY_HASH = bcrypt.hashSync("unused-timing-equalizer", 10);
+
+function isValidPassword(password) {
+  return typeof password === "string" && password.length >= 8 && password.length <= MAX_PASSWORD_LENGTH;
+}
+
+/** Same `st-<base36 time>` shape as before plus a random suffix so same-millisecond signups
+ * can't collide on the primary key. */
+function newStudentId() {
+  return `st-${Date.now().toString(36)}-${crypto.randomBytes(3).toString("hex")}`;
+}
+
 function toPublicUser(user) {
   return { id: user.id, email: user.email, name: user.name, role: user.role, roleUserId: user.roleUserId };
 }
@@ -36,12 +53,13 @@ function issueToken(user) {
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email || !password || password.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: "Email and password are required." });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: String(email).toLowerCase() } });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    const matches = await bcrypt.compare(password, user ? user.passwordHash : DUMMY_HASH);
+    if (!user || !matches) {
       return res.status(401).json({ error: "Incorrect email or password." });
     }
     if (await isDeactivatedStaff(user)) {
@@ -61,11 +79,17 @@ router.post("/login", async (req, res, next) => {
 router.post("/register", async (req, res, next) => {
   try {
     const { name, email, password, country, referralCode } = req.body || {};
-    if (!name || !email || !password || !country) {
+    if (typeof name !== "string" || typeof email !== "string" || typeof country !== "string" || !name.trim() || !email.trim() || !country.trim() || !password) {
       return res.status(400).json({ error: "Name, email, password and country are required." });
     }
-    if (String(password).length < 8) {
+    if (!EMAIL_RE.test(email.trim())) {
+      return res.status(400).json({ error: "Enter a valid email address." });
+    }
+    if (!isValidPassword(password)) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
+    if (referralCode !== undefined && referralCode !== null && typeof referralCode !== "string") {
+      return res.status(400).json({ error: "Referral code not recognized." });
     }
 
     let agent = null;
@@ -77,7 +101,7 @@ router.post("/register", async (req, res, next) => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const passwordHash = await bcrypt.hash(password, 10);
     const studentCount = await prisma.student.count();
-    const studentId = `st-${Date.now().toString(36)}`;
+    const studentId = newStudentId();
 
     const user = await prisma.$transaction(async (tx) => {
       await tx.student.create({
@@ -115,8 +139,11 @@ router.post("/google", async (req, res, next) => {
       return res.status(503).json({ error: "Google sign-in isn't configured yet." });
     }
     const { credential, referralCode } = req.body || {};
-    if (!credential) {
+    if (typeof credential !== "string" || !credential) {
       return res.status(400).json({ error: "Missing Google credential." });
+    }
+    if (referralCode !== undefined && referralCode !== null && typeof referralCode !== "string") {
+      return res.status(400).json({ error: "Referral code not recognized." });
     }
 
     const client = new OAuth2Client(googleClientId);
@@ -146,9 +173,9 @@ router.post("/google", async (req, res, next) => {
       if (!agent) return res.status(400).json({ error: "Referral code not recognized." });
     }
 
-    const name = payload.name || normalizedEmail.split("@")[0];
+    const name = (typeof payload.name === "string" && payload.name.trim()) || normalizedEmail.split("@")[0];
     const studentCount = await prisma.student.count();
-    const studentId = `st-${Date.now().toString(36)}`;
+    const studentId = newStudentId();
     // Never actually used to log in (that path is /login, which this account has no password
     // for) — just satisfies the column's NOT NULL constraint with something unguessable.
     const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
@@ -196,10 +223,10 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.post("/change-password", requireAuth, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
-    if (!currentPassword || !newPassword) {
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword || currentPassword.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: "Current and new password are required." });
     }
-    if (String(newPassword).length < 8) {
+    if (!isValidPassword(newPassword)) {
       return res.status(400).json({ error: "New password must be at least 8 characters." });
     }
     const user = await prisma.user.findUnique({ where: { id: req.authUser.sub } });

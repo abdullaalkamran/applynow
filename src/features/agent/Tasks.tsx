@@ -2,13 +2,14 @@ import { useState } from "react";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
 import type { GetTaskTarget } from "../../components/tasks/TaskListSection";
 import { getAgentTasks, staffTaskTarget } from "../../utils/taskBoard";
-import { AGENTS, CURRENT_AGENT_ID } from "../../data/mockData";
+import { CURRENT_AGENT_ID } from "../../data/mockData";
+import { staffContact } from "../../utils/currentStaff";
 
 const getTaskTarget: GetTaskTarget = (task) => staffTaskTarget(task, "/agent/students");
 
 export default function AgentTasks() {
   const [, forceTick] = useState(0);
-  const agent = AGENTS.find((a) => a.id === CURRENT_AGENT_ID)!;
+  const agent = staffContact(CURRENT_AGENT_ID, "agent");
   const tasks = getAgentTasks(CURRENT_AGENT_ID);
   const openCount = tasks.filter((t) => !t.done).length;
 

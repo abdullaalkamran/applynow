@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, ChevronRight, ListChecks } from "lucide-react";
-import { COUNSELLORS } from "../../../data/mockData";
+import { staffContact } from "../../../utils/currentStaff";
 import { SkylineArt } from "../../../components/ui/mobile";
 import { BackButton } from "../../../components/ui";
 import { COUNSELLOR_ID, activeApplicationsFor, missingDocsCountFor } from "../../../utils/counsellorData";
@@ -28,7 +28,7 @@ function greeting(): string {
 
 export default function CounsellorCaseQueue() {
   const navigate = useNavigate();
-  const counsellor = COUNSELLORS.find((c) => c.id === COUNSELLOR_ID)!;
+  const counsellor = staffContact(COUNSELLOR_ID, "counsellor");
   const assigned = loadAssignedStudents();
   const [, forceTick] = useState(0);
 

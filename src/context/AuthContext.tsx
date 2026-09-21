@@ -2,8 +2,46 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import {
   loadStoredAuth, saveAuth, clearAuth, login as loginRequest, register as registerRequest, googleAuth, fetchMe, type AuthUser, type RegisterInput,
 } from "../utils/authClient";
-import { warmCaches, startCachePolling, stopCachePolling } from "../utils/warmCaches";
-import { setCurrentStudentId } from "../data/mockData";
+import { warmCaches, startCachePolling, stopCachePolling, clearAllCaches } from "../utils/warmCaches";
+import { bumpSessionGeneration, AUTH_EXPIRED_EVENT } from "../utils/apiClient";
+import { clearAdminToken } from "../utils/adminSettingsClient";
+import { setCurrentStudentId, setCurrentAgentId } from "../data/mockData";
+import { setCounsellorId } from "../utils/counsellorData";
+
+// Per-user state some (still localStorage-backed) stores keep under a fixed key rather than one
+// namespaced by user id — cleared on logout so it can't bleed into the next person's session on
+// a shared browser. Anything namespaced by id (sd-profile-details:<studentId> etc.) is left alone.
+const PER_USER_LOCAL_KEYS = [
+  "sd-shortlisted-programs",
+  "sd-notifications-read",
+  "sd-lead-followup-status",
+  "sd-counsellor-seen-applications",
+  "staff-counsellor-settings",
+  "staff-custom-meetings",
+  "staff-meetings-done",
+];
+const PER_USER_LOCAL_PREFIXES = ["staff-stats-snapshot:"];
+
+function clearPerUserLocalState() {
+  if (typeof window === "undefined") return;
+  try {
+    for (const key of PER_USER_LOCAL_KEYS) window.localStorage.removeItem(key);
+    for (let i = window.localStorage.length - 1; i >= 0; i--) {
+      const key = window.localStorage.key(i);
+      if (key && PER_USER_LOCAL_PREFIXES.some((p) => key.startsWith(p))) window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage can be unavailable (private mode, blocked) — nothing to clear then.
+  }
+  clearAdminToken();
+}
+
+/** Everything that must happen between one session ending and the next beginning. */
+function resetSessionState() {
+  bumpSessionGeneration();
+  clearAllCaches();
+  clearPerUserLocalState();
+}
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -41,7 +79,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // through this same `user` state.
   useEffect(() => {
     if (user?.role === "student") setCurrentStudentId(user.roleUserId);
+    if (user?.role === "agent") setCurrentAgentId(user.roleUserId);
+    if (user?.role === "counsellor") setCounsellorId(user.roleUserId);
   }, [user]);
+
+  // apiClient fires this when the server rejects the stored token (expired, account deactivated
+  // or removed) — end the session here so the user lands on the login page instead of a page
+  // that still looks signed in while every request silently fails.
+  useEffect(() => {
+    function onExpired() {
+      resetSessionState();
+      setToken(null);
+      setUser(null);
+      stopCachePolling();
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
 
   useEffect(() => {
     if (!initial) return;
@@ -54,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearAuth();
+        resetSessionState();
         setUser(null);
         setToken(null);
       })
@@ -64,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const { token: newToken, user: newUser } = await loginRequest(email, password);
+    resetSessionState();
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
@@ -74,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signup(input: RegisterInput) {
     const { token: newToken, user: newUser, agentName } = await registerRequest(input);
+    resetSessionState();
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
@@ -84,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loginWithGoogle(credential: string, referralCode?: string) {
     const { token: newToken, user: newUser, agentName } = await googleAuth(credential, referralCode);
+    resetSessionState();
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
@@ -94,9 +152,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout() {
     clearAuth();
+    stopCachePolling();
+    resetSessionState();
     setToken(null);
     setUser(null);
-    stopCachePolling();
   }
 
   async function refreshUser() {

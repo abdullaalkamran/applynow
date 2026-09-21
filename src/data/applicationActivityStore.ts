@@ -86,3 +86,9 @@ export function recordActivity(event: Omit<ActivityEvent, "id" | "timestamp">): 
 export function refreshCachedActivity(): void {
   Object.keys(cache).forEach((applicationId) => refreshFromServer(applicationId));
 }
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearApplicationActivityCache() {
+  for (const key of Object.keys(cache)) delete cache[key];
+}

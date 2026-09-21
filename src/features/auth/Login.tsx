@@ -16,6 +16,10 @@ const DEMO_ACCOUNTS = [
   { email: "admin@studyone.dev", label: "Admin" },
 ];
 
+// The seeded demo logins are a development convenience — a production build must not advertise
+// real accounts and their shared password on its login page.
+const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV;
+
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -119,14 +123,16 @@ export default function Login() {
           New here? <span className="ml-1 text-[var(--sd-ink)]">Create an account</span>
         </button>
 
+        {SHOW_DEMO_ACCOUNTS && (
         <button
           onClick={() => setShowDemo((v) => !v)}
           className="mt-6 flex w-full items-center justify-center gap-1 text-[12px] font-medium text-slate-400"
         >
           Demo accounts {showDemo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
+        )}
 
-        {showDemo && (
+        {SHOW_DEMO_ACCOUNTS && showDemo && (
           <div className="mt-2 space-y-1 rounded-xl bg-[var(--sd-card)] p-3 text-[12px] text-slate-500">
             <p className="mb-1.5 text-slate-400">Password for every account: <span className="font-mono text-slate-600">password123</span></p>
             {DEMO_ACCOUNTS.map((a) => (

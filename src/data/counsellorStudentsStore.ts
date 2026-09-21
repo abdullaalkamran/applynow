@@ -43,6 +43,7 @@ export function addStudent(name: string, email: string, country: string): Studen
     avatarColor: "bg-sky-500",
     riskFlag: "none",
   };
+  const prev = cache;
   cache = [...cache, optimistic];
   notifyCacheChange();
   apiPost<Student>("/api/students", { name, email, country })
@@ -50,6 +51,19 @@ export function addStudent(name: string, email: string, country: string): Studen
       cache = cache.map((s) => (s.id === optimistic.id ? student : s));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist new student:", err));
+    .catch((err) => {
+      // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
+      // the session ended meanwhile, in which case the cache was already cleared on purpose.
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist new student:", err);
+    });
   return optimistic;
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearCounsellorStudentsCache() {
+  cache = [];
 }

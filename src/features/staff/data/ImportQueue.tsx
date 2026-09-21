@@ -4,6 +4,7 @@
 // creates rows, runs them one at a time (one request per URL, so a slow page or a slow model
 // never blocks the others), and shows where every row stands. Approval itself only ever happens
 // from the form (`?importId=`) — the queue never writes to the catalog.
+import { safeHref } from "../../../utils/safeHref";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ExternalLink, Pause, Play, Sparkles, Trash2, Upload } from "lucide-react";
@@ -336,7 +337,7 @@ export function ImportQueue<Row extends QueueRow>({ adapter }: { adapter: QueueA
                     return (
                       <tr key={row.id} className="align-top">
                         <td className="max-w-[240px] px-4 py-3">
-                          <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[11px] text-[var(--brand-600)]">
+                          <a href={safeHref(row.sourceUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 break-all font-mono text-[11px] text-[var(--brand-600)]">
                             {shortUrl(row.sourceUrl)} <ExternalLink size={10} className="shrink-0" />
                           </a>
                           {row.textSource === "paste" && <p className="mt-0.5 text-[10.5px] text-slate-400">from pasted text</p>}
