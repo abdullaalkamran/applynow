@@ -251,6 +251,30 @@ export function Chip({
   );
 }
 
+/** A dense, always-visible labeled-checkbox list — for a filter group with too many options to
+ * show as chips (e.g. Advanced Search's Program Level / Requirements columns), where every option
+ * should be scannable at once rather than tucked behind a collapsed dropdown. */
+export function CheckboxList({
+  options, selected, onToggle, columns = 1,
+}: { options: readonly string[]; selected: Set<string>; onToggle: (value: string) => void; columns?: 1 | 2 | 3 }) {
+  const colClass = columns === 3 ? "sm:grid-cols-3" : columns === 2 ? "sm:grid-cols-2" : "";
+  return (
+    <div className={`grid grid-cols-1 gap-2 ${colClass}`}>
+      {options.map((opt) => (
+        <label key={opt} className="flex items-center gap-2 text-[12.5px] text-slate-600">
+          <input
+            type="checkbox"
+            checked={selected.has(opt)}
+            onChange={() => onToggle(opt)}
+            className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-[var(--sd-ink)] focus:ring-[var(--sd-ink)]"
+          />
+          <span className="min-w-0 truncate">{opt}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Collapsed dropdown-style trigger for a multi-select Chip list — shows a summary
  * ("Any" / one value / "N selected") and only reveals the chip options when tapped.

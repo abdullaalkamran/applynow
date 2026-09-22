@@ -28,6 +28,11 @@ function serializeCourse(c) {
     modules: c.modules.length ? c.modules : undefined,
     careers: c.careers.length ? c.careers : undefined,
     accreditations: Array.isArray(c.accreditations) && c.accreditations.length ? c.accreditations : undefined,
+    standardizedTests: c.standardizedTests.length ? c.standardizedTests : undefined,
+    programLevel: c.programLevel.length ? c.programLevel : undefined,
+    mathsRequired: c.mathsRequired,
+    isStemProgram: c.isStemProgram,
+    accepts15YearsEducation: c.accepts15YearsEducation,
   };
 }
 
@@ -57,6 +62,10 @@ function serializeUniversity(u) {
     depositRules: u.depositRules.length ? u.depositRules : undefined,
     admissionSteps: u.admissionSteps.length ? u.admissionSteps : undefined,
     restrictedRegions: u.restrictedRegions.length ? u.restrictedRegions : undefined,
+    state: u.state || undefined,
+    eslElpAvailable: u.eslElpAvailable ?? undefined,
+    applicationFeeWaiverAvailable: u.applicationFeeWaiverAvailable ?? undefined,
+    applicationFeeWaiverPercent: u.applicationFeeWaiverPercent ?? undefined,
     currencySymbol: u.currencySymbol,
     minIELTS: u.minIELTS,
     minGPA: u.minGPA,
@@ -110,6 +119,10 @@ function universityWriteData(body, courses) {
     depositRules: body.depositRules ?? [],
     admissionSteps: body.admissionSteps ?? [],
     restrictedRegions: body.restrictedRegions ?? [],
+    state: body.state || null,
+    eslElpAvailable: body.eslElpAvailable ?? null,
+    applicationFeeWaiverAvailable: body.applicationFeeWaiverAvailable ?? null,
+    applicationFeeWaiverPercent: body.applicationFeeWaiverPercent ?? null,
     currencySymbol: body.currencySymbol,
     minIELTS: body.minIELTS,
     minGPA: body.minGPA,
@@ -150,6 +163,11 @@ function courseWriteData(c) {
     modules: Array.isArray(c.modules) ? c.modules : [],
     careers: Array.isArray(c.careers) ? c.careers : [],
     accreditations: Array.isArray(c.accreditations) ? c.accreditations : [],
+    standardizedTests: Array.isArray(c.standardizedTests) ? c.standardizedTests : [],
+    programLevel: Array.isArray(c.programLevel) ? c.programLevel : [],
+    mathsRequired: c.mathsRequired ?? true,
+    isStemProgram: !!c.isStemProgram,
+    accepts15YearsEducation: !!c.accepts15YearsEducation,
   };
 }
 

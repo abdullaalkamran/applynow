@@ -1,5 +1,5 @@
 import { safeHref } from "../../../utils/safeHref";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ExternalLink, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui";
@@ -10,7 +10,7 @@ import {
 } from "../../../data/courseImportsStore";
 import { useHoldCacheSync } from "../../../utils/syncCache";
 import { ChipListEditor } from "./ChipListEditor";
-import { TEST_NAME_OPTIONS } from "../../../utils/universityFilter";
+import { TEST_NAME_OPTIONS, PROGRAM_LEVEL_OPTIONS, STANDARDIZED_TEST_OPTIONS } from "../../../utils/universityFilter";
 import type { University, CourseAccreditation } from "../../../types";
 
 const CURRENCY_OPTIONS = ["$", "£", "€", "C$", "A$", "AED "];
@@ -157,6 +157,11 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
   const [requirements, setRequirements] = useState((base?.requirements ?? []).join("\n"));
   const [sameEnglish, setSameEnglish] = useState((base?.englishRequirements ?? []).length === 0);
   const [englishTests, setEnglishTests] = useState<EnglishReq[]>(base?.englishRequirements ?? []);
+  const [programLevel, setProgramLevel] = useState<Set<string>>(new Set(base?.programLevel ?? []));
+  const [standardizedTests, setStandardizedTests] = useState<Set<string>>(new Set(base?.standardizedTests ?? []));
+  const [mathsRequired, setMathsRequired] = useState(base?.mathsRequired ?? true);
+  const [isStemProgram, setIsStemProgram] = useState(base?.isStemProgram ?? false);
+  const [accepts15YearsEducation, setAccepts15YearsEducation] = useState(base?.accepts15YearsEducation ?? false);
 
   const backTarget = `/staff/data/universities/${university.id}`;
   const importBack = `/staff/data/universities/${university.id}/courses/import`;
@@ -184,6 +189,14 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
     setIntakes((prev) => {
       const next = new Set(prev);
       if (next.has(month)) next.delete(month); else next.add(month);
+      return next;
+    });
+  }
+
+  function toggleInSet(setter: Dispatch<SetStateAction<Set<string>>>, value: string) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value); else next.add(value);
       return next;
     });
   }
@@ -230,6 +243,11 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
               skillScores: (e.skillScores ?? []).filter((s) => s.skill.trim() && s.score.trim()),
             }))
             .filter((e) => e.minScore || e.skillScores.length > 0),
+      programLevel: [...programLevel],
+      standardizedTests: [...standardizedTests],
+      mathsRequired,
+      isStemProgram,
+      accepts15YearsEducation,
     };
     if (importItem) {
       setSaving(true);
@@ -366,6 +384,46 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
               </div>
             </>
           )}
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold text-slate-800">Program Level</p>
+          <p className="text-[11px] text-slate-400">Tick every category this program falls under — powers the Advanced Search "Program Level" filter, separate from the Level dropdown above.</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {PROGRAM_LEVEL_OPTIONS.map((p) => (
+              <label key={p} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+                <input type="checkbox" checked={programLevel.has(p)} onChange={() => toggleInSet(setProgramLevel, p)} />
+                {p}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold text-slate-800">Standardized Tests & Eligibility</p>
+          <p className="text-[11px] text-slate-400">Standardized admission tests this course requires or accepts — distinct from the English Requirements below.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {STANDARDIZED_TEST_OPTIONS.map((t) => (
+              <label key={t} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+                <input type="checkbox" checked={standardizedTests.has(t)} onChange={() => toggleInSet(setStandardizedTests, t)} />
+                {t}
+              </label>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+              <input type="checkbox" checked={mathsRequired} onChange={(e) => setMathsRequired(e.target.checked)} />
+              Maths required
+            </label>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+              <input type="checkbox" checked={isStemProgram} onChange={(e) => setIsStemProgram(e.target.checked)} />
+              STEM program
+            </label>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+              <input type="checkbox" checked={accepts15YearsEducation} onChange={(e) => setAccepts15YearsEducation(e.target.checked)} />
+              Accepts 15 years of education
+            </label>
+          </div>
         </div>
 
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">

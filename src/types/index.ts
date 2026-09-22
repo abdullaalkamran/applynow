@@ -242,6 +242,20 @@ export interface University {
     // Bodies that accredit this specific course (distinct from the university-level
     // `accreditations` list below); `logoUrl` is a data URL, like the university's own logo.
     accreditations?: CourseAccreditation[];
+    // Standardized admission tests this course requires/accepts, e.g. ["SAT", "GRE"] — distinct
+    // from `englishRequirements` above (English-proficiency tests only). Absent/empty means none
+    // required; Advanced Search's "Without GRE"/"Without GMAT" filters are just the absence of
+    // that name here, not a separate flag.
+    standardizedTests?: string[];
+    // The Advanced Search "Program Level" taxonomy — deliberately separate from `level` above
+    // (which stays "Undergraduate"/"Postgraduate" for the existing MOI/English-requirement/entry-
+    // requirement logic that compares against it exactly). A course can hold more than one tag.
+    programLevel?: string[];
+    // Real eligibility/classification flags Data Management tags per course — each backs its own
+    // Advanced Search "Requirements" checkbox.
+    mathsRequired?: boolean;
+    isStemProgram?: boolean;
+    accepts15YearsEducation?: boolean;
   }[];
   // Real per-campus data, where the university has told us about more than one — falls back to a
   // synthetic "Main Campus" + one generated variant (see campusesFor) when this is absent, so
@@ -277,6 +291,16 @@ export interface University {
   // source country has its own subdivision system (divisions, states, provinces, etc.) — shown as
   // a prominent warning, not tucked into a collapsible section, since it's a hard eligibility gate.
   restrictedRegions?: string[];
+  // The university's own province/state — its *location*, a peer to `city`. Distinct from a
+  // student's home state, which is matched against `restrictedRegions` above instead.
+  state?: string;
+  // A real English Language Program / ESL offering — distinct from `internalEnglishTestOffered`
+  // below (an admissions *test* the university runs, not a preparatory program).
+  eslElpAvailable?: boolean;
+  // Backs "Application Fee Waiver (upto 100%)" — `applicationFeeWaiverPercent` only meaningful
+  // when the flag is true, same conditional pattern as `internalEnglishTestFee` below.
+  applicationFeeWaiverAvailable?: boolean;
+  applicationFeeWaiverPercent?: number;
   currencySymbol: string;
   minIELTS: number;
   minGPA: number;

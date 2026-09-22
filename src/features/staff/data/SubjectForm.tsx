@@ -10,6 +10,15 @@ import { ChipListEditor } from "./ChipListEditor";
 
 const BASE_INPUT_CLASS = "rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800";
 
+// A starting suggested list, not a closed enum — "Add a new discipline…" below lets Data
+// Management type any value beyond these, same "pick or type your own" convention as the
+// country/currency fields on UniversityForm.tsx.
+const SUGGESTED_DISCIPLINE_AREAS = [
+  "Business & Management", "Technology & Computing", "Engineering", "Health & Medicine",
+  "Arts & Humanities", "Social Sciences", "Law", "Natural Sciences", "Education", "Architecture & Design",
+];
+const NEW_DISCIPLINE_SENTINEL = "__new__";
+
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -34,13 +43,24 @@ export default function DataSubjectForm() {
   const [modules, setModules] = useState<string[]>(existing?.modules ?? []);
   const [careers, setCareers] = useState<string[]>(existing?.careers ?? []);
   const [accreditations, setAccreditations] = useState<string[]>(existing?.accreditations ?? []);
+  const existingDiscipline = existing?.disciplineArea ?? "";
+  const [disciplineArea, setDisciplineArea] = useState(
+    existingDiscipline && !SUGGESTED_DISCIPLINE_AREAS.includes(existingDiscipline) ? NEW_DISCIPLINE_SENTINEL : existingDiscipline
+  );
+  const [customDisciplineArea, setCustomDisciplineArea] = useState(
+    existingDiscipline && !SUGGESTED_DISCIPLINE_AREAS.includes(existingDiscipline) ? existingDiscipline : ""
+  );
   const [saving, setSaving] = useState(false);
   const canSubmit = name.trim().length > 0 && !saving;
 
   async function handleSubmit() {
     setSaving(true);
     try {
-      const input = { name: name.trim(), description: description.trim() || undefined, modules, careers, accreditations };
+      const resolvedDiscipline = disciplineArea === NEW_DISCIPLINE_SENTINEL ? customDisciplineArea.trim() : disciplineArea;
+      const input = {
+        name: name.trim(), description: description.trim() || undefined, modules, careers, accreditations,
+        disciplineArea: resolvedDiscipline || undefined,
+      };
       if (existing) await updateSubjectRecord(existing.id, input);
       else await createSubjectRecord(input);
       navigate("/staff/data/subjects");
@@ -74,6 +94,29 @@ export default function DataSubjectForm() {
               className={`mt-1 w-full ${BASE_INPUT_CLASS}`}
             />
           </label>
+          <label className="block text-xs font-medium text-slate-500">
+            Discipline area
+            <select
+              value={disciplineArea}
+              onChange={(e) => setDisciplineArea(e.target.value)}
+              className={`mt-1 w-full ${BASE_INPUT_CLASS}`}
+            >
+              <option value="">— None —</option>
+              {SUGGESTED_DISCIPLINE_AREAS.map((d) => <option key={d} value={d}>{d}</option>)}
+              <option value={NEW_DISCIPLINE_SENTINEL}>+ Add a new discipline…</option>
+            </select>
+          </label>
+          {disciplineArea === NEW_DISCIPLINE_SENTINEL && (
+            <input
+              value={customDisciplineArea}
+              onChange={(e) => setCustomDisciplineArea(e.target.value)}
+              placeholder="e.g. Environmental Studies"
+              className={`w-full ${BASE_INPUT_CLASS}`}
+            />
+          )}
+          <p className="text-[11px] text-slate-400">
+            A coarser grouping above this subject — powers the Advanced Search "Discipline Area" filter, kept separate from the subject name itself.
+          </p>
         </Section>
 
         <Section title="Why This Subject">

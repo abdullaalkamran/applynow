@@ -2,6 +2,7 @@ import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllSubjects } from "../data/subjectsStore";
 import { getAllCountries } from "../data/countryRegistry";
 import { countryByIso2 } from "../data/countries";
+import { getSubjectCatalog, getSubjectRecord } from "../data/subjectCatalogStore";
 import type { University } from "../types";
 
 // These were once module-load-time constants derived from a static array. They're now functions
@@ -39,6 +40,69 @@ export function intakeOptions(): string[] {
 export function accreditationOptions(): string[] {
   return Array.from(new Set(getAllUniversities().flatMap((u) => u.accreditations))).sort();
 }
+export function provinceOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().map((u) => u.state).filter((s): s is string => !!s))).sort();
+}
+export function disciplineAreaOptions(): string[] {
+  return Array.from(new Set(getSubjectCatalog().map((s) => s.disciplineArea).filter((d): d is string => !!d))).sort();
+}
+
+// Every real year a university's shown to actually run an intake in — the enrollment date's own
+// year where Data Management entered one, else whatever 4-digit year is embedded in `openIntake`
+// (e.g. "September 2027"). Backs Advanced Search's "Year" filter with no new stored field.
+function universityYears(u: University): Set<string> {
+  const years = new Set<string>();
+  Object.values(u.intakeDates ?? {}).forEach((d) => {
+    const y = d.enrollmentDate?.slice(0, 4);
+    if (y && /^\d{4}$/.test(y)) years.add(y);
+  });
+  (u.openIntake.match(/\d{4}/g) ?? []).forEach((y) => years.add(y));
+  return years;
+}
+export function yearOptions(): string[] {
+  return Array.from(new Set(getAllUniversities().flatMap((u) => [...universityYears(u)]))).sort();
+}
+
+// Real, distinct field-of-study groupings above Subject — see Subject.disciplineArea.
+function universityDisciplineAreas(u: University): Set<string> {
+  const areas = new Set<string>();
+  u.subjects.forEach((s) => {
+    const area = getSubjectRecord(s)?.disciplineArea;
+    if (area) areas.add(area);
+  });
+  return areas;
+}
+
+// Every English test named anywhere in the university's own or any of its courses' requirements —
+// backs the Advanced Search PTE/TOEFL/IELTS/Duolingo "accepted test" checkboxes as a real presence
+// check, distinct from the single englishTestName+score threshold filter above.
+function universityAcceptedEnglishTests(u: University): Set<string> {
+  const names = new Set<string>();
+  const collect = (list?: { testName: string }[]) => list?.forEach((e) => names.add(e.testName));
+  collect(u.englishRequirements?.undergraduate);
+  collect(u.englishRequirements?.postgraduate);
+  u.courses.forEach((c) => collect(c.englishRequirements));
+  return names;
+}
+
+// Advanced Search's finer-grained "Program Level" taxonomy — a course's own tags (Course.programLevel),
+// deliberately separate from the existing `level` field (kept as plain Undergraduate/Postgraduate
+// for other features that compare against it exactly).
+export const PROGRAM_LEVEL_OPTIONS = [
+  "High School (11th - 12th)", "UG Diploma/Certificate/Associate Degree", "UG",
+  "PG Diploma/Certificate", "PG", "UG+PG (Accelerated) Degree", "PhD",
+  "Short-term/Summer Programs", "Pathway Programs (UG)", "Pathway Programs (PG)",
+  "Semester Study Abroad", "Twinning Programmes (UG)", "Twinning Programmes (PG)",
+  "English Language Program", "Online Programmes / Distance Learning", "Hybrid",
+  "Grades Below 10th",
+] as const;
+
+// Standardized admission tests — distinct from English-proficiency tests (TEST_NAME_OPTIONS below).
+export const STANDARDIZED_TEST_OPTIONS = ["SAT", "ACT", "GRE", "GMAT"] as const;
+
+// The subset of TEST_NAME_OPTIONS shown as quick "accepted test" checkboxes in Advanced Search's
+// Requirements column — the full dropdown+score-threshold filter below still covers every test.
+export const ACCEPTED_ENGLISH_TEST_CHECKBOXES = ["PTE Academic", "TOEFL iBT", "IELTS", "Duolingo English Test"] as const;
 
 export const FEE_MIN_USD = 0;
 export const FEE_MAX_USD = 100000;
@@ -259,15 +323,22 @@ function fullCountryName(country: string): string {
 }
 
 export interface UniversityFilterState {
-  residenceCountry: string; // countries.ts iso2, "" = not set
-  destination: string; // "" = any
+  residenceCountry: string; // countries.ts iso2, "" = not set — doubles as "Student's Nationality" in Advanced Search
+  destination: string; // "" = any — "Country" in Advanced Search
   city: string; // "" = any
+  province: string; // "" = any — the university's own state/province (its location)
+  studentState: string; // "" = not set — the student's own home state, matched against restrictedRegions
   universityQuery: string;
   courseQuery: string;
   duration: string; // "" = any
   level: string; // "" = any
+  year: string; // "" = any
   subjectQuery: string;
+  disciplineArea: string; // "" = any
   intakes: Set<string>;
+  programLevel: string; // "" = any
+  standardizedTests: Set<string>;
+  acceptedEnglishTests: Set<string>;
   minFeeUSD: string;
   maxFeeUSD: string;
   englishTestName: string;
@@ -275,6 +346,15 @@ export interface UniversityFilterState {
   accreditedOnly: boolean;
   scholarshipOnly: boolean;
   minGPA: string; // "" = any
+  withoutEnglishProficiency: boolean; // moiAccepted
+  withoutGRE: boolean;
+  withoutGMAT: boolean;
+  withoutMaths: boolean;
+  stemOnly: boolean;
+  accepts15YearsOnly: boolean;
+  feeWaiverOnly: boolean;
+  eslElpOnly: boolean;
+  openProgramsOnly: boolean;
 }
 
 export function emptyFilters(residenceCountry = ""): UniversityFilterState {
@@ -282,12 +362,19 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
     residenceCountry,
     destination: "",
     city: "",
+    province: "",
+    studentState: "",
     universityQuery: "",
     courseQuery: "",
     duration: "",
     level: "",
+    year: "",
     subjectQuery: "",
+    disciplineArea: "",
     intakes: new Set(),
+    programLevel: "",
+    standardizedTests: new Set(),
+    acceptedEnglishTests: new Set(),
     minFeeUSD: String(FEE_MIN_USD),
     maxFeeUSD: String(FEE_MAX_USD),
     englishTestName: "IELTS",
@@ -295,6 +382,15 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
     accreditedOnly: false,
     scholarshipOnly: false,
     minGPA: "",
+    withoutEnglishProficiency: false,
+    withoutGRE: false,
+    withoutGMAT: false,
+    withoutMaths: false,
+    stemOnly: false,
+    accepts15YearsOnly: false,
+    feeWaiverOnly: false,
+    eslElpOnly: false,
+    openProgramsOnly: false,
   };
 }
 
@@ -302,17 +398,33 @@ export function countActiveFilters(f: UniversityFilterState): number {
   let n = 0;
   if (f.destination) n++;
   if (f.city) n++;
+  if (f.province) n++;
+  if (f.studentState) n++;
   if (f.universityQuery.trim()) n++;
   if (f.courseQuery.trim()) n++;
   if (f.duration) n++;
   if (f.level) n++;
+  if (f.year) n++;
   if (f.subjectQuery.trim()) n++;
+  if (f.disciplineArea) n++;
   if (f.intakes.size > 0) n++;
+  if (f.programLevel) n++;
+  if (f.standardizedTests.size > 0) n++;
+  if (f.acceptedEnglishTests.size > 0) n++;
   if (Number(f.minFeeUSD) > FEE_MIN_USD || Number(f.maxFeeUSD) < FEE_MAX_USD) n++;
   if (f.englishScore) n++;
   if (f.accreditedOnly) n++;
   if (f.scholarshipOnly) n++;
   if (f.minGPA) n++;
+  if (f.withoutEnglishProficiency) n++;
+  if (f.withoutGRE) n++;
+  if (f.withoutGMAT) n++;
+  if (f.withoutMaths) n++;
+  if (f.stemOnly) n++;
+  if (f.accepts15YearsOnly) n++;
+  if (f.feeWaiverOnly) n++;
+  if (f.eslElpOnly) n++;
+  if (f.openProgramsOnly) n++;
   return n;
 }
 
@@ -340,17 +452,36 @@ export function applyFilters(universities: University[], f: UniversityFilterStat
     if (residenceName && fullCountryName(u.country) === residenceName) return false;
     if (f.destination && u.country !== f.destination) return false;
     if (f.city && u.city !== f.city) return false;
+    if (f.province && u.state !== f.province) return false;
+    if (f.studentState && (u.restrictedRegions ?? []).some((r) => r.toLowerCase() === f.studentState.toLowerCase())) return false;
     if (universityQuery && !u.name.toLowerCase().includes(universityQuery)) return false;
     if (courseQuery && !u.courses.some((c) => c.name.toLowerCase().includes(courseQuery))) return false;
     if (f.duration && !u.courses.some((c) => c.duration === f.duration)) return false;
     if (f.level && !u.courses.some((c) => c.level === f.level)) return false;
+    if (f.year && !universityYears(u).has(f.year)) return false;
     if (subjectQuery && !u.subjects.some((s) => s.toLowerCase().includes(subjectQuery))) return false;
+    if (f.disciplineArea && !universityDisciplineAreas(u).has(f.disciplineArea)) return false;
     if (f.intakes.size > 0 && !u.intakes.some((i) => f.intakes.has(i))) return false;
+    if (f.programLevel && !u.courses.some((c) => (c.programLevel ?? []).includes(f.programLevel))) return false;
+    if (f.standardizedTests.size > 0 && !u.courses.some((c) => (c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t)))) return false;
+    if (f.acceptedEnglishTests.size > 0) {
+      const accepted = universityAcceptedEnglishTests(u);
+      if (![...f.acceptedEnglishTests].some((t) => accepted.has(t))) return false;
+    }
     if (tuitionInUSD(u) < minFee || tuitionInUSD(u) > maxFee) return false;
     if (ieltsEquivalent !== null && u.minIELTS > ieltsEquivalent) return false;
     if (f.accreditedOnly && u.accreditations.length === 0) return false;
     if (f.scholarshipOnly && !u.scholarshipsAvailable) return false;
     if (gpa !== null && u.minGPA > gpa) return false;
+    if (f.withoutEnglishProficiency && !u.moiAccepted) return false;
+    if (f.withoutGRE && !u.courses.some((c) => !(c.standardizedTests ?? []).includes("GRE"))) return false;
+    if (f.withoutGMAT && !u.courses.some((c) => !(c.standardizedTests ?? []).includes("GMAT"))) return false;
+    if (f.withoutMaths && !u.courses.some((c) => c.mathsRequired === false)) return false;
+    if (f.stemOnly && !u.courses.some((c) => c.isStemProgram)) return false;
+    if (f.accepts15YearsOnly && !u.courses.some((c) => c.accepts15YearsEducation)) return false;
+    if (f.feeWaiverOnly && !u.applicationFeeWaiverAvailable) return false;
+    if (f.eslElpOnly && !u.eslElpAvailable) return false;
+    if (f.openProgramsOnly && !u.courses.some((c) => courseHasOpenIntake(u, c))) return false;
     return true;
   });
 }

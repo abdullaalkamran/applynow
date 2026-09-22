@@ -4,16 +4,16 @@ import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock, Award,
   Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
-import { BackButton, Pill, Chip, LogoBadge, PillSelect } from "../../components/ui/mobile";
+import { BackButton, Pill, Chip, LogoBadge, PillSelect, DropdownChips, SubLabel } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { countryByName } from "../../data/countries";
+import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
   allPrograms, FEE_BANDS, feeBandMax, scholarshipLabel, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
-  countryStats, type UniversityFilterState,
+  countryStats, intakeOptions, yearOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
@@ -59,6 +59,7 @@ export default function UniversitySearch() {
   }
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   const [sortOpen, setSortOpen] = useState(false);
+  const [intakeDropdownOpen, setIntakeDropdownOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("best");
   const [filters, setFilters] = useState<UniversityFilterState>(() => emptyFilters(defaultResidenceCountry));
   // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
@@ -87,9 +88,24 @@ export default function UniversitySearch() {
 
   const programIntakeOptions = useMemo(() => Array.from(new Set(allPrograms().map((p) => p.university.openIntake))).sort(), []);
 
+  // Universities that pass the shared top search bar + Advanced Search filters — reused to gate the
+  // Subjects tab's flat program list too, so the one search bar shown on every tab actually filters
+  // every tab rather than just being visually present on the ones that didn't build it.
+  const advancedFilteredUniversityIds = useMemo(() => new Set(results.map((u) => u.id)), [results]);
+
+  // Countries tab only meaningfully honours the shared bar's free-text search (matching by country
+  // name) — the other advanced fields don't map onto a plain destination list, and countryStats()
+  // deliberately keeps zero-university countries visible (real Country Guide content can exist
+  // before any partner university does), which a full applyFilters() pass would hide.
+  const countryStatsFiltered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? countryStats().filter((c) => c.name.toLowerCase().includes(q)) : countryStats();
+  }, [query]);
+
   const programs = useMemo(
     () =>
       allPrograms().filter(({ university: u, course: c }) => {
+        if (!advancedFilteredUniversityIds.has(u.id)) return false;
         if (programShortlistedOnly && !isShortlisted(`${u.id}::${c.name}`)) return false;
         if (programSubject && c.subject !== programSubject) return false;
         if (programDestination && u.country !== programDestination) return false;
@@ -99,7 +115,7 @@ export default function UniversitySearch() {
         return true;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
-    [programShortlistedOnly, programSubject, programDestination, programIntake, programFeeBand, programScholarship, shortlistTick]
+    [advancedFilteredUniversityIds, programShortlistedOnly, programSubject, programDestination, programIntake, programFeeBand, programScholarship, shortlistTick]
   );
   const programFiltersActive = programShortlistedOnly || !!(programSubject || programDestination || programIntake || programFeeBand || programScholarship);
 
@@ -153,6 +169,14 @@ export default function UniversitySearch() {
     setProgramScholarship("");
   }
 
+  function toggleFilterIntake(month: string) {
+    setFilters((f) => {
+      const next = new Set(f.intakes);
+      if (next.has(month)) next.delete(month); else next.add(month);
+      return { ...f, intakes: next };
+    });
+  }
+
   function openProgram(universityId: string, courseName: string, subject: string) {
     navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
   }
@@ -196,11 +220,114 @@ export default function UniversitySearch() {
           </button>
         </div>
 
+        <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+            <div className="lg:col-span-1">
+              <SubLabel>Search Programs</SubLabel>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
+                <Search size={15} className="shrink-0 text-slate-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search Program / University"
+                  className="w-full min-w-0 bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <DropdownChips
+                label="Intake"
+                options={intakeOptions()}
+                selected={filters.intakes}
+                onToggle={toggleFilterIntake}
+                open={intakeDropdownOpen}
+                onToggleOpen={() => setIntakeDropdownOpen((v) => !v)}
+                placeholder="All intakes"
+              />
+            </div>
+            <div>
+              <SubLabel>Year</SubLabel>
+              <select
+                value={filters.year}
+                onChange={(e) => setFilters((f) => ({ ...f, year: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
+              >
+                <option value="">Any year</option>
+                {yearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <SubLabel>Student's Nationality</SubLabel>
+              <select
+                value={filters.residenceCountry}
+                onChange={(e) => setFilters((f) => ({ ...f, residenceCountry: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
+              >
+                <option value="">Any nationality</option>
+                {COUNTRIES.map((c) => <option key={c.iso2} value={c.iso2}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <SubLabel>Student's State</SubLabel>
+                <input
+                  value={filters.studentState}
+                  onChange={(e) => setFilters((f) => ({ ...f, studentState: e.target.value }))}
+                  placeholder="Student's State"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => setIntakeDropdownOpen(false)}
+                aria-label="Search"
+                className="flex h-[38px] w-[46px] shrink-0 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white"
+              >
+                <Search size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              onClick={() => navigate("/student/search/filters")}
+              className="flex items-center gap-1 text-[13px] font-medium text-[#2955C4]"
+            >
+              Advanced Search {activeFilterCount > 0 && `(${activeFilterCount})`}
+            </button>
+            <div className="flex items-center gap-2">
+              {activeFilterCount > 0 && (
+                <button onClick={() => setFilters(emptyFilters(defaultResidenceCountry))} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
+                  <X size={11} /> Clear All
+                </button>
+              )}
+              {tab === "universities" && (
+                <button
+                  onClick={() => setSortOpen((v) => !v)}
+                  className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg ${
+                    sortOpen ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100 text-slate-500"
+                  }`}
+                  aria-label="Sort"
+                >
+                  <SlidersHorizontal size={14} className="rotate-90" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {tab === "universities" && sortOpen && (
+          <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-[var(--sd-card)] p-3 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:w-fit">
+            {SORT_OPTIONS.map((s) => (
+              <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); setSortOpen(false); }} />
+            ))}
+          </div>
+        )}
+
         {tab === "countries" ? (
           <div className="mt-4">
-            <p className="text-[13px] text-slate-500">{countryStats().length} destination{countryStats().length === 1 ? "" : "s"} to explore.</p>
+            <p className="text-[13px] text-slate-500">{countryStatsFiltered.length} destination{countryStatsFiltered.length === 1 ? "" : "s"} to explore.</p>
             <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
-              {countryStats().map((c) => (
+              {countryStatsFiltered.map((c) => (
                 <button
                   key={c.name}
                   onClick={() => navigate(`/student/countries/${encodeURIComponent(c.name)}`)}
@@ -211,7 +338,7 @@ export default function UniversitySearch() {
                   <p className="text-[11.5px] text-slate-500">{c.courseCount} course{c.courseCount === 1 ? "" : "s"}</p>
                 </button>
               ))}
-              {countryStats().length === 0 && (
+              {countryStatsFiltered.length === 0 && (
                 <div className="col-span-full rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
                   <p className="text-sm font-medium text-slate-700">No destinations yet</p>
                 </div>
@@ -341,60 +468,8 @@ export default function UniversitySearch() {
           </div>
         ) : (
           <>
-            <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-3.5 py-3 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:flex-1">
-                <Search size={17} className="text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search university, course or city"
-                  className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate("/student/search/filters")}
-                  className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-[13px] font-medium lg:flex-none ${
-                    activeFilterCount > 0 ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
-                  }`}
-                >
-                  <SlidersHorizontal size={14} /> Filters
-                  {activeFilterCount > 0 && (
-                    <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--sd-card)]/20 px-1 text-[10px] font-semibold">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setSortOpen((v) => !v)}
-                  className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
-                    sortOpen ? "bg-[image:var(--sd-gradient)] text-white" : "bg-[var(--sd-card)] text-slate-500"
-                  }`}
-                  aria-label="Sort"
-                >
-                  <SlidersHorizontal size={15} className="rotate-90" />
-                </button>
-              </div>
-            </div>
-
-            {sortOpen && (
-              <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-[var(--sd-card)] p-3 shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:w-fit">
-                {SORT_OPTIONS.map((s) => (
-                  <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); setSortOpen(false); }} />
-                ))}
-              </div>
-            )}
-
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <p className="text-[13px] text-slate-500">{results.length} {results.length === 1 ? "university" : "universities"} found</p>
-                {activeFilterCount > 0 && (
-                  <button onClick={() => setFilters(emptyFilters(defaultResidenceCountry))} className="flex items-center gap-0.5 text-[12px] font-medium text-rose-500">
-                    <X size={11} /> Clear
-                  </button>
-                )}
-              </div>
+            <div className="mt-4">
+              <p className="text-[13px] text-slate-500">{results.length} {results.length === 1 ? "university" : "universities"} found</p>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">

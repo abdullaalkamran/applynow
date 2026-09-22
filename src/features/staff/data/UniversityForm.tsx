@@ -194,6 +194,7 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
 
   const [name, setName] = useState(base?.name ?? "");
   const [city, setCity] = useState(base?.city ?? "");
+  const [state, setState] = useState(base?.state ?? "");
   const [country, setCountry] = useState(base?.country ?? countryParam ?? "");
   const [addingNewCountry, setAddingNewCountry] = useState(
     () => !!country && !getAllCountries().some((c) => c.name.toLowerCase() === country.toLowerCase())
@@ -249,6 +250,9 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
   const [internalTestOffered, setInternalTestOffered] = useState(base?.internalEnglishTestOffered ?? false);
   const [internalTestFree, setInternalTestFree] = useState(base?.internalEnglishTestFree ?? true);
   const [internalTestFee, setInternalTestFee] = useState(String(base?.internalEnglishTestFee ?? ""));
+  const [eslElpAvailable, setEslElpAvailable] = useState(base?.eslElpAvailable ?? false);
+  const [feeWaiverAvailable, setFeeWaiverAvailable] = useState(base?.applicationFeeWaiverAvailable ?? false);
+  const [feeWaiverPercent, setFeeWaiverPercent] = useState(String(base?.applicationFeeWaiverPercent ?? ""));
 
   const canSubmit = name.trim() && city.trim() && country.trim() && courses.every((c) => c.name.trim());
   // The selected country's own currencies first, then the generic fallbacks, deduped — so the
@@ -361,6 +365,7 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
     const data: Omit<University, "id"> = {
       name: name.trim(),
       city: city.trim(),
+      state: state.trim() || undefined,
       country: country.trim(),
       website: website.trim(),
       tone,
@@ -400,6 +405,9 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
       internalEnglishTestOffered: internalTestOffered,
       internalEnglishTestFree: internalTestOffered ? internalTestFree : undefined,
       internalEnglishTestFee: internalTestOffered && !internalTestFree ? Number(internalTestFee) || 0 : undefined,
+      eslElpAvailable,
+      applicationFeeWaiverAvailable: feeWaiverAvailable,
+      applicationFeeWaiverPercent: feeWaiverAvailable ? Number(feeWaiverPercent) || 0 : undefined,
       currencySymbol,
       fees: fees.filter((f) => f.label.trim()),
       minimumDepositAmount: effectiveDepositAmount || undefined,
@@ -454,6 +462,7 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
             <Field label="University name" attention={flag("name")}><Input value={name} onChange={setName} placeholder="e.g. University of Leeds" /></Field>
             <Field label="Website domain"><Input value={website} onChange={setWebsite} placeholder="e.g. leeds.ac.uk" /></Field>
             <Field label="City" attention={flag("city")}><Input value={city} onChange={setCity} placeholder="e.g. Leeds" /></Field>
+            <Field label="Province / State (optional)"><Input value={state} onChange={setState} placeholder="e.g. Ontario" /></Field>
             <Field label="Country" attention={flag("country")}>
               <select
                 value={addingNewCountry ? "__new__" : country}
@@ -851,6 +860,16 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
               </div>
             )}
           </div>
+
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <input type="checkbox" checked={eslElpAvailable} onChange={(e) => setEslElpAvailable(e.target.checked)} />
+              ESL / English Language Program available
+            </label>
+            <p className="mt-1 text-[11px] text-slate-400">
+              A real preparatory English program the university runs — distinct from the internal test above, which is an admissions test, not a course.
+            </p>
+          </div>
         </Section>
 
         <Section title="Fees" attention={flag("fees")} action={
@@ -950,6 +969,21 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
               placeholder={"Due within 14 days of accepting the offer\nNon-refundable if the visa application is refused\nDeducted from the first semester's tuition fee"}
             />
           </Field>
+          <div className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+              <input type="checkbox" checked={feeWaiverAvailable} onChange={(e) => setFeeWaiverAvailable(e.target.checked)} />
+              Application fee waiver available
+            </label>
+            {feeWaiverAvailable && (
+              <Input
+                type="number"
+                value={feeWaiverPercent}
+                onChange={setFeeWaiverPercent}
+                placeholder="Waiver, up to % (e.g. 100)"
+                className="mt-2 w-48"
+              />
+            )}
+          </div>
         </Section>
 
         <Section title="Admission Procedure">

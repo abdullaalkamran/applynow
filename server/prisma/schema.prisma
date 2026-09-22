@@ -521,6 +521,12 @@ model Subject {
   // the same way `modules` is for its Modules tab (see subjectCurriculum.ts's curriculumFor).
   careers        String[] @default([])
   accreditations String[]
+  // A coarser grouping above Subject (e.g. "Technology & Computing" over "Computer Science & IT"
+  // and "Data Science & AI") — backs the Advanced Search "Discipline Area" filter, kept genuinely
+  // distinct from Subject/"Study Area" rather than a duplicate of it. Free text, editable from a
+  // small suggested list on the Subject form, same "pick or type your own" convention as country/
+  // currency elsewhere in Data Management.
+  disciplineArea String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -567,6 +573,17 @@ model University {
   depositRules               String[]
   admissionSteps             String[]
   restrictedRegions          String[]
+  // The university's own province/state — its *location*, a peer to `city`, distinct from a
+  // student's home state (matched against `restrictedRegions` instead, no new column needed for
+  // that). Backs Advanced Search's "Province | State" filter.
+  state                      String?
+  // A real English Language Program / ESL offering — distinct from `internalEnglishTestOffered`
+  // (an admissions *test* the university runs) — backs "ESL / ELP Available".
+  eslElpAvailable            Boolean?
+  // Backs "Application Fee Waiver (upto 100%)" — same conditional-field convention as
+  // internalEnglishTestOffered/internalEnglishTestFee above (percent only meaningful when true).
+  applicationFeeWaiverAvailable Boolean?
+  applicationFeeWaiverPercent   Int?
   currencySymbol             String
   minIELTS                   Float
   minGPA                     Float
@@ -619,6 +636,22 @@ model Course {
   // Bodies that accredit this specific course — [{ name, logoUrl? }], the logo a data URL like the
   // university's own `logoUrl`. Distinct from University.accreditations (institution-level).
   accreditations      Json?
+  // Standardized admission tests this course requires/accepts (e.g. "SAT", "ACT", "GRE", "GMAT") —
+  // distinct from englishRequirements above, which is English-proficiency tests only. Backs the
+  // Advanced Search SAT/ACT/GRE/GMAT checkboxes, and "Without GRE"/"Without GMAT" as the inverse
+  // (absence in this array) rather than separate flags.
+  standardizedTests   String[]   @default([])
+  // The Advanced Search "Program Level" taxonomy (High School, UG Diploma, Pathway Programs,
+  // Twinning Programmes, Online/Hybrid delivery, etc.) — deliberately separate from `level` above,
+  // which several existing features (MOI eligibility, English-requirement splits, entry
+  // requirements) compare against as an exact "Undergraduate"/"Postgraduate" string. A course can
+  // belong to more than one program-level tag at once.
+  programLevel        String[]   @default([])
+  // Real eligibility/classification flags Data Management can tag per course — each backs its own
+  // Advanced Search checkbox ("Without Maths", "STEM Programs", "With 15 Years of Education").
+  mathsRequired           Boolean @default(true)
+  isStemProgram           Boolean @default(false)
+  accepts15YearsEducation Boolean @default(false)
 
   @@index([universityId])
 }

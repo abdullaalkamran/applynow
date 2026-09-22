@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import { Globe2, GraduationCap, Wallet } from "lucide-react";
-import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, SuggestInput, inputClass } from "../../components/ui/mobile";
-import { COUNTRIES } from "../../data/countries";
+import { Globe2, ListChecks, ShieldCheck, Wallet } from "lucide-react";
+import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, SuggestInput, CheckboxList, inputClass } from "../../components/ui/mobile";
 import {
   destinationOptions, durationOptions, levelOptions, subjectOptions, courseOptions,
-  universityOptions, TEST_NAME_OPTIONS, intakeOptions,
+  universityOptions, TEST_NAME_OPTIONS, intakeOptions, provinceOptions, disciplineAreaOptions,
+  PROGRAM_LEVEL_OPTIONS, STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
   FEE_MIN_USD, FEE_MAX_USD, FEE_STEP_USD, citiesForDestination,
   emptyFilters, type UniversityFilterState,
 } from "../../utils/universityFilter";
@@ -23,7 +23,7 @@ export default function UniversityFilters() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
 
-  function toggleSetValue<K extends "intakes">(key: K, value: string) {
+  function toggleSetValue<K extends "intakes" | "standardizedTests" | "acceptedEnglishTests">(key: K, value: string) {
     setFilters((prev) => {
       const next = new Set(prev[key]);
       if (next.has(value)) next.delete(value);
@@ -37,98 +37,128 @@ export default function UniversityFilters() {
   return (
     <div className="flex min-h-full flex-col pb-6">
       <div className="lg:mx-auto lg:w-full lg:max-w-5xl">
-        <MobileHeader title="Filters" onBack={() => navigate("/student/search")} />
+        <MobileHeader title="Advanced Search" onBack={() => navigate("/student/search")} />
       </div>
 
       <div className="px-5 lg:mx-auto lg:w-full lg:max-w-5xl lg:px-10">
         <div className="space-y-3 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
-          <Section icon={<Globe2 size={15} />} title="Where">
-            <SubLabel>My Residence Country</SubLabel>
-            <select
-              value={filters.residenceCountry}
-              onChange={(e) => update("residenceCountry", e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Not set</option>
-              {COUNTRIES.map((c) => (
-                <option key={c.iso2} value={c.iso2}>{c.flag} {c.name}</option>
-              ))}
+          <Section icon={<ListChecks size={15} />} title="Program Level">
+            <select value={filters.programLevel} onChange={(e) => update("programLevel", e.target.value)} className={inputClass}>
+              <option value="">Select Program Level</option>
+              {PROGRAM_LEVEL_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-
-            <div className="mt-3.5 grid grid-cols-2 gap-3">
-              <div>
-                <SubLabel>Preferred Destination</SubLabel>
-                <select
-                  value={filters.destination}
-                  onChange={(e) => {
-                    const destination = e.target.value;
-                    setFilters((prev) => ({ ...prev, destination, city: "" }));
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Any</option>
-                  {destinationOptions().map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <SubLabel>Preferred City</SubLabel>
-                <select value={filters.city} onChange={(e) => update("city", e.target.value)} className={inputClass}>
-                  <option value="">Any</option>
-                  {cityOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
           </Section>
 
-          <Section icon={<GraduationCap size={15} />} title="Program">
-            <SubLabel>University</SubLabel>
-            <SuggestInput
-              value={filters.universityQuery}
-              onChange={(v) => update("universityQuery", v)}
-              options={universityOptions()}
-              placeholder="Start typing a university name"
-            />
+          <Section icon={<Globe2 size={15} />} title="Other Filters">
+            <SubLabel>Country</SubLabel>
+            <select
+              value={filters.destination}
+              onChange={(e) => {
+                const destination = e.target.value;
+                setFilters((prev) => ({ ...prev, destination, city: "" }));
+              }}
+              className={inputClass}
+            >
+              <option value="">Select Country</option>
+              {destinationOptions().map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
 
-            <SubLabel className="mt-3.5">Course</SubLabel>
-            <SuggestInput
-              value={filters.courseQuery}
-              onChange={(v) => update("courseQuery", v)}
-              options={courseOptions()}
-              placeholder="e.g. Data Science, MBA, Architecture"
-            />
+            <SubLabel className="mt-3.5">Province | State</SubLabel>
+            <select value={filters.province} onChange={(e) => update("province", e.target.value)} className={inputClass}>
+              <option value="">Select Province | State</option>
+              {provinceOptions().map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
 
-            <div className="mt-3.5 grid grid-cols-2 gap-3">
-              <div>
-                <SubLabel>Duration</SubLabel>
-                <select value={filters.duration} onChange={(e) => update("duration", e.target.value)} className={inputClass}>
-                  <option value="">Any</option>
-                  {durationOptions().map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <SubLabel>Level</SubLabel>
-                <select value={filters.level} onChange={(e) => update("level", e.target.value)} className={inputClass}>
-                  <option value="">Any</option>
-                  {levelOptions().map((l) => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <SubLabel className="mt-3.5">Subject</SubLabel>
+            <SubLabel className="mt-3.5">Study Area</SubLabel>
             <SuggestInput
               value={filters.subjectQuery}
               onChange={(v) => update("subjectQuery", v)}
               options={subjectOptions()}
-              placeholder="e.g. Engineering, Law, Data Science"
+              placeholder="Select Study Area"
             />
+
+            <SubLabel className="mt-3.5">Discipline Area</SubLabel>
+            <select value={filters.disciplineArea} onChange={(e) => update("disciplineArea", e.target.value)} className={inputClass}>
+              <option value="">Select Discipline Area</option>
+              {disciplineAreaOptions().map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+
+            <SubLabel className="mt-3.5">Duration</SubLabel>
+            <select value={filters.duration} onChange={(e) => update("duration", e.target.value)} className={inputClass}>
+              <option value="">Select Duration</option>
+              {durationOptions().map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+
+            <SubLabel className="mt-3.5">ESL / ELP Available</SubLabel>
+            <select
+              value={filters.eslElpOnly ? "yes" : ""}
+              onChange={(e) => update("eslElpOnly", e.target.value === "yes")}
+              className={inputClass}
+            >
+              <option value="">Select Available ESL / ELP</option>
+              <option value="yes">Available</option>
+            </select>
+          </Section>
+
+          <Section icon={<ShieldCheck size={15} />} title="Requirements">
+            <CheckboxList options={ACCEPTED_ENGLISH_TEST_CHECKBOXES} selected={filters.acceptedEnglishTests} onToggle={(v) => toggleSetValue("acceptedEnglishTests", v)} />
+            <div className="my-3 h-px bg-slate-100" />
+            <CheckboxList options={STANDARDIZED_TEST_OPTIONS} selected={filters.standardizedTests} onToggle={(v) => toggleSetValue("standardizedTests", v)} columns={2} />
+            <div className="my-3 h-px bg-slate-100" />
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.withoutEnglishProficiency} onChange={(e) => update("withoutEnglishProficiency", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Without English Proficiency
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.withoutGRE} onChange={(e) => update("withoutGRE", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Without GRE
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.withoutGMAT} onChange={(e) => update("withoutGMAT", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Without GMAT
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.withoutMaths} onChange={(e) => update("withoutMaths", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Without Maths
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.stemOnly} onChange={(e) => update("stemOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                STEM Programs
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.feeWaiverOnly} onChange={(e) => update("feeWaiverOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Application Fee Waiver (up to 100%)
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.scholarshipOnly} onChange={(e) => update("scholarshipOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Scholarship Available
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.accepts15YearsOnly} onChange={(e) => update("accepts15YearsOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                With 15 Years of Education
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-600">
+                <input type="checkbox" checked={filters.openProgramsOnly} onChange={(e) => update("openProgramsOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300" />
+                Open Programs
+              </label>
+            </div>
+          </Section>
+        </div>
+
+        <div className="mt-5 space-y-3 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
+          <Section icon={<Globe2 size={15} />} title="More Filters">
+            <SubLabel>Preferred City</SubLabel>
+            <select value={filters.city} onChange={(e) => update("city", e.target.value)} className={inputClass}>
+              <option value="">Any</option>
+              {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            <SubLabel className="mt-3.5">Level</SubLabel>
+            <select value={filters.level} onChange={(e) => update("level", e.target.value)} className={inputClass}>
+              <option value="">Any</option>
+              {levelOptions().map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
 
             <div className="mt-3.5">
               <DropdownChips
@@ -142,7 +172,24 @@ export default function UniversityFilters() {
             </div>
           </Section>
 
-          <Section icon={<Wallet size={15} />} title="Cost & Requirements">
+          <Section icon={<Wallet size={15} />} title="University / Course">
+            <SubLabel>University</SubLabel>
+            <SuggestInput
+              value={filters.universityQuery}
+              onChange={(v) => update("universityQuery", v)}
+              options={universityOptions()}
+              placeholder="Start typing a university name"
+            />
+            <SubLabel className="mt-3.5">Course</SubLabel>
+            <SuggestInput
+              value={filters.courseQuery}
+              onChange={(v) => update("courseQuery", v)}
+              options={courseOptions()}
+              placeholder="e.g. Data Science, MBA, Architecture"
+            />
+          </Section>
+
+          <Section icon={<ShieldCheck size={15} />} title="Cost & Score Requirements">
             <SubLabel>
               Annual Fees — ${Number(filters.minFeeUSD).toLocaleString()} to ${Number(filters.maxFeeUSD).toLocaleString()} (USD, approx.)
             </SubLabel>
@@ -169,9 +216,7 @@ export default function UniversityFilters() {
               <div>
                 <SubLabel>English Test</SubLabel>
                 <select aria-label="English Test" value={filters.englishTestName} onChange={(e) => update("englishTestName", e.target.value)} className={inputClass}>
-                  {TEST_NAME_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                  {TEST_NAME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -202,19 +247,7 @@ export default function UniversityFilters() {
             <p className="mt-1.5 text-[11px] text-slate-400">Shows universities that accept your score or grade, or lower.</p>
 
             <div className="mt-3.5">
-              <Toggle
-                checked={filters.accreditedOnly}
-                onChange={(v) => update("accreditedOnly", v)}
-                label="Accredited institutions only"
-              />
-            </div>
-
-            <div className="mt-3.5">
-              <Toggle
-                checked={filters.scholarshipOnly}
-                onChange={(v) => update("scholarshipOnly", v)}
-                label="Scholarships available only"
-              />
+              <Toggle checked={filters.accreditedOnly} onChange={(v) => update("accreditedOnly", v)} label="Accredited institutions only" />
             </div>
           </Section>
         </div>
@@ -225,7 +258,7 @@ export default function UniversityFilters() {
           onClick={() => setFilters((prev) => emptyFilters(prev.residenceCountry))}
           className="shrink-0 text-[13px] font-medium text-rose-500"
         >
-          Reset all
+          Clear All
         </button>
         <button
           onClick={() => navigate("/student/search")}

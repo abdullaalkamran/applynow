@@ -17,6 +17,7 @@ function serialize(s) {
     modules: s.modules,
     careers: s.careers,
     accreditations: s.accreditations,
+    disciplineArea: s.disciplineArea || undefined,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
   };
@@ -33,7 +34,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
   try {
-    const { name, description, modules, careers, accreditations } = req.body || {};
+    const { name, description, modules, careers, accreditations, disciplineArea } = req.body || {};
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "name is required." });
     }
@@ -45,6 +46,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
         modules: Array.isArray(modules) ? modules : [],
         careers: Array.isArray(careers) ? careers : [],
         accreditations: Array.isArray(accreditations) ? accreditations : [],
+        disciplineArea: disciplineArea || undefined,
       },
     });
     res.status(201).json(serialize(row));
@@ -56,7 +58,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
 
 router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
-    const { name, description, modules, careers, accreditations } = req.body || {};
+    const { name, description, modules, careers, accreditations, disciplineArea } = req.body || {};
     const row = await prisma.subject.update({
       where: { id: req.params.id },
       data: {
@@ -65,6 +67,7 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
         modules: Array.isArray(modules) ? modules : undefined,
         careers: Array.isArray(careers) ? careers : undefined,
         accreditations: Array.isArray(accreditations) ? accreditations : undefined,
+        disciplineArea: disciplineArea !== undefined ? disciplineArea || null : undefined,
       },
     });
     res.json(serialize(row));

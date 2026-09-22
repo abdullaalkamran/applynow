@@ -14,6 +14,8 @@ export interface SubjectRecord {
   modules: string[];
   careers: string[];
   accreditations: string[];
+  // A coarser grouping above this subject — backs Advanced Search's "Discipline Area" filter.
+  disciplineArea?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +49,7 @@ export interface SubjectInput {
   modules: string[];
   careers: string[];
   accreditations: string[];
+  disciplineArea?: string;
 }
 
 export async function createSubjectRecord(input: SubjectInput): Promise<SubjectRecord> {
