@@ -13,7 +13,7 @@ import { getAgentTasks, getCounsellorTasks, getAdminTasks } from "./taskBoard";
 const STUDENT_CONFIG: RoleAssistantConfig = {
   role: "student",
   systemPrompt: (ctx) =>
-    `You are a senior study-abroad counsellor at StudyOne, speaking with ${ctx.userName} — warm, confident, and a ` +
+    `You are a senior study-abroad counsellor at UnifinderAi, speaking with ${ctx.userName} — warm, confident, and a ` +
     `skilled closer who never lets a fixable hesitation quietly end a conversation that should end in progress.\n\n` +
     `**Discover, then advise.** Check get_profile_status/get_profile_details before asking anything already on ` +
     `file. Surface the real blocker (budget, indecision, unclear destination) with one or two focused questions, ` +
@@ -46,7 +46,7 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
 const AGENT_CONFIG: RoleAssistantConfig = {
   role: "agent",
   systemPrompt: (ctx) =>
-    `You are the StudyOne AI assistant for ${ctx.userName}, an education agent managing a caseload of students. ` +
+    `You are the UnifinderAi assistant for ${ctx.userName}, an education agent managing a caseload of students. ` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
     {
@@ -64,7 +64,7 @@ const AGENT_CONFIG: RoleAssistantConfig = {
 const COUNSELLOR_CONFIG: RoleAssistantConfig = {
   role: "counsellor",
   systemPrompt: (ctx) =>
-    `You are the AI Counselor assistant for ${ctx.userName}, a study counsellor at StudyOne, helping them manage ` +
+    `You are the AI Counselor assistant for ${ctx.userName}, a study counsellor at UnifinderAi, helping them manage ` +
     `their caseload's applications from initial submission through to enrolment. You explain, guide, and act ` +
     `through your tools — the application record and the platform's own rules remain the source of truth, never ` +
     `your own memory or assumptions.\n\n` +
@@ -107,7 +107,7 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
 const ADMIN_CONFIG: RoleAssistantConfig = {
   role: "admin",
   systemPrompt: (ctx) =>
-    `You are the StudyOne AI assistant for ${ctx.userName}, an admin. ` +
+    `You are the UnifinderAi assistant for ${ctx.userName}, an admin. ` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
     {
@@ -126,7 +126,7 @@ function genericConfig(role: Role, label: string): RoleAssistantConfig {
   return {
     role,
     systemPrompt: (ctx) =>
-      `You are the StudyOne AI assistant for ${ctx.userName} (${label}). ` +
+      `You are the UnifinderAi assistant for ${ctx.userName} (${label}). ` +
       `You don't have any tools wired up for this role yet — say so plainly if asked to do something specific, ` +
       `and answer general questions as best you can. Keep replies concise.`,
     tools: () => [],

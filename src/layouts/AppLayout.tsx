@@ -35,7 +35,7 @@ export default function AppLayout() {
             <GraduationCap size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900 leading-tight">StudyOne</p>
+            <p className="text-sm font-semibold text-slate-900 leading-tight">UnifinderAi</p>
             <p className="text-[11px] text-slate-400 leading-tight">{meta.label} Portal</p>
           </div>
         </div>

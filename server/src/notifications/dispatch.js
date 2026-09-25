@@ -27,7 +27,7 @@ async function sendStatusNotification({ status, recipients, variables }) {
       if (recipient.channel === "email") {
         const provider = getEmailProvider(config.emailProvider);
         const message = renderTemplate(rule.emailTemplate, variables);
-        return { ...(await provider.send({ to: recipient.to, subject: `StudyOne: ${status}`, message })), channel: "email", to: recipient.to };
+        return { ...(await provider.send({ to: recipient.to, subject: `UnifinderAi: ${status}`, message })), channel: "email", to: recipient.to };
       }
       throw Object.assign(new Error(`Unknown channel "${recipient.channel}"`), { status: 400 });
     })

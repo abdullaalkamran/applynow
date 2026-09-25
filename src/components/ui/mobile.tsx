@@ -79,7 +79,7 @@ export function Sidebar() {
           <GraduationCap size={18} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight text-slate-900">StudyOne</p>
+          <p className="truncate text-sm font-bold leading-tight text-slate-900">UnifinderAi</p>
           <p className="truncate text-[11px] leading-tight text-slate-400">Student Portal</p>
         </div>
       </div>

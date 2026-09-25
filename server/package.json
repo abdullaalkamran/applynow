@@ -1,8 +1,8 @@
 {
-  "name": "studyone-assistant-server",
+  "name": "unifinderai-assistant-server",
   "private": true,
   "version": "1.0.0",
-  "description": "Backend proxy for StudyOne's AI assistant — holds provider API keys server-side and normalizes tool-calling across providers.",
+  "description": "Backend proxy for UnifinderAi's AI assistant — holds provider API keys server-side and normalizes tool-calling across providers.",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",

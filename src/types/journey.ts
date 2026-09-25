@@ -34,7 +34,7 @@ export const STAGE_LABEL: Record<StageType, string> = {
 
 // Who's actually responsible for moving a stage forward — deliberately broader than the app's own
 // `Role` union, since "the university" or an unmodelled third party are both real owners of a step
-// (e.g. waiting on the university to issue CAS) that don't correspond to a StudyOne account.
+// (e.g. waiting on the university to issue CAS) that don't correspond to a UnifinderAi account.
 export interface StageOwner {
   id?: string;
   role: "Student" | "Counsellor" | "AdmissionOfficer" | "University" | "Other";

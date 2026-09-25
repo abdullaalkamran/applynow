@@ -232,7 +232,7 @@ export default function Dashboard() {
     return (
       <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
         <div className="lg:mx-auto lg:max-w-6xl">
-          <h1 className="text-[15px] font-bold text-slate-900">StudyOne</h1>
+          <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
           <div className="mt-10 flex flex-col items-center px-4 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
               <AlertCircle size={26} />
@@ -258,7 +258,7 @@ export default function Dashboard() {
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-[15px] font-bold text-slate-900">StudyOne</h1>
+            <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
             <p className="text-[11px] text-slate-400">Global Education. A Brighter You.</p>
           </div>
           <div className="flex items-center gap-3">

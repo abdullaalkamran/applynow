@@ -97,7 +97,7 @@ export default function AgentShell() {
             <Compass size={18} />
           </div>
           <div>
-            <p className="text-[13px] font-bold leading-tight text-slate-900">StudyOne</p>
+            <p className="text-[13px] font-bold leading-tight text-slate-900">UnifinderAi</p>
             <p className="text-[11px] leading-tight text-slate-400">Agent Portal</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function AgentShell() {
             <Globe2 size={16} />
           </div>
           <p className="mt-3 text-[14px] font-semibold leading-snug text-white">Global Education Made Possible</p>
-          <p className="mt-1 text-[11.5px] leading-snug text-white/60">Access 800+ universities worldwide with StudyOne.</p>
+          <p className="mt-1 text-[11.5px] leading-snug text-white/60">Access 800+ universities worldwide with UnifinderAi.</p>
           <button
             onClick={() => navigate("/agent/universities")}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-[12.5px] font-semibold text-slate-900"
@@ -130,7 +130,7 @@ export default function AgentShell() {
                   <Compass size={18} />
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold leading-tight text-slate-900">StudyOne</p>
+                  <p className="text-[13px] font-bold leading-tight text-slate-900">UnifinderAi</p>
                   <p className="text-[11px] leading-tight text-slate-400">Agent Portal</p>
                 </div>
               </div>

@@ -18,5 +18,5 @@ const wss = new WebSocketServer({ server, path: "/api/assistant/gemini-live", ma
 attachGeminiLiveRelay(wss);
 
 server.listen(port, () => {
-  console.log(`StudyOne assistant server listening on port ${port}`);
+  console.log(`UnifinderAi assistant server listening on port ${port}`);
 });

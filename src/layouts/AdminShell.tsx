@@ -18,7 +18,7 @@ import { getAllUniversities } from "../data/universityCatalogStore";
 import { formatApplicationId } from "../utils/displayId";
 import { DATE_RANGE_OPTIONS, formatDateRange, dashboardAppId, isAtRisk } from "../utils/adminDashboard";
 
-// Dedicated ApplyNow-branded shell for the admin role — a sibling of CounsellorShell/AgentShell
+// Dedicated UnifinderAi-branded shell for the admin role — a sibling of CounsellorShell/AgentShell
 // rather than a variant of the shared AppLayout the other staff roles use, since its chrome
 // (global search, reporting-period picker, help card, ten-item nav) is its own design.
 
@@ -110,7 +110,7 @@ function AdminShellInner() {
     <div className="flex items-center gap-2.5 px-5 pb-6 pt-5">
       <Logo />
       <div>
-        <p className="text-[15px] font-bold leading-tight tracking-tight text-slate-900">ApplyNow</p>
+        <p className="text-[15px] font-bold leading-tight tracking-tight text-slate-900">UnifinderAi</p>
         <p className="text-[10px] leading-tight text-slate-400">Global Education Platform</p>
       </div>
     </div>

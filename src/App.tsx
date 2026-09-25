@@ -100,7 +100,7 @@ import AdminApplications from "./features/admin/Applications";
 import AdminCalendar from "./features/admin/Calendar";
 import AdminSettings from "./features/admin/Settings";
 
-// Admin gets its own ApplyNow-branded shell (see layouts/AdminShell.tsx); the other staff roles
+// Admin gets its own UnifinderAi-branded shell (see layouts/AdminShell.tsx); the other staff roles
 // share AppLayout. Same route table underneath either way.
 function StaffShell() {
   const { user } = useAuth();

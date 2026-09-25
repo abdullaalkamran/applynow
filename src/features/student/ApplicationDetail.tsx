@@ -49,6 +49,17 @@ export default function ApplicationDetail() {
   const coreDocsBlocked = missingCoreDocs.length > 0;
   const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
   const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
+  // Posting a comment (ApplicationCommentsCard, below) or any other store write on this page calls
+  // notifyCacheChange(), which remounts this whole page (see syncCache.ts's useCacheSync — it keys
+  // <Outlet> on a version counter). A plain setTab() would then be wiped on that remount, since the
+  // fresh useState() above re-reads navState — snapping the student back to Overview right after
+  // they post a comment, making the Comments tab look like it "closes" itself. Routing the choice
+  // through router state instead means the remount reads the same value straight back — same idiom
+  // used by counsellor/agent StudentProfile.tsx's own selectTab().
+  function selectTab(next: (typeof TABS)[number]) {
+    setTab(next);
+    navigate(location.pathname, { replace: true, state: { tab: next } });
+  }
   const [saved, setSaved] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [programInfoOpen, setProgramInfoOpen] = useState(true);
@@ -218,7 +229,7 @@ export default function ApplicationDetail() {
             {TABS.map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => selectTab(t)}
                 className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
               >
                 {t}
@@ -292,7 +303,7 @@ export default function ApplicationDetail() {
 
                 {missingAppDocs.length > 0 && (
                   <button
-                    onClick={() => setTab("Documents")}
+                    onClick={() => selectTab("Documents")}
                     className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-left"
                   >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">

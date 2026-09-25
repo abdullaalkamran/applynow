@@ -12,7 +12,7 @@ export default function Onboarding() {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={15} />
           </div>
-          <span className="text-[15px] font-semibold text-[var(--sd-ink)]">StudyOne</span>
+          <span className="text-[15px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
         </div>
         <button onClick={() => navigate("/student")} className="text-sm font-medium text-slate-400">
           Skip

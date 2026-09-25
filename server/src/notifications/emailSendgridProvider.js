@@ -20,8 +20,8 @@ async function send({ to, subject, message }) {
     },
     body: JSON.stringify({
       personalizations: [{ to: [{ email: to }] }],
-      from: { email: config.fromAddress, name: config.fromName || "StudyOne" },
-      subject: subject || "StudyOne update",
+      from: { email: config.fromAddress, name: config.fromName || "UnifinderAi" },
+      subject: subject || "UnifinderAi update",
       content: [{ type: "text/plain", value: message }],
     }),
   });

@@ -71,7 +71,7 @@ function envDefaults() {
     email: {
       apiKey: process.env.SENDGRID_API_KEY || "",
       fromAddress: process.env.EMAIL_FROM_ADDRESS || "",
-      fromName: process.env.EMAIL_FROM_NAME || "StudyOne",
+      fromName: process.env.EMAIL_FROM_NAME || "UnifinderAi",
     },
   };
 }

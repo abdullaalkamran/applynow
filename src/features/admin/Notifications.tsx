@@ -205,7 +205,7 @@ export default function AdminNotifications() {
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>From address</label>
-              <input className={inputClass} value={config.email.fromAddress} onChange={(e) => setConfig({ ...config, email: { ...config.email, fromAddress: e.target.value } })} placeholder="updates@studyone.com" />
+              <input className={inputClass} value={config.email.fromAddress} onChange={(e) => setConfig({ ...config, email: { ...config.email, fromAddress: e.target.value } })} placeholder="updates@unifinderai.com" />
             </div>
             <div>
               <label className={labelClass}>From name</label>

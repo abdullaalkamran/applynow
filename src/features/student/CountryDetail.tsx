@@ -52,7 +52,7 @@ export default function CountryDetail() {
     <div className="pb-6">
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <h1 className="text-[15px] font-bold text-slate-900">StudyOne</h1>
+          <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/student/search")}

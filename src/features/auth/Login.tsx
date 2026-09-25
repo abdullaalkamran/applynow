@@ -66,7 +66,7 @@ export default function Login() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={18} />
           </div>
-          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">StudyOne</span>
+          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
         </div>
 
         <h1 className="mt-8 text-2xl font-bold text-slate-900">Welcome back</h1>
@@ -81,7 +81,7 @@ export default function Login() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@studyone.dev"
+              placeholder="you@example.com"
               className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
             />
           </div>

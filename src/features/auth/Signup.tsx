@@ -84,7 +84,7 @@ export default function Signup() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
             <GraduationCap size={18} />
           </div>
-          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">StudyOne</span>
+          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
         </div>
 
         <h1 className="mt-8 text-2xl font-bold text-slate-900">Create your account</h1>

@@ -122,7 +122,7 @@ export default function CounsellorShell() {
             <Gem size={18} />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-tight text-slate-900">StudyOne</p>
+            <p className="text-sm font-semibold leading-tight text-slate-900">UnifinderAi</p>
             <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function CounsellorShell() {
                   <Gem size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold leading-tight text-slate-900">StudyOne</p>
+                  <p className="text-sm font-semibold leading-tight text-slate-900">UnifinderAi</p>
                   <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
                 </div>
               </div>

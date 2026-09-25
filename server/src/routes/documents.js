@@ -166,7 +166,7 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
       const { student, recipients } = await studentAndAgentRecipients(doc.studentId);
       if (student && recipients.length > 0) {
         const message = `Hi ${student.name}, your counsellor has requested a new document: "${doc.type}"${doc.note ? ` — ${doc.note}` : ""}. Please upload it as soon as possible.`;
-        sendDocumentNotification({ subject: "StudyOne: New document requested", message, recipients }).catch((err) =>
+        sendDocumentNotification({ subject: "UnifinderAi: New document requested", message, recipients }).catch((err) =>
           console.warn("Document request notification failed to send:", err)
         );
       }
@@ -207,7 +207,7 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
         status === "rejected"
           ? `Hi ${student.name}, your document "${doc.type}" was rejected: ${doc.rejectionReason}. Please re-upload it as soon as possible.`
           : `Hi ${student.name}, your document "${doc.type}" has been verified.`;
-      sendDocumentNotification({ subject: `StudyOne: Document ${status}`, message, recipients }).catch((err) =>
+      sendDocumentNotification({ subject: `UnifinderAi: Document ${status}`, message, recipients }).catch((err) =>
         console.warn("Document review notification failed to send:", err)
       );
     }

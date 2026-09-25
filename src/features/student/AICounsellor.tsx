@@ -157,7 +157,7 @@ export default function AICounsellor() {
               </button>
             </div>
             <button onClick={() => navigate("/student/messages")} className="w-full pb-1 pt-2.5 text-center text-[11px] text-slate-400">
-              Powered by StudyOne AI · Talk to a human counsellor
+              Powered by UnifinderAi · Talk to a human counsellor
             </button>
           </div>
         </>
