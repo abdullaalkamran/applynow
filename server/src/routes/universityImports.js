@@ -179,7 +179,9 @@ router.post("/:itemId/approve", requireAuth, requireDataRole, async (req, res, n
     if (!draft.website) draft.website = (() => { try { return new URL(item.sourceUrl).origin; } catch { return ""; } })();
     if (!draft.currencySymbol) draft.currencySymbol = "$";
     if (!draft.openIntake) draft.openIntake = Array.isArray(draft.intakes) && draft.intakes[0] ? `${draft.intakes[0]} ${new Date().getFullYear() + 1}` : "TBC";
-    const clash = await prisma.university.findFirst({ where: { name: { equals: String(draft.name).trim(), mode: "insensitive" } } });
+    // MySQL's default collation is already case-insensitive for text comparisons, unlike Postgres —
+    // no `mode: "insensitive"` option exists on this connector (Prisma would reject it outright).
+    const clash = await prisma.university.findFirst({ where: { name: { equals: String(draft.name).trim() } } });
     if (clash) return res.status(409).json({ error: `"${clash.name}" is already in the catalog.` });
 
     const id = (req.body && req.body.id) || `u-import-${Date.now().toString(36)}-${item.id.slice(-4)}`;

@@ -68,7 +68,7 @@ const USERS = [
 ];
 
 async function main() {
-  console.log("Seeding UnifinderAi Postgres database...");
+  console.log("Seeding UnifinderAi MySQL database...");
 
   for (const s of STAFF) {
     await prisma.staff.upsert({ where: { id: s.id }, update: s, create: s });

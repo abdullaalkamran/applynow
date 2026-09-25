@@ -1,4 +1,6 @@
-// StudyOne — Postgres schema (Prisma). See /Users/mdabdullaalkamran/.claude/plans/my-ami-is-this-shimmering-hamster.md
+// UnifinderAi — MySQL schema (Prisma; Spaceship's shared hosting only exposes MySQL, not
+// PostgreSQL, so list-valued fields are modeled as Json rather than native Postgres arrays). See
+// /Users/mdabdullaalkamran/.claude/plans/my-ami-is-this-shimmering-hamster.md
 // for the migration plan this implements. Phase 1 models (User, Student, Staff, Application,
 // ApplicationJourney, ApplicationStatusHistory, ApplicationActivity, Task, Message) have full
 // routes + frontend wiring. Everything else here is schema designed ahead of time for a later
@@ -6,7 +8,7 @@
 // routes exist for them yet.
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -129,11 +131,11 @@ model Student {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  applications        Application[]
-  tasks               Task[]
-  documents           Document[]
-  financialReadiness  StudentFinancialReadiness?
-  comments            StudentComment[]
+  applications       Application[]
+  tasks              Task[]
+  documents          Document[]
+  financialReadiness StudentFinancialReadiness?
+  comments           StudentComment[]
 }
 
 model Staff {
@@ -428,7 +430,7 @@ model ComplianceCase {
   riskLevel   RiskLevel
   status      ComplianceStatus
   openedAt    DateTime         @default(now())
-  evidence    String[]
+  evidence    Json
 }
 
 enum CatalogRecordType {
@@ -516,11 +518,11 @@ model Subject {
   name           String   @unique
   custom         Boolean  @default(false)
   description    String?
-  modules        String[]
+  modules        Json
   // Typical career outcomes for the field — the subject-level default for a course's Careers tab,
   // the same way `modules` is for its Modules tab (see subjectCurriculum.ts's curriculumFor).
-  careers        String[] @default([])
-  accreditations String[]
+  careers        Json     @default("[]")
+  accreditations Json
   // A coarser grouping above Subject (e.g. "Technology & Computing" over "Computer Science & IT"
   // and "Data Science & AI") — backs the Advanced Search "Discipline Area" filter, kept genuinely
   // distinct from Subject/"Study Area" rather than a duplicate of it. Free text, editable from a
@@ -550,108 +552,108 @@ enum UniversityTone {
 // their own tables, same trade-off as Application.stages, since nothing here is queried by its
 // internal shape, only read/written whole.
 model University {
-  id                         String         @id
-  name                       String
-  city                       String
-  country                    String
-  tags                       String[]
-  subjects                   String[]
-  intakes                    String[]
-  worldRank                  String
-  qsRanking                  String?
-  timesHigherRanking         String?
-  employability              String
-  studentCount               String
-  description                String
-  highlights                 String[]
-  campuses                   Json?
-  requirements               Json // { undergraduate: string[]; postgraduate: string[] }
-  fees                       Json
-  minimumDepositAmount       Float?
-  depositMode                DepositMode?
-  paymentDeadline            String?
-  depositRules               String[]
-  admissionSteps             String[]
-  restrictedRegions          String[]
+  id                            String             @id
+  name                          String
+  city                          String
+  country                       String
+  tags                          Json
+  subjects                      Json
+  intakes                       Json
+  worldRank                     String
+  qsRanking                     String?
+  timesHigherRanking            String?
+  employability                 String
+  studentCount                  String
+  description                   String
+  highlights                    Json
+  campuses                      Json?
+  requirements                  Json // { undergraduate: string[]; postgraduate: string[] }
+  fees                          Json
+  minimumDepositAmount          Float?
+  depositMode                   DepositMode?
+  paymentDeadline               String?
+  depositRules                  Json
+  admissionSteps                Json
+  restrictedRegions             Json
   // The university's own province/state — its *location*, a peer to `city`, distinct from a
   // student's home state (matched against `restrictedRegions` instead, no new column needed for
   // that). Backs Advanced Search's "Province | State" filter.
-  state                      String?
+  state                         String?
   // A real English Language Program / ESL offering — distinct from `internalEnglishTestOffered`
   // (an admissions *test* the university runs) — backs "ESL / ELP Available".
-  eslElpAvailable            Boolean?
+  eslElpAvailable               Boolean?
   // Backs "Application Fee Waiver (upto 100%)" — same conditional-field convention as
   // internalEnglishTestOffered/internalEnglishTestFee above (percent only meaningful when true).
   applicationFeeWaiverAvailable Boolean?
   applicationFeeWaiverPercent   Int?
-  currencySymbol             String
-  minIELTS                   Float
-  minGPA                     Float
-  englishRequirements        Json?
-  moiAccepted                Boolean?
-  moiAcceptedUniversities    String[]
-  internalEnglishTestOffered Boolean?
-  internalEnglishTestFree    Boolean?
-  internalEnglishTestFee     Float?
-  accreditations             String[]
-  scholarshipsAvailable      Boolean
-  scholarships               Json?
-  openIntake                 String
-  intakeStatus               Json?
-  intakeDates                Json?
-  website                    String
-  tone                       UniversityTone
-  logoUrl                    String?
-  coverPhotoUrl              String?
-  createdAt                  DateTime       @default(now())
-  updatedAt                  DateTime       @updatedAt
-  courses                    Course[]
-  courseImports              CourseImportItem[]
+  currencySymbol                String
+  minIELTS                      Float
+  minGPA                        Float
+  englishRequirements           Json?
+  moiAccepted                   Boolean?
+  moiAcceptedUniversities       Json
+  internalEnglishTestOffered    Boolean?
+  internalEnglishTestFree       Boolean?
+  internalEnglishTestFee        Float?
+  accreditations                Json
+  scholarshipsAvailable         Boolean
+  scholarships                  Json?
+  openIntake                    String
+  intakeStatus                  Json?
+  intakeDates                   Json?
+  website                       String
+  tone                          UniversityTone
+  logoUrl                       String?
+  coverPhotoUrl                 String?
+  createdAt                     DateTime           @default(now())
+  updatedAt                     DateTime           @updatedAt
+  courses                       Course[]
+  courseImports                 CourseImportItem[]
 }
 
 model Course {
-  id                  String     @id
-  universityId        String
-  university          University @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  name                String
-  level               String
-  duration            String
-  subject             String
-  feeUSD              Float
-  intakes             String[]
-  applicationDeadline String?
-  requirements        String[]
-  englishRequirements Json?
-  currencySymbol      String?
+  id                      String     @id
+  universityId            String
+  university              University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  name                    String
+  level                   String
+  duration                String
+  subject                 String
+  feeUSD                  Float
+  intakes                 Json
+  applicationDeadline     String?
+  requirements            Json
+  englishRequirements     Json?
+  currencySymbol          String?
   // Which of the university's campuses this course runs at (ids from University.campuses) —
   // empty means every campus. Replaced the single `campusId`; the migration carried old values over.
-  campusIds           String[]   @default([])
+  campusIds               Json       @default("[]")
   // Course-page content Data Management enters directly on the course. `modules`/`careers` empty
   // means "use the subject's lists" (see subjectCurriculum.ts); `description`/`studyMode` unset
   // fall back to a generated blurb and "Full-time".
-  description         String?
-  studyMode           String?
-  modules             String[]   @default([])
-  careers             String[]   @default([])
+  description             String?
+  studyMode               String?
+  modules                 Json       @default("[]")
+  careers                 Json       @default("[]")
   // Bodies that accredit this specific course — [{ name, logoUrl? }], the logo a data URL like the
   // university's own `logoUrl`. Distinct from University.accreditations (institution-level).
-  accreditations      Json?
+  accreditations          Json?
   // Standardized admission tests this course requires/accepts (e.g. "SAT", "ACT", "GRE", "GMAT") —
   // distinct from englishRequirements above, which is English-proficiency tests only. Backs the
   // Advanced Search SAT/ACT/GRE/GMAT checkboxes, and "Without GRE"/"Without GMAT" as the inverse
   // (absence in this array) rather than separate flags.
-  standardizedTests   String[]   @default([])
+  standardizedTests       Json       @default("[]")
   // The Advanced Search "Program Level" taxonomy (High School, UG Diploma, Pathway Programs,
   // Twinning Programmes, Online/Hybrid delivery, etc.) — deliberately separate from `level` above,
   // which several existing features (MOI eligibility, English-requirement splits, entry
   // requirements) compare against as an exact "Undergraduate"/"Postgraduate" string. A course can
   // belong to more than one program-level tag at once.
-  programLevel        String[]   @default([])
+  programLevel            Json       @default("[]")
   // Real eligibility/classification flags Data Management can tag per course — each backs its own
   // Advanced Search checkbox ("Without Maths", "STEM Programs", "With 15 Years of Education").
-  mathsRequired           Boolean @default(true)
-  isStemProgram           Boolean @default(false)
-  accepts15YearsEducation Boolean @default(false)
+  mathsRequired           Boolean    @default(true)
+  isStemProgram           Boolean    @default(false)
+  accepts15YearsEducation Boolean    @default(false)
 
   @@index([universityId])
 }
@@ -820,9 +822,9 @@ model StudentProfile {
   emergencyContactAddress      String?
   emergencyContactPhone        String?
   emergencyContactEmail        String?
-  destinations                 String[]
+  destinations                 Json
   studyLevel                   String?
-  fields                       String[]
+  fields                       Json
   intake                       String?
   budget                       String?
   accommodation                String?
@@ -884,21 +886,21 @@ model StudentAcademicLevel {
 // mirrors the same "Ready"/"Matured" terminal-status rule the per-application StageRecord uses, so
 // a counsellor's outstanding "fill this in" task (see taskBoard.ts) disappears the moment it's set.
 model StudentFinancialReadiness {
-  studentId         String    @id
-  student           Student   @relation(fields: [studentId], references: [id])
-  evidenceRequired  Boolean   @default(true)
+  studentId         String                             @id
+  student           Student                            @relation(fields: [studentId], references: [id])
+  evidenceRequired  Boolean                            @default(true)
   requiredAmount    Float?
   currency          String?
   holdingPeriodDays Int?
-  openingDate       DateTime? @db.Date
-  maturityDate      DateTime? @db.Date
-  bankStatus        String    @default("Not Started")
+  openingDate       DateTime?                          @db.Date
+  maturityDate      DateTime?                          @db.Date
+  bankStatus        String                             @default("Not Started")
   bankName          String?
   accountHolder     String?
   accountType       String?
   depositType       String?
   completedAt       DateTime?
-  updatedAt         DateTime  @updatedAt
+  updatedAt         DateTime                           @updatedAt
   history           StudentFinancialReadinessHistory[]
 }
 
@@ -982,16 +984,16 @@ model InterviewQuestion {
 }
 
 model InterviewSession {
-  id            String               @id @default(cuid())
+  id            String                 @id @default(cuid())
   userId        String
   questionSetId String
-  questionSet   InterviewQuestionSet @relation(fields: [questionSetId], references: [id])
+  questionSet   InterviewQuestionSet   @relation(fields: [questionSetId], references: [id])
   status        InterviewSessionStatus @default(in_progress)
   // Average of every answer's own `overall` so far — recomputed on each answer, final once status
   // flips to completed.
   overallScore  Float?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   answers InterviewAnswer[]
 
@@ -1013,8 +1015,8 @@ model InterviewAnswer {
   overall    Float
   createdAt  DateTime          @default(now())
 
-  @@index([sessionId])
   @@unique([sessionId, questionId])
+  @@index([sessionId])
 }
 
 // Same queue as CourseImportItem, for whole universities: one pasted university web page per row,
@@ -1026,7 +1028,7 @@ model UniversityImportItem {
   sourceUrl            String
   // Further pages of the same university read together with sourceUrl (fees, entry
   // requirements, scholarships…) — a single page rarely states everything.
-  extraUrls            String[]           @default([])
+  extraUrls            Json               @default("[]")
   status               CourseImportStatus @default(queued)
   countryHint          String?
   textSource           String?
