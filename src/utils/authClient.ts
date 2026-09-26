@@ -83,6 +83,28 @@ export async function googleAuth(credential: string, referralCode?: string): Pro
   return data;
 }
 
+/** Whether this deployment has zero admin accounts yet — /staff/login uses this to decide whether
+ * to offer "set up the first admin account" at all (see server/src/routes/auth.js's GET
+ * /admin-setup-status). Never reveals who the admin is, just whether one exists. */
+export async function checkAdminSetupNeeded(): Promise<boolean> {
+  const response = await fetch(`${BACKEND_BASE}/api/auth/admin-setup-status`);
+  const data = await response.json().catch(() => ({}));
+  return Boolean(data.needsSetup);
+}
+
+/** Creates the first admin account — the server re-checks independently that none exists yet, so
+ * this always fails once one does (see server/src/routes/auth.js's POST /bootstrap-admin). */
+export async function bootstrapAdmin(name: string, email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+  const response = await fetch(`${BACKEND_BASE}/api/auth/bootstrap-admin`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Couldn't set up the admin account (${response.status})`);
+  return data;
+}
+
 /** Self-service password change for the logged-in account (any role) — requires the current
  * password, matching the server's own check (see server/src/routes/auth.js's POST /change-password). */
 export function changePassword(currentPassword: string, newPassword: string): Promise<void> {

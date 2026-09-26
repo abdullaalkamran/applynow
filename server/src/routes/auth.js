@@ -127,6 +127,64 @@ router.post("/register", async (req, res, next) => {
   }
 });
 
+// First-run setup — lets the /staff/login page offer "set up the first admin account" when the
+// deployment genuinely has none yet (e.g. a fresh production database, sidestepping the need for
+// SSH access to run the seed script). Public and read-only; never reveals *who* the admin is, just
+// whether one exists, so it's safe to check before a session exists.
+router.get("/admin-setup-status", async (req, res, next) => {
+  try {
+    const adminCount = await prisma.user.count({ where: { role: "admin" } });
+    res.json({ needsSetup: adminCount === 0 });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Creates the very first admin account — re-checks server-side (not just trusting the UI hid the
+// option) that none exists yet, so this can never be used to add a *second* admin or escalate an
+// existing account. Once any admin exists, this always 403s.
+router.post("/bootstrap-admin", async (req, res, next) => {
+  try {
+    const { name, email, password } = req.body || {};
+    if (typeof name !== "string" || !name.trim() || typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
+      return res.status(400).json({ error: "A name and a valid email are required." });
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: "Password must be at least 8 characters." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const staffCount = await prisma.staff.count();
+    const staffId = `admin-${Date.now().toString(36)}`;
+
+    const user = await prisma.$transaction(async (tx) => {
+      if ((await tx.user.count({ where: { role: "admin" } })) > 0) {
+        throw Object.assign(new Error("An admin account already exists."), { status: 403 });
+      }
+      await tx.staff.create({
+        data: {
+          id: staffId,
+          name: name.trim(),
+          email: normalizedEmail,
+          role: "admin",
+          status: "Active",
+          avatarColor: AVATAR_COLORS[staffCount % AVATAR_COLORS.length],
+        },
+      });
+      return tx.user.create({
+        data: { email: normalizedEmail, passwordHash, name: name.trim(), role: "admin", roleUserId: staffId },
+      });
+    });
+
+    res.status(201).json({ token: issueToken(user), user: toPublicUser(user) });
+  } catch (err) {
+    if (err.status === 403) return res.status(403).json({ error: err.message });
+    if (err.code === "P2002") return res.status(409).json({ error: "That email is already registered." });
+    next(err);
+  }
+});
+
 // Sign in with Google, one endpoint for both cases: an existing account (any role) logs straight
 // in, and an email Google has never been seen with before gets a brand-new student account —
 // mirroring /register's referral-code handling, since a Google-signup can arrive via the same

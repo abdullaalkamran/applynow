@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GraduationCap, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_HOME } from "../../layouts/nav";
 import { GoogleSignInButton } from "../../components/GoogleSignInButton";
+import { checkAdminSetupNeeded, bootstrapAdmin } from "../../utils/authClient";
 
 const DEMO_ACCOUNTS = [
   { email: "student@studyone.dev", label: "Student" },
@@ -21,7 +22,7 @@ const DEMO_ACCOUNTS = [
 const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV;
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, completeInviteLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -30,7 +31,40 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
 
+  // Only offered on /staff/login (not the student-facing /login), and only when the server
+  // confirms zero admin accounts exist yet — see authClient.ts's checkAdminSetupNeeded, which
+  // mirrors server/src/routes/auth.js's own re-check, so this can never be used to add a second
+  // admin even if someone reopens this form after one already exists.
+  const isStaffLogin = location.pathname === "/staff/login";
+  const [needsAdminSetup, setNeedsAdminSetup] = useState(false);
+  const [showBootstrap, setShowBootstrap] = useState(false);
+  const [bootstrapName, setBootstrapName] = useState("");
+  const [bootstrapEmail, setBootstrapEmail] = useState("");
+  const [bootstrapPassword, setBootstrapPassword] = useState("");
+  const [bootstrapping, setBootstrapping] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState("");
+
+  useEffect(() => {
+    if (!isStaffLogin) return;
+    checkAdminSetupNeeded().then(setNeedsAdminSetup).catch(() => setNeedsAdminSetup(false));
+  }, [isStaffLogin]);
+
   const redirectTo = (location.state as { from?: string } | null)?.from;
+
+  async function handleBootstrap(e: React.FormEvent) {
+    e.preventDefault();
+    setBootstrapError("");
+    setBootstrapping(true);
+    try {
+      const { token: newToken, user } = await bootstrapAdmin(bootstrapName.trim(), bootstrapEmail.trim(), bootstrapPassword);
+      completeInviteLogin(newToken, user);
+      navigate(ROLE_HOME[user.role], { replace: true });
+    } catch (err) {
+      setBootstrapError(err instanceof Error ? err.message : "Couldn't set up the admin account.");
+    } finally {
+      setBootstrapping(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -147,6 +181,58 @@ export default function Login() {
               </button>
             ))}
           </div>
+        )}
+
+        {needsAdminSetup && !showBootstrap && (
+          <button
+            onClick={() => setShowBootstrap(true)}
+            className="mt-6 w-full rounded-xl border border-dashed border-slate-200 px-3.5 py-2.5 text-center text-[12.5px] font-medium text-slate-500"
+          >
+            No admin account yet? Set one up
+          </button>
+        )}
+
+        {needsAdminSetup && showBootstrap && (
+          <form onSubmit={handleBootstrap} className="mt-6 space-y-3 rounded-xl border border-slate-200 p-4">
+            <p className="text-[12.5px] font-medium text-slate-700">Set up the first admin account</p>
+            <p className="text-[11.5px] text-slate-400">
+              This option only appears because no admin account exists on this deployment yet — it disappears for good once one is created.
+            </p>
+            <input
+              type="text"
+              required
+              value={bootstrapName}
+              onChange={(e) => setBootstrapName(e.target.value)}
+              placeholder="Full name"
+              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+            />
+            <input
+              type="email"
+              required
+              value={bootstrapEmail}
+              onChange={(e) => setBootstrapEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+            />
+            <input
+              type="password"
+              required
+              value={bootstrapPassword}
+              onChange={(e) => setBootstrapPassword(e.target.value)}
+              placeholder="Password (min. 8 characters)"
+              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+            />
+
+            {bootstrapError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{bootstrapError}</p>}
+
+            <button
+              type="submit"
+              disabled={bootstrapping}
+              className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {bootstrapping ? "Creating…" : "Create admin account"}
+            </button>
+          </form>
         )}
       </div>
     </div>
