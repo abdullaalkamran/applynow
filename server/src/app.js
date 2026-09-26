@@ -132,6 +132,22 @@ app.use("/api/interview-prep", interviewPrepRoute);
 app.use("/api/passport-extraction", passportExtractionRoute);
 app.use("/api/commission-rates", commissionRatesRoute);
 
+// Serves the built frontend (see the repo root's committed `dist/`, produced by `npm run build`
+// on a machine that has the frontend's devDependencies — vite/tsc/tailwind are intentionally not
+// installed in this production Node runtime) from this same origin, so a shared-hosting deploy
+// needs only one cPanel Node app and one domain. `BACKEND_BASE` in src/utils/backendBase.ts is
+// built as "" for this setup, making every API call same-origin — no CORS/second host involved.
+const clientDistPath = path.join(__dirname, "..", "..", "dist");
+app.use(express.static(clientDistPath));
+
+// BrowserRouter (not HashRouter) needs the server to answer any client-side route with
+// index.html so React Router can take over — same SPA-fallback rule a static host would apply.
+// Excludes /api/* and /uploads/* so a genuinely unmatched API path still 404s normally instead of
+// silently getting index.html.
+app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => {
+  res.sendFile(path.join(clientDistPath, "index.html"));
+});
+
 app.use(errorHandler);
 
 module.exports = app;
