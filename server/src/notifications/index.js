@@ -1,6 +1,7 @@
 const whatsappMetaProvider = require("./whatsappMetaProvider");
 const whatsappTwilioProvider = require("./whatsappTwilioProvider");
 const emailSendgridProvider = require("./emailSendgridProvider");
+const emailBrevoProvider = require("./emailBrevoProvider");
 const stubProvider = require("./stubProvider");
 
 const WHATSAPP_PROVIDERS = {
@@ -11,6 +12,7 @@ const WHATSAPP_PROVIDERS = {
 
 const EMAIL_PROVIDERS = {
   sendgrid: emailSendgridProvider,
+  brevo: emailBrevoProvider,
   stub: stubProvider,
 };
 
