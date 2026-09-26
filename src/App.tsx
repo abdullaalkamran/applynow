@@ -134,6 +134,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Same page/logic as /login (login is role-agnostic — the backend returns whatever
+              role the account actually has) — just a distinct URL to hand to staff/admin instead
+              of the student-facing one. */}
+          <Route path="/staff/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
