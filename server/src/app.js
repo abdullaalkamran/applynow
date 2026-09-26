@@ -171,9 +171,12 @@ app.use(
 
 // BrowserRouter (not HashRouter) needs the server to answer any client-side route with
 // index.html so React Router can take over — same SPA-fallback rule a static host would apply.
-// Excludes /api/* and /uploads/* so a genuinely unmatched API path still 404s normally instead of
-// silently getting index.html.
-app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => {
+// Excludes /api/*, /uploads/* and /assets/* so a genuinely unmatched API path, or a request for an
+// asset file a since-updated build no longer has (e.g. a browser still holding an old cached
+// index.html referencing a deleted hashed filename), still 404s normally instead of silently
+// getting index.html back with the wrong Content-Type — which is what a browser's "Expected a
+// JavaScript module but got text/html" / stylesheet MIME error actually means.
+app.get(/^\/(?!api\/|uploads\/|assets\/).*/, (req, res) => {
   res.set("Cache-Control", "no-cache");
   res.sendFile(path.join(clientDistPath, "index.html"));
 });
