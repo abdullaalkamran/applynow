@@ -149,13 +149,32 @@ app.use("/api/agent-invoices", agentInvoicesRoute);
 // needs only one cPanel Node app and one domain. `BACKEND_BASE` in src/utils/backendBase.ts is
 // built as "" for this setup, making every API call same-origin — no CORS/second host involved.
 const clientDistPath = path.join(__dirname, "..", "..", "dist");
-app.use(express.static(clientDistPath));
+app.use(
+  express.static(clientDistPath, {
+    setHeaders: (res, filePath) => {
+      // index.html must always be revalidated with the server — it's what points the browser at
+      // this build's hashed JS/CSS filenames. Vite gives every asset a content hash, so each new
+      // deploy's dist/ deletes the previous build's files; a browser tab (or any intermediate
+      // cache) still holding an old *cached* index.html would then request filenames that no
+      // longer exist — a 404 that leaves the page blank forever, since React never mounts. This is
+      // exactly what happens without this header.
+      if (path.basename(filePath) === "index.html") {
+        res.setHeader("Cache-Control", "no-cache");
+      } else {
+        // Every other file's name changes whenever its content does, so caching it "forever" is
+        // always safe — an update always means a new URL, never stale content at an old one.
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  })
+);
 
 // BrowserRouter (not HashRouter) needs the server to answer any client-side route with
 // index.html so React Router can take over — same SPA-fallback rule a static host would apply.
 // Excludes /api/* and /uploads/* so a genuinely unmatched API path still 404s normally instead of
 // silently getting index.html.
 app.get(/^\/(?!api\/|uploads\/).*/, (req, res) => {
+  res.set("Cache-Control", "no-cache");
   res.sendFile(path.join(clientDistPath, "index.html"));
 });
 
