@@ -40,13 +40,18 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 // Standard security headers. CSP is left to the SPA (this is a JSON API), and the resource
-// policy must allow cross-origin embedding because the SPA is served from a different origin
-// and loads /uploads images and PDFs from here.
+// policy allows cross-origin embedding since /uploads images and PDFs may be loaded from a
+// different origin in local dev (frontend on :5173, API on :8787) even though production serves
+// both from the same origin. `same-origin-allow-popups` (not helmet's default `same-origin`) is
+// required for Google Identity Services' popup sign-in flow — the default COOP value blocks the
+// popup from calling back to `window.opener` via postMessage, which otherwise fails silently as
+// `Cannot read properties of null (reading 'postMessage')` in the browser console.
 app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   })
 );
 
