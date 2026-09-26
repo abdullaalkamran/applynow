@@ -163,6 +163,23 @@ model Staff {
   @@index([role])
 }
 
+// A pending self-service signup link for a prospective agent — the only role with no admin-direct
+// account creation (see staff.js's STAFF_ROLES, which deliberately excludes "agent"). Created by an
+// admin, emailed to the invitee, consumed exactly once by POST /api/agent-invites/:token/accept.
+model AgentInvite {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  name         String
+  email        String
+  organization String?
+  invitedBy    String?
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([email])
+}
+
 model Application {
   id                            String             @id
   studentId                     String

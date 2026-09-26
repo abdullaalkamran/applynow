@@ -9,6 +9,7 @@ import {
   type StaffMember, type StaffStatus,
 } from "../../data/staffStore";
 import { getTeamLeadOverride, setTeamLead } from "../../data/teamsStore";
+import { inviteAgent } from "../../data/agentInvitesStore";
 import type { Role } from "../../types";
 
 const TEAM_ROLES: Role[] = ["counsellor", "admission", "compliance", "data", "finance", "admin"];
@@ -36,6 +37,7 @@ export default function AdminUsersRoles() {
   const [expandedTeam, setExpandedTeam] = useState<Role | null>(null);
   const [managingId, setManagingId] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<Role | null>(null);
+  const [invitingAgent, setInvitingAgent] = useState(false);
   const [, forceTick] = useState(0);
 
   function refresh() {
@@ -73,7 +75,12 @@ export default function AdminUsersRoles() {
       <PageHeader
         title="Teams & Roles"
         subtitle="Platform staff grouped into teams by role, plus individual RBAC. Changes are audited."
-        action={<Button onClick={() => setInviteRole(ASSIGNABLE_ROLES[0].id)}>+ Invite user</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setInvitingAgent(true)}>+ Invite agent</Button>
+            <Button onClick={() => setInviteRole(ASSIGNABLE_ROLES[0].id)}>+ Invite user</Button>
+          </div>
+        }
       />
 
       <div className="mb-4 flex items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm font-medium w-fit">
@@ -246,6 +253,8 @@ export default function AdminUsersRoles() {
           onInvited={() => refresh()}
         />
       )}
+
+      {invitingAgent && <AgentInviteModal onClose={() => setInvitingAgent(false)} />}
     </div>
   );
 }
@@ -437,6 +446,103 @@ function InviteModal({
         </label>
         <p className="text-[11px] text-slate-400">
           Set a password so they can sign in right away. Without one, this is just a directory entry with no login until a password is set later.
+        </p>
+
+        {error && <p className="text-xs text-rose-600">{error}</p>}
+
+        <Button className="w-full justify-center" disabled={!canSubmit || inviting} onClick={handleSubmit}>
+          {inviting ? "Inviting…" : "Send invite"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// Agent is the one role with no admin-direct account creation (see ASSIGNABLE_ROLES above, which
+// deliberately excludes it) — the invitee sets their own password via the emailed link instead of
+// the admin choosing one, so this modal collects no password and shows a link, not a temp password.
+function AgentInviteModal({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState("");
+  const [invited, setInvited] = useState<{ email: string; acceptUrl: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const canSubmit = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
+
+  async function handleSubmit() {
+    setError("");
+    setInviting(true);
+    try {
+      const created = await inviteAgent(name.trim(), email.trim(), organization.trim() || undefined);
+      setInvited({ email: created.email, acceptUrl: created.acceptUrl });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't invite this agent.");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  if (invited) {
+    return (
+      <Modal title="Invite sent" onClose={onClose}>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            An invite email was sent to {invited.email}. If it doesn't arrive, share this link with them directly — it works either way:
+          </p>
+          <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+            <p className="break-all font-mono text-slate-800">{invited.acceptUrl}</p>
+            <p className="mt-2 text-slate-400">Expires in 7 days. They'll set their own password when they open it.</p>
+          </div>
+          <Button
+            variant="secondary"
+            className="w-full justify-center"
+            onClick={() => {
+              navigator.clipboard?.writeText(invited.acceptUrl);
+              setCopied(true);
+            }}
+          >
+            {copied ? "Copied!" : "Copy link"}
+          </Button>
+          <Button className="w-full justify-center" onClick={onClose}>Done</Button>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title="Invite agent" onClose={onClose}>
+      <div className="space-y-3">
+        <label className="block text-xs font-medium text-slate-500">
+          Full name
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Jordan Lee"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--brand-600)] focus:outline-none"
+          />
+        </label>
+        <label className="block text-xs font-medium text-slate-500">
+          Work email
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="jordan.lee@edupath.com"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--brand-600)] focus:outline-none"
+          />
+        </label>
+        <label className="block text-xs font-medium text-slate-500">
+          Organization (optional)
+          <input
+            value={organization}
+            onChange={(e) => setOrganization(e.target.value)}
+            placeholder="e.g. Global Pathways Consultants"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-[var(--brand-600)] focus:outline-none"
+          />
+        </label>
+        <p className="text-[11px] text-slate-400">
+          They'll get an email with a link to set up their own account and password.
         </p>
 
         {error && <p className="text-xs text-rose-600">{error}</p>}

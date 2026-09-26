@@ -7,6 +7,7 @@ import { RequireAuth } from "./layouts/RequireAuth";
 import { ROLE_HOME } from "./layouts/nav";
 import Login from "./features/auth/Login";
 import Signup from "./features/auth/Signup";
+import AcceptInvite from "./features/auth/AcceptInvite";
 import AppLayout from "./layouts/AppLayout";
 import AdminShell from "./layouts/AdminShell";
 import StudentShell from "./layouts/StudentShell";
@@ -134,6 +135,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
           {/* Student — mobile app shell (no sidebar/topbar) */}
           <Route element={<RequireAuth roles={["student"]} />}>

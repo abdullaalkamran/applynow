@@ -28,6 +28,7 @@ const universityImportsRoute = require("./routes/universityImports");
 const interviewPrepRoute = require("./routes/interviewPrep");
 const passportExtractionRoute = require("./routes/passportExtraction");
 const commissionRatesRoute = require("./routes/commissionRates");
+const agentInvitesRoute = require("./routes/agentInvites");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -77,6 +78,7 @@ const aiLimiter = rateLimit({
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/google", authLimiter);
+app.use("/api/agent-invites", authLimiter);
 app.use("/api/admin", adminLimiter);
 app.use("/api/assistant", aiLimiter);
 app.use("/api/passport-extraction", aiLimiter);
@@ -131,6 +133,7 @@ app.use("/api/university-imports", universityImportsRoute);
 app.use("/api/interview-prep", interviewPrepRoute);
 app.use("/api/passport-extraction", passportExtractionRoute);
 app.use("/api/commission-rates", commissionRatesRoute);
+app.use("/api/agent-invites", agentInvitesRoute);
 
 // Serves the built frontend (see the repo root's committed `dist/`, produced by `npm run build`
 // on a machine that has the frontend's devDependencies — vite/tsc/tailwind are intentionally not

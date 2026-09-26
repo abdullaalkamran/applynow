@@ -54,6 +54,9 @@ interface AuthContextValue {
   /** Sign in with an existing Google-linked account, or self-signup a new student account via
    * Google — same referral-code handling as `signup`. */
   loginWithGoogle: (credential: string, referralCode?: string) => Promise<{ user: AuthUser; agentName?: string }>;
+  /** Starts a session from a token+user the caller already has (an agent invite's accept
+   * response, same shape as `login`'s) — see AcceptInvite.tsx. */
+  completeInviteLogin: (newToken: string, newUser: AuthUser) => void;
   logout: () => void;
   /** Re-reads the current user from the server (fresh, not the JWT's own claims) and updates the
    * session — call after a profile edit so the header/greeting reflect a new name/email right
@@ -150,6 +153,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { user: newUser, agentName };
   }
 
+  function completeInviteLogin(newToken: string, newUser: AuthUser) {
+    resetSessionState();
+    saveAuth(newToken, newUser);
+    setToken(newToken);
+    setUser(newUser);
+    warmCaches();
+    startCachePolling();
+  }
+
   function logout() {
     clearAuth();
     stopCachePolling();
@@ -166,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, loginWithGoogle, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, loginWithGoogle, completeInviteLogin, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
