@@ -14,6 +14,11 @@ export interface StaffMember {
   status: StaffStatus;
   avatarColor: string;
   organization?: string | null;
+  // Agents only — lazily generated on their first self-fetch (see server's GET /staff/me); a
+  // freshly invited or not-yet-visited agent may still be null. Always present in the raw server
+  // row for every role, so declared here rather than agent-only, even though it's only meaningful
+  // for that one role.
+  referralCode?: string | null;
   // Whether this member actually has a working login (a User row) yet — an "Invited" member added
   // without a password has a directory row but no way to ever log in until one is set (see
   // setStaffPassword below). Independent of `status`: an Active member could in principle still

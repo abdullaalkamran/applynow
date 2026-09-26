@@ -77,7 +77,7 @@ export default function AdminCommissionRules() {
                   <span className="font-semibold text-slate-900">${inv.totalAmount.toLocaleString()}</span>
                   <Badge tone={inv.status === "Paid" ? "green" : "amber"}>{inv.status}</Badge>
                   {inv.status === "Issued" && (
-                    <Button onClick={() => { markInvoicePaid(inv.agentId, inv.id); forceTick((t) => t + 1); }}>Mark Paid</Button>
+                    <Button onClick={async () => { await markInvoicePaid(inv.agentId, inv.id); forceTick((t) => t + 1); }}>Mark Paid</Button>
                   )}
                 </div>
               </CardBody>

@@ -20,6 +20,7 @@ import { refreshCachedStudentComments } from "../data/studentCommentsStore";
 import { refreshThreadsList, refreshContacts, refreshCachedMessageThreads } from "../data/messagesStore";
 import { refreshSubjectCatalog } from "../data/subjectCatalogStore";
 import { refreshCommissionRates } from "../data/commissionRatesStore";
+import { refreshAgentInvoices } from "../data/agentInvoicesStore";
 import { clearApplicationsCache } from "../data/applicationsStore";
 import { clearTasksCache } from "../data/tasksStore";
 import { clearStaffCache } from "../data/staffStore";
@@ -39,6 +40,7 @@ import { clearMessagesCache } from "../data/messagesStore";
 import { clearSubjectCatalogCache } from "../data/subjectCatalogStore";
 import { clearUniversityCatalogCache } from "../data/universityCatalogStore";
 import { clearCommissionRatesCache } from "../data/commissionRatesStore";
+import { clearAgentInvoicesCache } from "../data/agentInvoicesStore";
 import { notifyCacheChange } from "./syncCache";
 import { refreshUniversities, migrateLegacyLocalUniversities } from "../data/universityCatalogStore";
 
@@ -61,6 +63,7 @@ export function warmCaches() {
   refreshCachedMessageThreads();
   refreshSubjectCatalog().catch((err) => console.warn("Failed to warm subject-catalog cache:", err));
   refreshCommissionRates().catch((err) => console.warn("Failed to warm commission-rates cache:", err));
+  refreshAgentInvoices().catch((err) => console.warn("Failed to warm agent-invoices cache:", err));
   migrateLegacyLocalUniversities()
     .then(() => refreshUniversities())
     .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
@@ -129,5 +132,6 @@ export function clearAllCaches() {
   clearSubjectCatalogCache();
   clearUniversityCatalogCache();
   clearCommissionRatesCache();
+  clearAgentInvoicesCache();
   notifyCacheChange();
 }

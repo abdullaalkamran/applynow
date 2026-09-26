@@ -416,6 +416,10 @@ model InvoiceLine {
   university    String
   course        String
   amount        Float
+
+  // An enrolment can only ever be invoiced once — without this, nothing stops the same
+  // application being included on two separate invoices.
+  @@unique([applicationId])
 }
 
 enum SubjectType {

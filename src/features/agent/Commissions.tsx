@@ -48,11 +48,11 @@ export default function AgentCommissions() {
     });
   }
 
-  function generateInvoice() {
+  async function generateInvoice() {
     const lines = rows
       .filter((r) => selected.has(r.app.id))
       .map((r) => ({ applicationId: r.app.id, studentName: r.student.name, university: r.app.university, course: r.app.course, amount: r.commission.totalAmount }));
-    createInvoice(CURRENT_AGENT_ID, lines);
+    await createInvoice(CURRENT_AGENT_ID, lines);
     setSelected(new Set());
     forceTick((t) => t + 1);
   }

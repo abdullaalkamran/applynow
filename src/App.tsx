@@ -89,6 +89,7 @@ import DataUniversityImport from "./features/staff/data/UniversityImport";
 import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
 
 import AdminUsersRoles from "./features/admin/UsersRoles";
+import AdminAgents from "./features/admin/Agents";
 import AdminStudents from "./features/admin/Students";
 import AdminWorkflowTemplates from "./features/admin/WorkflowTemplates";
 import AdminCommissionRules from "./features/admin/CommissionRules";
@@ -254,6 +255,7 @@ export default function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="/admin/teams" element={<AdminUsersRoles />} />
+            <Route path="/admin/agents" element={<AdminAgents />} />
             <Route path="/admin/calendar" element={<AdminCalendar />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/students" element={<AdminStudents />} />
