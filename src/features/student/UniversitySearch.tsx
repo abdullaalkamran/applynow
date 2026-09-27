@@ -1,17 +1,17 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
-  Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock, Award,
+  Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
   Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
-import { BackButton, Pill, Chip, LogoBadge, PillSelect, DropdownChips, SubLabel } from "../../components/ui/mobile";
+import { BackButton, Chip, LogoBadge, PillSelect, DropdownChips, SubLabel } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
-  emptyFilters, applyFilters, countActiveFilters, courseFeeForSubject, matchingCourse,
+  emptyFilters, applyFilters, countActiveFilters,
   allPrograms, FEE_BANDS, feeBandMax, scholarshipLabel, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
   countryStats, intakeOptions, yearOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
@@ -28,6 +28,13 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "employability", label: "Employability" },
   { value: "name", label: "Name (A–Z)" },
 ];
+
+// Matches LogoBadge's own initials logic exactly — this card renders its own flat-color badge
+// (rather than LogoBadge's gradient one) only for this specific design, so the fallback letter(s)
+// shown must still be identical to what LogoBadge would have picked for the same name.
+function universityInitials(name: string) {
+  return name.replace(/^University of /, "").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
 
 function rankNumber(rank: string) {
   return parseInt(rank.replace(/\D/g, ""), 10) || Infinity;
@@ -180,8 +187,6 @@ export default function UniversitySearch() {
   function openProgram(universityId: string, courseName: string, subject: string) {
     navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
   }
-
-  const subjectQueryText = filters.subjectQuery.trim() || filters.courseQuery.trim() || query.trim();
 
   return (
     <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
@@ -481,45 +486,52 @@ export default function UniversitySearch() {
               )}
               {results.map((u) => {
                 const fav = favorites.has(u.id);
-                const feeUSD = courseFeeForSubject(u, subjectQueryText);
-                const matchedCourse = matchingCourse(u, subjectQueryText);
+                const initials = universityInitials(u.name);
                 return (
                   <button
                     key={u.id}
                     onClick={() => navigate(`/student/universities/${u.id}`)}
-                    className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                    className="relative flex w-full items-center gap-4 rounded-3xl bg-[var(--sd-card)] p-5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
                   >
-                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-16 w-16 text-base" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[13px] font-semibold leading-snug text-slate-900">{u.name}</p>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
-                          className="shrink-0 text-slate-300"
-                        >
-                          <Heart size={16} className={fav ? "fill-rose-500 text-rose-500" : ""} />
-                        </span>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
+                      className="absolute right-4 top-4 shrink-0 text-slate-300"
+                    >
+                      <Heart size={22} className={fav ? "fill-rose-500 text-rose-500" : ""} />
+                    </span>
+
+                    {u.logoUrl ? (
+                      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                        <img src={u.logoUrl} alt={`${u.name} logo`} className="h-full w-full object-contain" />
                       </div>
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                        <MapPin size={11} /> {u.city}, {u.country}
+                    ) : (
+                      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFB] text-3xl font-semibold text-slate-500">
+                        {initials}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1 pr-7">
+                      <p className="truncate text-xl font-semibold leading-snug text-slate-900">{u.name}</p>
+                      <p className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-400">
+                        <MapPin size={16} /> {u.city}, {u.country}
                       </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <Pill tone="blue">{u.tags[0]}</Pill>
-                        <Pill tone="green">{u.tags[1]}</Pill>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-full bg-[#E7EEFC] px-3.5 py-1.5 text-[13px] font-medium text-[#2955C4]">{u.tags[0]}</span>
+                        <span className="inline-flex items-center rounded-full bg-[#E3F6EC] px-3.5 py-1.5 text-[13px] font-medium text-[#12805A]">{u.tags[1]}</span>
                       </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarClock size={11} className="text-slate-400" /> Open: {u.openIntake}
+                      <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3 text-sm text-slate-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <CalendarClock size={16} className="text-slate-400" /> Open: {u.openIntake}
                         </span>
                         {u.scholarshipsAvailable && (
-                          <span className="inline-flex items-center gap-1 text-[#12805A]">
-                            <Award size={11} /> Scholarships
-                          </span>
+                          <>
+                            <span className="h-4 w-px shrink-0 bg-slate-200" />
+                            <span className="inline-flex items-center gap-1.5">
+                              <GraduationCap size={16} className="text-slate-400" /> Scholarships
+                            </span>
+                          </>
                         )}
                       </div>
-                      <p className="mt-1 text-[11px] font-medium text-slate-700">
-                        ≈${Math.round(feeUSD).toLocaleString()}/yr{matchedCourse ? ` · ${matchedCourse.name}` : ""}
-                      </p>
                     </div>
                   </button>
                 );
