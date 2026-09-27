@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Home, FileText, Users, Landmark, User, ClipboardCheck, MessageSquare, BarChart3, Calendar, Settings,
-  Search, Bell, ChevronDown, ArrowRight, MoreHorizontal, LogOut, X, Check,
+  Search, Bell, ChevronDown, ArrowRight, MoreHorizontal, LogOut, X, Check, Handshake,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
@@ -61,6 +61,7 @@ function AdminShellInner() {
     { label: "Students", path: "/admin/students", icon: Users, prefix: true },
     { label: "Universities", path: "/staff/data/universities", icon: Landmark, prefix: true },
     { label: "Counselors", path: "/admin/teams", icon: User, prefix: true },
+    { label: "Agents", path: "/admin/agents", icon: Handshake, prefix: true },
     { label: "Tasks", path: "/admin/tasks", icon: ClipboardCheck, badge: openTasks, prefix: true },
     { label: "Messages", path: "/messages", icon: MessageSquare, badge: unreadMessages, prefix: true },
     { label: "Reports", path: "/admin/audit-logs", icon: BarChart3, prefix: true },
