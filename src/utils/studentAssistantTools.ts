@@ -348,10 +348,11 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
     {
       spec: {
         name: "search_universities",
-        description: "Search the university catalog by destination country, subject, study level, maximum budget in USD, or scholarship availability. Returns up to 8 matches with a few matching courses each.",
+        description: "Search the university catalog by name and/or destination country, subject, study level, maximum budget in USD, or scholarship availability. Always pass `name` (a partial match is fine) whenever the student names a specific university directly — never conclude a university isn't in the network from a country/subject-only search that just didn't happen to include it. Returns up to 15 matches with a few matching courses each, plus totalMatches so you know if more exist than are shown.",
         parameters: {
           type: "object",
           properties: {
+            name: { type: "string" },
             country: { type: "string" },
             subject: { type: "string" },
             studyLevel: { type: "string" },
@@ -364,6 +365,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         const blocked = requireCompleteProfile(studentId);
         if (blocked) return blocked;
 
+        const name = args.name as string | undefined;
         const country = args.country as string | undefined;
         const subject = args.subject as string | undefined;
         const studyLevel = args.studyLevel as string | undefined;
@@ -372,6 +374,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
 
         const results = getAllUniversities()
           .filter((u) => {
+            if (name && !u.name.toLowerCase().includes(name.toLowerCase())) return false;
             if (country && !countryMatches(u.country, country)) return false;
             if (scholarshipOnly && !u.scholarshipsAvailable) return false;
             if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
@@ -391,15 +394,19 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
           // a plain country/subject search shouldn't demand a course match at all.
           .filter(({ matchingCourses }) => !(studyLevel || maxBudget) || matchingCourses.length > 0);
 
-        return results.slice(0, 8).map(({ u, matchingCourses }) => ({
-          id: u.id,
-          name: u.name,
-          country: u.country,
-          worldRank: u.worldRank,
-          employability: u.employability,
-          scholarshipsAvailable: u.scholarshipsAvailable,
-          matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
-        }));
+        return {
+          totalMatches: results.length,
+          universities: results.slice(0, 15).map(({ u, matchingCourses }) => ({
+            id: u.id,
+            name: u.name,
+            country: u.country,
+            worldRank: u.worldRank,
+            employability: u.employability,
+            scholarshipsAvailable: u.scholarshipsAvailable,
+            courseCount: u.courses.length,
+            matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
+          })),
+        };
       },
     },
     {
