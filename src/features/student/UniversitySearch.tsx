@@ -2,7 +2,7 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
-  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertCircle,
+  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
 import { BackButton, Chip, LogoBadge, PillSelect, DropdownChips, SubLabel } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
@@ -67,6 +67,10 @@ export default function UniversitySearch() {
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [intakeDropdownOpen, setIntakeDropdownOpen] = useState(false);
+  // On mobile the full filter grid (Intake/Year/Nationality/State) takes up too much vertical
+  // space above the results — collapsed by default there, tap to expand; always shown on lg:+
+  // where there's room for the whole row at once (see the "contents" wrapper below).
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("best");
   const [filters, setFilters] = useState<UniversityFilterState>(() => emptyFilters(defaultResidenceCountry));
   // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
@@ -229,66 +233,80 @@ export default function UniversitySearch() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
             <div className="lg:col-span-1">
               <SubLabel>Search Programs</SubLabel>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
-                <Search size={15} className="shrink-0 text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search Program / University"
-                  className="w-full min-w-0 bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
-                />
+              <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
+                  <Search size={15} className="shrink-0 text-slate-400" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search Program / University"
+                    className="w-full min-w-0 bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => setFiltersExpanded((v) => !v)}
+                  aria-label={filtersExpanded ? "Hide filters" : "Show more filters"}
+                  aria-expanded={filtersExpanded}
+                  className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl sm:hidden ${
+                    filtersExpanded || activeFilterCount > 0 ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  <ChevronDown size={16} className={`transition-transform ${filtersExpanded ? "rotate-180" : ""}`} />
+                </button>
               </div>
             </div>
-            <div>
-              <DropdownChips
-                label="Intake"
-                options={intakeOptions()}
-                selected={filters.intakes}
-                onToggle={toggleFilterIntake}
-                open={intakeDropdownOpen}
-                onToggleOpen={() => setIntakeDropdownOpen((v) => !v)}
-                placeholder="All intakes"
-              />
-            </div>
-            <div>
-              <SubLabel>Year</SubLabel>
-              <select
-                value={filters.year}
-                onChange={(e) => setFilters((f) => ({ ...f, year: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
-              >
-                <option value="">Any year</option>
-                {yearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <SubLabel>Student's Nationality</SubLabel>
-              <select
-                value={filters.residenceCountry}
-                onChange={(e) => setFilters((f) => ({ ...f, residenceCountry: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
-              >
-                <option value="">Any nationality</option>
-                {COUNTRIES.map((c) => <option key={c.iso2} value={c.iso2}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <SubLabel>Student's State</SubLabel>
-                <input
-                  value={filters.studentState}
-                  onChange={(e) => setFilters((f) => ({ ...f, studentState: e.target.value }))}
-                  placeholder="Student's State"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+            <div className={filtersExpanded ? "contents" : "hidden sm:contents"}>
+              <div>
+                <DropdownChips
+                  label="Intake"
+                  options={intakeOptions()}
+                  selected={filters.intakes}
+                  onToggle={toggleFilterIntake}
+                  open={intakeDropdownOpen}
+                  onToggleOpen={() => setIntakeDropdownOpen((v) => !v)}
+                  placeholder="All intakes"
                 />
               </div>
-              <button
-                onClick={() => setIntakeDropdownOpen(false)}
-                aria-label="Search"
-                className="flex h-[38px] w-[46px] shrink-0 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white"
-              >
-                <Search size={16} />
-              </button>
+              <div>
+                <SubLabel>Year</SubLabel>
+                <select
+                  value={filters.year}
+                  onChange={(e) => setFilters((f) => ({ ...f, year: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
+                >
+                  <option value="">Any year</option>
+                  {yearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div>
+                <SubLabel>Student's Nationality</SubLabel>
+                <select
+                  value={filters.residenceCountry}
+                  onChange={(e) => setFilters((f) => ({ ...f, residenceCountry: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700"
+                >
+                  <option value="">Any nationality</option>
+                  {COUNTRIES.map((c) => <option key={c.iso2} value={c.iso2}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <SubLabel>Student's State</SubLabel>
+                  <input
+                    value={filters.studentState}
+                    onChange={(e) => setFilters((f) => ({ ...f, studentState: e.target.value }))}
+                    placeholder="Student's State"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => setIntakeDropdownOpen(false)}
+                  aria-label="Search"
+                  className="flex h-[38px] w-[46px] shrink-0 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white"
+                >
+                  <Search size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
