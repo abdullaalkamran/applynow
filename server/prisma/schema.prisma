@@ -245,7 +245,9 @@ model ApplicationActivity {
   newValue        Json?
   // Freeform commentary (e.g. a counsellor's add_application_note AI tool call) — kept distinct
   // from oldValue/newValue, which represent what actually changed, not arbitrary remarks about it.
-  notes           String?
+  // Same VARCHAR(191) truncation/rejection issue as University.description — this is also every
+  // application comment (see ApplicationCommentsCard), not just an AI-authored note.
+  notes           String?  @db.Text
   performedById   String
   performedByRole Role
   performedByName String
@@ -256,7 +258,9 @@ model ApplicationActivity {
 model Task {
   id             String       @id @default(cuid())
   title          String
-  description    String?
+  // Same VARCHAR(191) truncation/rejection issue as University.description (see AssignTaskModal's
+  // textarea).
+  description    String?      @db.Text
   assignedToId   String
   assignedToRole Role
   assignedToName String
@@ -289,7 +293,9 @@ model Message {
   toId      String
   toRole    Role
   toName    String
-  text      String
+  // Same VARCHAR(191) truncation/rejection issue as University.description — any real message
+  // longer than about 30-40 words would have made the whole send fail outright.
+  text      String   @db.Text
   // Read by the "to" party. Whoever sent it obviously doesn't need this to track their own message.
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -559,7 +565,9 @@ model Subject {
   id             String   @id @default(cuid())
   name           String   @unique
   custom         Boolean  @default(false)
-  description    String?
+  // Same VARCHAR(191) truncation/rejection issue as University.description — a real "why this
+  // subject" paragraph (see SubjectForm.tsx's textarea) is essentially guaranteed to exceed that.
+  description    String?  @db.Text
   modules        Json
   // Typical career outcomes for the field — the subject-level default for a course's Careers tab,
   // the same way `modules` is for its Modules tab (see subjectCurriculum.ts's curriculumFor).
@@ -730,7 +738,10 @@ model CourseImportItem {
   sourceUrl        String
   status           CourseImportStatus @default(queued)
   textSource       String?
-  pageText         String?
+  // Capped at 200,000 characters (see courseExtraction.js's MAX_PASTED_CHARS) — VARCHAR(191) never
+  // came close to holding a real scraped/pasted page, so this table's whole point (skip refetching
+  // on retry) silently never worked.
+  pageText         String?            @db.LongText
   extracted        Json?
   error            String?
   createdBy        String
@@ -753,7 +764,9 @@ model Notification {
   userRole      Role
   type          String
   title         String
-  body          String?
+  // routes/applications.js and routes/students.js both write up to 280 chars here
+  // (`notes.slice(0, 280)`) — VARCHAR(191) rejected any comment past 191 of those 280.
+  body          String?  @db.Text
   studentId     String?
   applicationId String?
   activityId    String?
@@ -793,7 +806,9 @@ model StudentComment {
   id              String   @id @default(cuid())
   studentId       String
   student         Student  @relation(fields: [studentId], references: [id])
-  notes           String
+  // Same VARCHAR(191) truncation/rejection issue as University.description (see
+  // StudentCommentsCard's textarea).
+  notes           String   @db.Text
   performedById   String
   performedByRole Role
   performedByName String
@@ -914,7 +929,9 @@ model StudentWorkExperience {
   startDate        String
   endDate          String?
   currentlyWorking Boolean
-  description      String
+  // Same VARCHAR(191) truncation/rejection issue as University.description (see WorkExperience.tsx's
+  // "Responsibilities" textarea).
+  description      String  @db.Text
 }
 
 model StudentAcademicLevel {
@@ -1057,7 +1074,9 @@ model InterviewAnswer {
   session    InterviewSession  @relation(fields: [sessionId], references: [id])
   questionId String
   question   InterviewQuestion @relation(fields: [questionId], references: [id])
-  answerText String
+  // Same VARCHAR(191) truncation/rejection issue as University.description — a real interview
+  // answer (see InterviewPrep.tsx's textarea) routinely runs well past that.
+  answerText String            @db.Text
   // { relevance, consistency, specificity, genuineness } — each 0-100, per the rubric.
   scores     Json
   // { feedback: string[], flags: string[] } — kept as one Json blob rather than two columns since
@@ -1083,7 +1102,8 @@ model UniversityImportItem {
   status               CourseImportStatus @default(queued)
   countryHint          String?
   textSource           String?
-  pageText             String?
+  // Same MAX_PASTED_CHARS cap/rationale as CourseImportItem.pageText above.
+  pageText             String?            @db.LongText
   extracted            Json?
   error                String?
   createdBy            String
