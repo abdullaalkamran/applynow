@@ -1,4 +1,10 @@
 import { CURRENT_STUDENT_ID } from "./mockData";
+import {
+  loadPersonalInfo, type PersonalInfoDetails,
+  loadEnglishTests, loadEnglishStatus,
+  loadWorkExperience, loadWorkStatus,
+} from "./studentProfileDetailsStore";
+import { loadAcademicLevels } from "./academicProfileStore";
 
 export interface ProfileStep {
   key: string;
@@ -67,6 +73,93 @@ export function nextChainStep(afterKey: string, studentId: string = CURRENT_STUD
     }
   }
   return null;
+}
+
+const blank = (v: string | undefined | null) => typeof v !== "string" || v.trim() === "";
+
+// Every field the personal-information step must genuinely have before it can be called done —
+// mirrors PersonalInformation.tsx's own data shape (not its handleSave, which only checks a few
+// fields plus UI-only concerns like OTP verification and a "matches my passport" checkbox that
+// have no stored equivalent here).
+const CORE_PERSONAL_FIELDS: { field: keyof PersonalInfoDetails; label: string }[] = [
+  { field: "firstName", label: "first name" }, { field: "lastName", label: "last name" },
+  { field: "email", label: "email" }, { field: "phone", label: "phone number" },
+  { field: "dob", label: "date of birth" }, { field: "gender", label: "gender" },
+  { field: "nationality", label: "nationality" }, { field: "passportNumber", label: "passport number" },
+  { field: "placeOfBirth", label: "place of birth" }, { field: "issuingAuthority", label: "passport issuing authority" },
+  { field: "issueDate", label: "passport issue date" }, { field: "passportExpiry", label: "passport expiry date" },
+  { field: "permanentAddress", label: "permanent address" }, { field: "city", label: "city" },
+  { field: "country", label: "country" },
+  { field: "emergencyContactName", label: "emergency contact name" },
+  { field: "emergencyContactPhone", label: "emergency contact phone" },
+];
+
+function needsGroup(level: string) { return level === "SSC / O-Level" || level === "HSC / A-Level"; }
+function needsMajor(level: string) { return level === "Diploma" || level === "Bachelor's" || level === "Master's" || level === "PhD"; }
+
+/** Whether a profile step's actual saved data is genuinely complete, and what's still missing if
+ * not — the real check behind mark_profile_step_complete, so the AI assistant (or anything else)
+ * can never flag a step done just because it was asked to. */
+export function isProfileDataComplete(key: string, studentId: string = CURRENT_STUDENT_ID): { complete: boolean; missing: string[] } {
+  switch (key) {
+    case "personal-information": {
+      const info = loadPersonalInfo(studentId);
+      if (!info) return { complete: false, missing: ["the whole Personal Information form"] };
+      const missing = CORE_PERSONAL_FIELDS.filter(({ field }) => blank(info[field])).map((f) => f.label);
+      return { complete: missing.length === 0, missing };
+    }
+    case "academic-details": {
+      const entries = loadAcademicLevels(studentId);
+      if (entries.length === 0) return { complete: false, missing: ["at least one education entry"] };
+      const missing: string[] = [];
+      for (const e of entries) {
+        if (blank(e.institution)) missing.push(`${e.level} institution`);
+        if (blank(e.grade)) missing.push(`${e.level} grade`);
+        if (blank(e.passingYear)) missing.push(`${e.level} passing year`);
+        if (needsGroup(e.level) && blank(e.board)) missing.push(`${e.level} education board`);
+        if (needsGroup(e.level) && blank(e.group)) missing.push(`${e.level} section`);
+        if (needsMajor(e.level) && blank(e.major)) missing.push(`${e.level} major`);
+      }
+      return { complete: missing.length === 0, missing };
+    }
+    case "english-proficiency": {
+      const status = loadEnglishStatus(studentId);
+      if (!status) return { complete: false, missing: ["whether the student has English proficiency proof"] };
+      if (status.status === "no") return { complete: true, missing: [] };
+      if (status.status === "preparing") {
+        return blank(status.expectedExamDate)
+          ? { complete: false, missing: ["expected English test date"] }
+          : { complete: true, missing: [] };
+      }
+      const tests = loadEnglishTests(studentId);
+      if (tests.length === 0) return { complete: false, missing: ["at least one English test result"] };
+      const missing: string[] = [];
+      for (const t of tests) {
+        const label = t.testName || "English test";
+        if (blank(t.overallScore)) missing.push(`${label} overall score`);
+        if (blank(t.testDate)) missing.push(`${label} test date`);
+        if (blank(t.reportNumber)) missing.push(`${label} report number`);
+      }
+      return { complete: missing.length === 0, missing };
+    }
+    case "work-experience": {
+      const status = loadWorkStatus(studentId);
+      if (!status) return { complete: false, missing: ["whether the student has any work experience"] };
+      if (!status.hasExperience) return { complete: true, missing: [] };
+      const entries = loadWorkExperience(studentId);
+      if (entries.length === 0) return { complete: false, missing: ["at least one work experience entry"] };
+      const missing: string[] = [];
+      for (const e of entries) {
+        if (blank(e.company)) missing.push("employer/company name");
+        if (blank(e.title)) missing.push("job title");
+        if (blank(e.startDate)) missing.push("start date");
+        if (!e.currentlyWorking && blank(e.endDate)) missing.push("end date");
+      }
+      return { complete: missing.length === 0, missing };
+    }
+    default:
+      return { complete: true, missing: [] };
+  }
 }
 
 export interface ProfileCompletion {

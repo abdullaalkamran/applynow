@@ -4,7 +4,7 @@ import { getAllApplications, createApplication } from "../data/applicationsStore
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
-import { getProfileCompletion, markStepComplete, PROFILE_STEPS } from "../data/profileCompletion";
+import { getProfileCompletion, markStepComplete, PROFILE_STEPS, isProfileDataComplete, isChainComplete } from "../data/profileCompletion";
 import {
   loadPersonalInfo, savePersonalInfo,
   loadEnglishTests, saveEnglishTests,
@@ -35,6 +35,18 @@ function blankPersonalInfo(studentId: string): PersonalInfoDetails {
     issuingAuthority: "", issueDate: "", passportExpiry: "", permanentAddress: "", presentAddress: "",
     city: "", country: student?.country ?? "", emergencyContactName: "", emergencyContactRelationship: "",
     emergencyContactAddress: "", emergencyContactPhone: "", emergencyContactEmail: "",
+  };
+}
+
+// University/course browsing and applying only make sense once the school-matching profile data
+// actually exists — gated here (not just by system-prompt instruction) so it holds regardless of
+// what the model decides to do.
+function requireCompleteProfile(studentId: string): { error: string; pendingSteps: string[] } | null {
+  if (isChainComplete(studentId)) return null;
+  const pendingSteps = getProfileCompletion(studentId).pendingSteps.map((s) => s.label);
+  return {
+    error: "The student's profile isn't complete yet — finish it before discussing or searching universities/courses, or starting an application. Ask for the next missing step's fields one at a time using get_profile_details/get_profile_status.",
+    pendingSteps,
   };
 }
 
@@ -288,7 +300,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
     {
       spec: {
         name: "mark_profile_step_complete",
-        description: `Mark a profile step as done. Valid stepKey values: ${PROFILE_STEPS.map((s) => s.key).join(", ")}.`,
+        description: `Mark a profile step as done — only succeeds once every field that step needs has actually been saved (via update_personal_info/add_academic_level/update_english_test/update_work_experience) first; call this to check, don't assume it will succeed. Valid stepKey values: ${PROFILE_STEPS.map((s) => s.key).join(", ")}.`,
         parameters: {
           type: "object",
           properties: { stepKey: { type: "string", enum: PROFILE_STEPS.map((s) => s.key) } },
@@ -296,7 +308,12 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         },
       },
       execute: (args) => {
-        markStepComplete(String(args.stepKey), studentId);
+        const stepKey = String(args.stepKey);
+        const { complete, missing } = isProfileDataComplete(stepKey, studentId);
+        if (!complete) {
+          return { error: "Not complete yet — ask the student for these one at a time, then try again.", missing };
+        }
+        markStepComplete(stepKey, studentId);
         return getProfileCompletion(studentId);
       },
     },
@@ -344,6 +361,9 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         },
       },
       execute: (args) => {
+        const blocked = requireCompleteProfile(studentId);
+        if (blocked) return blocked;
+
         const country = args.country as string | undefined;
         const subject = args.subject as string | undefined;
         const studyLevel = args.studyLevel as string | undefined;
@@ -389,6 +409,8 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
       },
       execute: (args) => {
+        const blocked = requireCompleteProfile(studentId);
+        if (blocked) return blocked;
         const uni = getUniversityById(String(args.id));
         if (!uni) return { error: "No university found with that id." };
         return uni;
@@ -404,7 +426,7 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
       // possible subject names Data Management can choose from — the latter includes subjects with
       // zero courses behind them, which would have the assistant confidently offering a subject the
       // student can't actually apply to anywhere.
-      execute: () => Array.from(new Set(getAllUniversities().flatMap((u) => u.subjects))).sort(),
+      execute: () => requireCompleteProfile(studentId) ?? Array.from(new Set(getAllUniversities().flatMap((u) => u.subjects))).sort(),
     },
     {
       spec: {
@@ -413,6 +435,8 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         parameters: { type: "object", properties: { subject: { type: "string" } }, required: ["subject"] },
       },
       execute: (args) => {
+        const blocked = requireCompleteProfile(studentId);
+        if (blocked) return blocked;
         const subject = String(args.subject);
         const curriculum = SUBJECT_CURRICULUM[subject];
         const universityCount = getAllUniversities().filter((u) => u.subjects.includes(subject)).length;
@@ -452,6 +476,8 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         },
       },
       execute: (args) => {
+        const blocked = requireCompleteProfile(studentId);
+        if (blocked) return blocked;
         const university = getUniversityById(String(args.universityId));
         if (!university) {
           return { error: `No university with id "${args.universityId}" exists in our partner network. Call search_universities first and use a real id from the results — never a name the student mentioned on its own.` };
