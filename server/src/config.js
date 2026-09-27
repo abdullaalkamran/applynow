@@ -19,10 +19,21 @@ function jwtSecret() {
   return generatedJwtSecret;
 }
 
+// Voice and chat used to be two independent settings (an admin could pick Gemini for chat
+// reasoning but leave voice on a different engine, or vice versa, with no obvious link between
+// them) — voice engine is now always derived from the one reasoning provider choice instead of
+// being separately configurable, so both features always use the same underlying API/key.
+// Anthropic, Ollama, and the stub have no realtime voice/audio API of their own, so they fall back
+// to the free browser engine (Web Speech API) rather than silently failing.
+function deriveVoiceEngine(provider) {
+  if (provider === "gemini") return "gemini-live";
+  if (provider === "openai") return "openai";
+  return "browser";
+}
+
 function envDefaults() {
   return {
     provider: (process.env.AI_PROVIDER || "stub").toLowerCase(),
-    voiceEngine: (process.env.VOICE_ENGINE || "browser").toLowerCase(),
     // Data Management's AI course import (routes/courseImports.js) — off until an admin turns it
     // on in Admin → AI Settings (or COURSE_IMPORT_ENABLED=true at deploy time).
     courseImportEnabled: process.env.COURSE_IMPORT_ENABLED === "true",
@@ -79,10 +90,11 @@ function envDefaults() {
 function getConfig() {
   const base = envDefaults();
   const saved = readSettings();
+  const provider = saved.provider || base.provider;
   return {
     ...base,
-    provider: saved.provider || base.provider,
-    voiceEngine: saved.voiceEngine || base.voiceEngine,
+    provider,
+    voiceEngine: deriveVoiceEngine(provider),
     courseImportEnabled: typeof saved.courseImportEnabled === "boolean" ? saved.courseImportEnabled : base.courseImportEnabled,
     anthropic: { ...base.anthropic, ...(saved.anthropic || {}) },
     openai: { ...base.openai, ...(saved.openai || {}) },

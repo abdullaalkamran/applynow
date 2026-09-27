@@ -11,6 +11,9 @@ export interface ProviderModelSettings {
 
 export interface AdminSettings {
   provider: "anthropic" | "openai" | "gemini" | "ollama" | "stub";
+  // Read-only — the server always derives this from `provider` now (gemini -> gemini-live, openai
+  // -> openai, anything else -> browser), so chat and voice can never point at different APIs.
+  // Never send this in a PUT to /api/admin/settings; it's ignored there.
   voiceEngine: "browser" | "openai" | "gemini-live";
   anthropic: ProviderModelSettings;
   openai: ProviderModelSettings & { whisperModel: string; ttsModel: string; ttsVoice: string };

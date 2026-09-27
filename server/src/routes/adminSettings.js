@@ -66,9 +66,10 @@ const SECRET_FIELD = {
   email: "apiKey",
 };
 
+// voiceEngine is intentionally not settable here — config.js now always derives it from
+// `provider`, so voice and chat can never end up pointing at two different APIs/keys.
 const CHOICES = {
   provider: ["anthropic", "openai", "gemini", "ollama", "stub"],
-  voiceEngine: ["browser", "openai", "gemini-live"],
   whatsappProvider: ["meta", "twilio", "stub"],
   emailProvider: ["sendgrid", "stub"],
 };

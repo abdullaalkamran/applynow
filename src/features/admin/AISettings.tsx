@@ -9,11 +9,15 @@ const inputClass = "w-full rounded-md border border-slate-200 px-2.5 py-1.5 text
 const labelClass = "mb-1 block text-[11.5px] font-medium text-slate-500";
 
 const PROVIDERS: AdminSettings["provider"][] = ["stub", "anthropic", "openai", "gemini", "ollama"];
-const VOICE_ENGINES: { value: AdminSettings["voiceEngine"]; label: string; note: string }[] = [
-  { value: "browser", label: "Browser (free)", note: "Built-in speech recognition + speech synthesis. Works everywhere, no key needed." },
-  { value: "openai", label: "OpenAI voice", note: "Whisper for transcription, OpenAI TTS for speech — needs an OpenAI API key below." },
-  { value: "gemini-live", label: "Gemini Live", note: "Realtime voice-to-voice — needs a Gemini API key below." },
-];
+
+// Voice is no longer a separate choice — it's always derived from the reasoning provider above
+// (see server/src/config.js's deriveVoiceEngine), so chat and voice can never point at two
+// different APIs/keys. This is just the same mapping, for display.
+const VOICE_ENGINE_LABEL: Record<AdminSettings["voiceEngine"], string> = {
+  browser: "Browser (free) — built-in speech recognition + synthesis, no key needed",
+  openai: "OpenAI voice — Whisper transcription + OpenAI TTS",
+  "gemini-live": "Gemini Live — realtime voice-to-voice",
+};
 
 export default function AISettings() {
   const [token, setToken] = useState(() => loadAdminToken());
@@ -63,7 +67,6 @@ export default function AISettings() {
     try {
       await saveAdminSettings(token, {
         provider: settings.provider,
-        voiceEngine: settings.voiceEngine,
         anthropic: { model: settings.anthropic.model, ...(anthropicKey ? { apiKey: anthropicKey } : {}) },
         openai: {
           model: settings.openai.model,
@@ -147,22 +150,12 @@ export default function AISettings() {
 
       <section className="rounded-2xl border border-slate-100 bg-white p-5">
         <h2 className="text-[13px] font-semibold text-slate-800">Voice engine</h2>
-        <p className="mt-0.5 text-[12px] text-slate-500">What the mic button and voice pages use for speech in/out.</p>
-        <div className="mt-3 space-y-2">
-          {VOICE_ENGINES.map((v) => (
-            <label key={v.value} className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 ${settings.voiceEngine === v.value ? "border-[var(--brand-600)] bg-[var(--brand-50,#eef2ff)]" : "border-slate-200"}`}>
-              <input
-                type="radio"
-                className="mt-0.5"
-                checked={settings.voiceEngine === v.value}
-                onChange={() => setSettings({ ...settings, voiceEngine: v.value })}
-              />
-              <span>
-                <span className="block text-[12.5px] font-medium text-slate-800">{v.label}</span>
-                <span className="block text-[11.5px] text-slate-500">{v.note}</span>
-              </span>
-            </label>
-          ))}
+        <p className="mt-0.5 text-[12px] text-slate-500">
+          Always matches the reasoning provider above — the mic button and voice pages use the same API/key as chat,
+          never a separately configured one.
+        </p>
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12.5px] text-slate-700">
+          {VOICE_ENGINE_LABEL[settings.voiceEngine]}
         </div>
       </section>
 
