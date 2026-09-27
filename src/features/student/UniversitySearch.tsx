@@ -491,43 +491,43 @@ export default function UniversitySearch() {
                   <button
                     key={u.id}
                     onClick={() => navigate(`/student/universities/${u.id}`)}
-                    className="relative flex w-full items-center gap-4 rounded-3xl bg-[var(--sd-card)] p-5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                    className="relative flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)] sm:gap-4 sm:rounded-3xl sm:p-5"
                   >
                     <span
                       onClick={(e) => { e.stopPropagation(); toggleFavorite(u.id); }}
-                      className="absolute right-4 top-4 shrink-0 text-slate-300"
+                      className="absolute right-3 top-3 shrink-0 text-slate-300 sm:right-4 sm:top-4"
                     >
-                      <Heart size={22} className={fav ? "fill-rose-500 text-rose-500" : ""} />
+                      <Heart size={18} className={fav ? "fill-rose-500 text-rose-500" : ""} />
                     </span>
 
                     {u.logoUrl ? (
-                      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white sm:h-24 sm:w-24 sm:rounded-2xl">
                         <img src={u.logoUrl} alt={`${u.name} logo`} className="h-full w-full object-contain" />
                       </div>
                     ) : (
-                      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-[#F1EEFB] text-3xl font-semibold text-slate-500">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#F1EEFB] text-lg font-semibold text-slate-500 sm:h-24 sm:w-24 sm:rounded-2xl sm:text-3xl">
                         {initials}
                       </div>
                     )}
 
-                    <div className="min-w-0 flex-1 pr-7">
-                      <p className="truncate text-xl font-semibold leading-snug text-slate-900">{u.name}</p>
-                      <p className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-400">
-                        <MapPin size={16} /> {u.city}, {u.country}
+                    <div className="min-w-0 flex-1 pr-6 sm:pr-7">
+                      <p className="truncate text-[13.5px] font-semibold leading-snug text-slate-900 sm:text-xl">{u.name}</p>
+                      <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
+                        <MapPin size={12} className="shrink-0" /> <span className="truncate">{u.city}, {u.country}</span>
                       </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center rounded-full bg-[#E7EEFC] px-3.5 py-1.5 text-[13px] font-medium text-[#2955C4]">{u.tags[0]}</span>
-                        <span className="inline-flex items-center rounded-full bg-[#E3F6EC] px-3.5 py-1.5 text-[13px] font-medium text-[#12805A]">{u.tags[1]}</span>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
+                        <span className="inline-flex items-center rounded-full bg-[#E7EEFC] px-2.5 py-1 text-[10.5px] font-medium text-[#2955C4] sm:px-3.5 sm:py-1.5 sm:text-[13px]">{u.tags[0]}</span>
+                        <span className="inline-flex items-center rounded-full bg-[#E3F6EC] px-2.5 py-1 text-[10.5px] font-medium text-[#12805A] sm:px-3.5 sm:py-1.5 sm:text-[13px]">{u.tags[1]}</span>
                       </div>
-                      <div className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3 text-sm text-slate-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <CalendarClock size={16} className="text-slate-400" /> Open: {u.openIntake}
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5 text-[11px] text-slate-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
+                        <span className="inline-flex items-center gap-1 sm:gap-1.5">
+                          <CalendarClock size={13} className="shrink-0 text-slate-400" /> <span className="truncate">Open: {u.openIntake}</span>
                         </span>
                         {u.scholarshipsAvailable && (
                           <>
-                            <span className="h-4 w-px shrink-0 bg-slate-200" />
-                            <span className="inline-flex items-center gap-1.5">
-                              <GraduationCap size={16} className="text-slate-400" /> Scholarships
+                            <span className="h-3.5 w-px shrink-0 bg-slate-200 sm:h-4" />
+                            <span className="inline-flex shrink-0 items-center gap-1 sm:gap-1.5">
+                              <GraduationCap size={13} className="text-slate-400" /> Scholarships
                             </span>
                           </>
                         )}
