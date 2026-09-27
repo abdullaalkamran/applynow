@@ -25,10 +25,12 @@ export default function Preferences() {
   // precisely to make sure a first-time save reflects a real choice, not a pre-filled default.
   const saved0 = loadPreferences();
   const [destinations, setDestinations] = useState<Set<string>>(
-    () => new Set(saved0 ? saved0.destinations.map((name) => COUNTRIES.find((c) => c.name === name)?.iso2).filter((c): c is string => !!c) : [])
+    // saved0.destinations can be missing on a record the AI assistant's update_preferences tool
+    // wrote before other fields were ever saved — guard with `?? []` rather than trusting the type.
+    () => new Set((saved0?.destinations ?? []).map((name) => COUNTRIES.find((c) => c.name === name)?.iso2).filter((c): c is string => !!c))
   );
   const [studyLevel, setStudyLevel] = useState(saved0?.studyLevel ?? "");
-  const [fields, setFields] = useState<Set<string>>(() => new Set(saved0 ? saved0.fields : []));
+  const [fields, setFields] = useState<Set<string>>(() => new Set(saved0?.fields ?? []));
   const [intake, setIntake] = useState(saved0?.intake ?? "");
   const [budget, setBudget] = useState(saved0?.budget ?? "");
   const [accommodation, setAccommodation] = useState(saved0?.accommodation ?? "");

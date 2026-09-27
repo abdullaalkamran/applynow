@@ -10,6 +10,7 @@ import {
   loadEnglishTests, saveEnglishTests,
   loadWorkExperience, saveWorkExperience,
   loadPreferences, savePreferences,
+  type PersonalInfoDetails, type EnglishTestDetails, type WorkExperienceDetails, type PreferencesDetails,
 } from "../data/studentProfileDetailsStore";
 import { loadAcademicLevels, saveAcademicLevels } from "../data/academicProfileStore";
 import { sendMessage, type MessageParticipant } from "../data/messagesStore";
@@ -22,6 +23,21 @@ import type { ToolDefinition, AssistantUserContext } from "./assistantEngine";
 // Students don't use taskAssignment.recipientsFor here — that map is one-directional for *task
 // assignment* only (students can't assign tasks to anyone, by design). Messaging a student's own
 // counsellor/agent is a different relationship, read straight off their own record.
+// Mirrors PersonalInformation.tsx's emptyForm() default: only name/email/country are real (pulled
+// from the account), everything else genuinely is blank rather than a fabricated guess.
+function blankPersonalInfo(studentId: string): PersonalInfoDetails {
+  const student = getAllStudents().find((s) => s.id === studentId);
+  const [firstName, ...lastParts] = (student?.name ?? "").split(" ");
+  return {
+    firstName: firstName ?? "", lastName: lastParts.join(" "), email: student?.email ?? "", phone: "",
+    dob: "", gender: "", nationality: "", fatherName: "", motherName: "", maritalStatus: "",
+    passportNumber: "", personalNumber: "", previousPassportNumber: "", placeOfBirth: "",
+    issuingAuthority: "", issueDate: "", passportExpiry: "", permanentAddress: "", presentAddress: "",
+    city: "", country: student?.country ?? "", emergencyContactName: "", emergencyContactRelationship: "",
+    emergencyContactAddress: "", emergencyContactPhone: "", emergencyContactEmail: "",
+  };
+}
+
 function resolveCounterpart(studentId: string): MessageParticipant | null {
   const student = getAllStudents().find((s) => s.id === studentId);
   if (!student) return null;
@@ -152,9 +168,14 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         },
       },
       execute: (args) => {
-        const current = loadPersonalInfo(studentId);
-        const merged = { ...current, ...args } as ReturnType<typeof loadPersonalInfo>;
-        if (!merged) return { error: "No personal info to update yet — provide all required fields first." };
+        // loadPersonalInfo returns null until the student has saved the Personal Information page
+        // at least once — merging args straight onto null would leave every other required field
+        // `undefined`, which crashes that page's render (it expects real strings, e.g. calls
+        // .trim() on the saved phone) the next time the student opens it. Fall back to a fully
+        // blank record (seeded with what's already known from the account) so a change made here
+        // before the form's ever been filled in is always a complete, safe-to-render record.
+        const current = loadPersonalInfo(studentId) ?? blankPersonalInfo(studentId);
+        const merged = { ...current, ...args };
         savePersonalInfo(merged, studentId);
         return merged;
       },
@@ -173,8 +194,15 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
       },
       execute: (args) => {
         const existing = loadEnglishTests(studentId);
-        const merged = { ...(existing[0] || {}), ...args };
-        const next = [merged, ...existing.slice(1)] as ReturnType<typeof loadEnglishTests>;
+        // existing[0] || {} leaves every unset field `undefined` on a brand-new entry — this page's
+        // handleSave calls .trim() on each of these once the student hits Save, which would crash
+        // the same way the personal-info page did. Blank strings keep it a valid, safe-to-render row.
+        const blank: EnglishTestDetails = {
+          testName: "", testType: "", overallScore: "", listening: "", reading: "", writing: "", speaking: "",
+          testDate: "", expiryDate: "", reportNumber: "", issuingInstitution: "",
+        };
+        const merged = { ...blank, ...(existing[0] || {}), ...args };
+        const next = [merged, ...existing.slice(1)];
         saveEnglishTests(next, studentId);
         return merged;
       },
@@ -193,8 +221,14 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
       },
       execute: (args) => {
         const existing = loadWorkExperience(studentId);
-        const merged = { ...(existing[0] || {}), ...args };
-        const next = [merged, ...existing.slice(1)] as ReturnType<typeof loadWorkExperience>;
+        // Same reasoning as update_english_test: a brand-new entry needs every field defined before
+        // it's saved, or this page's handleSave crashes calling .trim() on an undefined field.
+        const blank: WorkExperienceDetails = {
+          type: "", company: "", title: "", industry: "", startDate: "", endDate: "",
+          currentlyWorking: false, description: "",
+        };
+        const merged = { ...blank, ...(existing[0] || {}), ...args };
+        const next = [merged, ...existing.slice(1)];
         saveWorkExperience(next, studentId);
         return merged;
       },
@@ -218,9 +252,17 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         },
       },
       execute: (args) => {
-        const current = loadPreferences(studentId);
-        const merged = { ...current, ...args } as ReturnType<typeof loadPreferences>;
-        if (!merged) return { error: "No preferences on file yet — provide destinations and study level to start." };
+        // loadPreferences returns null before the student has saved this page once — merging args
+        // onto null would leave destinations/fields `undefined`, and Preferences.tsx calls
+        // .map() directly on saved destinations while restoring its state on mount, crashing the
+        // page the same way a missing phone crashed Personal Information.
+        const blank: PreferencesDetails = {
+          destinations: [], studyLevel: "", fields: [], intake: "", budget: "", accommodation: "",
+          scholarshipInterest: false, emailUpdates: false, smsUpdates: false, whatsappUpdates: false,
+          pushUpdates: false, contactLanguage: "",
+        };
+        const current = loadPreferences(studentId) ?? blank;
+        const merged = { ...current, ...args };
         savePreferences(merged, studentId);
         return merged;
       },

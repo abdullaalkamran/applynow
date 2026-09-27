@@ -68,49 +68,54 @@ function emptyForm(student: Student): FormState {
 // savePersonalInfo stores the phone as one combined string ("<dial code> <local number>") and the
 // country/nationality as full names — split/matched back into the form's own iso2 + local-number
 // shape here so a reload shows exactly what was saved, not a re-guessed approximation.
-function splitPhone(combined: string, fallbackCountry: string): { phoneCountry: string; phone: string } {
-  const [dial, ...rest] = combined.trim().split(" ");
+function splitPhone(combined: string | undefined | null, fallbackCountry: string): { phoneCountry: string; phone: string } {
+  const value = combined ?? "";
+  const [dial, ...rest] = value.trim().split(" ");
   const match = COUNTRIES.find((c) => c.dial === dial);
-  return { phoneCountry: match?.iso2 ?? fallbackCountry, phone: match ? rest.join(" ") : combined };
+  return { phoneCountry: match?.iso2 ?? fallbackCountry, phone: match ? rest.join(" ") : value };
 }
 
+// A record saved by an older app version, or by the AI assistant's update_personal_info tool
+// before it always seeded a full blank record, can have some fields missing even though the type
+// says every field is a required string — `?? ""` here keeps that from crashing this page instead
+// of trusting the saved shape blindly.
 function fromSavedPersonalInfo(saved: PersonalInfoDetails, defaultCountry: string): FormState {
   const { phoneCountry, phone } = splitPhone(saved.phone, defaultCountry);
   return {
-    firstName: saved.firstName,
-    lastName: saved.lastName,
-    email: saved.email,
+    firstName: saved.firstName ?? "",
+    lastName: saved.lastName ?? "",
+    email: saved.email ?? "",
     phoneCountry,
     phone,
-    dob: saved.dob,
-    gender: saved.gender,
-    nationality: countryByName(saved.nationality)?.iso2 ?? defaultCountry,
-    fatherName: saved.fatherName,
-    motherName: saved.motherName,
-    maritalStatus: saved.maritalStatus,
-    passportNumber: saved.passportNumber,
-    personalNumber: saved.personalNumber,
-    previousPassportNumber: saved.previousPassportNumber,
-    placeOfBirth: saved.placeOfBirth,
-    issuingAuthority: saved.issuingAuthority,
-    issueDate: saved.issueDate,
-    expiryDate: saved.passportExpiry,
-    permanentAddress: saved.permanentAddress,
-    presentAddress: saved.presentAddress,
-    city: saved.city,
-    country: countryByName(saved.country)?.iso2 ?? defaultCountry,
+    dob: saved.dob ?? "",
+    gender: saved.gender ?? "",
+    nationality: countryByName(saved.nationality ?? "")?.iso2 ?? defaultCountry,
+    fatherName: saved.fatherName ?? "",
+    motherName: saved.motherName ?? "",
+    maritalStatus: saved.maritalStatus ?? "",
+    passportNumber: saved.passportNumber ?? "",
+    personalNumber: saved.personalNumber ?? "",
+    previousPassportNumber: saved.previousPassportNumber ?? "",
+    placeOfBirth: saved.placeOfBirth ?? "",
+    issuingAuthority: saved.issuingAuthority ?? "",
+    issueDate: saved.issueDate ?? "",
+    expiryDate: saved.passportExpiry ?? "",
+    permanentAddress: saved.permanentAddress ?? "",
+    presentAddress: saved.presentAddress ?? "",
+    city: saved.city ?? "",
+    country: countryByName(saved.country ?? "")?.iso2 ?? defaultCountry,
   };
 }
 
 function emergencyContactFromSaved(saved: PersonalInfoDetails, defaultCountry: string): EmergencyContact {
   const { phoneCountry, phone } = splitPhone(saved.emergencyContactPhone, defaultCountry);
   return {
-    name: saved.emergencyContactName,
-    relationship: saved.emergencyContactRelationship,
-    address: saved.emergencyContactAddress,
+    name: saved.emergencyContactName ?? "",
+    relationship: saved.emergencyContactRelationship ?? "",
+    address: saved.emergencyContactAddress ?? "",
     phoneCountry,
     phone,
-    email: saved.emergencyContactEmail,
+    email: saved.emergencyContactEmail ?? "",
   };
 }
 
