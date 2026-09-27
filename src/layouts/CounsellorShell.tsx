@@ -14,6 +14,7 @@ import { activeApplicationsFor } from "../utils/counsellorData";
 import { isSeenByCounsellor } from "../data/counsellorSeenApplicationsStore";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { useScrollToTopOnNavigate } from "../utils/useScrollToTopOnNavigate";
 import { unreadMessageCount } from "../data/messagesStore";
 
 interface NavEntry {
@@ -32,6 +33,7 @@ const GUIDE_TIPS = [
 
 export default function CounsellorShell() {
   const cacheTick = useCacheSync();
+  const scrollRef = useScrollToTopOnNavigate<HTMLElement>();
   const navigate = useNavigate();
   const { currentUser } = useRole();
   const { logout } = useAuth();
@@ -213,7 +215,7 @@ export default function CounsellorShell() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main ref={scrollRef} className="flex-1 overflow-y-auto p-6">
           <Outlet key={cacheTick} />
         </main>
 

@@ -8,10 +8,12 @@ import { NAV } from "./nav";
 import { RoleBottomNav } from "./RoleBottomNav";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { useScrollToTopOnNavigate } from "../utils/useScrollToTopOnNavigate";
 import { unreadMessageCount } from "../data/messagesStore";
 
 export default function AppLayout() {
   const cacheTick = useCacheSync();
+  const scrollRef = useScrollToTopOnNavigate<HTMLElement>();
   const { role, currentUser } = useRole();
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -119,7 +121,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main ref={scrollRef} className="flex-1 overflow-y-auto p-6">
           <Outlet key={cacheTick} />
         </main>
 

@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { BottomNav, Sidebar } from "../components/ui/mobile";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { useScrollToTopOnNavigate } from "../utils/useScrollToTopOnNavigate";
 
 const TAB_ROOTS = new Set([
   "/student",
@@ -30,6 +31,7 @@ function hasStickyActionBar(pathname: string): boolean {
 export default function StudentShell() {
   const cacheTick = useCacheSync();
   const location = useLocation();
+  const scrollRef = useScrollToTopOnNavigate<HTMLDivElement>();
   const showTabs =
     TAB_ROOTS.has(location.pathname) ||
     location.pathname.startsWith("/student/subjects/") ||
@@ -43,7 +45,7 @@ export default function StudentShell() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="no-scrollbar flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="no-scrollbar flex-1 overflow-y-auto">
           <Outlet key={cacheTick} />
         </div>
         {showTabs && (

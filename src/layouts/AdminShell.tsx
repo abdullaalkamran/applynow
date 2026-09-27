@@ -10,6 +10,7 @@ import { AdminRangeProvider, useAdminRange } from "../context/AdminRangeContext"
 import { RoleBottomNav } from "./RoleBottomNav";
 import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
+import { useScrollToTopOnNavigate } from "../utils/useScrollToTopOnNavigate";
 import { unreadMessageCount } from "../data/messagesStore";
 import { getAdminTasks } from "../utils/taskBoard";
 import { getAllStudents } from "../data/allStudentsStore";
@@ -44,6 +45,7 @@ export default function AdminShell() {
 
 function AdminShellInner() {
   const cacheTick = useCacheSync();
+  const scrollRef = useScrollToTopOnNavigate<HTMLElement>();
   const navigate = useNavigate();
   const { currentUser } = useRole();
   const { logout } = useAuth();
@@ -192,7 +194,7 @@ function AdminShellInner() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet key={cacheTick} />
         </main>
 
