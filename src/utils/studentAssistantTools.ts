@@ -3,6 +3,7 @@ import { loadStaff } from "../data/staffStore";
 import { getAllApplications, createApplication } from "../data/applicationsStore";
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
+import { getCountryByName } from "../data/countryRegistry";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
 import { getProfileCompletion, markStepComplete, PROFILE_STEPS, isProfileDataComplete, isChainComplete } from "../data/profileCompletion";
 import {
@@ -343,6 +344,20 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         return country
           ? `${base} Visa rules are set by ${country}'s immigration authority, so always double-check current requirements on their official site as well.`
           : base;
+      },
+    },
+    {
+      spec: {
+        name: "get_country_detail",
+        description: "Get the real Country Guide for a destination country — why study there, the visa cost/proof-of-funds breakdown, required documents, application and visa procedure, and key facts (popular intakes, cost of living, post-study work visa, part-time work rules, processing time). Use this whenever the student asks about a country generally, before or alongside naming a specific university there.",
+        parameters: { type: "object", properties: { country: { type: "string" } }, required: ["country"] },
+      },
+      execute: (args) => {
+        const blocked = requireCompleteProfile(studentId);
+        if (blocked) return blocked;
+        const record = getCountryByName(String(args.country));
+        if (!record) return { error: `"${args.country}" doesn't match a country we have a guide for yet — call search_universities with a country filter to see what's actually in the network.` };
+        return record;
       },
     },
     {

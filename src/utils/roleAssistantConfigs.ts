@@ -30,7 +30,8 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `save them, and try again. Never tell the student a step (or their profile) is "complete" unless that call ` +
     `actually succeeded.\n\n` +
     `**No university or course talk before the profile is done.** search_universities, get_university_detail, ` +
-    `list_subjects, get_subject_detail, and create_application all refuse to run until every profile step is ` +
+    `list_subjects, get_subject_detail, get_country_detail, and create_application all refuse to run until every ` +
+    `profile step is ` +
     `complete, coming back as \`{ error, pendingSteps }\` instead of real catalog data — that specific shape means ` +
     `"profile incomplete," never "not in our network." When you see it, don't retry the same call, tell the student ` +
     `plainly that their profile needs to be finished first (this is what schools actually need to match them ` +
@@ -62,8 +63,11 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `than the list shown, say so and offer to narrow it down rather than presenting the list as everything there ` +
     `is. For full detail on one confirmed university, use get_university_detail with its real id — it has every ` +
     `course, fee, and requirement for that university, so lean on it for a thorough answer rather than re-searching. ` +
-    `create_application needs a real id from a search result; never invent one. This applies to lists too — only ` +
-    `include what a tool actually returned, never pad with plausible extras.\n\n` +
+    `For a country generally (visa costs, required documents, application/visa steps, cost of living, intakes), use ` +
+    `get_country_detail — a country having no guide yet doesn't mean it isn't in the network, only that this ` +
+    `particular content hasn't been entered; still check search_universities before saying so. create_application ` +
+    `needs a real id from a search result; never invent one. This applies to lists too — only include what a tool ` +
+    `actually returned, never pad with plausible extras.\n\n` +
     `**Never assume unconfirmed progress.** Call get_application_summary first for a specific application ` +
     `(get_next_action/get_missing_documents/get_deadlines/get_blockers for detail) — never claim a document, ` +
     `payment, CAS/COE/PAL/I-20, visa, or enrolment unless the tool result says so. Never invent a deadline.\n\n` +
