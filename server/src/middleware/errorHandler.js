@@ -26,6 +26,11 @@ function errorHandler(err, _req, res, _next) {
   } else if (err instanceof Prisma.PrismaClientValidationError) {
     status = 400;
     message = "Invalid request.";
+    // Unlike PrismaClientKnownRequestError (P2002 etc.), this is a query-shape bug, not something
+    // caused by user input — almost always a stale/regenerated-mismatched Prisma client after a
+    // schema change. Genuinely diagnosed blind once already (had to be read straight out of this
+    // log file) because nothing surfaced it here; log it plainly rather than repeat that.
+    console.warn("PrismaClientValidationError:", err.message);
   } else if (err.type === "entity.parse.failed") {
     status = 400;
     message = "Malformed JSON body.";

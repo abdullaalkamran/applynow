@@ -75,7 +75,16 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
 
     const country = await prisma.country.upsert({
       where: { id: req.params.id },
-      create: { id: req.params.id, ...data, name },
+      // The four JSON array columns are NOT NULL with no DB-level default (see schema.prisma's
+      // @default("[]") — Prisma applies that client-side only when the field is entirely absent
+      // from `create`'s own defaults, not reliably across every provider/version combination here;
+      // confirmed in production that a create with only { name } left them unset and failed
+      // MariaDB's json_valid CHECK). Always supplying [] here is what actually satisfies the
+      // constraint, matching lc()/getCountryId()'s register-by-name-only call exactly.
+      create: {
+        currencySymbols: [], requiredDocuments: [], usefulLinks: [], whyStudyHighlights: [],
+        id: req.params.id, ...data, name,
+      },
       update: data,
     });
     res.json(serializeCountry(country));

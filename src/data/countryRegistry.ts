@@ -116,11 +116,17 @@ export async function refreshCountries(): Promise<void> {
 // cache from the server, so these four specifically can never wait on a network round trip. This
 // also keeps deleting one of them from Data Management from resurrecting it with a new id the next
 // time something looks it up by name.
+// "UK" is the seed's canonical name (matching requirementRules.ts's own getCountryId("UK") call),
+// but a human naturally types "United Kingdom" — without this alias, that produced a second,
+// genuinely different country row (confirmed in production: a data manager's own past entry
+// migrated in as a separate "United Kingdom" alongside the empty "UK" seed).
 const SEED_COUNTRY_IDS: Record<string, string> = {
   uk: "co-seed-uk",
+  "united kingdom": "co-seed-uk",
   australia: "co-seed-australia",
   canada: "co-seed-canada",
   "united states": "co-seed-united-states",
+  usa: "co-seed-united-states",
 };
 
 function nextId(): string {
