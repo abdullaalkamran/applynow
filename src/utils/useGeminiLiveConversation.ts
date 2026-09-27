@@ -14,7 +14,12 @@ const INPUT_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 
 function wsUrl(): string {
-  const base = new URL(BACKEND_BASE);
+  // BACKEND_BASE is "" in a same-origin production deploy (see backendBase.ts) — new URL("")
+  // throws, so that case resolves against the page's own origin instead, same as a relative
+  // fetch() already does implicitly. This threw uncaught before, right after the "Connecting…"
+  // caption was set and with nothing to catch it — leaving the UI stuck on "Connecting…" forever
+  // with no error ever shown, exactly the production-only failure this fixes.
+  const base = new URL(BACKEND_BASE || window.location.origin);
   const protocol = base.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${base.host}/api/assistant/gemini-live`;
 }
@@ -165,7 +170,16 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
     const tools = config.tools(ctx);
     const toolsByName = new Map(tools.map((tool) => [tool.spec.name, tool]));
 
-    const socket = new WebSocket(wsUrl());
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(wsUrl());
+    } catch (err) {
+      setState("error");
+      setErrorText(err instanceof Error ? err.message : "Couldn't start the voice connection.");
+      stream.getTracks().forEach((t) => t.stop());
+      activeRef.current = false;
+      return;
+    }
     socketRef.current = socket;
 
     socket.onopen = () => {
