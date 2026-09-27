@@ -6,13 +6,23 @@ import { VoiceModePanel } from "../../components/ui/VoiceMode";
 import { type ChatMessage, currentAiStudentName } from "../../utils/aiCounsellorEngine";
 import { useAssistant } from "../../context/AssistantContext";
 
+// A synthetic first turn — never shown as a "me" bubble, only its reply is — so the counsellor
+// leads with real, tool-checked guidance the moment the chat opens instead of a generic "how can
+// I help" that makes a student with an incomplete profile or a stalled application wait to be told
+// anything is wrong. Same idiom as useGeminiLiveConversation.ts's own GREETING_PROMPT for voice.
+const GREETING_PROMPT =
+  "(The chat was just opened — greet me before I say anything.) Check my profile status and, if I have any " +
+  "applications, their next steps and required documents. In 2-4 short, warm sentences: greet me by name, tell " +
+  "me what's still needed to complete my profile (skip this if it's already complete), and name the single most " +
+  "important next step — to submit an application if I haven't started one, or to move an existing one forward. " +
+  "Use only what the tools actually return.";
+
 export default function AICounsellor() {
   const navigate = useNavigate();
   const { ask, suggestions } = useAssistant();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "m0", from: "ai", text: `Hi ${currentAiStudentName().split(" ")[0]}! 👋 How can I help you today?` },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const greetedRef = useRef(false);
   // A tool-calling turn can take several sequential round trips to the AI provider before a reply
   // comes back (each step re-sends the whole conversation) — nothing here ever showed that it was
   // working, so a genuinely-in-progress reply looked identical to a frozen/broken page. This is
@@ -38,6 +48,25 @@ export default function AICounsellor() {
     utterance.rate = 1;
     window.speechSynthesis.speak(utterance);
   }
+
+  useEffect(() => {
+    if (greetedRef.current) return;
+    greetedRef.current = true;
+    setIsThinking(true);
+    ask(GREETING_PROMPT)
+      .then((replyText) => {
+        setMessages([{ id: "m0", from: "ai", text: replyText }]);
+        speak(replyText);
+      })
+      .catch(() => {
+        // A failed proactive greeting shouldn't leave the chat looking broken/empty — fall back to
+        // the plain generic opener the AI would otherwise have started with.
+        setMessages([{ id: "m0", from: "ai", text: `Hi ${currentAiStudentName().split(" ")[0]}! 👋 How can I help you today?` }]);
+      })
+      .finally(() => setIsThinking(false));
+    // Only ever run once, right after mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function send(text: string) {
     if (!text.trim() || isThinking) return;
