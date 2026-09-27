@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, GraduationCap, Award, Globe2, ChevronRight } from "lucide-react";
-import { LogoBadge } from "../../../components/ui/mobile";
+import { Search, GraduationCap, Award, Globe2, ChevronRight, MapPin } from "lucide-react";
+import { LogoBadge, Pill } from "../../../components/ui/mobile";
 import { BackButton } from "../../../components/ui";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllCountries, getCountryByName } from "../../../data/countryRegistry";
@@ -116,24 +116,23 @@ export default function CounsellorUniversityPartners() {
             <div
               key={u.id}
               onClick={() => navigate(`/staff/counsellor/partners/universities/${u.id}`)}
-              className="cursor-pointer rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)] hover:border-slate-200"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_0_10px_rgba(0,0,0,0.06)] hover:border-slate-200"
             >
-              <div className="flex items-start gap-3">
-                <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800">{u.name}</p>
-                  <p className="truncate text-xs text-slate-400">{u.city}, {u.country}</p>
+              <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-16 w-16 shrink-0 text-base" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold leading-snug text-slate-900">{u.name}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><MapPin size={11} /> {u.city}, {u.country}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Pill tone="blue">{u.tags[0]}</Pill>
+                  {u.tags[1] && <Pill tone="green">{u.tags[1]}</Pill>}
                 </div>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-                <span className="inline-flex items-center gap-1"><GraduationCap size={11} /> {u.worldRank} world rank</span>
-                <span>{u.employability} employability</span>
-                {u.scholarshipsAvailable && (
-                  <span className="inline-flex items-center gap-1 text-amber-600"><Award size={11} /> Scholarships</span>
-                )}
-              </div>
-              <div className="mt-3 border-t border-slate-50 pt-3">
-                <p className="text-xs text-slate-500">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1"><GraduationCap size={11} className="text-slate-400" /> {u.worldRank} world rank</span>
+                  {u.scholarshipsAvailable && (
+                    <span className="inline-flex items-center gap-1 text-[#12805A]"><Award size={11} /> Scholarships</span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] font-medium text-slate-700">
                   {activeFromMyStudents > 0
                     ? `${activeFromMyStudents} of your student${activeFromMyStudents === 1 ? "" : "s"} applying here`
                     : "None of your students applying here yet"}

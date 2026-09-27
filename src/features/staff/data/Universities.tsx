@@ -204,39 +204,41 @@ export default function DataUniversities() {
         )}
       </div>
 
-      <div className="space-y-2.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((u) => (
           <div
             key={u.id}
-            className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 cursor-pointer hover:border-slate-300"
+            className="relative flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 cursor-pointer shadow-[0_0_10px_rgba(0,0,0,0.05)] hover:border-slate-300"
             onClick={() => navigate(`/staff/data/universities/${u.id}`)}
           >
-            <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-11 w-11 shrink-0 text-xs" />
+            <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-16 w-16 shrink-0 text-base" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-xs font-semibold text-slate-800">{u.name}</p>
-                <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400">{u.id}</span>
+              <div className="flex items-center gap-1.5 pr-6">
+                <p className="truncate text-[13px] font-semibold leading-snug text-slate-900">{u.name}</p>
                 {isCustomUniversity(u.id) && (
-                  <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-blue-700">Custom</span>
+                  <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">Custom</span>
                 )}
               </div>
-              <p className="flex items-center gap-1 truncate text-xs text-slate-400"><Globe2 size={11} /> {u.city}, {u.country}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1"><BookOpen size={12} /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
-              <span className="flex items-center gap-1"><GraduationCap size={12} /> {u.worldRank}</span>
+              <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-slate-400">
+                <Globe2 size={11} /> {u.city}, {u.country}
+                <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400">{u.id}</span>
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-1"><BookOpen size={11} className="text-slate-400" /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1"><GraduationCap size={11} className="text-slate-400" /> {u.worldRank}</span>
+              </div>
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); handleDelete(u.id, u.name); }}
               aria-label={`Delete ${u.name}`}
-              className="shrink-0 rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+              className="absolute right-2.5 top-2.5 shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600"
             >
               <Trash2 size={15} />
             </button>
           </div>
         ))}
         {filtered.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
+          <p className="col-span-full rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
             No universities match this search.
           </p>
         )}

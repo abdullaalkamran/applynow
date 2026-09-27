@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin } from "lucide-react";
-import { PillSelect, LogoBadge } from "../../components/ui/mobile";
+import { Search, MapPin, GraduationCap, Award } from "lucide-react";
+import { PillSelect, LogoBadge, Pill } from "../../components/ui/mobile";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import {
   allPrograms, destinationOptions, subjectOptions, intakeOptions, FEE_BANDS, feeBandMax, countryStats,
@@ -142,23 +142,28 @@ export default function AgentUniversities() {
               <button
                 key={u.id}
                 onClick={() => navigate(`/agent/universities/${u.id}`)}
-                className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)]"
+                className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)]"
               >
-                <div className="flex items-center gap-3">
-                  <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-10 w-10 shrink-0 text-xs" />
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-slate-800">{u.name}</p>
-                    <p className="flex items-center gap-1 truncate text-[11px] text-slate-400"><MapPin size={10} /> {u.city}, {u.country}</p>
+                <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-16 w-16 shrink-0 text-base" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-semibold leading-snug text-slate-900">{u.name}</p>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><MapPin size={11} /> {u.city}, {u.country}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {u.subjects.slice(0, 2).map((s) => (
+                      <Pill key={s} tone="blue">{s}</Pill>
+                    ))}
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {u.subjects.slice(0, 3).map((s) => (
-                    <span key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10.5px] text-slate-600">{s}</span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>{u.worldRank} world rank</span>
-                  <span>{u.employability} employability</span>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                      <GraduationCap size={11} className="text-slate-400" /> {u.worldRank} world rank
+                    </span>
+                    {u.scholarshipsAvailable && (
+                      <span className="inline-flex items-center gap-1 text-[#12805A]">
+                        <Award size={11} /> Scholarships
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-slate-700">{u.employability} employability</p>
                 </div>
               </button>
             ))}
