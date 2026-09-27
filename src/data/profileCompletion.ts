@@ -45,6 +45,30 @@ export function markStepComplete(key: string, studentId: string = CURRENT_STUDEN
   window.localStorage.setItem(`${STORAGE_PREFIX}${studentId}:${key}`, "true");
 }
 
+// The strict order a new/incomplete profile must be filled in — Preferences and Security aren't
+// part of this chain (optional, freely editable anytime, same as today).
+export const PROFILE_CHAIN = ["personal-information", "academic-details", "english-proficiency", "work-experience"] as const;
+
+/** Whether every step in PROFILE_CHAIN is already complete — lets a page tell "still onboarding"
+ * (auto-advance after save) apart from "already done, just editing one section again" (stay put).
+ * Must be captured *before* the current save's markStepComplete call, or it'll always read true. */
+export function isChainComplete(studentId: string = CURRENT_STUDENT_ID): boolean {
+  return PROFILE_CHAIN.every((key) => isStepComplete(key, studentId));
+}
+
+/** The next not-yet-complete step in PROFILE_CHAIN after `afterKey`, or null if the rest of the
+ * chain is already done (caller should send the student back to the Profile hub instead). */
+export function nextChainStep(afterKey: string, studentId: string = CURRENT_STUDENT_ID): ProfileStep | null {
+  const idx = PROFILE_CHAIN.indexOf(afterKey as (typeof PROFILE_CHAIN)[number]);
+  if (idx === -1) return null;
+  for (let i = idx + 1; i < PROFILE_CHAIN.length; i++) {
+    if (!isStepComplete(PROFILE_CHAIN[i], studentId)) {
+      return PROFILE_STEPS.find((s) => s.key === PROFILE_CHAIN[i]) ?? null;
+    }
+  }
+  return null;
+}
+
 export interface ProfileCompletion {
   steps: (ProfileStep & { complete: boolean })[];
   pendingSteps: (ProfileStep & { complete: boolean })[];

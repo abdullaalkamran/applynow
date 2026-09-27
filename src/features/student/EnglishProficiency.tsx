@@ -1,8 +1,18 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, X, Check, AlertTriangle } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, monthsUntil, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
-import { markStepComplete } from "../../data/profileCompletion";
-import { loadEnglishTests, saveEnglishTests, type EnglishTestDetails } from "../../data/studentProfileDetailsStore";
+import { markStepComplete, isChainComplete, nextChainStep } from "../../data/profileCompletion";
+import {
+  loadEnglishTests, saveEnglishTests, loadEnglishStatus, saveEnglishStatus,
+  type EnglishTestDetails, type EnglishProficiencyStatus,
+} from "../../data/studentProfileDetailsStore";
+
+const STATUS_OPTIONS: { value: EnglishProficiencyStatus["status"]; label: string }[] = [
+  { value: "yes", label: "Yes" },
+  { value: "preparing", label: "Preparing" },
+  { value: "no", label: "No" },
+];
 
 const TEST_NAMES = [
   "IELTS", "TOEFL iBT", "TOEFL Essentials", "PTE Academic", "Duolingo English Test",
@@ -84,7 +94,11 @@ function getExpiryWarning(expiryDate: string): string | null {
 }
 
 export default function EnglishProficiency() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<TestEntry[]>(initialEntries);
+  const savedStatus = loadEnglishStatus();
+  const [status, setStatus] = useState<EnglishProficiencyStatus["status"] | null>(savedStatus?.status ?? null);
+  const [expectedExamDate, setExpectedExamDate] = useState(savedStatus?.expectedExamDate ?? "");
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -152,35 +166,45 @@ export default function EnglishProficiency() {
 
   function handleSave() {
     const nextErrors: string[] = [];
-    if (entries.length === 0) nextErrors.push("Add at least one English proficiency test.");
-    entries.forEach((e) => {
-      const missing: string[] = [];
-      if (isMOI(e.testName)) {
-        if (!e.issuingInstitution.trim()) missing.push("issuing institution");
-        if (!e.testDate.trim()) missing.push("issue date");
-        if (!e.reportNumber.trim()) missing.push("certificate number");
-      } else {
-        if (needsTestType(e.testName) && !e.testType) missing.push("test type");
-        if (!e.overallScore.trim()) missing.push("overall score");
-        if (!e.listening.trim() || !e.reading.trim() || !e.writing.trim() || !e.speaking.trim()) missing.push("band scores");
-        if (!e.testDate.trim()) missing.push("test date");
-        if (!hasNoExpiry(e.testName) && !e.expiryDate.trim()) missing.push("expiry date");
-        if (!e.reportNumber.trim()) missing.push("test report number");
-      }
-      if (missing.length > 0) nextErrors.push(`${e.testName}: add ${missing.join(", ")}.`);
-    });
+    if (!status) nextErrors.push("Let us know whether you have English proficiency proof.");
+    if (status === "preparing" && !expectedExamDate.trim()) nextErrors.push("Add your expected exam date.");
+    if (status === "yes") {
+      if (entries.length === 0) nextErrors.push("Add at least one English proficiency test.");
+      entries.forEach((e) => {
+        const missing: string[] = [];
+        if (isMOI(e.testName)) {
+          if (!e.issuingInstitution.trim()) missing.push("issuing institution");
+          if (!e.testDate.trim()) missing.push("issue date");
+          if (!e.reportNumber.trim()) missing.push("certificate number");
+        } else {
+          if (needsTestType(e.testName) && !e.testType) missing.push("test type");
+          if (!e.overallScore.trim()) missing.push("overall score");
+          if (!e.listening.trim() || !e.reading.trim() || !e.writing.trim() || !e.speaking.trim()) missing.push("band scores");
+          if (!e.testDate.trim()) missing.push("test date");
+          if (!hasNoExpiry(e.testName) && !e.expiryDate.trim()) missing.push("expiry date");
+          if (!e.reportNumber.trim()) missing.push("test report number");
+        }
+        if (missing.length > 0) nextErrors.push(`${e.testName}: add ${missing.join(", ")}.`);
+      });
+    }
 
     setErrors(nextErrors);
-    if (nextErrors.length === 0) {
+    if (nextErrors.length === 0 && status) {
+      const wasChainComplete = isChainComplete();
       markStepComplete("english-proficiency");
-      saveEnglishTests(entries.map((e) => ({
+      saveEnglishStatus({ status, expectedExamDate: status === "preparing" ? expectedExamDate : undefined });
+      saveEnglishTests(status === "yes" ? entries.map((e) => ({
         testName: e.testName, testType: e.testType, overallScore: e.overallScore,
         listening: e.listening, reading: e.reading, writing: e.writing, speaking: e.speaking,
         testDate: e.testDate, expiryDate: e.expiryDate, reportNumber: e.reportNumber, issuingInstitution: e.issuingInstitution,
-      })));
-      setSaved(true);
-      if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      })) : []);
+      if (wasChainComplete) {
+        setSaved(true);
+        if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
+        savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      } else {
+        navigate(nextChainStep("english-proficiency")?.path ?? "/student/profile", { replace: true });
+      }
     }
   }
 
@@ -189,10 +213,45 @@ export default function EnglishProficiency() {
       <MobileHeader title="English Proficiency" />
 
       <div className="px-5">
+        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+          <p className="mb-2 text-[13px] font-medium text-slate-700">Do you have English proficiency proof?</p>
+          <div className="flex flex-wrap gap-2">
+            {STATUS_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => setStatus(o.value)}
+                className={`rounded-full border px-3.5 py-1.5 text-[12px] font-medium ${
+                  status === o.value
+                    ? "border-transparent bg-[image:var(--sd-gradient)] text-white"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+
+          {status === "preparing" && (
+            <div className="mt-3">
+              <FieldShell label="Expected Exam Date">
+                <input
+                  type="date"
+                  value={expectedExamDate}
+                  onChange={(e) => setExpectedExamDate(e.target.value)}
+                  className={inputClass}
+                />
+              </FieldShell>
+            </div>
+          )}
+        </div>
+
+        {status === "yes" && (
         <p className="mb-4 text-[13px] text-slate-500">
           Upload your test certificate or score report — we'll detect the test and fill in the rest.
         </p>
+        )}
 
+        {status === "yes" && (
         <div className="space-y-3">
           {entries.map((entry) => (
             <TestCard
@@ -243,6 +302,7 @@ export default function EnglishProficiency() {
             </button>
           )}
         </div>
+        )}
       </div>
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">

@@ -1,10 +1,31 @@
 import { useRef, useState } from "react";
-import { Plus, X, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, X, Check, Lock } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
-import { markStepComplete } from "../../data/profileCompletion";
+import { markStepComplete, isChainComplete, nextChainStep } from "../../data/profileCompletion";
 import { loadAcademicLevels, saveAcademicLevels, type AcademicLevelEntry } from "../../data/academicProfileStore";
 
 const LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Bachelor's", "Master's", "PhD", "Other"] as const;
+
+// The order education must be added in — 10th grade first, then 12th/Diploma (same tier, either
+// one satisfies the prerequisite for Bachelor's), then Bachelor's, Master's, PhD. "Other" has no
+// tier and is always addable — it's the escape valve for non-standard education paths.
+const LEVEL_TIERS: Record<string, number> = {
+  "SSC / O-Level": 1,
+  "HSC / A-Level": 2,
+  "Diploma": 2,
+  "Bachelor's": 3,
+  "Master's": 4,
+  "PhD": 5,
+};
+
+function tierLabel(tier: number): string {
+  if (tier === 1) return "SSC / O-Level";
+  if (tier === 2) return "HSC / A-Level or Diploma";
+  if (tier === 3) return "Bachelor's";
+  if (tier === 4) return "Master's";
+  return "the previous level";
+}
 const GROUPS = ["Science", "Arts", "Commerce"];
 const BOARDS = ["Dhaka", "Chittagong", "Rajshahi", "Comilla", "Jessore", "Barisal", "Sylhet", "Dinajpur", "Mymensingh", "Madrasah (Dakhil/Alim)", "Technical", "Other"];
 const DOC_TYPES = ["certificate", "transcript"] as const;
@@ -70,6 +91,7 @@ function initialEntries(): EducationEntry[] {
 }
 
 export default function AcademicDetails() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<EducationEntry[]>(initialEntries);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -78,7 +100,16 @@ export default function AcademicDetails() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const savedTimeoutRef = useRef<number | null>(null);
 
+  /** A level with a tier is only addable once the tier directly below it has at least one entry —
+   * "Other" (no tier) is always addable. */
+  function canAddLevel(level: string): boolean {
+    const tier = LEVEL_TIERS[level];
+    if (!tier || tier === 1) return true;
+    return entries.some((e) => LEVEL_TIERS[e.level] === tier - 1);
+  }
+
   function addEntry(level: string) {
+    if (!canAddLevel(level)) return;
     const id = `e${nextId.current++}`;
     setEntries((prev) => [...prev, emptyEntry(id, level)]);
     setAddMenuOpen(false);
@@ -86,9 +117,23 @@ export default function AcademicDetails() {
   }
 
   function removeEntry(id: string) {
+    const target = entries.find((e) => e.id === id);
+    if (target) {
+      const tier = LEVEL_TIERS[target.level];
+      // Only block the removal if this is the *last* entry at its tier and a higher tier already
+      // depends on it — removing one of several entries at the same tier (e.g. two Bachelor's
+      // degrees) never breaks the ladder.
+      const remainingAtTier = entries.filter((e) => e.id !== id && LEVEL_TIERS[e.level] === tier).length;
+      const higherTierExists = tier && entries.some((e) => e.id !== id && LEVEL_TIERS[e.level] > tier);
+      if (tier && remainingAtTier === 0 && higherTierExists) {
+        setErrors([`Remove your higher education levels before removing ${target.level} — they depend on it.`]);
+        return;
+      }
+    }
     setEntries((prev) => prev.filter((e) => e.id !== id));
     for (const docType of DOC_TYPES) delete fileInputRefs.current[`${id}:${docType}`];
     setSaved(false);
+    setErrors([]);
   }
 
   function updateEntry(id: string, key: EditableField, value: string) {
@@ -157,13 +202,18 @@ export default function AcademicDetails() {
 
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
+      const wasChainComplete = isChainComplete();
       markStepComplete("academic-details");
       saveAcademicLevels(entries.map((e) => ({
         level: e.level, institution: e.institution, board: e.board, group: e.group, major: e.major, grade: e.grade, passingYear: e.passingYear,
       })));
-      setSaved(true);
-      if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      if (wasChainComplete) {
+        setSaved(true);
+        if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
+        savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      } else {
+        navigate(nextChainStep("academic-details")?.path ?? "/student/profile", { replace: true });
+      }
     }
   }
 
@@ -203,15 +253,24 @@ export default function AcademicDetails() {
             <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               <p className="mb-2 text-[12px] font-medium text-slate-500">Choose a level to add</p>
               <div className="flex flex-wrap gap-2">
-                {LEVELS.map((l) => (
-                  <button
-                    key={l}
-                    onClick={() => addEntry(l)}
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    {l}
-                  </button>
-                ))}
+                {LEVELS.map((l) => {
+                  const enabled = canAddLevel(l);
+                  return (
+                    <button
+                      key={l}
+                      onClick={() => addEntry(l)}
+                      disabled={!enabled}
+                      title={enabled ? undefined : `Add ${tierLabel(LEVEL_TIERS[l] - 1)} first`}
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
+                        enabled
+                          ? "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          : "cursor-not-allowed border-slate-100 text-slate-300"
+                      }`}
+                    >
+                      {!enabled && <Lock size={10} />} {l}
+                    </button>
+                  );
+                })}
               </div>
               <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-slate-400">
                 Cancel

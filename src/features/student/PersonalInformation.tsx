@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Camera, Check, ShieldCheck, Loader2, AlertTriangle, LifeBuoy } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, monthsUntil, type ScanStatus } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { COUNTRIES, countryByName, countryByIso2 } from "../../data/countries";
-import { markStepComplete } from "../../data/profileCompletion";
+import { markStepComplete, isChainComplete, nextChainStep } from "../../data/profileCompletion";
 import { loadPersonalInfo, savePersonalInfo, type PersonalInfoDetails } from "../../data/studentProfileDetailsStore";
 import { apiPostForm } from "../../utils/apiClient";
 import type { Student } from "../../types";
@@ -132,6 +133,7 @@ function emptyEmergencyContact(defaultCountry: string): EmergencyContact {
 type PhoneStatus = "unverified" | "sending" | "code-sent" | "verifying" | "verified";
 
 export default function PersonalInformation() {
+  const navigate = useNavigate();
   // Undefined only for the brief window right after login before allStudentsStore's cache
   // resolves — same accepted trade-off as every other migrated store (see syncCache.ts).
   const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
@@ -300,6 +302,7 @@ export default function PersonalInformation() {
 
     setErrors(nextErrors);
     if (nextErrors.length === 0) {
+      const wasChainComplete = isChainComplete();
       markStepComplete("personal-information");
       savePersonalInfo({
         firstName: form.firstName,
@@ -329,9 +332,13 @@ export default function PersonalInformation() {
         emergencyContactPhone: `${countryByIso2(ec.phoneCountry)?.dial ?? ""} ${ec.phone}`.trim(),
         emergencyContactEmail: ec.email,
       });
-      setSaved(true);
-      if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      if (wasChainComplete) {
+        setSaved(true);
+        if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
+        savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      } else {
+        navigate(nextChainStep("personal-information")?.path ?? "/student/profile", { replace: true });
+      }
     }
   }
 

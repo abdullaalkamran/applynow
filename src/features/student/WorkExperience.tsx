@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, X, Check } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
-import { markStepComplete } from "../../data/profileCompletion";
-import { loadWorkExperience, saveWorkExperience, type WorkExperienceDetails } from "../../data/studentProfileDetailsStore";
+import { markStepComplete, isChainComplete, nextChainStep } from "../../data/profileCompletion";
+import { loadWorkExperience, saveWorkExperience, loadWorkStatus, saveWorkStatus, type WorkExperienceDetails } from "../../data/studentProfileDetailsStore";
 
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Internship", "Contract", "Freelance", "Volunteer"] as const;
 
@@ -74,7 +75,10 @@ function initialEntries(): WorkEntry[] {
 }
 
 export default function WorkExperience() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<WorkEntry[]>(initialEntries);
+  const savedStatus = loadWorkStatus();
+  const [hasExperience, setHasExperience] = useState<boolean | null>(savedStatus?.hasExperience ?? null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -144,25 +148,35 @@ export default function WorkExperience() {
 
   function handleSave() {
     const nextErrors: string[] = [];
-    entries.forEach((e) => {
-      const missing: string[] = [];
-      if (!e.company.trim()) missing.push("company");
-      if (!e.title.trim()) missing.push("job title");
-      if (!e.startDate.trim()) missing.push("start date");
-      if (!e.currentlyWorking && !e.endDate.trim()) missing.push("end date");
-      if (missing.length > 0) nextErrors.push(`${e.company.trim() || e.type}: add ${missing.join(", ")}.`);
-    });
+    if (hasExperience === null) nextErrors.push("Let us know whether you have any work experience.");
+    if (hasExperience) {
+      if (entries.length === 0) nextErrors.push("Add at least one work experience entry.");
+      entries.forEach((e) => {
+        const missing: string[] = [];
+        if (!e.company.trim()) missing.push("company");
+        if (!e.title.trim()) missing.push("job title");
+        if (!e.startDate.trim()) missing.push("start date");
+        if (!e.currentlyWorking && !e.endDate.trim()) missing.push("end date");
+        if (missing.length > 0) nextErrors.push(`${e.company.trim() || e.type}: add ${missing.join(", ")}.`);
+      });
+    }
 
     setErrors(nextErrors);
-    if (nextErrors.length === 0) {
+    if (nextErrors.length === 0 && hasExperience !== null) {
+      const wasChainComplete = isChainComplete();
       markStepComplete("work-experience");
-      saveWorkExperience(entries.map((e) => ({
+      saveWorkStatus({ hasExperience });
+      saveWorkExperience(hasExperience ? entries.map((e) => ({
         type: e.type, company: e.company, title: e.title, industry: e.industry,
         startDate: e.startDate, endDate: e.endDate, currentlyWorking: e.currentlyWorking, description: e.description,
-      })));
-      setSaved(true);
-      if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      })) : []);
+      if (wasChainComplete) {
+        setSaved(true);
+        if (savedTimeoutRef.current) window.clearTimeout(savedTimeoutRef.current);
+        savedTimeoutRef.current = window.setTimeout(() => setSaved(false), 2500);
+      } else {
+        navigate(nextChainStep("work-experience")?.path ?? "/student/profile", { replace: true });
+      }
     }
   }
 
@@ -171,10 +185,32 @@ export default function WorkExperience() {
       <MobileHeader title="Work Experience" />
 
       <div className="px-5">
-        <p className="mb-4 text-[13px] text-slate-500">
-          Add your work history. Upload an offer or experience letter and we'll fill in the rest — or leave this empty if you have none yet.
-        </p>
+        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+          <p className="mb-2 text-[13px] font-medium text-slate-700">Do you have any work experience?</p>
+          <div className="flex flex-wrap gap-2">
+            {[{ value: true, label: "Yes" }, { value: false, label: "No" }].map((o) => (
+              <button
+                key={String(o.value)}
+                onClick={() => setHasExperience(o.value)}
+                className={`rounded-full border px-3.5 py-1.5 text-[12px] font-medium ${
+                  hasExperience === o.value
+                    ? "border-transparent bg-[image:var(--sd-gradient)] text-white"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
+        {hasExperience === true && (
+        <p className="mb-4 text-[13px] text-slate-500">
+          Add your work history. Upload an offer or experience letter and we'll fill in the rest.
+        </p>
+        )}
+
+        {hasExperience === true && (
         <div className="space-y-3">
           {entries.map((entry) => (
             <WorkCard
@@ -226,6 +262,7 @@ export default function WorkExperience() {
             </button>
           )}
         </div>
+        )}
       </div>
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Settings, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Shield, ChevronRight, CheckCircle2, LogOut, Link2,
+  Settings, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Shield, ChevronRight, CheckCircle2, LogOut, Link2, Lock,
 } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
-import { getProfileCompletion } from "../../data/profileCompletion";
+import { getProfileCompletion, PROFILE_CHAIN } from "../../data/profileCompletion";
 import { useAuth } from "../../context/AuthContext";
 import { apiGet, apiPost } from "../../utils/apiClient";
 import type { Student } from "../../types";
@@ -23,6 +23,16 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const { percent, steps } = getProfileCompletion();
   const completeByKey = new Map(steps.map((s) => [s.key, s.complete]));
+
+  // A section still ahead in PROFILE_CHAIN isn't reachable yet — "first has to complete one by
+  // one section". -1 (every chain step already done) locks nothing. Preferences/Security were
+  // never part of the chain, so they stay freely reachable regardless.
+  const firstIncompleteChainIdx = PROFILE_CHAIN.findIndex((key) => !completeByKey.get(key));
+  function isLocked(stepKey?: string): boolean {
+    if (!stepKey || firstIncompleteChainIdx === -1) return false;
+    const idx = PROFILE_CHAIN.indexOf(stepKey as (typeof PROFILE_CHAIN)[number]);
+    return idx !== -1 && idx > firstIncompleteChainIdx;
+  }
 
   const [student, setStudent] = useState<Student | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null);
@@ -135,18 +145,23 @@ export default function Profile() {
         <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
           {SETTINGS.map((s, i) => {
             const complete = s.stepKey ? completeByKey.get(s.stepKey) : undefined;
+            const locked = isLocked(s.stepKey);
             return (
               <button
                 key={s.label}
-                onClick={() => s.path && navigate(s.path)}
-                className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== SETTINGS.length - 1 ? "border-b border-slate-50" : ""}`}
+                onClick={() => !locked && s.path && navigate(s.path)}
+                disabled={locked}
+                title={locked ? "Complete the previous section first" : undefined}
+                className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== SETTINGS.length - 1 ? "border-b border-slate-50" : ""} ${
+                  locked ? "cursor-not-allowed opacity-50" : ""
+                }`}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
                   <s.icon size={16} />
                 </div>
                 <span className="flex-1 text-[13px] font-medium text-slate-700">{s.label}</span>
                 {complete && <CheckCircle2 size={15} className="text-[var(--sd-teal)]" />}
-                <ChevronRight size={16} className="text-slate-300" />
+                {locked ? <Lock size={14} className="text-slate-300" /> : <ChevronRight size={16} className="text-slate-300" />}
               </button>
             );
           })}

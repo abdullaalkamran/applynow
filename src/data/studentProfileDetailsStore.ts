@@ -47,6 +47,18 @@ export interface EnglishTestDetails {
   issuingInstitution: string;
 }
 
+// Answers the "do you have this at all?" gate each page now asks before showing its add-entry UI —
+// stored separately from the entries array below so existing readers of EnglishTestDetails[] (the
+// counsellor-facing checklist/AI-tool consumers) are unaffected by this addition.
+export interface EnglishProficiencyStatus {
+  status: "yes" | "preparing" | "no";
+  expectedExamDate?: string;
+}
+
+export interface WorkExperienceStatus {
+  hasExperience: boolean;
+}
+
 export interface WorkExperienceDetails {
   type: string;
   company: string;
@@ -180,8 +192,18 @@ export const savePersonalInfo = (value: PersonalInfoDetails, studentId: string =
 export const loadEnglishTests = (studentId: string = CURRENT_STUDENT_ID) => load<EnglishTestDetails[]>("english", studentId) ?? SEED_ENGLISH[studentId] ?? [];
 export const saveEnglishTests = (value: EnglishTestDetails[], studentId: string = CURRENT_STUDENT_ID) => save("english", value, studentId);
 
+// Seeded students with a real test on file (SEED_ENGLISH) are assumed to have already answered
+// "Yes" — a fresh browser for them shouldn't re-ask a question their seeded data already answers.
+export const loadEnglishStatus = (studentId: string = CURRENT_STUDENT_ID) =>
+  load<EnglishProficiencyStatus>("english-status", studentId) ?? (SEED_ENGLISH[studentId] ? { status: "yes" as const } : null);
+export const saveEnglishStatus = (value: EnglishProficiencyStatus, studentId: string = CURRENT_STUDENT_ID) => save("english-status", value, studentId);
+
 export const loadWorkExperience = (studentId: string = CURRENT_STUDENT_ID) => load<WorkExperienceDetails[]>("work", studentId) ?? SEED_WORK[studentId] ?? [];
 export const saveWorkExperience = (value: WorkExperienceDetails[], studentId: string = CURRENT_STUDENT_ID) => save("work", value, studentId);
+
+export const loadWorkStatus = (studentId: string = CURRENT_STUDENT_ID) =>
+  load<WorkExperienceStatus>("work-status", studentId) ?? (SEED_WORK[studentId] ? { hasExperience: true } : null);
+export const saveWorkStatus = (value: WorkExperienceStatus, studentId: string = CURRENT_STUDENT_ID) => save("work-status", value, studentId);
 
 export const loadPreferences = (studentId: string = CURRENT_STUDENT_ID) => load<PreferencesDetails>("preferences", studentId) ?? SEED_PREFERENCES[studentId] ?? null;
 export const savePreferences = (value: PreferencesDetails, studentId: string = CURRENT_STUDENT_ID) => save("preferences", value, studentId);
