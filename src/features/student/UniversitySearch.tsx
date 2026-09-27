@@ -4,7 +4,7 @@ import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
   Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
-import { BackButton, Chip, LogoBadge, PillSelect, DropdownChips, SubLabel } from "../../components/ui/mobile";
+import { BackButton, Chip, LogoBadge, DropdownChips, SubLabel } from "../../components/ui/mobile";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -12,7 +12,7 @@ import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters,
-  allPrograms, FEE_BANDS, feeBandMax, scholarshipLabel, depositLabel, courseHasOpenIntake, subjectOptions, destinationOptions,
+  allPrograms, scholarshipLabel, depositLabel, courseHasOpenIntake,
   countryStats, intakeOptions, yearOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -78,13 +78,10 @@ export default function UniversitySearch() {
   const openOnShortlist = new URLSearchParams(location.search).get("shortlisted") === "1";
   const [tab, setTab] = useState<Tab>("subjects");
 
-  // Independent, compact filters for the flat "all programs" list on the Subjects tab.
+  // The flat "all programs" list on the Subjects tab also honours the one shared search bar/filter
+  // panel above (see advancedFilteredUniversityIds below) — this is only its own quick toggle for
+  // narrowing that list down to what's already bookmarked.
   const [programShortlistedOnly, setProgramShortlistedOnly] = useState(openOnShortlist);
-  const [programSubject, setProgramSubject] = useState("");
-  const [programDestination, setProgramDestination] = useState("");
-  const [programIntake, setProgramIntake] = useState("");
-  const [programFeeBand, setProgramFeeBand] = useState("");
-  const [programScholarship, setProgramScholarship] = useState("");
 
   const showingFilters = location.pathname === "/student/search/filters";
 
@@ -96,8 +93,6 @@ export default function UniversitySearch() {
     else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     return sorted;
   }, [query, filters, sortBy]);
-
-  const programIntakeOptions = useMemo(() => Array.from(new Set(allPrograms().map((p) => p.university.openIntake))).sort(), []);
 
   // Universities that pass the shared top search bar + Advanced Search filters — reused to gate the
   // Subjects tab's flat program list too, so the one search bar shown on every tab actually filters
@@ -118,17 +113,12 @@ export default function UniversitySearch() {
       allPrograms().filter(({ university: u, course: c }) => {
         if (!advancedFilteredUniversityIds.has(u.id)) return false;
         if (programShortlistedOnly && !isShortlisted(`${u.id}::${c.name}`)) return false;
-        if (programSubject && c.subject !== programSubject) return false;
-        if (programDestination && u.country !== programDestination) return false;
-        if (programIntake && u.openIntake !== programIntake) return false;
-        if (programFeeBand && c.feeUSD > feeBandMax(programFeeBand)) return false;
-        if (programScholarship === "Available" && !u.scholarshipsAvailable) return false;
         return true;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
-    [advancedFilteredUniversityIds, programShortlistedOnly, programSubject, programDestination, programIntake, programFeeBand, programScholarship, shortlistTick]
+    [advancedFilteredUniversityIds, programShortlistedOnly, shortlistTick]
   );
-  const programFiltersActive = programShortlistedOnly || !!(programSubject || programDestination || programIntake || programFeeBand || programScholarship);
+  const programFiltersActive = programShortlistedOnly;
 
   // Explore/apply is gated on having filled in the required parts of the profile — a counsellor or
   // admission officer needs that information to actually process an application, so letting someone
@@ -173,11 +163,6 @@ export default function UniversitySearch() {
 
   function resetProgramFilters() {
     setProgramShortlistedOnly(false);
-    setProgramSubject("");
-    setProgramDestination("");
-    setProgramIntake("");
-    setProgramFeeBand("");
-    setProgramScholarship("");
   }
 
   function toggleFilterIntake(month: string) {
@@ -383,18 +368,13 @@ export default function UniversitySearch() {
               )}
             </div>
 
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 flex items-center gap-2">
               <Chip
                 label="Shortlisted"
                 selected={programShortlistedOnly}
                 onClick={() => setProgramShortlistedOnly((v) => !v)}
                 icon={<Bookmark size={12} className={programShortlistedOnly ? "fill-white" : ""} />}
               />
-              <PillSelect label="Subject" value={programSubject} options={subjectOptions()} onChange={setProgramSubject} placeholder="All subjects" />
-              <PillSelect label="Destination" value={programDestination} options={destinationOptions()} onChange={setProgramDestination} placeholder="All destinations" />
-              <PillSelect label="Intake" value={programIntake} options={programIntakeOptions} onChange={setProgramIntake} placeholder="Any intake" />
-              <PillSelect label="Fees" value={programFeeBand} options={FEE_BANDS} onChange={setProgramFeeBand} placeholder="Any fee" />
-              <PillSelect label="Scholarship" value={programScholarship} options={["Available"]} onChange={setProgramScholarship} placeholder="Any" />
             </div>
 
             <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:grid lg:grid-cols-2 lg:gap-x-6 lg:rounded-none lg:bg-transparent lg:shadow-none">
@@ -469,7 +449,7 @@ export default function UniversitySearch() {
 
               {programs.length === 0 && (
                 <div className="p-6 text-center lg:col-span-full lg:rounded-2xl lg:bg-[var(--sd-card)] lg:shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                  {programShortlistedOnly && !(programSubject || programDestination || programIntake || programFeeBand || programScholarship) ? (
+                  {programShortlistedOnly ? (
                     <>
                       <p className="text-sm font-medium text-slate-700">No shortlisted programs yet</p>
                       <p className="mt-1 text-xs text-slate-400">Tap the bookmark on any program to save it here.</p>
