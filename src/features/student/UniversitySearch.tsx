@@ -515,9 +515,14 @@ export default function UniversitySearch() {
                       <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
                         <MapPin size={12} className="shrink-0" /> <span className="truncate">{u.city}, {u.country}</span>
                       </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
-                        <span className="inline-flex items-center rounded-full bg-[#E7EEFC] px-2.5 py-1 text-[10.5px] font-medium text-[#2955C4] sm:px-3.5 sm:py-1.5 sm:text-[13px]">{u.tags[0]}</span>
-                        <span className="inline-flex items-center rounded-full bg-[#E3F6EC] px-2.5 py-1 text-[10.5px] font-medium text-[#12805A] sm:px-3.5 sm:py-1.5 sm:text-[13px]">{u.tags[1]}</span>
+                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[9.5px] text-slate-400 sm:mt-1.5 sm:text-[10.5px]">
+                        <span className="truncate">{u.tags[0]}</span>
+                        {u.tags[1] && (
+                          <>
+                            <span className="shrink-0">·</span>
+                            <span className="truncate">{u.tags[1]}</span>
+                          </>
+                        )}
                       </div>
                       <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2.5 text-[11px] text-slate-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
                         <span className="inline-flex items-center gap-1 sm:gap-1.5">
