@@ -29,6 +29,14 @@ set -u
 echo "==> Applying any pending database migrations..."
 (cd server && npx prisma migrate deploy)
 
+echo "==> Regenerating the Prisma client..."
+# `migrate deploy` only applies SQL — it deliberately does NOT regenerate @prisma/client (that's
+# `migrate dev`'s job, which this production flow never runs). Skipping this leaves the running
+# process on the pre-migration client shape: any query touching a field/column added by the
+# migration that just ran (e.g. a new model's columns) throws PrismaClientValidationError ("Invalid
+# request.") or fails outright, even though the database itself is already correct.
+(cd server && npx prisma generate)
+
 echo "==> Restarting the app..."
 mkdir -p tmp
 touch tmp/restart.txt
