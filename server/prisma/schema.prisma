@@ -525,9 +525,30 @@ model RequirementRule {
   active          Boolean         @default(true)
 }
 
+// Was localStorage-only for a long time after University moved to this same shared-database
+// pattern (see universityCatalogStore.ts's own migration note) — meaning a Data Manager's added/
+// edited/deleted country only ever affected the browser that made the change, and everyone else
+// (including that same admin on a different device) never saw it. Fields mirror the old
+// countryRegistry.ts's CountryRecord shape field-for-field.
 model Country {
-  id   String @id
-  name String @unique
+  id                       String   @id
+  name                     String   @unique
+  logoUrl                  String?  @db.LongText
+  whyThisCountry           String?  @db.Text
+  recommendedFundsUSD      Int?
+  visaCostConfig           Json?
+  requiredDocuments        Json     @default("[]")
+  applicationProcedure     String?  @db.Text
+  visaProcedure            String?  @db.Text
+  tagline                  String?
+  internationalStudentStat String?
+  whyStudyHighlights       Json     @default("[]")
+  keyInfo                  Json?
+  usefulLinks              Json     @default("[]")
+  photoUrl                 String?  @db.LongText
+  currencySymbols          Json     @default("[]")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 // A field-of-study Data Management can author real content for — a "why this subject" blurb shown
@@ -585,7 +606,11 @@ model University {
   timesHigherRanking            String?
   employability                 String
   studentCount                  String
-  description                   String
+  // Plain String mapped to VARCHAR(191) by default — MySQL strict mode rejects the entire insert/
+  // update outright ("Data too long for column") the moment a real paragraph-length description is
+  // typed, since 191 characters is barely a sentence. This silently broke saving any university
+  // (or editing one to add a real description) rather than truncating it.
+  description                   String     @db.Text
   highlights                    Json
   campuses                      Json?
   requirements                  Json // { undergraduate: string[]; postgraduate: string[] }
@@ -624,8 +649,12 @@ model University {
   intakeDates                   Json?
   website                       String
   tone                          UniversityTone
-  logoUrl                       String?
-  coverPhotoUrl                 String?
+  // Uploaded as a base64 data: URL (see UniversityForm.tsx's readFileAsDataUrl) — plain String
+  // mapped to VARCHAR(191) by default, which silently rejected (MySQL strict mode: "Data too long
+  // for column") every real image, since even a small logo's data URL is many KB. LongText is
+  // needed, not just Text (64KB cap), since an uncompressed cover photo can exceed that too.
+  logoUrl                       String?            @db.LongText
+  coverPhotoUrl                 String?            @db.LongText
   createdAt                     DateTime           @default(now())
   updatedAt                     DateTime           @updatedAt
   courses                       Course[]
@@ -652,7 +681,8 @@ model Course {
   // Course-page content Data Management enters directly on the course. `modules`/`careers` empty
   // means "use the subject's lists" (see subjectCurriculum.ts); `description`/`studyMode` unset
   // fall back to a generated blurb and "Full-time".
-  description             String?
+  // Same VARCHAR(191) truncation/rejection issue as University.description above.
+  description             String?    @db.Text
   studyMode               String?
   modules                 Json       @default("[]")
   careers                 Json       @default("[]")

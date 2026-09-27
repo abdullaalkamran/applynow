@@ -39,6 +39,7 @@ import { clearStudentCommentsCache } from "../data/studentCommentsStore";
 import { clearMessagesCache } from "../data/messagesStore";
 import { clearSubjectCatalogCache } from "../data/subjectCatalogStore";
 import { clearUniversityCatalogCache } from "../data/universityCatalogStore";
+import { refreshCountries, migrateLegacyLocalCountries, clearCountryRegistryCache } from "../data/countryRegistry";
 import { clearCommissionRatesCache } from "../data/commissionRatesStore";
 import { clearAgentInvoicesCache } from "../data/agentInvoicesStore";
 import { notifyCacheChange } from "./syncCache";
@@ -67,6 +68,9 @@ export function warmCaches() {
   migrateLegacyLocalUniversities()
     .then(() => refreshUniversities())
     .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
+  migrateLegacyLocalCountries()
+    .then(() => refreshCountries())
+    .catch((err) => console.warn("Failed to warm/migrate countries cache:", err));
   // Not a bulk fetch like the others — re-fetches whichever applications' journeys this session
   // has actually looked at (see applicationJourneyStore.ts's own comment on why this needs to be
   // on the same poll/focus schedule as everything else).
@@ -131,6 +135,7 @@ export function clearAllCaches() {
   clearMessagesCache();
   clearSubjectCatalogCache();
   clearUniversityCatalogCache();
+  clearCountryRegistryCache();
   clearCommissionRatesCache();
   clearAgentInvoicesCache();
   notifyCacheChange();

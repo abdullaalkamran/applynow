@@ -1,12 +1,16 @@
-// A destination country isn't its own record anywhere today — it's just a free-text `country`
-// field on University. This registry gives every destination country a stable id the moment it's
-// first seen, so a future real backend has a real `countries` table (id, name) to migrate
-// University.country into as a foreign key, instead of a plain string with no primary key.
+// Postgres/MySQL-backed via /api/countries (server/src/routes/countries.js) — the real Country
+// Guide catalog, shared across every account instead of living only in the browser that created
+// it. Same synchronous-cache pattern as universityCatalogStore.ts: reads stay synchronous (every
+// existing call site here never needs to change), backed by a cache warmed after login and kept
+// current after every write.
 //
 // Also carries the "Country Guide" content shown on every university page in that country (Why
 // This Country, the Cost Calculator's recommended funds figure, Required Documents with sample
 // uploads, Application Procedure, Visa Procedure) — genuinely country-level, not per-university,
 // so it's entered once via Data Management's Add/Edit Country form.
+import { loadStoredAuth } from "../utils/authClient";
+import { apiGet, apiPatch, apiDelete } from "../utils/apiClient";
+import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 
 export interface RequiredDocument {
   id: string;
@@ -91,168 +95,128 @@ export interface CountryRecord {
   currencySymbols?: string[];
 }
 
-const STORAGE_KEY = "data-mgmt-country-registry";
-const DELETED_KEY = "data-mgmt-deleted-country-ids";
-const OVERRIDES_KEY = "data-mgmt-country-overrides";
+let cache: CountryRecord[] = [];
+let refreshSeq = 0;
 
-// Stable ids for the countries requirementRules.ts's RULES table references by name at module
-// load time (getCountryId("UK"), etc.) — every other country is real, entered via Data Management
-// (Add Country, or naming a country while adding a university, which auto-registers it through
-// getCountryId() below). These four must keep a fixed id and must never be silently re-created:
-// getCountryId() below special-cases a name match against this list (see its comment) so that
-// deleting one from Data Management keeps it deleted instead of resurrecting it with a new id the
-// next time requirementRules.ts runs.
-const SEED_COUNTRIES: CountryRecord[] = [
-  { id: "co-seed-uk", name: "UK" },
-  { id: "co-seed-australia", name: "Australia" },
-  { id: "co-seed-canada", name: "Canada" },
-  { id: "co-seed-united-states", name: "United States" },
-];
+export async function refreshCountries(): Promise<void> {
+  const seq = ++refreshSeq;
+  const next = await apiGet<CountryRecord[]>("/api/countries");
+  // A slower, older response landing after a newer one must not win.
+  if (seq !== refreshSeq) return;
+  if (!cacheChanged(next, cache)) return;
+  cache = next;
+  notifyCacheChange();
+}
+
+// Stable ids for the four countries requirementRules.ts references by name at module load time
+// (getCountryId("UK"), etc.) — real rows for all four (seeded by the migration that added the rest
+// of Country's columns), but getCountryId() below still special-cases a name match against this
+// list directly, synchronously, independent of whatever the cache currently holds — RULES in
+// requirementRules.ts is built at module-load time, before login/warmCaches has ever populated the
+// cache from the server, so these four specifically can never wait on a network round trip. This
+// also keeps deleting one of them from Data Management from resurrecting it with a new id the next
+// time something looks it up by name.
+const SEED_COUNTRY_IDS: Record<string, string> = {
+  uk: "co-seed-uk",
+  australia: "co-seed-australia",
+  canada: "co-seed-canada",
+  "united states": "co-seed-united-states",
+};
 
 function nextId(): string {
   return `co-custom-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
 }
 
-function loadCustom(): CountryRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const list = raw ? (JSON.parse(raw) as CountryRecord[]) : [];
-    return dedupeIds(list);
-  } catch {
-    return [];
-  }
-}
-
-// Self-heals a bug from an earlier version of getCountryId(): registering several new countries
-// within the same render pass could call Date.now() more than once within the same millisecond,
-// producing duplicate ids for genuinely different countries. Reassigns any collision a fresh id
-// and persists the fix, so it only ever has to run once per browser.
-function dedupeIds(list: CountryRecord[]): CountryRecord[] {
-  const seen = new Set<string>();
-  let changed = false;
-  const fixed = list.map((c) => {
-    if (!seen.has(c.id)) {
-      seen.add(c.id);
-      return c;
-    }
-    changed = true;
-    const id = nextId();
-    seen.add(id);
-    return { ...c, id };
-  });
-  if (changed) saveCustom(fixed);
-  return fixed;
-}
-
-function saveCustom(list: CountryRecord[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
-
-function loadDeleted(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(DELETED_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDeleted(ids: Set<string>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(DELETED_KEY, JSON.stringify([...ids]));
-}
-
-function loadOverrides(): Record<string, Partial<CountryRecord>> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(OVERRIDES_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, Partial<CountryRecord>>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveOverrides(map: Record<string, Partial<CountryRecord>>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(map));
-}
-
 export function getAllCountries(): CountryRecord[] {
-  const deleted = loadDeleted();
-  const overrides = loadOverrides();
-  const seedNames = new Set(SEED_COUNTRIES.map((c) => c.name.toLowerCase()));
-  // A browser that used this app before SEED_COUNTRIES gained fixed ids may still have one of
-  // these four names saved as an old-style custom record (created by the pre-fix getCountryId(),
-  // which minted a fresh id for them same as any other new country). Drop those in favor of the
-  // seed record with the same name so they don't show up twice.
-  const custom = loadCustom().filter((c) => !seedNames.has(c.name.toLowerCase()));
-  return [...SEED_COUNTRIES, ...custom]
-    .filter((c) => !deleted.has(c.id))
-    .map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
+  return cache;
 }
 
-/** Removes a country from the registry — a custom (data-manager-added) one is dropped outright,
- * a seed one is soft-deleted (added to a hidden-ids set) the same way universityCatalogStore.ts
- * soft-deletes seed universities. Callers should only offer this when the country has zero
+/** Removes a country from the catalog. Callers should only offer this when the country has zero
  * universities under it (see Countries.tsx) — deleting one that still has real universities
  * wouldn't remove them (University.country is a plain string, not a foreign key), it would just
- * make getCountryId() silently mint a new id for it the next time something looks it up. */
+ * make getCountryId() mint/return an id for it again the next time something looks it up (or, for
+ * one of the four fixed-id countries above, keep returning that same fixed id with no matching row
+ * until it's re-added). */
 export function deleteCountry(id: string) {
-  const custom = loadCustom();
-  if (custom.some((c) => c.id === id)) {
-    saveCustom(custom.filter((c) => c.id !== id));
-    return;
-  }
-  const deleted = loadDeleted();
-  deleted.add(id);
-  saveDeleted(deleted);
+  const prev = cache;
+  cache = cache.filter((c) => c.id !== id);
+  notifyCacheChange();
+  apiDelete(`/api/countries/${id}`).catch((err) => {
+    // Roll the optimistic change back so the UI never shows a delete that didn't happen — unless
+    // the session ended meanwhile, in which case the cache was already cleared on purpose.
+    if ((err as Error)?.name === "StaleSessionError") return;
+    cache = prev;
+    notifyCacheChange();
+    console.warn("Failed to delete country:", err);
+  });
 }
 
-/** Looks up a country's id by name, registering it with a brand-new stable id the first time it's
- * seen (e.g. a data manager typing a country that's never appeared in the catalog before).
- *
- * Matches against SEED_COUNTRIES first, *before* filtering by deletion status, so that one of
- * requirementRules.ts's four hardcoded lookups can never mint a fresh duplicate id for a country
- * Data Management has deleted — it just keeps returning that country's fixed seed id, deleted or
- * not, exactly like every other read in this file already does for seed vs. custom records. */
+/** Looks up a country's id by name, registering it (optimistically, then persisted through the
+ * upsert-on-PATCH endpoint) with a brand-new stable id the first time it's seen — e.g. a data
+ * manager typing a country that's never appeared in the catalog before, or naming one while adding
+ * a university. Matches one of the four fixed seed ids first, before touching the cache at all. */
 export function getCountryId(name: string): string {
   const trimmed = name.trim();
-  const seedMatch = SEED_COUNTRIES.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
-  if (seedMatch) return seedMatch.id;
-  const existing = getAllCountries().find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+  const seedId = SEED_COUNTRY_IDS[trimmed.toLowerCase()];
+  if (seedId) return seedId;
+  const existing = cache.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
   if (existing) return existing.id;
-  const record: CountryRecord = { id: nextId(), name: trimmed };
-  saveCustom([...loadCustom(), record]);
-  return record.id;
+
+  const id = nextId();
+  const record: CountryRecord = { id, name: trimmed };
+  cache = [...cache, record];
+  notifyCacheChange();
+  apiPatch<CountryRecord>(`/api/countries/${id}`, { name: trimmed })
+    .then((created) => {
+      cache = cache.map((c) => (c.id === id ? created : c));
+      notifyCacheChange();
+    })
+    .catch((err) => {
+      if ((err as Error)?.name === "StaleSessionError") return;
+      // Left in place rather than rolled back: unlike a university/course, plenty of other reads
+      // this same render pass (getCountryByName, a university's own .country string) already
+      // depend on this id resolving for the rest of the session even if the persist failed — a
+      // later refreshCountries() that still doesn't find it server-side is the actual signal to
+      // watch for, not something to silently undo mid-session.
+      console.warn(`Failed to persist new country "${trimmed}":`, err);
+    });
+  return id;
 }
 
 export function getCountryName(id: string): string | undefined {
-  return getAllCountries().find((c) => c.id === id)?.name;
+  return cache.find((c) => c.id === id)?.name;
 }
 
 /** The full record (including Country Guide content) for a university's `.country` field —
  * case-insensitive since University.country is free text. */
 export function getCountryByName(name: string): CountryRecord | undefined {
   const trimmed = name.trim().toLowerCase();
-  return getAllCountries().find((c) => c.name.trim().toLowerCase() === trimmed);
+  return cache.find((c) => c.name.trim().toLowerCase() === trimmed);
 }
 
 /** Saves Country Guide content (Why This Country, recommended funds, required documents,
- * application/visa procedure) — same seed-vs-custom branch as deleteCountry(). */
+ * application/visa procedure, Overview page content) — upserts server-side, so this also works as
+ * the second half of "register a brand-new country" (getCountryId to mint the id, then this to
+ * fill in its content) regardless of which of the two requests reaches the server first. */
 export function updateCountryDetails(id: string, patch: Partial<Omit<CountryRecord, "id">>) {
-  const custom = loadCustom();
-  const idx = custom.findIndex((c) => c.id === id);
-  if (idx >= 0) {
-    custom[idx] = { ...custom[idx], ...patch };
-    saveCustom(custom);
-    return;
-  }
-  const overrides = loadOverrides();
-  overrides[id] = { ...overrides[id], ...patch };
-  saveOverrides(overrides);
+  const prev = cache;
+  const existing = cache.find((c) => c.id === id);
+  cache = existing
+    ? cache.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    : [...cache, { id, name: patch.name ?? id, ...patch }];
+  notifyCacheChange();
+
+  apiPatch<CountryRecord>(`/api/countries/${id}`, patch)
+    .then((updated) => {
+      cache = cache.map((c) => (c.id === id ? updated : c));
+      notifyCacheChange();
+    })
+    .catch((err) => {
+      if ((err as Error)?.name === "StaleSessionError") return;
+      cache = prev;
+      notifyCacheChange();
+      console.warn("Failed to persist country update:", err);
+    });
 }
 
 /** Adds a custom currency symbol to a country's picklist — used when someone typing a university's
@@ -267,4 +231,65 @@ export function addCurrencyToCountry(countryName: string, symbol: string) {
   const current = record.currencySymbols ?? [];
   if (current.includes(trimmed)) return;
   updateCountryDetails(record.id, { currencySymbols: [...current, trimmed] });
+}
+
+// --- One-time recovery of whatever this browser had saved locally before this store moved to the
+// server — otherwise a country someone already spent time filling in (Why This Country, visa cost
+// breakdown, required documents, ...) would just silently vanish the moment this ships, since the
+// new cache starts out reading from the server instead of localStorage. Runs once per browser
+// (tracked by MIGRATED_KEY) and only ever adds/fills in data; it never deletes the old localStorage
+// keys' *content*, only stops re-attempting.
+const LEGACY_STORAGE_KEY = "data-mgmt-country-registry";
+const LEGACY_OVERRIDES_KEY = "data-mgmt-country-overrides";
+const LEGACY_DELETED_KEY = "data-mgmt-deleted-country-ids";
+const MIGRATED_KEY = "data-mgmt-countries-migrated-to-server";
+
+export async function migrateLegacyLocalCountries(): Promise<void> {
+  if (typeof window === "undefined" || window.localStorage.getItem(MIGRATED_KEY)) return;
+  // Only Data Management (or an admin) may write the catalog — any other role would just get a
+  // 403 from the server for every legacy row, on every load.
+  const role = loadStoredAuth()?.user.role;
+  if (role !== "data" && role !== "admin") return;
+
+  let legacyCustom: CountryRecord[] = [];
+  let legacyOverrides: Record<string, Partial<CountryRecord>> = {};
+  let legacyDeleted: string[] = [];
+  try {
+    legacyCustom = JSON.parse(window.localStorage.getItem(LEGACY_STORAGE_KEY) || "[]");
+    legacyOverrides = JSON.parse(window.localStorage.getItem(LEGACY_OVERRIDES_KEY) || "{}");
+    legacyDeleted = JSON.parse(window.localStorage.getItem(LEGACY_DELETED_KEY) || "[]");
+  } catch {
+    window.localStorage.setItem(MIGRATED_KEY, "true");
+    return;
+  }
+  const deleted = new Set(legacyDeleted);
+  // Custom (data-manager-added) countries this browser knew about, plus overrides recorded against
+  // one of the four fixed seed ids (Country Guide content entered for UK/Australia/Canada/US) —
+  // both are just a name+id and a patch of content, so both migrate through the same upsert PATCH.
+  const rows: { id: string; patch: Partial<CountryRecord> }[] = [
+    ...legacyCustom.filter((c) => !deleted.has(c.id)).map((c) => ({ id: c.id, patch: c })),
+    ...Object.entries(legacyOverrides)
+      .filter(([id]) => !deleted.has(id))
+      .map(([id, patch]) => ({ id, patch })),
+  ];
+  if (rows.length === 0) {
+    window.localStorage.setItem(MIGRATED_KEY, "true");
+    return;
+  }
+  for (const { id, patch } of rows) {
+    try {
+      await apiPatch<CountryRecord>(`/api/countries/${id}`, patch);
+    } catch (err) {
+      console.warn(`Failed to migrate locally-saved country "${patch.name ?? id}" to the server:`, err);
+      return; // leaves MIGRATED_KEY unset so this retries next load instead of losing the rest
+    }
+  }
+  window.localStorage.setItem(MIGRATED_KEY, "true");
+  await refreshCountries();
+}
+
+/** Drops everything cached for the current session — called on logout/login (see warmCaches.ts)
+ * so the next user on this browser never sees the previous one's data. */
+export function clearCountryRegistryCache() {
+  cache = [];
 }

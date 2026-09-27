@@ -23,6 +23,7 @@ const studentFinancialReadinessRoute = require("./routes/studentFinancialReadine
 const inboxRoute = require("./routes/inbox");
 const subjectsRoute = require("./routes/subjects");
 const universitiesRoute = require("./routes/universities");
+const countriesRoute = require("./routes/countries");
 const courseImportsRoute = require("./routes/courseImports");
 const universityImportsRoute = require("./routes/universityImports");
 const interviewPrepRoute = require("./routes/interviewPrep");
@@ -135,6 +136,7 @@ app.use("/api/financial-readiness", studentFinancialReadinessRoute);
 app.use("/api/inbox", inboxRoute);
 app.use("/api/subjects", subjectsRoute);
 app.use("/api/universities", universitiesRoute);
+app.use("/api/countries", countriesRoute);
 app.use("/api/course-imports", courseImportsRoute);
 app.use("/api/university-imports", universityImportsRoute);
 app.use("/api/interview-prep", interviewPrepRoute);
