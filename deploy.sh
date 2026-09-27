@@ -16,8 +16,15 @@ echo "==> Pulling latest code..."
 git pull origin main
 
 echo "==> Activating Node virtual environment..."
+# CloudLinux's own activate script isn't written to survive `set -u` — it references
+# CL_VIRTUAL_ENV without a fallback, which is normally only pre-set when a terminal is opened
+# through cPanel's own UI. Sourcing it under `-u` from a plain SSH session kills this whole script
+# with "CL_VIRTUAL_ENV: unbound variable" before the migration or restart ever runs. `-u` is only
+# relaxed for this one third-party line, not for the rest of this script.
+set +u
 # shellcheck disable=SC1091
 source /home/cvqyqwcasg/nodevenv/unifinderai.com/20/bin/activate
+set -u
 
 echo "==> Applying any pending database migrations..."
 (cd server && npx prisma migrate deploy)
