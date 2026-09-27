@@ -13,7 +13,7 @@ import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { getAllUniversities } from "../data/universityCatalogStore";
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
 import { loadAgentStudents } from "../data/agentStudentsStore";
-import { STUDENTS } from "../data/mockData";
+import { getAllStudents } from "../data/allStudentsStore";
 import type { Application, Student } from "../types";
 
 export type TaskSource = "manual" | "next-step" | "document" | "review" | "finance";
@@ -260,7 +260,10 @@ export function getAgentTasks(personId: string): DisplayTask[] {
 }
 
 export function getStudentTasks(studentId: string): DisplayTask[] {
-  const student = STUDENTS.find((s) => s.id === studentId);
+  // A real (non-seed) student's id never appears in the old mockData.ts STUDENTS array — looking
+  // there instead of the real Postgres-backed store silently dropped next-step/document/finance
+  // tasks for every genuine production student, leaving only manually-assigned ones.
+  const student = getAllStudents().find((s) => s.id === studentId);
   if (!student) return sortTasks(manualTasksFor(studentId));
   const apps = getAllApplications().filter((a) => a.studentId === studentId);
   return sortTasks([

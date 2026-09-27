@@ -1,4 +1,5 @@
-import { STUDENTS, COUNSELLORS, AGENTS } from "../data/mockData";
+import { getAllStudents } from "../data/allStudentsStore";
+import { loadStaff } from "../data/staffStore";
 import { getAllApplications, createApplication } from "../data/applicationsStore";
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
@@ -12,6 +13,7 @@ import {
 } from "../data/studentProfileDetailsStore";
 import { loadAcademicLevels, saveAcademicLevels } from "../data/academicProfileStore";
 import { sendMessage, type MessageParticipant } from "../data/messagesStore";
+import { loadFinancialReadiness } from "../data/studentFinancialReadinessStore";
 import { buildAnswer } from "./aiCounsellorEngine";
 import { getApplicationSummary, getNextAction, getMissingDocuments, getDeadlines, getBlockers } from "./applicationJourneyTools";
 import { buildCoreChecklist } from "./documentChecklist";
@@ -21,14 +23,15 @@ import type { ToolDefinition, AssistantUserContext } from "./assistantEngine";
 // assignment* only (students can't assign tasks to anyone, by design). Messaging a student's own
 // counsellor/agent is a different relationship, read straight off their own record.
 function resolveCounterpart(studentId: string): MessageParticipant | null {
-  const student = STUDENTS.find((s) => s.id === studentId);
+  const student = getAllStudents().find((s) => s.id === studentId);
   if (!student) return null;
+  const staff = loadStaff();
   if (student.counsellorId) {
-    const counsellor = COUNSELLORS.find((c) => c.id === student.counsellorId);
+    const counsellor = staff.find((s) => s.id === student.counsellorId && s.role === "counsellor");
     if (counsellor) return { role: "counsellor", id: counsellor.id, name: counsellor.name };
   }
   if (student.agentId) {
-    const agent = AGENTS.find((a) => a.id === student.agentId);
+    const agent = staff.find((s) => s.id === student.agentId && s.role === "agent");
     if (agent) return { role: "agent", id: agent.id, name: agent.name };
   }
   return null;
@@ -90,6 +93,47 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         preferences: loadPreferences(studentId),
         academicLevels: loadAcademicLevels(studentId),
       }),
+    },
+    {
+      spec: {
+        name: "get_required_documents",
+        description: "List the student's core (not application-specific) required documents still missing or rejected — passport, photo, and similar vault documents every application needs, independent of any one application's own checklist.",
+        parameters: { type: "object", properties: {} },
+      },
+      execute: () =>
+        buildCoreChecklist(studentId)
+          .filter((row) => !row.own && !row.reused)
+          .map((row) => ({
+            type: row.type,
+            status: row.rejected ? "rejected" : "missing",
+            reason: row.rejected?.reason,
+          })),
+    },
+    {
+      spec: {
+        name: "get_financial_readiness_status",
+        description: "Check whether the student's Financial Readiness (bank balance evidence) has been confirmed — required before an offer can be finalized. One shared record per student, not tied to a specific application.",
+        parameters: { type: "object", properties: {} },
+      },
+      execute: () => {
+        const record = loadFinancialReadiness(studentId);
+        if (!record) return { status: "not_started", message: "No financial readiness information has been entered yet." };
+        if (record.completedAt) return { status: "confirmed", completedAt: record.completedAt };
+        return { status: "in_progress", message: "Bank balance evidence has been entered but not yet confirmed." };
+      },
+    },
+    {
+      spec: {
+        name: "list_my_next_steps",
+        description: "List every to-do a counsellor has added across all of the student's applications, not just one — use this for a general \"what do I need to do next\" question instead of guessing a single applicationId.",
+        parameters: { type: "object", properties: {} },
+      },
+      execute: () =>
+        getAllApplications()
+          .filter((a) => a.studentId === studentId)
+          .flatMap((a) => loadNextSteps(a.id)
+            .filter((ns) => !ns.done)
+            .map((ns) => ({ applicationId: a.id, university: a.university, title: ns.title, dueDate: ns.dueDate }))),
     },
     {
       spec: {

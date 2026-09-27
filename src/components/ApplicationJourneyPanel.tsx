@@ -8,7 +8,8 @@ import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
 import { getApplicationTasks } from "../utils/taskBoard";
 import { loadActivityDescending, recordActivity } from "../data/applicationActivityStore";
-import { ADMISSION_OFFICERS, COUNSELLORS, AGENTS, STUDENTS } from "../data/mockData";
+import { ADMISSION_OFFICERS, COUNSELLORS, AGENTS } from "../data/mockData";
+import { getAllStudents } from "../data/allStudentsStore";
 import { getAllApplications, assignCounsellor, assignAdmissionOfficer } from "../data/applicationsStore";
 import { useRole } from "../context/RoleContext";
 import type { Role } from "../types";
@@ -53,7 +54,7 @@ export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: P
   const journey = loadJourney(applicationId);
   const currentStage = computeCurrentStage(journey);
   const application = getAllApplications().find((a) => a.id === applicationId);
-  const student = application ? STUDENTS.find((s) => s.id === application.studentId) : undefined;
+  const student = application ? getAllStudents().find((s) => s.id === application.studentId) : undefined;
   const agent = student?.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
 
   function patch(stageType: StageType, fieldPatch: Record<string, unknown>) {
