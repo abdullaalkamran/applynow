@@ -63,7 +63,13 @@ app.use(
     exposedHeaders: ["X-Session-Invalid"],
   })
 );
-app.use(express.json({ limit: "1mb" }));
+// Raised from 1mb: Data Management's university/country forms embed uploaded logos/cover photos
+// as base64 data: URLs directly in the JSON body (no file-storage backend) — a logo plus a cover
+// photo alone routinely exceeds 1mb, and Express silently rejects the whole request over the limit
+// (413) before the route ever runs. The caller's own optimistic-then-rollback stores treated that
+// rejection as an ordinary failure and quietly reverted the change, which looked like "the upload
+// removed itself" with no visible error.
+app.use(express.json({ limit: "12mb" }));
 
 // Brute-force / abuse limits. Per IP for the unauthenticated auth routes and the admin-token
 // gate; per user (falling back to IP) for the endpoints that spend real AI-provider money.

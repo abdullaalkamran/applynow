@@ -25,6 +25,10 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const DEFAULT_CURRENCY_SYMBOLS = ["$", "£", "€", "A$", "C$"];
 const MIN_TUITION_FEE = 18000;
 const MAX_TUITION_FEE = 40000;
+// Embedded as a base64 data: URL directly in the save request (no file-storage backend) — kept
+// well under the server's 12mb JSON body limit even with a logo, a cover photo, and the rest of
+// the form all in the same request together.
+const MAX_IMAGE_BYTES = 4_000_000;
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -207,6 +211,8 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
   const [coverPhotoUrl, setCoverPhotoUrl] = useState(base?.coverPhotoUrl ?? "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [logoError, setLogoError] = useState("");
+  const [coverError, setCoverError] = useState("");
   const [qsRanking, setQsRanking] = useState(base?.qsRanking ?? "");
   const [timesHigherRanking, setTimesHigherRanking] = useState(base?.timesHigherRanking ?? "");
   const [employability, setEmployability] = useState(base?.employability ?? "85%");
@@ -295,6 +301,11 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
 
   async function handleLogoPicked(file: File | undefined) {
     if (!file) return;
+    setLogoError("");
+    if (file.size > MAX_IMAGE_BYTES) {
+      setLogoError(`That image is too large (${(file.size / 1_000_000).toFixed(1)}MB) — please pick one under 4MB.`);
+      return;
+    }
     setUploadingLogo(true);
     try {
       setLogoUrl(await readFileAsDataUrl(file));
@@ -305,6 +316,11 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
 
   async function handleCoverPicked(file: File | undefined) {
     if (!file) return;
+    setCoverError("");
+    if (file.size > MAX_IMAGE_BYTES) {
+      setCoverError(`That image is too large (${(file.size / 1_000_000).toFixed(1)}MB) — please pick one under 4MB.`);
+      return;
+    }
     setUploadingCover(true);
     try {
       setCoverPhotoUrl(await readFileAsDataUrl(file));
@@ -434,12 +450,25 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
         });
       return;
     }
+    setSaving(true);
+    setSaveError("");
     if (existing) {
-      updateUniversity(existing.id, data);
-      navigate(`/staff/data/universities/${existing.id}`);
+      updateUniversity(existing.id, data)
+        .then(() => navigate(`/staff/data/universities/${existing.id}`))
+        .catch((err) => {
+          // Stay on the form rather than navigating to a page whose logo/cover photo would then
+          // silently vanish once the optimistic update rolls back — this is the real outcome, so
+          // the admin can shrink the image and retry instead of wondering what happened.
+          setSaveError(err instanceof Error ? err.message : "Couldn't save these changes.");
+          setSaving(false);
+        });
     } else {
-      const created = addUniversity(data);
-      navigate(`/staff/data/universities/${created.id}`);
+      addUniversity(data).saved
+        .then((created) => navigate(`/staff/data/universities/${created.id}`))
+        .catch((err) => {
+          setSaveError(err instanceof Error ? err.message : "Couldn't add this university.");
+          setSaving(false);
+        });
     }
   }
 
@@ -526,7 +555,8 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoPicked(e.target.files?.[0])} />
                   </label>
                   {logoUrl && <button onClick={() => setLogoUrl("")} className="text-[11px] font-medium text-rose-500">Remove logo</button>}
-                  {!logoUrl && <p className="text-[11px] text-slate-400">Falls back to initials on a colored badge.</p>}
+                  {!logoUrl && !logoError && <p className="text-[11px] text-slate-400">Falls back to initials on a colored badge.</p>}
+                  {logoError && <p className="text-[11px] font-medium text-rose-500">{logoError}</p>}
                 </div>
               </div>
             </Field>
@@ -542,7 +572,8 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCoverPicked(e.target.files?.[0])} />
                   </label>
                   {coverPhotoUrl && <button onClick={() => setCoverPhotoUrl("")} className="text-[11px] font-medium text-rose-500">Remove photo</button>}
-                  {!coverPhotoUrl && <p className="text-[11px] text-slate-400">Falls back to an abstract illustration.</p>}
+                  {!coverPhotoUrl && !coverError && <p className="text-[11px] text-slate-400">Falls back to an abstract illustration.</p>}
+                  {coverError && <p className="text-[11px] font-medium text-rose-500">{coverError}</p>}
                 </div>
               </div>
             </Field>
@@ -1033,7 +1064,11 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
         {saveError && <p className="mr-auto text-[11.5px] text-rose-600">{saveError}</p>}
         <Button variant="secondary" onClick={() => navigate(backTarget)}>Cancel</Button>
         <Button disabled={!canSubmit || saving} onClick={handleSubmit}>
-          {importItem ? (saving ? "Approving…" : "Approve & add university") : isNew ? "Add University" : "Save Changes"}
+          {importItem
+            ? (saving ? "Approving…" : "Approve & add university")
+            : isNew
+              ? (saving ? "Adding…" : "Add University")
+              : (saving ? "Saving…" : "Save Changes")}
         </Button>
       </div>
     </div>

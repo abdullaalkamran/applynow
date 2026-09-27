@@ -40,7 +40,11 @@ export function isCustomUniversity(_id: string): boolean {
   return true;
 }
 
-export function addUniversity(data: Omit<University, "id">): University {
+// `saved` lets a caller that cares (UniversityForm's own Save button) await the real server
+// outcome and show a real error instead of navigating on the strength of the optimistic value
+// alone — a form embedding a logo/cover photo as a data: URL can genuinely fail server-side (body
+// too large, network drop) well after the optimistic update already made the change look saved.
+export function addUniversity(data: Omit<University, "id">): { optimistic: University; saved: Promise<University> } {
   const id = `u-custom-${Date.now().toString(36)}`;
   const optimistic: University = { ...data, id };
   const prev = cache;
@@ -48,30 +52,33 @@ export function addUniversity(data: Omit<University, "id">): University {
   notifyCacheChange();
   getCountryId(optimistic.country);
 
-  apiPost<University>("/api/universities", { id, ...data })
+  const saved = apiPost<University>("/api/universities", { id, ...data })
     .then((created) => {
       cache = cache.map((u) => (u.id === id ? created : u));
       notifyCacheChange();
+      return created;
     })
     .catch((err) => {
       // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
       // the session ended meanwhile, in which case the cache was already cleared on purpose.
-      if ((err as Error)?.name === "StaleSessionError") return;
-      cache = prev;
-      notifyCacheChange();
-      console.warn("Failed to persist new university:", err);
+      if ((err as Error)?.name !== "StaleSessionError") {
+        cache = prev;
+        notifyCacheChange();
+        console.warn("Failed to persist new university:", err);
+      }
+      throw err;
     });
 
-  return optimistic;
+  return { optimistic, saved };
 }
 
-export function updateUniversity(id: string, patch: Partial<University>) {
+export function updateUniversity(id: string, patch: Partial<University>): Promise<void> {
   if (patch.country) getCountryId(patch.country);
   const prev = cache;
   cache = cache.map((u) => (u.id === id ? { ...u, ...patch } : u));
   notifyCacheChange();
 
-  apiPatch<University>(`/api/universities/${id}`, patch)
+  return apiPatch<University>(`/api/universities/${id}`, patch)
     .then((updated) => {
       cache = cache.map((u) => (u.id === id ? updated : u));
       notifyCacheChange();
@@ -79,10 +86,12 @@ export function updateUniversity(id: string, patch: Partial<University>) {
     .catch((err) => {
       // Roll the optimistic change back so the UI never shows a save that didn't happen — unless
       // the session ended meanwhile, in which case the cache was already cleared on purpose.
-      if ((err as Error)?.name === "StaleSessionError") return;
-      cache = prev;
-      notifyCacheChange();
-      console.warn("Failed to persist university update:", err);
+      if ((err as Error)?.name !== "StaleSessionError") {
+        cache = prev;
+        notifyCacheChange();
+        console.warn("Failed to persist university update:", err);
+      }
+      throw err;
     });
 }
 
