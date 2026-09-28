@@ -1,0 +1,1 @@
+import{a as e,r as t}from"./apiClient-BzTJwl2C.js";function n(t,n,r){return e(`/api/agent-invites`,{name:t,email:n,organization:r})}function r(e){return t(`/api/agent-invites/${e}`)}function i(t,n){return e(`/api/agent-invites/${t}/accept`,{password:n})}export{r as n,n as r,i as t};

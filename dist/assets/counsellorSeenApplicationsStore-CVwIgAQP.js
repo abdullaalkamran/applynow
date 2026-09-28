@@ -1,0 +1,1 @@
+var e=`sd-counsellor-seen-applications`;function t(){if(typeof window>`u`)return[];try{let t=window.localStorage.getItem(e);return t?JSON.parse(t):[]}catch{return[]}}function n(e){return t().includes(e)}function r(n){if(typeof window>`u`)return;let r=t();r.includes(n)||window.localStorage.setItem(e,JSON.stringify([...r,n]))}export{r as n,n as t};

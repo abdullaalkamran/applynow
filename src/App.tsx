@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -5,102 +6,109 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GOOGLE_CLIENT_ID } from "./utils/googleClientId";
 import { RequireAuth } from "./layouts/RequireAuth";
 import { ROLE_HOME } from "./layouts/nav";
-import Login from "./features/auth/Login";
-import Signup from "./features/auth/Signup";
-import AcceptInvite from "./features/auth/AcceptInvite";
-import AppLayout from "./layouts/AppLayout";
-import AdminShell from "./layouts/AdminShell";
-import StudentShell from "./layouts/StudentShell";
-import CounsellorShell from "./layouts/CounsellorShell";
-import AgentShell from "./layouts/AgentShell";
 
-import StudentOnboarding from "./features/student/Onboarding";
-import StudentDashboard from "./features/student/Dashboard";
-import StudentApplications from "./features/student/Applications";
-import StudentApplicationDetail from "./features/student/ApplicationDetail";
-import StudentDocuments from "./features/student/Documents";
-import StudentNotifications from "./features/student/Notifications";
-import StudentTasks from "./features/student/Tasks";
-import StudentInterviewPrep from "./features/student/InterviewPrep";
-import UniversitySearch from "./features/student/UniversitySearch";
-import UniversityFilters from "./features/student/UniversityFilters";
-import UniversityDetail from "./features/student/UniversityDetail";
-import CampusOptions from "./features/student/CampusOptions";
-import SubjectDetail from "./features/student/SubjectDetail";
-import CountryDetail from "./features/student/CountryDetail";
-import AICounsellor from "./features/student/AICounsellor";
-import CostPlanner from "./features/student/CostPlanner";
-import StudentMessages from "./features/student/Messages";
-import StudentProfile from "./features/student/Profile";
-import PersonalInformation from "./features/student/PersonalInformation";
-import AcademicDetails from "./features/student/AcademicDetails";
-import EnglishProficiency from "./features/student/EnglishProficiency";
-import WorkExperience from "./features/student/WorkExperience";
-import Preferences from "./features/student/Preferences";
-import ChangePassword from "./features/student/ChangePassword";
+// Every route below (and each role's whole shell) is lazy — previously all ~90 of these were
+// eagerly imported here, so every visitor's very first load downloaded every role's every page
+// regardless of which one they'd actually use, inflating the main JS bundle to ~1.4MB. Only the
+// route(s) actually navigated to are fetched now; a shared <Suspense> boundary around <Routes>
+// covers the brief gap while a chunk loads. The JSX below (<X />) is unchanged either way — a
+// lazy component is used identically to a regular one once it's assigned to a name here.
+const Login = lazy(() => import("./features/auth/Login"));
+const Signup = lazy(() => import("./features/auth/Signup"));
+const AcceptInvite = lazy(() => import("./features/auth/AcceptInvite"));
+const AppLayout = lazy(() => import("./layouts/AppLayout"));
+const AdminShell = lazy(() => import("./layouts/AdminShell"));
+const StudentShell = lazy(() => import("./layouts/StudentShell"));
+const CounsellorShell = lazy(() => import("./layouts/CounsellorShell"));
+const AgentShell = lazy(() => import("./layouts/AgentShell"));
 
-import AgentDashboard from "./features/agent/Dashboard";
-import AgentStudents from "./features/agent/Students";
-import AgentStudentProfile from "./features/agent/StudentProfile";
-import AgentCreateStudentProfile from "./features/agent/CreateStudentProfile";
-import AgentApplications from "./features/agent/Applications";
-import AgentUniversities from "./features/agent/Universities";
-import AgentUniversityDetail from "./features/agent/UniversityDetail";
-import AgentCampusOptions from "./features/agent/CampusOptions";
-import AgentSubjectDetail from "./features/agent/SubjectDetail";
-import AgentCountryDetail from "./features/agent/CountryDetail";
-import AgentOffers from "./features/agent/Offers";
-import AgentVisaCompliance from "./features/agent/VisaCompliance";
-import AgentCommissions from "./features/agent/Commissions";
-import AgentStatements from "./features/agent/Statements";
-import AgentTasks from "./features/agent/Tasks";
-import AgentProfile from "./features/agent/Profile";
-import AgentMessages from "./features/agent/Messages";
+const StudentOnboarding = lazy(() => import("./features/student/Onboarding"));
+const StudentDashboard = lazy(() => import("./features/student/Dashboard"));
+const StudentApplications = lazy(() => import("./features/student/Applications"));
+const StudentApplicationDetail = lazy(() => import("./features/student/ApplicationDetail"));
+const StudentDocuments = lazy(() => import("./features/student/Documents"));
+const StudentNotifications = lazy(() => import("./features/student/Notifications"));
+const StudentTasks = lazy(() => import("./features/student/Tasks"));
+const StudentInterviewPrep = lazy(() => import("./features/student/InterviewPrep"));
+const UniversitySearch = lazy(() => import("./features/student/UniversitySearch"));
+const UniversityFilters = lazy(() => import("./features/student/UniversityFilters"));
+const UniversityDetail = lazy(() => import("./features/student/UniversityDetail"));
+const CampusOptions = lazy(() => import("./features/student/CampusOptions"));
+const SubjectDetail = lazy(() => import("./features/student/SubjectDetail"));
+const CountryDetail = lazy(() => import("./features/student/CountryDetail"));
+const AICounsellor = lazy(() => import("./features/student/AICounsellor"));
+const CostPlanner = lazy(() => import("./features/student/CostPlanner"));
+const StudentMessages = lazy(() => import("./features/student/Messages"));
+const StudentProfile = lazy(() => import("./features/student/Profile"));
+const PersonalInformation = lazy(() => import("./features/student/PersonalInformation"));
+const AcademicDetails = lazy(() => import("./features/student/AcademicDetails"));
+const EnglishProficiency = lazy(() => import("./features/student/EnglishProficiency"));
+const WorkExperience = lazy(() => import("./features/student/WorkExperience"));
+const Preferences = lazy(() => import("./features/student/Preferences"));
+const ChangePassword = lazy(() => import("./features/student/ChangePassword"));
 
-import CounsellorDashboard from "./features/staff/counsellor/Dashboard";
-import CounsellorLeads from "./features/staff/counsellor/Leads";
-import CounsellorCaseQueue from "./features/staff/counsellor/CaseQueue";
-import CounsellorStudentProfile from "./features/staff/counsellor/StudentProfile";
-import CounsellorTasks from "./features/staff/counsellor/Tasks";
-import CounsellorMessages from "./features/staff/counsellor/Messages";
-import CounsellorApplications from "./features/staff/counsellor/Applications";
-import CounsellorCounseling from "./features/staff/counsellor/Counseling";
-import CounsellorUniversityPartners from "./features/staff/counsellor/UniversityPartners";
-import CounsellorCountryDetail from "./features/staff/counsellor/CountryDetail";
-import CounsellorUniversityDetail from "./features/staff/counsellor/UniversityDetail";
-import CounsellorVisaCompliance from "./features/staff/counsellor/VisaCompliance";
-import CounsellorReports from "./features/staff/counsellor/Reports";
-import CounsellorResources from "./features/staff/counsellor/Resources";
-import CounsellorSettings from "./features/staff/counsellor/Settings";
-import AdmissionSubmissionQueue from "./features/staff/admission/SubmissionQueue";
-import SharedMessages from "./features/shared/Messages";
-import ComplianceRiskQueue from "./features/staff/compliance/RiskQueue";
-import DataCatalog from "./features/staff/data/Catalog";
-import DataSubjects from "./features/staff/data/Subjects";
-import DataSubjectForm from "./features/staff/data/SubjectForm";
-import DataCountries from "./features/staff/data/Countries";
-import DataUniversities from "./features/staff/data/Universities";
-import DataUniversityDetail from "./features/staff/data/UniversityDetail";
-import DataUniversityForm from "./features/staff/data/UniversityForm";
-import DataCountryForm from "./features/staff/data/CountryForm";
-import DataCourseForm from "./features/staff/data/CourseForm";
-import DataCourseImport from "./features/staff/data/CourseImport";
-import DataUniversityImport from "./features/staff/data/UniversityImport";
-import FinanceCommissionApprovals from "./features/staff/finance/CommissionApprovals";
+const AgentDashboard = lazy(() => import("./features/agent/Dashboard"));
+const AgentStudents = lazy(() => import("./features/agent/Students"));
+const AgentStudentProfile = lazy(() => import("./features/agent/StudentProfile"));
+const AgentCreateStudentProfile = lazy(() => import("./features/agent/CreateStudentProfile"));
+const AgentApplications = lazy(() => import("./features/agent/Applications"));
+const AgentUniversities = lazy(() => import("./features/agent/Universities"));
+const AgentUniversityDetail = lazy(() => import("./features/agent/UniversityDetail"));
+const AgentCampusOptions = lazy(() => import("./features/agent/CampusOptions"));
+const AgentSubjectDetail = lazy(() => import("./features/agent/SubjectDetail"));
+const AgentCountryDetail = lazy(() => import("./features/agent/CountryDetail"));
+const AgentOffers = lazy(() => import("./features/agent/Offers"));
+const AgentVisaCompliance = lazy(() => import("./features/agent/VisaCompliance"));
+const AgentCommissions = lazy(() => import("./features/agent/Commissions"));
+const AgentStatements = lazy(() => import("./features/agent/Statements"));
+const AgentTasks = lazy(() => import("./features/agent/Tasks"));
+const AgentProfile = lazy(() => import("./features/agent/Profile"));
+const AgentMessages = lazy(() => import("./features/agent/Messages"));
 
-import AdminUsersRoles from "./features/admin/UsersRoles";
-import AdminAgents from "./features/admin/Agents";
-import AdminStudents from "./features/admin/Students";
-import AdminWorkflowTemplates from "./features/admin/WorkflowTemplates";
-import AdminCommissionRules from "./features/admin/CommissionRules";
-import AdminAuditLogs from "./features/admin/AuditLogs";
-import AdminTasks from "./features/admin/Tasks";
-import AdminAISettings from "./features/admin/AISettings";
-import AdminNotifications from "./features/admin/Notifications";
-import AdminDashboard from "./features/admin/Dashboard";
-import AdminApplications from "./features/admin/Applications";
-import AdminCalendar from "./features/admin/Calendar";
-import AdminSettings from "./features/admin/Settings";
+const CounsellorDashboard = lazy(() => import("./features/staff/counsellor/Dashboard"));
+const CounsellorLeads = lazy(() => import("./features/staff/counsellor/Leads"));
+const CounsellorCaseQueue = lazy(() => import("./features/staff/counsellor/CaseQueue"));
+const CounsellorStudentProfile = lazy(() => import("./features/staff/counsellor/StudentProfile"));
+const CounsellorTasks = lazy(() => import("./features/staff/counsellor/Tasks"));
+const CounsellorMessages = lazy(() => import("./features/staff/counsellor/Messages"));
+const CounsellorApplications = lazy(() => import("./features/staff/counsellor/Applications"));
+const CounsellorCounseling = lazy(() => import("./features/staff/counsellor/Counseling"));
+const CounsellorUniversityPartners = lazy(() => import("./features/staff/counsellor/UniversityPartners"));
+const CounsellorCountryDetail = lazy(() => import("./features/staff/counsellor/CountryDetail"));
+const CounsellorUniversityDetail = lazy(() => import("./features/staff/counsellor/UniversityDetail"));
+const CounsellorVisaCompliance = lazy(() => import("./features/staff/counsellor/VisaCompliance"));
+const CounsellorReports = lazy(() => import("./features/staff/counsellor/Reports"));
+const CounsellorResources = lazy(() => import("./features/staff/counsellor/Resources"));
+const CounsellorSettings = lazy(() => import("./features/staff/counsellor/Settings"));
+const AdmissionSubmissionQueue = lazy(() => import("./features/staff/admission/SubmissionQueue"));
+const SharedMessages = lazy(() => import("./features/shared/Messages"));
+const ComplianceRiskQueue = lazy(() => import("./features/staff/compliance/RiskQueue"));
+const DataCatalog = lazy(() => import("./features/staff/data/Catalog"));
+const DataSubjects = lazy(() => import("./features/staff/data/Subjects"));
+const DataSubjectForm = lazy(() => import("./features/staff/data/SubjectForm"));
+const DataCountries = lazy(() => import("./features/staff/data/Countries"));
+const DataUniversities = lazy(() => import("./features/staff/data/Universities"));
+const DataUniversityDetail = lazy(() => import("./features/staff/data/UniversityDetail"));
+const DataUniversityForm = lazy(() => import("./features/staff/data/UniversityForm"));
+const DataCountryForm = lazy(() => import("./features/staff/data/CountryForm"));
+const DataCourseForm = lazy(() => import("./features/staff/data/CourseForm"));
+const DataCourseImport = lazy(() => import("./features/staff/data/CourseImport"));
+const DataUniversityImport = lazy(() => import("./features/staff/data/UniversityImport"));
+const FinanceCommissionApprovals = lazy(() => import("./features/staff/finance/CommissionApprovals"));
+
+const AdminUsersRoles = lazy(() => import("./features/admin/UsersRoles"));
+const AdminAgents = lazy(() => import("./features/admin/Agents"));
+const AdminStudents = lazy(() => import("./features/admin/Students"));
+const AdminWorkflowTemplates = lazy(() => import("./features/admin/WorkflowTemplates"));
+const AdminCommissionRules = lazy(() => import("./features/admin/CommissionRules"));
+const AdminAuditLogs = lazy(() => import("./features/admin/AuditLogs"));
+const AdminTasks = lazy(() => import("./features/admin/Tasks"));
+const AdminAISettings = lazy(() => import("./features/admin/AISettings"));
+const AdminNotifications = lazy(() => import("./features/admin/Notifications"));
+const AdminDashboard = lazy(() => import("./features/admin/Dashboard"));
+const AdminApplications = lazy(() => import("./features/admin/Applications"));
+const AdminCalendar = lazy(() => import("./features/admin/Calendar"));
+const AdminSettings = lazy(() => import("./features/admin/Settings"));
 
 // Admin gets its own UnifinderAi-branded shell (see layouts/AdminShell.tsx); the other staff roles
 // share AppLayout. Same route table underneath either way.
@@ -133,6 +141,7 @@ export default function App() {
     <MaybeGoogleOAuthProvider>
     <AuthProvider>
       <BrowserRouter>
+        <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           <Route path="/login" element={<Login />} />
           {/* Same page/logic as /login (login is role-agnostic — the backend returns whatever
@@ -268,9 +277,22 @@ export default function App() {
           </Route>
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
     </MaybeGoogleOAuthProvider>
     </QueryClientProvider>
+  );
+}
+
+// Shown only for the brief moment a lazy route's own chunk is downloading — most navigations
+// within an already-visited area won't hit this at all, since the browser caches the chunk after
+// its first fetch. Deliberately minimal (no branded spinner asset to load) so it can never itself
+// be the thing something is waiting on.
+function RouteLoadingFallback() {
+  return (
+    <div className="flex h-dvh w-full items-center justify-center bg-slate-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+    </div>
   );
 }
