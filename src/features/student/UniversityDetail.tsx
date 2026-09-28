@@ -349,9 +349,9 @@ function UniversityView({
             </div>
             <RankingCaption university={university} className="mt-2" />
 
-            <div className="mt-4 space-y-2.5">
+            <div className="mt-4 divide-y divide-slate-100 rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
               {university.courses.length > 0 && (
-                <ExpandableSection icon={<BookOpen size={15} />} title="Courses" preview={coursesPreview(university)} defaultExpanded className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <ExpandableSection icon={<BookOpen size={15} />} title="Courses" preview={coursesPreview(university)} defaultExpanded>
                   <div className="space-y-2">
                     {university.courses.map((c) => (
                       <button
@@ -374,7 +374,7 @@ function UniversityView({
               )}
 
               {university.subjects.length > 0 && (
-                <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)}>
                   <div className="flex flex-wrap gap-1.5">
                     {university.subjects.map((s) => <Pill key={s}>{s}</Pill>)}
                   </div>
@@ -382,7 +382,7 @@ function UniversityView({
               )}
 
               {(university.campuses ?? []).length > 0 && (
-                <ExpandableSection icon={<Building2 size={15} />} title="Campuses" preview={campusesPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <ExpandableSection icon={<Building2 size={15} />} title="Campuses" preview={campusesPreview(university)}>
                   <div className="space-y-1.5">
                     {university.campuses!.map((c) => (
                       <div key={c.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2 text-[13px]">
@@ -394,7 +394,7 @@ function UniversityView({
                 </ExpandableSection>
               )}
 
-              <ExpandableSection title="Why study here?" preview={highlightsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <ExpandableSection title="Why study here?" preview={highlightsPreview(university)}>
                 <ul className="space-y-2.5">
                   {university.highlights.map((h) => (
                     <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
@@ -405,19 +405,19 @@ function UniversityView({
                 </ul>
               </ExpandableSection>
 
-              <ExpandableSection icon={<CalendarDays size={15} />} title="Intakes" preview={intakesPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <ExpandableSection icon={<CalendarDays size={15} />} title="Intakes" preview={intakesPreview(university)}>
                 <IntakesBlock university={university} />
               </ExpandableSection>
 
-              <ExpandableSection icon={<GraduationCap size={15} />} title="Scholarships" preview={scholarshipsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <ExpandableSection icon={<GraduationCap size={15} />} title="Scholarships" preview={scholarshipsPreview(university)}>
                 <ScholarshipsBlock university={university} />
               </ExpandableSection>
 
-              <ExpandableSection icon={<Landmark size={15} />} title="Deposit & Payment" preview={depositLabel(university) ?? undefined} defaultExpanded className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <ExpandableSection icon={<Landmark size={15} />} title="Deposit & Payment" preview={depositLabel(university) ?? undefined}>
                 <PaymentRequirementsBlock university={university} />
               </ExpandableSection>
 
-              <ExpandableSection icon={<ListChecks size={15} />} title="Admission Procedure" preview={admissionStepsPreview(university)} className="bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+              <ExpandableSection icon={<ListChecks size={15} />} title="Admission Procedure" preview={admissionStepsPreview(university)}>
                 <AdmissionProcedureBlock university={university} />
               </ExpandableSection>
             </div>

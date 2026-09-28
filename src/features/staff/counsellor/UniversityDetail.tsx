@@ -246,7 +246,7 @@ export default function CounsellorUniversityDetail() {
                     <ExpandableSection icon={<GraduationCap size={13} />} title="Scholarships" preview={scholarshipsPreview(university)} className="bg-slate-50">
                       <ScholarshipsBlock university={university} />
                     </ExpandableSection>
-                    <ExpandableSection icon={<Landmark size={13} />} title="Deposit & Payment" preview={depositLabel(university) ?? undefined} defaultExpanded className="bg-slate-50">
+                    <ExpandableSection icon={<Landmark size={13} />} title="Deposit & Payment" preview={depositLabel(university) ?? undefined} className="bg-slate-50">
                       <PaymentRequirementsBlock university={university} />
                     </ExpandableSection>
                     <ExpandableSection icon={<ListChecks size={13} />} title="Admission Procedure" preview={admissionStepsPreview(university)} className="bg-slate-50">

@@ -212,7 +212,7 @@ export default function DataUniversityDetail() {
                   </ExpandableSection>
                 )}
 
-                <ExpandableSection icon={<Wallet size={14} />} title="Payment requirement information" preview={depositLabel(university) ?? undefined} defaultExpanded className="bg-slate-50">
+                <ExpandableSection icon={<Wallet size={14} />} title="Payment requirement information" preview={depositLabel(university) ?? undefined} className="bg-slate-50">
                   <PaymentRequirementsBlock university={university} />
                 </ExpandableSection>
 
