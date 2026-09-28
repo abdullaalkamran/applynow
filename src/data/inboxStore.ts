@@ -5,7 +5,7 @@
 // applications.js's POST /:id/activity, for a new comment) and shared by every role. Same
 // synchronous-cache pattern as tasksStore.ts.
 import { apiGet, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface InboxNotification {
   id: string;
@@ -22,14 +22,16 @@ export interface InboxNotification {
 let cache: InboxNotification[] = [];
 let refreshSeq = 0;
 
-export async function refreshInbox(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<InboxNotification[]>("/api/inbox");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshInbox(): Promise<void> {
+  return dedupeInFlight("inbox", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<InboxNotification[]>("/api/inbox");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function getInboxItems(): InboxNotification[] {

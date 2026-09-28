@@ -5,7 +5,7 @@
 // who has to act on it can actually see it, and the same gap meant it never actually turned into
 // a due-dated task on their Tasks page either (see taskBoard.ts's nextStepTasksFor).
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface NextStep {
   id: string;
@@ -24,14 +24,16 @@ let refreshSeq = 0;
 
 /** Every next step the caller's account can see — call once after login (see utils/warmCaches.ts),
  * same as every other migrated store. */
-export async function refreshNextSteps(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<NextStep[]>("/api/next-steps");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshNextSteps(): Promise<void> {
+  return dedupeInFlight("next-steps", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<NextStep[]>("/api/next-steps");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function loadNextSteps(applicationId: string): NextStep[] {

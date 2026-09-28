@@ -7,7 +7,7 @@
 // A university with no saved rate has *no* rate (see hasCommissionRate) — nothing is invented for
 // it, so agents never see a figure an admin didn't actually set.
 import { apiGet, apiPut, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export type CommissionMode = "percent" | "fixed";
 
@@ -32,14 +32,16 @@ export const EMPTY_RATE: CommissionRate = { mode: "percent", ratePercent: 0, fix
 let cache: StoredRate[] = [];
 let refreshSeq = 0;
 
-export async function refreshCommissionRates(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<StoredRate[]>("/api/commission-rates");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshCommissionRates(): Promise<void> {
+  return dedupeInFlight("commission-rates", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<StoredRate[]>("/api/commission-rates");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function hasCommissionRate(universityId: string): boolean {

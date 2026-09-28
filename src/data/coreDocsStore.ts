@@ -4,7 +4,7 @@
 // and agent (different login, different browser) — the whole point of the core vault ("upload
 // once, every application and every role sees it") only holds if it's actually shared, not local.
 import { apiGet, apiPost, apiPostForm, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { BACKEND_BASE } from "../utils/backendBase";
 
 export interface CoreDoc {
@@ -55,11 +55,13 @@ let cache: CoreDoc[] = [];
 
 /** Every student's core docs the caller's account can see — call once after login (see
  * utils/warmCaches.ts), same as every other migrated store. */
-export async function refreshCoreDocs(): Promise<void> {
-  const next = (await apiGet<ServerDocument[]>("/api/documents?scope=core")).map(toCoreDoc);
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshCoreDocs(): Promise<void> {
+  return dedupeInFlight("core-docs", async () => {
+    const next = (await apiGet<ServerDocument[]>("/api/documents?scope=core")).map(toCoreDoc);
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 /** The student's core document vault — uploaded once, independent of any specific application. */

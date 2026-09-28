@@ -7,7 +7,7 @@
 // creation time, so an invoice's total stays historically accurate even if an admin edits a
 // university's commission rate afterwards.
 import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface InvoiceLine {
   applicationId: string;
@@ -32,13 +32,15 @@ export interface AgentInvoice {
 let cache: AgentInvoice[] = [];
 let refreshSeq = 0;
 
-export async function refreshAgentInvoices(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<AgentInvoice[]>("/api/agent-invoices");
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshAgentInvoices(): Promise<void> {
+  return dedupeInFlight("agent-invoices", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<AgentInvoice[]>("/api/agent-invoices");
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function clearAgentInvoicesCache() {

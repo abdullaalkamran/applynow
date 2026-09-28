@@ -4,7 +4,7 @@
 // always derived server-side from whoever's authenticated, never trusted from the client.
 import type { Role } from "../types";
 import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface MessageParticipant {
   role: Role;
@@ -93,11 +93,13 @@ export function markThreadRead(threadId: string) {
 /** The chat-list side of the messenger — one row per conversation, newest first, with an unread
  * count. Bulk-fetched like tasksStore.ts rather than lazily per-thread, since "all my
  * conversations" is naturally one request. */
-export async function refreshThreadsList(): Promise<void> {
-  const next = await apiGet<MessageThread[]>("/api/messages/threads");
-  if (!cacheChanged(next, threads)) return;
-  threads = next;
-  notifyCacheChange();
+export function refreshThreadsList(): Promise<void> {
+  return dedupeInFlight("message-threads-list", async () => {
+    const next = await apiGet<MessageThread[]>("/api/messages/threads");
+    if (!cacheChanged(next, threads)) return;
+    threads = next;
+    notifyCacheChange();
+  });
 }
 
 export function getThreadsList(): MessageThread[] {
@@ -110,11 +112,13 @@ export function unreadMessageCount(): number {
 
 /** Everyone the current user is allowed to start a new conversation with — see the server's own
  * getContactsFor for the actual "who's connected to whom" rule per role. */
-export async function refreshContacts(): Promise<void> {
-  const next = await apiGet<MessageParticipant[]>("/api/messages/contacts");
-  if (!cacheChanged(next, contacts)) return;
-  contacts = next;
-  notifyCacheChange();
+export function refreshContacts(): Promise<void> {
+  return dedupeInFlight("message-contacts", async () => {
+    const next = await apiGet<MessageParticipant[]>("/api/messages/contacts");
+    if (!cacheChanged(next, contacts)) return;
+    contacts = next;
+    notifyCacheChange();
+  });
 }
 
 export function getContacts(): MessageParticipant[] {

@@ -4,7 +4,7 @@
 // fields, exactly as before this migration.
 import type { StageType } from "../types/journey";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export type TaskRole = "student" | "agent" | "counsellor" | "admin" | "admission";
 
@@ -35,14 +35,16 @@ export interface Task {
 let cache: Task[] = [];
 let refreshSeq = 0;
 
-export async function refreshTasks(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<Task[]>("/api/tasks");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshTasks(): Promise<void> {
+  return dedupeInFlight("tasks", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<Task[]>("/api/tasks");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 /** All tasks visible to the current session, as of the last successful fetch/mutation. */

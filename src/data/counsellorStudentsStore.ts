@@ -6,28 +6,30 @@
 // visibility rule this store had before the migration.
 import { COUNSELLOR_ID } from "../utils/counsellorData";
 import { apiGet, apiPost } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
 
-export async function refreshAssignedStudents(): Promise<void> {
-  const [assigned, all] = await Promise.all([
-    apiGet<Student[]>(`/api/students?counsellorId=${encodeURIComponent(COUNSELLOR_ID)}`),
-    apiGet<Student[]>("/api/students"),
-  ]);
-  // Any student with no counsellor yet is a lead every counsellor should be able to see and pick
-  // up — not just the ones an agent happened to refer. A fully independent self-signup (no agent,
-  // no counsellor) used to fall through this filter entirely and was invisible everywhere in the
-  // counsellor portal (Leads, Dashboard, Case Queue, ...) until someone noticed and assigned one
-  // manually, which could never happen if no one could see it in the first place.
-  const unclaimed = all.filter((s) => !s.counsellorId);
-  const byId = new Map(assigned.map((s) => [s.id, s]));
-  for (const s of unclaimed) byId.set(s.id, s);
-  const next = [...byId.values()];
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshAssignedStudents(): Promise<void> {
+  return dedupeInFlight("assigned-students", async () => {
+    const [assigned, all] = await Promise.all([
+      apiGet<Student[]>(`/api/students?counsellorId=${encodeURIComponent(COUNSELLOR_ID)}`),
+      apiGet<Student[]>("/api/students"),
+    ]);
+    // Any student with no counsellor yet is a lead every counsellor should be able to see and pick
+    // up — not just the ones an agent happened to refer. A fully independent self-signup (no agent,
+    // no counsellor) used to fall through this filter entirely and was invisible everywhere in the
+    // counsellor portal (Leads, Dashboard, Case Queue, ...) until someone noticed and assigned one
+    // manually, which could never happen if no one could see it in the first place.
+    const unclaimed = all.filter((s) => !s.counsellorId);
+    const byId = new Map(assigned.map((s) => [s.id, s]));
+    for (const s of unclaimed) byId.set(s.id, s);
+    const next = [...byId.values()];
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 /** All students the demo counsellor should see, as of the last successful fetch/mutation. */

@@ -9,7 +9,7 @@
 // calls recordActivity() itself, since doing so would just double the entry the server already
 // creates in the same request.
 import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { ensureCoreDocRequested } from "./coreDocsStore";
 import type { Application, AppStatus, Role } from "../types";
 
@@ -21,14 +21,16 @@ let refreshSeq = 0;
 /** Fetches every application the caller's account can see and replaces the cache — call once
  * after login (see utils/warmCaches.ts) and after this store isn't the source of a write itself
  * (e.g. nothing needed here beyond the initial warm-up, since mutations update the cache directly). */
-export async function refreshApplications(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<Application[]>("/api/applications");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshApplications(): Promise<void> {
+  return dedupeInFlight("applications", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<Application[]>("/api/applications");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 /** Re-fetches one application and merges it into the cache — used to reconcile after a journey

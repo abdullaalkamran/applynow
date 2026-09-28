@@ -2,20 +2,22 @@
 // synchronous-cache pattern as applicationsStore.ts.
 import { CURRENT_AGENT_ID } from "./mockData";
 import { apiGet, apiPost } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
 
 let cache: Student[] = [];
 let refreshSeq = 0;
 
-export async function refreshAgentStudents(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshAgentStudents(): Promise<void> {
+  return dedupeInFlight("agent-students", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 /** All students referred by the demo agent, as of the last successful fetch/mutation. */

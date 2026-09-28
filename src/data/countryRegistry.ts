@@ -10,7 +10,7 @@
 // so it's entered once via Data Management's Add/Edit Country form.
 import { loadStoredAuth } from "../utils/authClient";
 import { apiGet, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface RequiredDocument {
   id: string;
@@ -98,14 +98,16 @@ export interface CountryRecord {
 let cache: CountryRecord[] = [];
 let refreshSeq = 0;
 
-export async function refreshCountries(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<CountryRecord[]>("/api/countries");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshCountries(): Promise<void> {
+  return dedupeInFlight("countries", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<CountryRecord[]>("/api/countries");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 // Stable ids for the four countries requirementRules.ts references by name at module load time

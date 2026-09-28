@@ -5,7 +5,7 @@
 // independent copy that could drift out of sync. Same synchronous-cache pattern as every other
 // migrated store.
 import { apiGet, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface StudentFinancialReadiness {
   studentId: string;
@@ -43,14 +43,16 @@ let refreshSeq = 0;
 
 /** Every student's Financial Readiness record the caller's account can see — call once after
  * login (see utils/warmCaches.ts), same as every other migrated store. */
-export async function refreshFinancialReadiness(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<StudentFinancialReadiness[]>("/api/financial-readiness");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshFinancialReadiness(): Promise<void> {
+  return dedupeInFlight("financial-readiness", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<StudentFinancialReadiness[]>("/api/financial-readiness");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function loadFinancialReadiness(studentId: string): StudentFinancialReadiness | undefined {

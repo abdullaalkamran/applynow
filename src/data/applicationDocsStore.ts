@@ -4,7 +4,7 @@
 // uploaded for an application was invisible to the counsellor's separate login — so there was
 // nothing for a counsellor to view, let alone verify or reject.
 import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getAllApplications } from "./applicationsStore";
 import { BACKEND_BASE } from "../utils/backendBase";
 
@@ -51,14 +51,16 @@ let refreshSeq = 0;
 
 /** Every application's uploaded documents the caller's account can see — call once after login
  * (see utils/warmCaches.ts), same as every other migrated store. */
-export async function refreshApplicationDocs(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<ServerDocument[]>("/api/documents?scope=application");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshApplicationDocs(): Promise<void> {
+  return dedupeInFlight("application-docs", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<ServerDocument[]>("/api/documents?scope=application");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function loadUploadedDocs(applicationId: string): AppDoc[] {

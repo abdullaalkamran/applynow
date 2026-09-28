@@ -4,7 +4,7 @@
 // (localStorage) used by UniversityForm's "Subjects offered" checklist — that one isn't touched
 // here. Same synchronous-cache pattern as applicationsStore.ts.
 import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface SubjectRecord {
   id: string;
@@ -23,14 +23,16 @@ export interface SubjectRecord {
 let cache: SubjectRecord[] = [];
 let refreshSeq = 0;
 
-export async function refreshSubjectCatalog(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<SubjectRecord[]>("/api/subjects");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshSubjectCatalog(): Promise<void> {
+  return dedupeInFlight("subject-catalog", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<SubjectRecord[]>("/api/subjects");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function getSubjectCatalog(): SubjectRecord[] {

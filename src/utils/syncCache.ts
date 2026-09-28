@@ -71,6 +71,24 @@ export function useHoldCacheSync(active = true) {
   }, [active]);
 }
 
+// Keyed by resource name (e.g. "universities") — one shared map every store's refreshX() draws
+// from, so a poll tick, a visibility-change refresh, and the initial warmCaches() call landing
+// close together all share one real request instead of each firing its own. refreshSeq-style
+// guards (see universityCatalogStore.ts) only stop a *stale response* from overwriting a newer
+// one; they don't stop the redundant request from going out in the first place, which is what
+// produced the "same endpoint requested ~5 times on one page load" pattern.
+const inFlight = new Map<string, Promise<unknown>>();
+
+/** Wraps an async refresh so overlapping calls for the same key share one in-flight request.
+ * Call sites keep calling refreshX() exactly as before — this only coalesces true overlaps. */
+export function dedupeInFlight<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const existing = inFlight.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = run().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
 /** Cheap structural-equality check for a background refresh's fetched array against what's
  * already cached — used by every store's refreshX() so periodic polling (see warmCaches.ts's
  * startCachePolling) only calls notifyCacheChange(), and so only remounts the current page (per
@@ -106,22 +124,34 @@ function sortedForCompare<T>(rows: T[]): T[] {
 export function useCacheSync(): number {
   const [tick, setTick] = useState(0);
   const lastSeenVersion = useRef(version);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Catch up on any change that landed between this component's first render and this effect
-    // registering its subscription (e.g. warmCaches() resolving before mount completes).
-    if (version !== lastSeenVersion.current) {
+    // warmCaches() fires ~20 independent refreshX() calls right after login/reload, each resolving
+    // (and calling notifyCacheChange()) at its own time — without debouncing, every one of those
+    // remounts the current page via key={tick} on the shell's <Outlet>, re-running all of its own
+    // mount effects from scratch on each remount (this is what turned one genuine page load into a
+    // burst of duplicate requests, e.g. Data Management's course-imports/config fetch). Collapsing
+    // a burst of changes into a single tick bump ~150ms after the last one keeps the "a page
+    // reading a store directly must still pick up data that arrived after its last render"
+    // guarantee this hook exists for, without remounting once per store on every warm-up.
+    function scheduleBump() {
       lastSeenVersion.current = version;
-      setTick((t) => t + 1);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        setTick((t) => t + 1);
+      }, 150);
     }
 
-    const listener = () => {
-      lastSeenVersion.current = version;
-      setTick((t) => t + 1);
-    };
-    listeners.add(listener);
+    // Catch up on any change that landed between this component's first render and this effect
+    // registering its subscription (e.g. warmCaches() resolving before mount completes).
+    if (version !== lastSeenVersion.current) scheduleBump();
+
+    listeners.add(scheduleBump);
     return () => {
-      listeners.delete(listener);
+      listeners.delete(scheduleBump);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
 

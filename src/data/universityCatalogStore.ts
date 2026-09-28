@@ -6,7 +6,7 @@
 // current after every write.
 import { loadStoredAuth } from "../utils/authClient";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getCountryId } from "./countryRegistry";
 import type { University } from "../types";
 
@@ -15,14 +15,16 @@ type Course = University["courses"][number];
 let cache: University[] = [];
 let refreshSeq = 0;
 
-export async function refreshUniversities(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<University[]>("/api/universities");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshUniversities(): Promise<void> {
+  return dedupeInFlight("universities", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<University[]>("/api/universities");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function getAllUniversities(): University[] {

@@ -4,6 +4,7 @@
 // utils/syncCache.ts) mid-batch. Only an approval touches the shared university cache — the
 // caller refreshes that itself.
 import { apiDelete, apiGet, apiPatch, apiPost } from "../utils/apiClient";
+import { dedupeInFlight } from "../utils/syncCache";
 import type { University } from "../types";
 
 export type CourseDraft = Omit<University["courses"][number], "id">;
@@ -57,8 +58,11 @@ export function getCachedCourseImport(id: string): CourseImportItem | undefined 
   return seen.get(id);
 }
 
+// The Universities page re-fetches this on every mount, and (see syncCache.ts's useCacheSync)
+// used to remount several times in a row right after login as each unrelated store's own cache
+// warmed up — dedupeInFlight means those overlapping calls now share one real request.
 export function fetchCourseImportConfig(): Promise<CourseImportConfig> {
-  return apiGet<CourseImportConfig>("/api/course-imports/config");
+  return dedupeInFlight("course-imports-config", () => apiGet<CourseImportConfig>("/api/course-imports/config"));
 }
 
 export async function listCourseImports(universityId: string): Promise<CourseImportItem[]> {

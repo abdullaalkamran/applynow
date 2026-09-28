@@ -1,7 +1,7 @@
 // Postgres-backed via /api/staff (server/src/routes/staff.js) — same synchronous-cache pattern as
 // applicationsStore.ts.
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
-import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
+import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Role } from "../types";
 
 export type StaffStatus = "Active" | "Invited" | "Inactive";
@@ -30,14 +30,16 @@ export interface StaffMember {
 let cache: StaffMember[] = [];
 let refreshSeq = 0;
 
-export async function refreshStaff(): Promise<void> {
-  const seq = ++refreshSeq;
-  const next = await apiGet<StaffMember[]>("/api/staff");
-  // A slower, older response landing after a newer one must not win.
-  if (seq !== refreshSeq) return;
-  if (!cacheChanged(next, cache)) return;
-  cache = next;
-  notifyCacheChange();
+export function refreshStaff(): Promise<void> {
+  return dedupeInFlight("staff", async () => {
+    const seq = ++refreshSeq;
+    const next = await apiGet<StaffMember[]>("/api/staff");
+    // A slower, older response landing after a newer one must not win.
+    if (seq !== refreshSeq) return;
+    if (!cacheChanged(next, cache)) return;
+    cache = next;
+    notifyCacheChange();
+  });
 }
 
 export function loadStaff(): StaffMember[] {
