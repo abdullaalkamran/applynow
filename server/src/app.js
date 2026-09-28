@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const { rateLimit } = require("express-rate-limit");
 const { getConfig } = require("./config");
 const assistantRoute = require("./routes/assistant");
@@ -64,6 +65,15 @@ app.use(
     exposedHeaders: ["X-Session-Invalid"],
   })
 );
+
+// gzip/brotli for every JSON response (compression's default filter already skips images/webp —
+// they're already compressed, re-compressing wastes CPU for no size benefit — and any response
+// under 1KB, where the gzip header overhead isn't worth it). This is the single highest-leverage
+// fix for /api/universities' payload size: a large catalog JSON blob is almost pure repeated
+// text/structure, which gzip/brotli compress extremely well regardless of how the endpoint itself
+// is later split or paginated.
+app.use(compression());
+
 // Raised from 1mb: Data Management's university/country forms embed uploaded logos/cover photos
 // as base64 data: URLs directly in the JSON body (no file-storage backend) — a logo plus a cover
 // photo alone routinely exceeds 1mb, and Express silently rejects the whole request over the limit
