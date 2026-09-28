@@ -23,6 +23,7 @@ const studentFinancialReadinessRoute = require("./routes/studentFinancialReadine
 const inboxRoute = require("./routes/inbox");
 const subjectsRoute = require("./routes/subjects");
 const universitiesRoute = require("./routes/universities");
+const universityImagesRoute = require("./routes/universityImages");
 const countriesRoute = require("./routes/countries");
 const courseImportsRoute = require("./routes/courseImports");
 const universityImportsRoute = require("./routes/universityImports");
@@ -119,6 +120,12 @@ app.use(
         res.setHeader("Content-Disposition", "attachment");
         res.setHeader("Content-Security-Policy", "sandbox; default-src 'none'");
       }
+      // University logos/covers (routes/universityImages.js) are public, content-hashed-by-random-
+      // filename, and replaced (not overwritten in place) on every re-upload, so they're safe to
+      // cache forever — unlike /uploads/documents, which is access-sensitive and can be re-reviewed.
+      if (filePath.includes(`${path.sep}universities${path.sep}`)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
     },
   })
 );
@@ -142,6 +149,7 @@ app.use("/api/financial-readiness", studentFinancialReadinessRoute);
 app.use("/api/inbox", inboxRoute);
 app.use("/api/subjects", subjectsRoute);
 app.use("/api/universities", universitiesRoute);
+app.use("/api/universities", universityImagesRoute);
 app.use("/api/countries", countriesRoute);
 app.use("/api/course-imports", courseImportsRoute);
 app.use("/api/university-imports", universityImportsRoute);

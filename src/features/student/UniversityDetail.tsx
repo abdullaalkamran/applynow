@@ -5,7 +5,7 @@ import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
   Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen,
 } from "lucide-react";
-import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
@@ -122,11 +122,12 @@ export default function UniversityDetail() {
         {/* Single column at every breakpoint — the cover photo is a full-width banner, not squeezed
             into a narrow side rail, and the rest of the page just flows underneath it. */}
         <div className="relative h-[330px] shrink-0 lg:h-80 lg:overflow-hidden lg:rounded-b-3xl">
-          {university.coverPhotoUrl ? (
-            <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
-          ) : (
-            <SkylineArt tone={university.tone} className="h-full w-full" />
-          )}
+          <CoverPhoto
+            src={university.coverPhotoUrl}
+            alt={`${university.name} cover`}
+            className="h-full w-full object-cover"
+            placeholder={<SkylineArt tone={university.tone} className="h-full w-full" />}
+          />
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4 lg:px-10 lg:pt-6">
             <button
               onClick={() => (course && !navState?.selectedCourseName ? setActiveCourseName(null) : navigate(-1))}

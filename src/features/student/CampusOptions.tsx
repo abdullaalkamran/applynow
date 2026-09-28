@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { BookOpen, Wallet, CalendarDays, GraduationCap, ChevronRight } from "lucide-react";
-import { MobileHeader, SkylineArt } from "../../components/ui/mobile";
+import { MobileHeader, SkylineArt, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, campusesFor } from "../../utils/universityFilter";
 
@@ -53,11 +53,12 @@ export default function CampusOptions() {
                   className="w-full overflow-hidden rounded-2xl bg-[var(--sd-card)] text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
                 >
                   <div className="h-36 w-full">
-                    {university.coverPhotoUrl ? (
-                      <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-full w-full object-cover" />
-                    ) : (
-                      <SkylineArt tone={university.tone} className="h-full w-full" />
-                    )}
+                    <CoverPhoto
+                      src={university.coverPhotoUrl}
+                      alt={`${university.name} cover`}
+                      className="h-full w-full object-cover"
+                      placeholder={<SkylineArt tone={university.tone} className="h-full w-full" />}
+                    />
                   </div>
                   <div className="p-3.5">
                     <div className="flex items-center justify-between gap-2">

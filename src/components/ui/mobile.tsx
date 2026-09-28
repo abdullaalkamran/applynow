@@ -463,17 +463,27 @@ const logoBadgeTones: Record<string, [string, string]> = {
   rose: ["#E893A8", "#B14A63"],
 };
 
-/** Monogram badge standing in for a university crest/logo — deterministic color from `tone`. */
+/** Monogram badge standing in for a university crest/logo — deterministic color from `tone`. Every
+ * logo render in the app goes through this one component, so lazy-loading and a broken-image
+ * fallback (a deleted/moved file, a bad URL) only need to be handled here once. */
 export function LogoBadge({
   name, tone = "violet", logoUrl, className = "",
 }: { name: string; tone?: keyof typeof logoBadgeTones; logoUrl?: string; className?: string }) {
-  if (logoUrl) {
+  const [failed, setFailed] = useState(false);
+  if (logoUrl && !failed) {
     // object-contain (not object-cover) so a non-square logo — a crest, a wordmark — shows in full
     // rather than getting cropped to fill the badge; the white backing keeps it legible on any
     // background the badge sits on, same as a real logo lockup would use.
     return (
       <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white ${className}`}>
-        <img src={logoUrl} alt={`${name} logo`} className="h-full w-full object-contain" />
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-contain"
+          onError={() => setFailed(true)}
+        />
       </div>
     );
   }
@@ -487,6 +497,17 @@ export function LogoBadge({
       {initials}
     </div>
   );
+}
+
+/** University cover/hero photo — same lazy-load + broken-image-falls-back-to-placeholder handling
+ * as LogoBadge, for the 6 places that render University.coverPhotoUrl directly. `placeholder` is
+ * whatever that page already shows when there's no cover photo at all (an icon, an illustration). */
+export function CoverPhoto({
+  src, alt, className = "", placeholder,
+}: { src: string | undefined; alt: string; className?: string; placeholder: ReactNode }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <>{placeholder}</>;
+  return <img src={src} alt={alt} loading="lazy" decoding="async" className={className} onError={() => setFailed(true)} />;
 }
 
 /** Small pill with a chevron that opens a single-select dropdown list — used for compact inline filters. */

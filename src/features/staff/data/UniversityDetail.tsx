@@ -4,7 +4,7 @@ import {
   ArrowLeft, Pencil, Trash2, MapPin, Trophy, Briefcase, Users, CheckCircle2, Plus, ChevronRight, Building2, CalendarDays, Wallet, Award, ListChecks, Sparkles, BookOpen,
 } from "lucide-react";
 import { fetchCourseImportConfig, listCourseImports, type CourseImportConfig } from "../../../data/courseImportsStore";
-import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../../components/ui/mobile";
 import { Button } from "../../../components/ui";
 import { EntryRequirementsView } from "../../../components/EntryRequirementsView";
 import { PaymentRequirementsBlock } from "../../../components/PaymentRequirementsBlock";
@@ -77,11 +77,12 @@ export default function DataUniversityDetail() {
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {university.coverPhotoUrl ? (
-          <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-40 w-full object-cover" />
-        ) : (
-          <SkylineArt tone={university.tone} className="h-40 w-full" />
-        )}
+        <CoverPhoto
+          src={university.coverPhotoUrl}
+          alt={`${university.name} cover`}
+          className="h-40 w-full object-cover"
+          placeholder={<SkylineArt tone={university.tone} className="h-40 w-full" />}
+        />
         <div className="p-5">
           <div className="-mt-9 flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">

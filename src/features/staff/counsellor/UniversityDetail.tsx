@@ -8,7 +8,7 @@ import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
   Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, Briefcase as BriefcaseIcon, BookOpen,
 } from "lucide-react";
-import { SkylineArt, Pill, LogoBadge } from "../../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../../components/ui/mobile";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { curriculumForCourse } from "../../../data/subjectCurriculum";
 import { getCountryByName } from "../../../data/countryRegistry";
@@ -64,11 +64,12 @@ export default function CounsellorUniversityDetail() {
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-        {university.coverPhotoUrl ? (
-          <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-36 w-full object-cover" />
-        ) : (
-          <SkylineArt tone={university.tone} className="h-36 w-full" />
-        )}
+        <CoverPhoto
+          src={university.coverPhotoUrl}
+          alt={`${university.name} cover`}
+          className="h-36 w-full object-cover"
+          placeholder={<SkylineArt tone={university.tone} className="h-36 w-full" />}
+        />
         <div className="p-5">
           {course ? (
             <>

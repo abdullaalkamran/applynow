@@ -6,3 +6,4 @@ node_modules
 server/.env
 server/data
 server/uploads
+server/scripts/backups

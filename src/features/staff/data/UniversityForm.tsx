@@ -11,6 +11,7 @@ import {
   approveUniversityImport, getCachedUniversityImport, listUniversityImports, type UniversityFieldKey, type UniversityImportItem,
 } from "../../../data/universityImportsStore";
 import { useHoldCacheSync } from "../../../utils/syncCache";
+import { apiPostForm } from "../../../utils/apiClient";
 import { TEST_NAME_OPTIONS } from "../../../utils/universityFilter";
 import type { University } from "../../../types";
 
@@ -25,19 +26,9 @@ const MONTHS = ["January", "February", "March", "April", "May", "June", "July", 
 const DEFAULT_CURRENCY_SYMBOLS = ["$", "£", "€", "A$", "C$"];
 const MIN_TUITION_FEE = 18000;
 const MAX_TUITION_FEE = 40000;
-// Embedded as a base64 data: URL directly in the save request (no file-storage backend) — kept
-// well under the server's 12mb JSON body limit even with a logo, a cover photo, and the rest of
-// the form all in the same request together.
+// A sanity cap before even attempting the upload (the server resizes/converts to WebP regardless,
+// but there's no reason to spend a slow connection's time pushing a huge original file up first).
 const MAX_IMAGE_BYTES = 4_000_000;
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 function blankFee(): Fee {
   return { label: "Tuition Fee", amount: 0 };
@@ -308,7 +299,12 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
     }
     setUploadingLogo(true);
     try {
-      setLogoUrl(await readFileAsDataUrl(file));
+      const body = new FormData();
+      body.append("file", file);
+      const { url } = await apiPostForm<{ url: string }>("/api/universities/logo", body);
+      setLogoUrl(url);
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : "Couldn't upload this image.");
     } finally {
       setUploadingLogo(false);
     }
@@ -323,7 +319,12 @@ function UniversityEditor({ existing, importItem, countryParam }: { existing?: U
     }
     setUploadingCover(true);
     try {
-      setCoverPhotoUrl(await readFileAsDataUrl(file));
+      const body = new FormData();
+      body.append("file", file);
+      const { url } = await apiPostForm<{ url: string }>("/api/universities/cover", body);
+      setCoverPhotoUrl(url);
+    } catch (err) {
+      setCoverError(err instanceof Error ? err.message : "Couldn't upload this image.");
     } finally {
       setUploadingCover(false);
     }

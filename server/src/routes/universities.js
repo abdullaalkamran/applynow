@@ -95,6 +95,16 @@ function mergedSubjects(manual, courses) {
   return Array.from(new Set([...(manual ?? []), ...courses.map((c) => c.subject).filter(Boolean)]));
 }
 
+// A base64 data: URL embedded directly in logoUrl/coverPhotoUrl is what made this table (and
+// /api/universities' response) enormous before routes/universityImages.js existed — the frontend
+// now always uploads through that endpoint first and saves the real URL it returns, so a data:
+// value reaching here means an old client build or a direct API call, not a legitimate save.
+function rejectDataUrlImages(body) {
+  if (typeof body.logoUrl === "string" && body.logoUrl.startsWith("data:")) return "logoUrl";
+  if (typeof body.coverPhotoUrl === "string" && body.coverPhotoUrl.startsWith("data:")) return "coverPhotoUrl";
+  return null;
+}
+
 function universityWriteData(body, courses) {
   return {
     name: body.name,
@@ -197,6 +207,8 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
     const { id, courses } = req.body || {};
     if (typeof id !== "string" || !id || typeof req.body.name !== "string" || !req.body.name) return res.status(400).json({ error: "id and name are required." });
     if (courses !== undefined && !Array.isArray(courses)) return res.status(400).json({ error: "courses must be an array." });
+    const dataUrlField = rejectDataUrlImages(req.body);
+    if (dataUrlField) return res.status(400).json({ error: `${dataUrlField} must be a real URL from /api/universities/logo or /cover, not an embedded data: URL.` });
     const courseInputs = (courses ?? []).map((c, i) => ({ id: c.id || `crs-custom-${Date.now().toString(36)}-${i}`, ...courseWriteData(c) }));
 
     const university = await prisma.university.create({
@@ -223,6 +235,8 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
     if (!existing) return res.status(404).json({ error: "University not found." });
 
     if (req.body.courses !== undefined && !Array.isArray(req.body.courses)) return res.status(400).json({ error: "courses must be an array." });
+    const dataUrlField = rejectDataUrlImages(req.body);
+    if (dataUrlField) return res.status(400).json({ error: `${dataUrlField} must be a real URL from /api/universities/logo or /cover, not an embedded data: URL.` });
     const merged = { ...serializeUniversity(existing), ...req.body };
     const courseInputs = (req.body.courses ?? existing.courses).map((c, i) => ({
       id: c.id || `crs-custom-${Date.now().toString(36)}-${i}`,

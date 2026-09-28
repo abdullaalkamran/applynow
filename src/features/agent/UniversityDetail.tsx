@@ -5,7 +5,7 @@ import {
   ArrowLeft, MapPin, Trophy, Briefcase, Users, CheckCircle2, Wallet, CalendarDays, GraduationCap,
   Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, BookOpen,
 } from "lucide-react";
-import { SkylineArt, Pill, LogoBadge } from "../../components/ui/mobile";
+import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
@@ -66,11 +66,12 @@ export default function AgentUniversityDetail() {
       </button>
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-        {university.coverPhotoUrl ? (
-          <img src={university.coverPhotoUrl} alt={`${university.name} cover`} className="h-36 w-full object-cover" />
-        ) : (
-          <SkylineArt tone={university.tone} className="h-36 w-full" />
-        )}
+        <CoverPhoto
+          src={university.coverPhotoUrl}
+          alt={`${university.name} cover`}
+          className="h-36 w-full object-cover"
+          placeholder={<SkylineArt tone={university.tone} className="h-36 w-full" />}
+        />
         <div className="p-5">
           {course ? (
             <>
