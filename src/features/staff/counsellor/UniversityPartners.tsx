@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, GraduationCap, Award, Globe2, ChevronRight, MapPin } from "lucide-react";
-import { LogoBadge, Pill } from "../../../components/ui/mobile";
+import { LogoBadge, Pill, Pagination } from "../../../components/ui/mobile";
 import { BackButton } from "../../../components/ui";
+import { usePagedList } from "../../../utils/usePagedList";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllCountries, getCountryByName } from "../../../data/countryRegistry";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
@@ -23,6 +24,7 @@ export default function CounsellorUniversityPartners() {
     if (!q) return true;
     return u.name.toLowerCase().includes(q) || u.country.toLowerCase().includes(q);
   });
+  const { page, setPage, totalPages, pageItems: pagedFiltered } = usePagedList(filtered, 30, query);
 
   const byCountry = new Map<string, typeof UNIVERSITIES>();
   UNIVERSITIES.forEach((u) => {
@@ -109,8 +111,9 @@ export default function CounsellorUniversityPartners() {
           )}
         </div>
       ) : (
+      <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((u) => {
+        {pagedFiltered.map((u) => {
           const activeFromMyStudents = allActiveApps.filter((a) => a.university === u.name).length;
           return (
             <div
@@ -142,6 +145,8 @@ export default function CounsellorUniversityPartners() {
           );
         })}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      </>
       )}
     </div>
   );

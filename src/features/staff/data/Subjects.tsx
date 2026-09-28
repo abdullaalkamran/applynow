@@ -6,12 +6,15 @@
 import { useNavigate } from "react-router-dom";
 import { Plus, BookOpen } from "lucide-react";
 import { PageHeader, Button, Table } from "../../../components/ui";
+import { Pagination } from "../../../components/ui/mobile";
+import { usePagedList } from "../../../utils/usePagedList";
 import { getSubjectCatalog } from "../../../data/subjectCatalogStore";
 import { getAllSubjects } from "../../../data/subjectsStore";
 
 export default function DataSubjects() {
   const navigate = useNavigate();
   const authored = getSubjectCatalog();
+  const { page, setPage, totalPages, pageItems: pagedAuthored } = usePagedList(authored, 30);
   const authoredNames = new Set(authored.map((s) => s.name.toLowerCase()));
   const notYetAuthored = getAllSubjects().filter((name) => !authoredNames.has(name.toLowerCase()));
 
@@ -25,7 +28,7 @@ export default function DataSubjects() {
 
       <div className="rounded-xl border border-slate-200 bg-white">
         <Table head={["Subject", "Description", "Modules", "Accreditation", ""]}>
-          {authored.map((s) => (
+          {pagedAuthored.map((s) => (
             <tr key={s.id} className="hover:bg-slate-50">
               <td className="px-5 py-3 font-medium text-slate-800">{s.name}</td>
               <td className="max-w-xs truncate px-5 py-3 text-xs text-slate-500">{s.description || "—"}</td>
@@ -43,6 +46,7 @@ export default function DataSubjects() {
           <p className="px-5 py-6 text-center text-xs text-slate-400">No subjects have content yet — click "Add Subject" to write the first one.</p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {notYetAuthored.length > 0 && (
         <div className="mt-6">

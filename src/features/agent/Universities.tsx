@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MapPin, GraduationCap, Award } from "lucide-react";
-import { PillSelect, LogoBadge, Pill } from "../../components/ui/mobile";
+import { PillSelect, LogoBadge, Pill, Pagination } from "../../components/ui/mobile";
+import { usePagedList } from "../../utils/usePagedList";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import {
   allPrograms, destinationOptions, subjectOptions, intakeOptions, FEE_BANDS, feeBandMax, countryStats,
@@ -48,6 +49,8 @@ export default function AgentUniversities() {
   });
 
   const hasProgramFilters = !!(subject || destination || intake || feeBand);
+  const programsPage = usePagedList(filteredPrograms, 30, `${subject}:${destination}:${intake}:${feeBand}`);
+  const universitiesPage = usePagedList(filteredUniversities, 30, `${country}:${query}`);
 
   return (
     <div>
@@ -92,7 +95,7 @@ export default function AgentUniversities() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {filteredPrograms.map(({ university, course }) => (
+            {programsPage.pageItems.map(({ university, course }) => (
               <ProgramRow
                 key={`${university.id}-${course.name}`}
                 university={university}
@@ -110,6 +113,7 @@ export default function AgentUniversities() {
               </button>
             </div>
           )}
+          <Pagination page={programsPage.page} totalPages={programsPage.totalPages} onChange={programsPage.setPage} />
         </div>
       )}
 
@@ -138,7 +142,7 @@ export default function AgentUniversities() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredUniversities.map((u) => (
+            {universitiesPage.pageItems.map((u) => (
               <button
                 key={u.id}
                 onClick={() => navigate(`/agent/universities/${u.id}`)}
@@ -171,6 +175,7 @@ export default function AgentUniversities() {
               <p className="col-span-full py-10 text-center text-xs text-slate-400">No universities match this search.</p>
             )}
           </div>
+          <Pagination page={universitiesPage.page} totalPages={universitiesPage.totalPages} onChange={universitiesPage.setPage} />
         </div>
       )}
 

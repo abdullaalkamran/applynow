@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
-  Sparkles, ChevronDown, GraduationCap, Copy, AlertCircle,
+  Sparkles, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Copy, AlertCircle,
 } from "lucide-react";
 import type { SupportContact } from "../../types";
 import type { ChecklistDoc } from "../../utils/documentChecklist";
@@ -508,6 +508,61 @@ export function CoverPhoto({
   const [failed, setFailed] = useState(false);
   if (!src || failed) return <>{placeholder}</>;
   return <img src={src} alt={alt} loading="lazy" decoding="async" className={className} onError={() => setFailed(true)} />;
+}
+
+// Condensed page-number list: first, last, current ±1, with a "…" for any gap — the standard
+// pattern for not rendering 30 page buttons in a row once a list has many pages.
+function paginationRange(page: number, totalPages: number): (number | "...")[] {
+  const pages = new Set([1, totalPages, page - 1, page, page + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+  const withGaps: (number | "...")[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - (sorted[i - 1] as number) > 1) withGaps.push("...");
+    withGaps.push(p);
+  });
+  return withGaps;
+}
+
+/** Numbered pagination for an already-loaded list sliced client-side (see usePagedList) — renders
+ * nothing for a single page, so it's always safe to drop in unconditionally. */
+export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="mt-4 flex items-center justify-center gap-1">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        aria-label="Previous page"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <ChevronLeft size={16} />
+      </button>
+      {paginationRange(page, totalPages).map((p, i) =>
+        p === "..." ? (
+          <span key={`gap-${i}`} className="px-1.5 text-xs text-slate-400">…</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12.5px] font-medium ${
+              p === page ? "bg-[var(--sd-ink,#1e293b)] text-white" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        aria-label="Next page"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
 }
 
 /** Small pill with a chevron that opens a single-select dropdown list — used for compact inline filters. */

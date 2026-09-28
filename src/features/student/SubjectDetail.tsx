@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertTriangle } from "lucide-react";
-import { LogoBadge, PillSelect } from "../../components/ui/mobile";
+import { LogoBadge, PillSelect, Pagination } from "../../components/ui/mobile";
+import { usePagedList } from "../../utils/usePagedList";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { matchingCourse, scholarshipLabel, depositLabel, courseHasOpenIntake, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -47,6 +48,7 @@ export default function SubjectDetail() {
   });
 
   const filtersActive = !!(destination || intake || feeBand || scholarship);
+  const { page, setPage, totalPages, pageItems: pagedOfferings } = usePagedList(offerings, 30, `${destination}:${intake}:${feeBand}:${scholarship}`);
 
   function resetFilters() {
     setDestination("");
@@ -97,7 +99,7 @@ export default function SubjectDetail() {
         </div>
 
         <div className="mt-4">
-          {offerings.map(({ university: u, course: c }, i) => {
+          {pagedOfferings.map(({ university: u, course: c }, i) => {
             const scholarshipText = scholarshipLabel(u);
             const key = `${u.id}::${c.name}`;
             const isShortlisted = isProgramShortlisted(key);
@@ -108,7 +110,7 @@ export default function SubjectDetail() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") openCourse(u.id, c.name); }}
-                className={`relative flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== offerings.length - 1 ? "border-b border-slate-100" : ""}`}
+                className={`relative flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== pagedOfferings.length - 1 ? "border-b border-slate-100" : ""}`}
               >
                 <span
                   onClick={(e) => { e.stopPropagation(); toggleShortlist(key); }}
@@ -189,6 +191,7 @@ export default function SubjectDetail() {
               )}
             </div>
           )}
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
       </div>
 

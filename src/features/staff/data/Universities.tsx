@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Search, Plus, Pencil, Trash2, Globe2, GraduationCap, BookOpen, Users, Briefcase, FileText, Sparkles } from "lucide-react";
 import { fetchCourseImportConfig } from "../../../data/courseImportsStore";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
-import { LogoBadge } from "../../../components/ui/mobile";
+import { LogoBadge, Pagination } from "../../../components/ui/mobile";
+import { usePagedList } from "../../../utils/usePagedList";
 import { getAllUniversities, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
 import { getAllApplications } from "../../../data/applicationsStore";
 import { getAllStudents } from "../../../data/allStudentsStore";
@@ -46,6 +47,7 @@ export default function DataUniversities() {
     if (!q) return true;
     return u.name.toLowerCase().includes(q) || u.city.toLowerCase().includes(q) || u.country.toLowerCase().includes(q);
   });
+  const { page, setPage, totalPages, pageItems: pagedUniversities } = usePagedList(filtered, 30, `${effectiveCountry}:${query}`);
 
   function handleDelete(id: string, name: string) {
     if (!window.confirm(`Remove "${name}" from the catalog? This can't be undone, and any existing applications referencing it will keep showing its name as plain text.`)) return;
@@ -205,7 +207,7 @@ export default function DataUniversities() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((u) => (
+        {pagedUniversities.map((u) => (
           <div
             key={u.id}
             className="relative flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 cursor-pointer shadow-[0_0_10px_rgba(0,0,0,0.05)] hover:border-slate-300"
@@ -243,6 +245,7 @@ export default function DataUniversities() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

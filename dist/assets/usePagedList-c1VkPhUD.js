@@ -1,0 +1,1 @@
+import{a as e,r as t}from"./createLucideIcon-ChhPh1Qd.js";var n=e(t(),1);function r(e,t=30,r){let[i,a]=(0,n.useState)(1);(0,n.useEffect)(()=>{a(1)},[r]);let o=Math.max(1,Math.ceil(e.length/t)),s=Math.min(i,o),c=(s-1)*t;return{page:s,setPage:a,totalPages:o,pageItems:e.slice(c,c+t),totalItems:e.length}}export{r as t};

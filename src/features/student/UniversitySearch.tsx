@@ -4,7 +4,8 @@ import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
   Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
-import { BackButton, Chip, LogoBadge, DropdownChips, SubLabel } from "../../components/ui/mobile";
+import { BackButton, Chip, LogoBadge, DropdownChips, SubLabel, Pagination } from "../../components/ui/mobile";
+import { usePagedList } from "../../utils/usePagedList";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -119,6 +120,8 @@ export default function UniversitySearch() {
     [advancedFilteredUniversityIds, programShortlistedOnly, shortlistTick]
   );
   const programFiltersActive = programShortlistedOnly;
+  const programsPage = usePagedList(programs, 30, `${query}:${JSON.stringify(filters)}:${programShortlistedOnly}`);
+  const resultsPage = usePagedList(results, 30, `${query}:${JSON.stringify(filters)}:${sortBy}`);
 
   // Explore/apply is gated on having filled in the required parts of the profile — a counsellor or
   // admission officer needs that information to actually process an application, so letting someone
@@ -378,7 +381,7 @@ export default function UniversitySearch() {
             </div>
 
             <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:grid lg:grid-cols-2 lg:gap-x-6 lg:rounded-none lg:bg-transparent lg:shadow-none">
-              {programs.map(({ university: u, course: c }, i) => {
+              {programsPage.pageItems.map(({ university: u, course: c }, i) => {
                 const scholarship = scholarshipLabel(u);
                 const programKey = `${u.id}::${c.name}`;
                 const shortlisted = isShortlisted(programKey);
@@ -390,7 +393,7 @@ export default function UniversitySearch() {
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
                     className={`relative flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left lg:rounded-2xl lg:bg-[var(--sd-card)] lg:px-4 lg:shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
-                      i !== programs.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
+                      i !== programsPage.pageItems.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
                     }`}
                   >
                     <span
@@ -468,6 +471,7 @@ export default function UniversitySearch() {
                 </div>
               )}
             </div>
+            <Pagination page={programsPage.page} totalPages={programsPage.totalPages} onChange={programsPage.setPage} />
           </div>
         ) : (
           <>
@@ -482,7 +486,7 @@ export default function UniversitySearch() {
                   <p className="mt-1 text-xs text-slate-400">Try clearing a filter or searching a different term.</p>
                 </div>
               )}
-              {results.map((u) => {
+              {resultsPage.pageItems.map((u) => {
                 const fav = favorites.has(u.id);
                 const initials = universityInitials(u.name);
                 return (
@@ -540,6 +544,7 @@ export default function UniversitySearch() {
                 );
               })}
             </div>
+            <Pagination page={resultsPage.page} totalPages={resultsPage.totalPages} onChange={resultsPage.setPage} />
           </>
         )}
       </div>

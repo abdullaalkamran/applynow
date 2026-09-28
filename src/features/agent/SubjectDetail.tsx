@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { PillSelect } from "../../components/ui/mobile";
+import { PillSelect, Pagination } from "../../components/ui/mobile";
+import { usePagedList } from "../../utils/usePagedList";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { destinationOptions, intakeOptions, FEE_BANDS, feeBandMax, matchingCourse } from "../../utils/universityFilter";
@@ -34,6 +35,7 @@ export default function AgentSubjectDetail() {
     });
 
   const hasFilters = !!(destination || intake || feeBand);
+  const { page, setPage, totalPages, pageItems: pagedPrograms } = usePagedList(programs, 30, `${destination}:${intake}:${feeBand}`);
 
   return (
     <div>
@@ -56,7 +58,7 @@ export default function AgentSubjectDetail() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {programs.map(({ university, course }) => (
+        {pagedPrograms.map(({ university, course }) => (
           <ProgramRow
             key={`${university.id}-${course.name}`}
             university={university}
@@ -76,6 +78,7 @@ export default function AgentSubjectDetail() {
           )}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {applyTarget && (
         <CreateApplicationModal
