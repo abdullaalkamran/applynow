@@ -89,3 +89,13 @@ body {
 .profile-compact .text-xs { font-size: 10px; }
 .profile-compact .text-sm { font-size: 12px; }
 .profile-compact .text-xl { font-size: 18px; }
+
+/* University Detail + Course Detail (student): paragraph text is justified. In the components
+   layer so any explicit utility on an element (text-center, text-left, …) still wins. Justify only
+   stretches non-final lines, so short one-line labels render exactly as before. */
+@layer components {
+  .justify-text p,
+  .justify-text li {
+    text-align: justify;
+  }
+}

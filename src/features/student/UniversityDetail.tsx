@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
-  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen,
+  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
+import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
@@ -151,7 +151,7 @@ export default function UniversityDetail() {
           </div>
         </div>
 
-        <div className="px-5 pb-4 pt-5 lg:px-10">
+        <div className="justify-text px-5 pb-4 pt-5 lg:px-10">
           {course ? (
             <CourseView
               university={university}
@@ -349,30 +349,7 @@ function UniversityView({
             </div>
             <RankingCaption university={university} className="mt-2" />
 
-            <div className="mt-4 divide-y divide-slate-100 rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              {university.courses.length > 0 && (
-                <ExpandableSection icon={<BookOpen size={15} />} title="Courses" preview={coursesPreview(university)} defaultExpanded>
-                  <div className="space-y-2">
-                    {university.courses.map((c) => (
-                      <button
-                        key={c.name}
-                        onClick={() => onSelectCourse(c.name)}
-                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-100 p-3 text-left"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-[13px] font-medium text-slate-800">{c.name}</p>
-                          <p className="mt-0.5 text-xs text-slate-400">{c.level} · {c.duration}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-slate-700">
-                          {university.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
-                          <ChevronRight size={14} className="text-slate-300" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </ExpandableSection>
-              )}
-
+            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-[var(--sd-card)]">
               {university.subjects.length > 0 && (
                 <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)}>
                   <div className="flex flex-wrap gap-1.5">
