@@ -395,7 +395,7 @@ export default function UniversitySearch() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
-                    className="relative flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)] sm:gap-4 sm:rounded-3xl sm:p-5"
+                    className="relative flex w-full cursor-pointer items-start gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)] sm:gap-4 sm:rounded-3xl sm:p-5"
                   >
                     <span
                       onClick={(e) => { e.stopPropagation(); toggleProgramShortlist(programKey); }}
@@ -415,7 +415,7 @@ export default function UniversitySearch() {
                       </div>
                     )}
 
-                    <div className="min-w-0 flex-1 pr-6 sm:pr-7">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-semibold leading-snug text-slate-900 sm:text-xl">{c.name}</p>
                       <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
                         <Building2 size={12} className="shrink-0" /> <span className="truncate">{u.name}</span>
@@ -447,17 +447,18 @@ export default function UniversitySearch() {
                             </span>
                           </>
                         )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (open) setApplyTarget({ university: u, course: c }); }}
-                          disabled={!open}
-                          aria-label={open ? "Apply Now" : "Intake closed"}
-                          title={open ? "Apply Now" : "Intake closed"}
-                          className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
-                        >
-                          <Send size={13} />
-                        </button>
                       </div>
                     </div>
+                    {/* Vertically centred on the card's right edge; the bookmark sits above it. */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (open) setApplyTarget({ university: u, course: c }); }}
+                      disabled={!open}
+                      aria-label={open ? "Apply Now" : "Intake closed"}
+                      title={open ? "Apply Now" : "Intake closed"}
+                      className="flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
+                    >
+                      <Send size={14} />
+                    </button>
                   </div>
                 );
               })}
