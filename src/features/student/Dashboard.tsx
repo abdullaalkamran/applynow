@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Bell, FileText, CheckCircle2, Clock, Bookmark, MessageCircle, Briefcase, ShieldCheck,
+  Search, Bell, FileText, CheckCircle2, MessageCircle, Briefcase, ShieldCheck,
   ChevronRight, Check, Calendar, MapPin, AlertCircle, Wallet, ClipboardCheck,
   BookOpen, Plane, Landmark, Laptop, Wrench, HeartPulse, Palette, Scale, FlaskConical, GraduationCap,
   BarChart3,
@@ -24,13 +24,6 @@ import { unreadNotificationCount } from "../../utils/notifications";
 import { getStudentTasks, type DisplayTask } from "../../utils/taskBoard";
 import { FinancialReadinessCard } from "../../components/FinancialReadinessCard";
 import { useAuth } from "../../context/AuthContext";
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning,";
-  if (h < 18) return "Good afternoon,";
-  return "Good evening,";
-}
 
 /** Where tapping a "Your Next Steps" item should actually land — a document task goes straight to
  * the application's Documents tab (or the core Documents page, for a core-vault item), a next-step
@@ -157,7 +150,6 @@ export default function Dashboard() {
 
   const safeApplicationIndex = activeApplications.length > 0 ? currentApplicationIndex % activeApplications.length : 0;
   const primaryApplication = activeApplications[safeApplicationIndex];
-  const primaryUniversity = primaryApplication ? universities.find((u) => u.name === primaryApplication.university) : undefined;
 
   useEffect(() => {
     if (activeApplications.length <= 1) return;
@@ -290,23 +282,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="relative mt-5 overflow-hidden">
-          <div className="pointer-events-none absolute -right-6 -top-2 h-28 w-28 shrink-0 overflow-hidden rounded-full opacity-90 sm:h-36 sm:w-36">
-            <SkylineArt tone={primaryUniversity?.tone ?? "violet"} className="h-full w-full" />
-            <div className="absolute inset-0 flex items-center justify-center bg-[var(--sd-ink)]/10 p-3 text-center text-[8px] font-medium italic leading-tight tracking-wide text-white">
-              A brighter you abroad
-            </div>
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{greeting()}</p>
-          <h2 className="mt-1 max-w-[65%] text-[34px] font-bold leading-none text-slate-900 sm:text-[40px]">{firstName}</h2>
-          <p className="mt-2 max-w-[70%] text-[13px] text-slate-500">You're one step closer to your global future.</p>
-        </div>
-
-        <div className="mt-6 grid grid-cols-4 gap-2 sm:gap-3">
-          <StatCard icon={<FileText size={16} />} tone="blue" value={myApplications.length} label="Applications" onClick={() => navigate("/student/applications")} />
-          <StatCard icon={<CheckCircle2 size={16} />} tone="green" value={offersCount} label="Offers" onClick={() => navigate("/student/applications")} />
-          <StatCard icon={<Clock size={16} />} tone="slate" value={inProgressCount} label="In Progress" onClick={() => navigate("/student/applications")} />
-          <StatCard icon={<Bookmark size={16} />} tone="violet" value={savedProgramsCount} label="Saved Programs" onClick={() => navigate("/student/search?shortlisted=1")} />
+        <div className="mt-5 grid grid-cols-4 gap-2 sm:gap-3">
+          <StatCard value={myApplications.length} label="Applications" onClick={() => navigate("/student/applications")} />
+          <StatCard value={offersCount} label="Offers" onClick={() => navigate("/student/applications")} />
+          <StatCard value={inProgressCount} label="In Progress" onClick={() => navigate("/student/applications")} />
+          <StatCard value={savedProgramsCount} label="Saved Programs" onClick={() => navigate("/student/search?shortlisted=1")} />
         </div>
 
         <div className="lg:mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
@@ -694,17 +674,11 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({
-  icon, tone, value, label, onClick,
-}: { icon: React.ReactNode; tone: keyof typeof iconBg; value: number; label: string; onClick: () => void }) {
+function StatCard({ value, label, onClick }: { value: number; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-2 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)] sm:p-3.5">
-      <div className={`flex h-7 w-7 items-center justify-center rounded-full sm:h-9 sm:w-9 ${iconBg[tone]}`}>{icon}</div>
-      <p className="mt-2 text-[17px] font-bold leading-none text-slate-900 sm:mt-2.5 sm:text-[22px]">{value}</p>
-      <div className="mt-1 flex items-start justify-between gap-0.5">
-        <span className="text-[9.5px] leading-tight text-slate-500 sm:text-[11.5px]">{label}</span>
-        <ChevronRight size={11} className="mt-0.5 hidden shrink-0 text-slate-300 sm:block" />
-      </div>
+    <button onClick={onClick} className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-2 text-center shadow-[0_0_10px_rgba(0,0,0,0.06)] sm:p-3.5">
+      <p className="text-[17px] font-bold leading-none text-slate-900 sm:text-[22px]">{value}</p>
+      <span className="mt-1 text-[9.5px] leading-tight text-slate-500 sm:text-[11.5px]">{label}</span>
     </button>
   );
 }

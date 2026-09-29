@@ -348,7 +348,7 @@ export default function PersonalInformation() {
   }
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
+    <div className="profile-compact flex min-h-full flex-col pb-6">
       <MobileHeader title="Personal Information" />
 
       <div className="px-5">

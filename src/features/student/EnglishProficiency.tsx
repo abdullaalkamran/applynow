@@ -209,7 +209,7 @@ export default function EnglishProficiency() {
   }
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
+    <div className="profile-compact flex min-h-full flex-col pb-6">
       <MobileHeader title="English Proficiency" />
 
       <div className="px-5">

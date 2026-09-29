@@ -181,7 +181,7 @@ export default function WorkExperience() {
   }
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
+    <div className="profile-compact flex min-h-full flex-col pb-6">
       <MobileHeader title="Work Experience" />
 
       <div className="px-5">

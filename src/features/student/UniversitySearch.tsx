@@ -2,9 +2,9 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
-  Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
+  Wallet, CalendarDays, GraduationCap, Building2, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
 } from "lucide-react";
-import { BackButton, Chip, LogoBadge, DropdownChips, SubLabel, Pagination } from "../../components/ui/mobile";
+import { BackButton, Chip, DropdownChips, SubLabel, Pagination } from "../../components/ui/mobile";
 import { usePagedList } from "../../utils/usePagedList";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
@@ -380,11 +380,14 @@ export default function UniversitySearch() {
               />
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:grid lg:grid-cols-2 lg:gap-x-6 lg:rounded-none lg:bg-transparent lg:shadow-none">
-              {programsPage.pageItems.map(({ university: u, course: c }, i) => {
+            {/* Same card shape as the Universities tab below (big logo tile, title, location line,
+                divider, detail row) so both tabs read as one consistent catalog. */}
+            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+              {programsPage.pageItems.map(({ university: u, course: c }) => {
                 const scholarship = scholarshipLabel(u);
                 const programKey = `${u.id}::${c.name}`;
                 const shortlisted = isShortlisted(programKey);
+                const open = courseHasOpenIntake(u, c);
                 return (
                   <div
                     key={programKey}
@@ -392,66 +395,75 @@ export default function UniversitySearch() {
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
-                    className={`relative flex w-full cursor-pointer items-center gap-3 px-4 py-3.5 text-left lg:rounded-2xl lg:bg-[var(--sd-card)] lg:px-4 lg:shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
-                      i !== programsPage.pageItems.length - 1 ? "border-b border-slate-100 lg:border-b-0 lg:mb-3" : "lg:mb-3"
-                    }`}
+                    className="relative flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)] sm:gap-4 sm:rounded-3xl sm:p-5"
                   >
                     <span
                       onClick={(e) => { e.stopPropagation(); toggleProgramShortlist(programKey); }}
                       aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
-                      className={`absolute right-3 top-2 ${shortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
+                      className={`absolute right-3 top-3 shrink-0 sm:right-4 sm:top-4 ${shortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
                     >
-                      <Bookmark size={16} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
+                      <Bookmark size={18} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
                     </span>
-                    <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12" />
-                    <div className="min-w-0 flex-1">
-                      <div className="min-w-0 pr-6">
-                        <p className="text-[13.5px] font-semibold leading-snug text-slate-900">{c.name}</p>
-                        <p className="flex items-center gap-1 text-[12px] leading-snug text-slate-400">
-                          <span className="min-w-0 truncate">{u.name}</span>
-                          <span className="inline-flex shrink-0 items-center gap-0.5">
-                            <Building2 size={10} /> Main Campus
-                          </span>
-                        </p>
+
+                    {u.logoUrl ? (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white sm:h-24 sm:w-24 sm:rounded-2xl">
+                        <img src={u.logoUrl} alt={`${u.name} logo`} className="h-full w-full object-contain" />
                       </div>
-                      <div className="mt-1 flex items-center gap-x-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[10.5px] text-slate-500">
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#F1EEFB] text-lg font-semibold text-slate-500 sm:h-24 sm:w-24 sm:rounded-2xl sm:text-3xl">
+                        {universityInitials(u.name)}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1 pr-6 sm:pr-7">
+                      <p className="truncate text-[13.5px] font-semibold leading-snug text-slate-900 sm:text-xl">{c.name}</p>
+                      <p className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
+                        <Building2 size={12} className="shrink-0" /> <span className="truncate">{u.name}</span>
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[9.5px] text-slate-400 sm:mt-1.5 sm:text-[10.5px]">
                         <span className="inline-flex shrink-0 items-center gap-1">
-                          <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
-                          {Math.round(c.feeUSD).toLocaleString()}
+                          <Wallet size={11} /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}
                         </span>
-                        {scholarship && (
-                          <span className="inline-flex shrink-0 items-center gap-1">
-                            <GraduationCap size={11} className="text-slate-400" /> {scholarship}
-                          </span>
-                        )}
                         {depositLabel(u) && (
-                          <span className="inline-flex shrink-0 items-center gap-1">
-                            <Landmark size={11} className="text-slate-400" /> {depositLabel(u)}
-                          </span>
+                          <>
+                            <span className="shrink-0">·</span>
+                            <span className="inline-flex shrink-0 items-center gap-1">
+                              <Landmark size={11} /> {depositLabel(u)}
+                            </span>
+                          </>
                         )}
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-2 border-t border-slate-100 pt-2.5 text-[11px] text-slate-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
                         {u.openIntake && (
-                          <span className="inline-flex min-w-0 shrink items-center gap-1 truncate">
-                            <CalendarDays size={11} className="shrink-0 text-slate-400" /> <span className="truncate">{u.openIntake}</span>
+                          <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
+                            <CalendarDays size={13} className="shrink-0 text-slate-400" /> <span className="truncate">Open: {u.openIntake}</span>
                           </span>
                         )}
+                        {scholarship && (
+                          <>
+                            <span className="h-3.5 w-px shrink-0 bg-slate-200 sm:h-4" />
+                            <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
+                              <GraduationCap size={13} className="shrink-0 text-slate-400" /> <span className="truncate">{scholarship}</span>
+                            </span>
+                          </>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (open) setApplyTarget({ university: u, course: c }); }}
+                          disabled={!open}
+                          aria-label={open ? "Apply Now" : "Intake closed"}
+                          title={open ? "Apply Now" : "Intake closed"}
+                          className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
+                        >
+                          <Send size={13} />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); if (courseHasOpenIntake(u, c)) setApplyTarget({ university: u, course: c }); }}
-                      disabled={!courseHasOpenIntake(u, c)}
-                      aria-label={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
-                      title={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
-                    >
-                      <Send size={13} />
-                    </button>
-                    <ChevronRight size={16} className="shrink-0 text-slate-300" />
                   </div>
                 );
               })}
 
               {programs.length === 0 && (
-                <div className="p-6 text-center lg:col-span-full lg:rounded-2xl lg:bg-[var(--sd-card)] lg:shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+                <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:col-span-full">
                   {programShortlistedOnly ? (
                     <>
                       <p className="text-sm font-medium text-slate-700">No shortlisted programs yet</p>

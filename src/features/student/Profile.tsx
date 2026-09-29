@@ -81,7 +81,7 @@ export default function Profile() {
   const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
 
   return (
-    <div className="min-h-full pb-8">
+    <div className="profile-compact min-h-full pb-8">
       <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
         <MobileHeader title="My Profile" right={<button className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-500 shadow-sm"><Settings size={16} /></button>} />
       </div>

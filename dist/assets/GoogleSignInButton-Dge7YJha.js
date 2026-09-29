@@ -1,0 +1,1 @@
+import{n as e}from"./createLucideIcon-ChhPh1Qd.js";import{V as t}from"./index-BAobXQl1.js";var n=e();function r({onCredential:e,onError:r}){return(0,n.jsx)(`div`,{className:`flex justify-center [&>div]:w-full`,children:(0,n.jsx)(t,{onSuccess:t=>{t.credential?e(t.credential):r()},onError:r,width:`320`})})}export{r as t};

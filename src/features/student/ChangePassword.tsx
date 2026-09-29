@@ -40,7 +40,7 @@ export default function ChangePassword() {
   }
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
+    <div className="profile-compact flex min-h-full flex-col pb-6">
       <MobileHeader title="Security" />
 
       <div className="px-5">

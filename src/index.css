@@ -71,3 +71,21 @@ body {
   background-size: 40px 40px;
   animation: progress-stripe-move 1s linear infinite;
 }
+
+/* Student profile pages (My Profile + its section pages) render every font size 2px smaller.
+   Done as a scoped override rather than editing the classes because most of their form UI comes
+   from components/ui/mobile.tsx, which ~50 other pages share at the normal size. Unlayered, so
+   it wins over Tailwind's @layer utilities. */
+.profile-compact .text-\[10px\] { font-size: 8px; }
+.profile-compact .text-\[11px\] { font-size: 9px; }
+.profile-compact .text-\[11\.5px\] { font-size: 9.5px; }
+.profile-compact .text-\[12px\] { font-size: 10px; }
+.profile-compact .text-\[12\.5px\] { font-size: 10.5px; }
+.profile-compact .text-\[13px\] { font-size: 11px; }
+.profile-compact .text-\[13\.5px\] { font-size: 11.5px; }
+.profile-compact .text-\[14px\] { font-size: 12px; }
+.profile-compact .text-\[15px\] { font-size: 13px; }
+.profile-compact .text-\[16px\] { font-size: 14px; }
+.profile-compact .text-xs { font-size: 10px; }
+.profile-compact .text-sm { font-size: 12px; }
+.profile-compact .text-xl { font-size: 18px; }
