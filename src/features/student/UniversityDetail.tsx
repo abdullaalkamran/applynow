@@ -1,9 +1,9 @@
 import { websiteHref } from "../../utils/safeHref";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
-  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks,
+  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen, Briefcase,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -28,7 +28,6 @@ import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 
 const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
-const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
 
 type Course = University["courses"][number];
 
@@ -48,7 +47,6 @@ export default function UniversityDetail() {
   const course = university?.courses.find((c) => c.name === activeCourseName);
 
   const [uniTab, setUniTab] = useState<(typeof UNIVERSITY_TABS)[number]>("Overview");
-  const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
 
@@ -157,8 +155,6 @@ export default function UniversityDetail() {
               university={university}
               course={course}
               originSubject={originSubject}
-              tab={courseTab}
-              setTab={setCourseTab}
             />
           ) : (
             <UniversityView university={university} tab={uniTab} setTab={setUniTab} onSelectCourse={setActiveCourseName} />
@@ -178,10 +174,9 @@ export default function UniversityDetail() {
 }
 
 function CourseView({
-  university, course, originSubject, tab, setTab,
+  university, course, originSubject,
 }: {
   university: University; course: Course; originSubject?: string;
-  tab: (typeof COURSE_TABS)[number]; setTab: (t: (typeof COURSE_TABS)[number]) => void;
 }) {
   const navigate = useNavigate();
   const scholarship = scholarshipLabel(university);
@@ -196,9 +191,15 @@ function CourseView({
 
   return (
     <>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{university.name}</p>
-      <h1 className="mt-1 text-[24px] font-bold leading-tight text-slate-900 lg:text-[28px]">{course.name}</h1>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-slate-500">{description}</p>
+      {/* Same logo-beside-title header as UniversityView. The description lives only in the
+          Overview tab below — repeating it here showed it twice. */}
+      <div className="flex items-start gap-3">
+        <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-14 w-14 shrink-0 text-base" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{university.name}</p>
+          <h1 className="mt-1 text-[24px] font-bold leading-tight text-slate-900 lg:text-[28px]">{course.name}</h1>
+        </div>
+      </div>
 
       {originSubject && (
         <button
@@ -214,80 +215,84 @@ function CourseView({
         <StatTile icon={<CalendarDays size={18} />} value={university.openIntake} label="intake" />
         <StatTile icon={<GraduationCap size={18} />} value={scholarship ?? "—"} label="scholarship" />
       </div>
-
-      <div className="mt-5 flex items-center gap-5 overflow-x-auto border-b border-black/5">
-        {COURSE_TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
-          >
-            {t}
-            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
-          </button>
-        ))}
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <FactTile icon={<Building2 size={16} />} label="Campus" value={campusLabelFor(university, course)} onClick={openCampuses} />
+        <FactTile icon={<Clock size={16} />} label="Duration" value={course.duration} />
+        <FactTile icon={<Users size={16} />} label="Study Mode" value={course.studyMode || "Full-time"} />
       </div>
 
-      <div className="py-4">
-        {tab === "Overview" && (
-          <>
-            <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
-            <CourseAccreditations accreditations={course.accreditations} className="mt-4" />
-            <RestrictedRegionsNotice university={university} className="mt-4" />
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <FactTile icon={<Building2 size={16} />} label="Campus" value={campusLabelFor(university, course)} onClick={openCampuses} />
-              <FactTile icon={<Clock size={16} />} label="Duration" value={course.duration} />
-              <FactTile icon={<Users size={16} />} label="Study Mode" value={course.studyMode || "Full-time"} />
-            </div>
-            <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mt-4" />
-            <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><Landmark size={15} /> Deposit & Payment</p>
-              <div className="mt-3">
-                <PaymentRequirementsBlock university={university} />
-              </div>
-            </div>
-          </>
-        )}
+      {course.courseUrl && (
+        <a
+          href={websiteHref(course.courseUrl)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-[var(--sd-card)] px-4 py-2.5 text-[13px] font-medium text-[var(--sd-ink)]"
+        >
+          View this course on the university website <ExternalLink size={13} />
+        </a>
+      )}
 
-        {tab === "Modules" && (
-          <ul className="space-y-2.5">
-            {modules.map((m) => (
-              <li key={m} className="flex items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.08)]">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
-                  <GraduationCap size={15} />
-                </div>
-                <span className="text-[13px] font-medium text-slate-700">{m}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* One scrolling page of cards (no tabs): overview, then Deposit & Payment, Modules, Entry
+          Requirements and Careers, each in the same card style. */}
+      <div className="space-y-4 py-4">
+        <div>
+          <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
+          <CourseAccreditations accreditations={course.accreditations} className="mt-4" />
+          <RestrictedRegionsNotice university={university} className="mt-4" />
+        </div>
 
-        {tab === "Entry Requirements" && (
-          <>
-            <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
-            <ul className="space-y-2.5">
-              {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-                <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
-                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
-                  {r}
+        <CourseSectionCard icon={<Landmark size={15} />} title="Deposit & Payment">
+          <PaymentRequirementsBlock university={university} />
+        </CourseSectionCard>
+
+        {modules.length > 0 && (
+          <CourseSectionCard icon={<BookOpen size={15} />} title="Modules">
+            <ul className="space-y-2">
+              {modules.map((m) => (
+                <li key={m} className="flex items-start gap-2 text-[13px] text-slate-600">
+                  <GraduationCap size={15} className="mt-0.5 shrink-0 text-[#2955C4]" />
+                  {m}
                 </li>
               ))}
             </ul>
-          </>
+          </CourseSectionCard>
         )}
 
-        {tab === "Careers" && (
-          <ul className="space-y-2.5">
-            {careers.map((c) => (
-              <li key={c} className="flex items-center justify-between rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.08)]">
-                <span className="text-[13px] font-medium text-slate-700">{c}</span>
-                <ChevronRight size={15} className="text-slate-300" />
+        <CourseSectionCard icon={<ListChecks size={15} />} title="Entry Requirements">
+          <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
+          <ul className="space-y-2">
+            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
+              <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
+                {r}
               </li>
             ))}
           </ul>
+        </CourseSectionCard>
+
+        {careers.length > 0 && (
+          <CourseSectionCard icon={<Briefcase size={15} />} title="Careers">
+            <ul className="space-y-2">
+              {careers.map((c) => (
+                <li key={c} className="flex items-start gap-2 text-[13px] text-slate-600">
+                  <Briefcase size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </CourseSectionCard>
         )}
       </div>
     </>
+  );
+}
+
+function CourseSectionCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">{icon} {title}</p>
+      <div className="mt-3">{children}</div>
+    </div>
   );
 }
 

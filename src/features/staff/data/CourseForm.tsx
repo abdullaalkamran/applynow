@@ -148,6 +148,8 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
   const [campusIds, setCampusIds] = useState<Set<string>>(new Set(base?.campusIds ?? []));
   const [description, setDescription] = useState(base?.description ?? "");
   const [studyMode, setStudyMode] = useState(base?.studyMode ?? "Full-time");
+  // An import review starts from the page the course was read from.
+  const [courseUrl, setCourseUrl] = useState(base?.courseUrl ?? importItem?.sourceUrl ?? "");
   const [modules, setModules] = useState<string[]>(base?.modules ?? []);
   const [careers, setCareers] = useState<string[]>(base?.careers ?? []);
   const [accreditations, setAccreditations] = useState<CourseAccreditation[]>(base?.accreditations ?? []);
@@ -228,6 +230,7 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
       campusIds: [...campusIds],
       description: description.trim() || undefined,
       studyMode,
+      courseUrl: courseUrl.trim(), // "" (not undefined) so clearing it survives the PATCH merge
       modules,
       careers,
       accreditations: accreditations.map((a) => ({ ...a, name: a.name.trim() })).filter((a) => a.name),
@@ -353,6 +356,15 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
               </select>
             </Field>
           </div>
+          <Field label="Course page link (students see a link to it)">
+            <input
+              type="url"
+              value={courseUrl}
+              onChange={(e) => setCourseUrl(e.target.value)}
+              placeholder="https://www.university.ac.uk/courses/msc-data-science"
+              className={INPUT_CLASS}
+            />
+          </Field>
           <Field label="Description (shown at the top of the course page)" attention={flag("description")}>
             <textarea
               value={description}

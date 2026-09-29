@@ -216,7 +216,8 @@ router.post("/:itemId/approve", requireAuth, requireDataRole, async (req, res, n
     if (!Number.isFinite(feeUSD) || feeUSD < 0) return res.status(400).json({ error: "Annual fee must be a number." });
 
     const id = (req.body && req.body.id) || `crs-import-${Date.now().toString(36)}-${item.id.slice(-4)}`;
-    const courseData = courseWriteData({ ...draft, name, duration, subject, feeUSD });
+    // The page this course was imported from is its course link unless the reviewer set another.
+    const courseData = courseWriteData({ courseUrl: item.sourceUrl, ...draft, name, duration, subject, feeUSD });
     const { course, updatedItem } = await prisma.$transaction(async (tx) => {
       const created = await tx.course.create({ data: { id, universityId: university.id, ...courseData } });
       await tx.university.update({

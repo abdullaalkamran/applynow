@@ -237,6 +237,9 @@ export interface University {
     // (see subjectCurriculum.ts's curriculumForCourse).
     description?: string;
     studyMode?: string;
+    // This course's own page on the university's website, shown to students as a "view on the
+    // university website" link. Pre-filled from the page an AI course import was read from.
+    courseUrl?: string;
     modules?: string[];
     careers?: string[];
     // Bodies that accredit this specific course (distinct from the university-level

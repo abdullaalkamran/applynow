@@ -692,6 +692,8 @@ model Course {
   // Same VARCHAR(191) truncation/rejection issue as University.description above.
   description             String?    @db.Text
   studyMode               String?
+  // This course's own page on the university's website (see types' Course.courseUrl).
+  courseUrl               String?    @db.Text
   modules                 Json       @default("[]")
   careers                 Json       @default("[]")
   // Bodies that accredit this specific course — [{ name, logoUrl? }], the logo a data URL like the
