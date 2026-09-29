@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
-  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen, Briefcase,
+  Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen, Briefcase, Search,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -296,6 +296,70 @@ function CourseSectionCard({ icon, title, children }: { icon: ReactNode; title: 
   );
 }
 
+const COURSE_LEVELS = ["Undergraduate", "Postgraduate"] as const;
+
+/** University → Courses tab: Undergraduate / Postgraduate sub-tabs, each with its own name search,
+ * listing just the course name (left) and annual fee (right). */
+function CoursesTab({ university, onSelectCourse }: { university: University; onSelectCourse: (name: string) => void }) {
+  const byLevel = (level: string) => university.courses.filter((c) => c.level === level);
+  // Open on whichever level actually has courses, Undergraduate first.
+  const [level, setLevel] = useState<(typeof COURSE_LEVELS)[number]>(
+    byLevel("Undergraduate").length === 0 && byLevel("Postgraduate").length > 0 ? "Postgraduate" : "Undergraduate"
+  );
+  const [queries, setQueries] = useState<Record<string, string>>({});
+  const query = queries[level] ?? "";
+  const needle = query.trim().toLowerCase();
+  const courses = byLevel(level).filter((c) => !needle || c.name.toLowerCase().includes(needle));
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        {COURSE_LEVELS.map((l) => (
+          <button
+            key={l}
+            onClick={() => setLevel(l)}
+            className={`rounded-lg py-2 text-[12.5px] font-semibold transition ${
+              level === l ? "bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-sm" : "text-slate-500"
+            }`}
+          >
+            {l} <span className="font-normal text-slate-400">({byLevel(l).length})</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="relative mt-3">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={query}
+          onChange={(e) => setQueries((q) => ({ ...q, [level]: e.target.value }))}
+          placeholder={`Search ${level.toLowerCase()} courses`}
+          className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] py-2.5 pl-9 pr-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+        />
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {courses.map((c) => (
+          <button
+            key={c.name}
+            onClick={() => onSelectCourse(c.name)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.08)]"
+          >
+            <span className="min-w-0 break-words text-[13px] font-semibold leading-snug text-slate-900">{c.name}</span>
+            <span className="shrink-0 text-[12.5px] font-semibold text-slate-700">
+              {c.currencySymbol ?? university.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+            </span>
+          </button>
+        ))}
+        {courses.length === 0 && (
+          <p className="rounded-2xl bg-[var(--sd-card)] p-6 text-center text-[13px] text-slate-400 [text-align:center]">
+            {needle ? `No ${level.toLowerCase()} courses match "${query.trim()}".` : `No ${level.toLowerCase()} courses listed.`}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function UniversityView({
   university, tab, setTab, onSelectCourse,
 }: {
@@ -398,24 +462,7 @@ function UniversityView({
           </>
         )}
 
-        {tab === "Courses" && (
-          <div className="space-y-2.5">
-            {university.courses.map((c) => (
-              <button
-                key={c.name}
-                onClick={() => onSelectCourse(c.name)}
-                className="flex w-full items-center justify-between gap-2 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">{c.name}</p>
-                  <p className="mt-1 text-xs text-slate-400">{c.level} · {c.duration}</p>
-                  <p className="mt-1.5 text-[12.5px] font-semibold text-slate-700">≈{university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</p>
-                </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300" />
-              </button>
-            ))}
-          </div>
-        )}
+        {tab === "Courses" && <CoursesTab university={university} onSelectCourse={onSelectCourse} />}
 
         {tab === "Requirements" && (
           <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
