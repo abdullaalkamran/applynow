@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
@@ -525,12 +525,32 @@ function paginationRange(page: number, totalPages: number): (number | "...")[] {
 
 /** Numbered pagination for an already-loaded list sliced client-side (see usePagedList) — renders
  * nothing for a single page, so it's always safe to drop in unconditionally. */
+/** The nearest ancestor that actually scrolls — every shell scrolls an inner container, not the
+ * window (see useScrollToTopOnNavigate.ts) — falling back to the window itself. */
+function scrollParentOf(el: HTMLElement | null): HTMLElement | Window {
+  for (let node = el?.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) return node;
+  }
+  return window;
+}
+
 export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   if (totalPages <= 1) return null;
+
+  // A new page of results should start from the top of the list, not leave the reader parked at
+  // the pagination bar at the bottom of it.
+  function goTo(next: number) {
+    const scroller = scrollParentOf(rootRef.current);
+    onChange(next);
+    scroller.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
-    <div className="mt-4 flex items-center justify-center gap-1">
+    <div ref={rootRef} className="mt-4 flex items-center justify-center gap-1">
       <button
-        onClick={() => onChange(page - 1)}
+        onClick={() => goTo(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
         className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -543,7 +563,7 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
         ) : (
           <button
             key={p}
-            onClick={() => onChange(p)}
+            onClick={() => goTo(p)}
             aria-current={p === page ? "page" : undefined}
             className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12.5px] font-medium ${
               p === page ? "bg-[var(--sd-ink,#1e293b)] text-white" : "text-slate-600 hover:bg-slate-100"
@@ -554,7 +574,7 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
         )
       )}
       <button
-        onClick={() => onChange(page + 1)}
+        onClick={() => goTo(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
         className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"

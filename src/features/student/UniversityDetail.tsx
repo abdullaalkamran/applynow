@@ -8,7 +8,7 @@ import {
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
-import { subjectsPreview, campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
+import { campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
@@ -350,13 +350,16 @@ function UniversityView({
             <RankingCaption university={university} className="mt-2" />
 
             <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-[var(--sd-card)]">
-              {university.subjects.length > 0 && (
-                <ExpandableSection title="Subjects offered" preview={subjectsPreview(university)}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {university.subjects.map((s) => <Pill key={s}>{s}</Pill>)}
-                  </div>
-                </ExpandableSection>
-              )}
+              <ExpandableSection title="Why study here?" className="max-lg:[&_p]:text-left max-lg:[&_li]:text-left" preview={highlightsPreview(university)}>
+                <ul className="space-y-2.5">
+                  {university.highlights.map((h) => (
+                    <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
+                      <CheckCircle2 size={16} className="shrink-0 text-[var(--sd-teal)]" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </ExpandableSection>
 
               {(university.campuses ?? []).length > 0 && (
                 <ExpandableSection icon={<Building2 size={15} />} title="Campuses" preview={campusesPreview(university)}>
@@ -371,17 +374,6 @@ function UniversityView({
                 </ExpandableSection>
               )}
 
-              <ExpandableSection title="Why study here?" preview={highlightsPreview(university)}>
-                <ul className="space-y-2.5">
-                  {university.highlights.map((h) => (
-                    <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
-                      <CheckCircle2 size={16} className="shrink-0 text-[var(--sd-teal)]" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-              </ExpandableSection>
-
               <ExpandableSection icon={<CalendarDays size={15} />} title="Intakes" preview={intakesPreview(university)}>
                 <IntakesBlock university={university} />
               </ExpandableSection>
@@ -394,7 +386,7 @@ function UniversityView({
                 <PaymentRequirementsBlock university={university} />
               </ExpandableSection>
 
-              <ExpandableSection icon={<ListChecks size={15} />} title="Admission Procedure" preview={admissionStepsPreview(university)}>
+              <ExpandableSection icon={<ListChecks size={15} />} title="Admission Procedure" className="max-lg:[&_p]:text-left max-lg:[&_li]:text-left" preview={admissionStepsPreview(university)}>
                 <AdmissionProcedureBlock university={university} />
               </ExpandableSection>
             </div>
