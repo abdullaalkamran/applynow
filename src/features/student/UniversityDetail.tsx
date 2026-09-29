@@ -194,10 +194,10 @@ function CourseView({
       {/* Same logo-beside-title header as UniversityView. The description lives only in the
           Overview tab below — repeating it here showed it twice. */}
       <div className="flex items-start gap-3">
-        <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-14 w-14 shrink-0 text-base" />
+        <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-11 w-11 shrink-0 text-sm lg:h-14 lg:w-14 lg:text-base" />
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{university.name}</p>
-          <h1 className="mt-1 text-[24px] font-bold leading-tight text-slate-900 lg:text-[28px]">{course.name}</h1>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 lg:text-[11px]">{university.name}</p>
+          <h1 className="mt-0.5 break-words text-[18px] font-bold leading-snug text-slate-900 lg:mt-1 lg:text-[28px] lg:leading-tight">{course.name}</h1>
         </div>
       </div>
 
@@ -234,12 +234,24 @@ function CourseView({
 
       {/* One scrolling page of cards (no tabs): overview, then Deposit & Payment, Modules, Entry
           Requirements and Careers, each in the same card style. */}
-      <div className="space-y-4 py-4">
+      <div className="min-w-0 space-y-4 break-words py-4">
         <div>
           <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
           <CourseAccreditations accreditations={course.accreditations} className="mt-4" />
           <RestrictedRegionsNotice university={university} className="mt-4" />
         </div>
+
+        <CourseSectionCard icon={<ListChecks size={15} />} title="Entry Requirements">
+          <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
+          <ul className="space-y-2">
+            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
+              <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
+                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
+                {r}
+              </li>
+            ))}
+          </ul>
+        </CourseSectionCard>
 
         <CourseSectionCard icon={<Landmark size={15} />} title="Deposit & Payment">
           <PaymentRequirementsBlock university={university} />
@@ -257,18 +269,6 @@ function CourseView({
             </ul>
           </CourseSectionCard>
         )}
-
-        <CourseSectionCard icon={<ListChecks size={15} />} title="Entry Requirements">
-          <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
-          <ul className="space-y-2">
-            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-              <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
-                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
-                {r}
-              </li>
-            ))}
-          </ul>
-        </CourseSectionCard>
 
         {careers.length > 0 && (
           <CourseSectionCard icon={<Briefcase size={15} />} title="Careers">
@@ -472,9 +472,9 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function StatTile({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-slate-100 py-3 text-center">
+    <div className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-slate-100 px-1.5 py-3 text-center">
       <span className="text-[var(--sd-ink)]">{icon}</span>
-      <p className="truncate px-1 text-[12.5px] font-bold text-slate-900">{value}</p>
+      <p className="w-full break-words text-[12px] font-bold leading-tight text-slate-900 [text-align:center]">{value}</p>
       <p className="text-[10px] text-slate-400">{label}</p>
     </div>
   );
@@ -485,11 +485,11 @@ function FactTile({ icon, label, value, onClick }: { icon: React.ReactNode; labe
   return (
     <Comp
       onClick={onClick}
-      className="flex flex-col items-start gap-2 rounded-2xl border border-slate-100 p-3 text-left"
+      className="flex min-w-0 flex-col items-start gap-2 rounded-2xl border border-slate-100 p-3 text-left"
     >
       <span className="text-slate-500">{icon}</span>
       <span className="text-[10.5px] text-slate-400">{label}</span>
-      <span className="flex items-center gap-0.5 text-[12.5px] font-semibold text-slate-800">
+      <span className="flex w-full min-w-0 items-center gap-0.5 break-words text-[12px] font-semibold leading-tight text-slate-800">
         {value}
         {onClick && <ChevronRight size={12} className="text-slate-300" />}
       </span>
