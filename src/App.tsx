@@ -16,6 +16,7 @@ import { ROLE_HOME } from "./layouts/nav";
 const Login = lazy(() => import("./features/auth/Login"));
 const Signup = lazy(() => import("./features/auth/Signup"));
 const AcceptInvite = lazy(() => import("./features/auth/AcceptInvite"));
+const LandingPage = lazy(() => import("./features/public/LandingPage"));
 const AppLayout = lazy(() => import("./layouts/AppLayout"));
 const AdminShell = lazy(() => import("./layouts/AdminShell"));
 const StudentShell = lazy(() => import("./layouts/StudentShell"));
@@ -143,6 +144,8 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           {/* Same page/logic as /login (login is role-agnostic — the backend returns whatever
               role the account actually has) — just a distinct URL to hand to staff/admin instead
