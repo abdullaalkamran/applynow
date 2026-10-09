@@ -1,9 +1,45 @@
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
-import { getAllCountries } from "../../data/countryRegistry";
+import { BACKEND_BASE } from "../../utils/backendBase";
 import RealGlobe from "./RealGlobe";
 import "./LandingPage.css";
+
+type Destination = { id: string; name: string; universityCount?: number; photoUrl?: string };
+
+// Shown only until (or if the server can't deliver) the real list — never as a substitute for it once loaded.
+const PLACEHOLDER_DESTINATIONS: Destination[] = [
+  { id: "uk", name: "UK" },
+  { id: "canada", name: "Canada" },
+  { id: "australia", name: "Australia" },
+  { id: "usa", name: "USA" },
+];
+
+/** Study destinations from the server's public landing endpoint (no login needed). */
+function useDestinations() {
+  const [destinations, setDestinations] = useState<Destination[] | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${BACKEND_BASE}/api/public/landing`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
+      .then((data: { countries?: Destination[] }) => {
+        if (Array.isArray(data.countries) && data.countries.length > 0) setDestinations(data.countries.slice(0, 4));
+      })
+      .catch(() => {
+        /* offline / server down: keep the placeholders */
+      });
+    return () => controller.abort();
+  }, []);
+
+  return destinations;
+}
+
+/** Photo URLs from the server are root-relative (/uploads/…, /api/public/photo/…); prefix the API host when it differs. */
+function photoSrc(url?: string) {
+  if (!url) return undefined;
+  return url.startsWith("/") ? `${BACKEND_BASE}${url}` : url;
+}
 
 function Header() {
   return (
@@ -38,13 +74,7 @@ export default function LandingPage() {
     event.preventDefault();
     navigate("/login");
   };
-  const countries = getAllCountries();
-  const destinations = countries.length > 0 ? countries.slice(0, 4) : [
-    { id: "uk", name: "UK", photoUrl: "" },
-    { id: "canada", name: "Canada", photoUrl: "" },
-    { id: "australia", name: "Australia", photoUrl: "" },
-    { id: "usa", name: "USA", photoUrl: "" },
-  ];
+  const destinations = useDestinations() ?? PLACEHOLDER_DESTINATIONS;
 
   return (
     <main className="ai-landing" aria-label="UnifinderAi landing page">
@@ -75,23 +105,33 @@ export default function LandingPage() {
       </section>
 
       <section className="destination-grid" aria-label="Study destinations">
-        {destinations.map((item) => (
-          <article className="destination-card" key={item.id ?? item.name}>
-            <div
-              className="destination-image"
-              style={{
-                backgroundImage: item.photoUrl ? `url(${item.photoUrl})` : "linear-gradient(160deg, rgba(111, 146, 255, 0.65), rgba(17, 24, 39, 0.8))",
-              }}
-            />
-            <div className="destination-shade" />
-            <div className="destination-meta">
-              <h2>{item.name}</h2>
-              <button aria-label={`Explore ${item.name}`}>
-                <ArrowRight size={20} strokeWidth={1.4} />
-              </button>
-            </div>
-          </article>
-        ))}
+        {destinations.map((item) => {
+          const photo = photoSrc(item.photoUrl);
+          return (
+            <Link className="destination-card" to="/login" key={item.id} aria-label={`Explore ${item.name}`}>
+              <div
+                className="destination-image"
+                style={{
+                  backgroundImage: photo ? `url("${photo}")` : "linear-gradient(160deg, rgba(111, 146, 255, 0.65), rgba(17, 24, 39, 0.8))",
+                }}
+              />
+              <div className="destination-shade" />
+              <div className="destination-meta">
+                <div>
+                  <h2>{item.name}</h2>
+                  {item.universityCount ? (
+                    <p className="destination-count">
+                      {item.universityCount} {item.universityCount === 1 ? "university" : "universities"}
+                    </p>
+                  ) : null}
+                </div>
+                <span className="destination-go" aria-hidden="true">
+                  <ArrowRight size={20} strokeWidth={1.4} />
+                </span>
+              </div>
+            </Link>
+          );
+        })}
       </section>
 
       <section className="guidance-section" aria-label="AI guidance">

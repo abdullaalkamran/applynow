@@ -1746,3 +1746,35 @@
     display: none;
   }
 }
+
+/* Destination cards are real links to /login and show live data from the server */
+.destination-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.destination-card:hover,
+.destination-card:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
+}
+
+.destination-meta .destination-go {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.14);
+  color: #fff;
+}
+
+.destination-count {
+  margin: -2px 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}

@@ -26,6 +26,7 @@ const subjectsRoute = require("./routes/subjects");
 const universitiesRoute = require("./routes/universities");
 const universityImagesRoute = require("./routes/universityImages");
 const countriesRoute = require("./routes/countries");
+const publicRoute = require("./routes/public");
 const courseImportsRoute = require("./routes/courseImports");
 const universityImportsRoute = require("./routes/universityImports");
 const interviewPrepRoute = require("./routes/interviewPrep");
@@ -86,6 +87,9 @@ app.use(express.json({ limit: "12mb" }));
 // gate; per user (falling back to IP) for the endpoints that spend real AI-provider money.
 // Generous enough that no real user hits them from the UI.
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "Too many attempts — try again in a few minutes." } });
+// The one logged-out API surface (landing page data): generous enough for normal browsing, tight enough that
+// it can't be used to hammer the database.
+const publicLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "Too many requests — try again shortly." } });
 const adminLimiter = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: "draft-7", legacyHeaders: false, message: { error: "Too many attempts — try again shortly." } });
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -161,6 +165,7 @@ app.use("/api/subjects", subjectsRoute);
 app.use("/api/universities", universitiesRoute);
 app.use("/api/universities", universityImagesRoute);
 app.use("/api/countries", countriesRoute);
+app.use("/api/public", publicLimiter, publicRoute);
 app.use("/api/course-imports", courseImportsRoute);
 app.use("/api/university-imports", universityImportsRoute);
 app.use("/api/interview-prep", interviewPrepRoute);
