@@ -265,7 +265,7 @@
   opacity: 0;
   transform: scale(0.96);
   transition: opacity 0.9s ease, transform 0.9s ease;
-  filter: drop-shadow(0 24px 46px rgba(34, 58, 131, 0.28));
+  /* no CSS filter here: a filter on a WebGL canvas re-processes the whole image every frame */
 }
 
 .globe-canvas.is-ready {
@@ -1557,16 +1557,19 @@
   left: 0;
   z-index: 2;
   display: block;
-  width: 214px;
-  min-height: 112px;
-  padding: 2px 0;
+  width: 150px;
+  min-height: 56px;
+  padding: 0;
   background: transparent;
-  color: #0c0c0c;
+  color: #fff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 9px;
-  line-height: 1.55;
+  font-size: 7.5px;
+  line-height: 11px;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 0.9);
+  /* white text with a dark outline: readable over the dark globe and the light page alike */
+  paint-order: stroke fill;
+  -webkit-text-stroke: 1.9px rgba(0, 0, 0, 0.88);
+  text-shadow: none;
   white-space: nowrap;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -1578,47 +1581,76 @@
 }
 
 .hud-line {
-  height: 14px;
+  height: 11px;
   overflow: hidden;
   white-space: pre; /* keep the aligned label columns */
 }
 
 .hud-line .k {
-  color: #777;
+  color: #c8c8c8;
 }
 
 .hud-line .v {
-  color: #0c0c0c;
+  color: #fff;
 }
 
 .hud-line.tone-dim .k,
 .hud-line.tone-dim .v {
-  color: #555;
+  color: #b5b5b5;
 }
 
 .hud-line.tone-ok .k {
-  color: #16a34a;
+  color: #4ade80;
   font-weight: 800;
 }
 
 .hud-line.tone-ok .v {
-  color: #15803d;
+  color: #4ade80;
   font-weight: 700;
 }
 
 .hud-line.tone-warn .k,
 .hud-line.tone-warn .v {
-  color: #dc2626;
-  font-weight: 700;
+  color: #ff4d4d;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(255, 40, 40, 0.9);
+}
+
+/* the loud part: a solid, blinking red bar */
+.hud-line.tone-alert {
+  overflow: visible;
+}
+
+.hud-line.tone-alert .k {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: #e5160f;
+  color: #fff;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  box-shadow: 0 0 10px rgba(255, 30, 30, 0.95), 0 0 2px #fff inset;
+  animation: hud-alert-flash 0.55s steps(2, end) infinite;
+}
+
+@keyframes hud-alert-flash {
+  50% {
+    background: #7a0a06;
+    box-shadow: 0 0 3px rgba(255, 30, 30, 0.4);
+  }
 }
 
 .hud-caret {
   display: inline-block;
-  width: 5px;
-  height: 10px;
+  width: 4px;
+  height: 8px;
   margin-left: 1px;
   vertical-align: -1px;
-  background: #0c0c0c;
+  background: #fff;
+  outline: 1px solid rgba(0, 0, 0, 0.85);
   animation: hud-caret 0.8s steps(2, start) infinite;
 }
 
@@ -1626,23 +1658,6 @@
   50% {
     opacity: 0;
   }
-}
-
-.globe-canvas .globe-hud-link {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  height: 0;
-  border-top: 1px dashed rgba(120, 120, 120, 0.55);
-  transform-origin: 0 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.globe-hud-link.is-idle,
-.globe-hud-link.is-hidden {
-  opacity: 0;
 }
 
 .globe-canvas .globe-help {
@@ -1728,8 +1743,7 @@
 }
 
 @media (max-width: 480px) {
-  .globe-canvas .globe-hud,
-  .globe-canvas .globe-hud-link {
+  .globe-canvas .globe-hud {
     display: none;
   }
 }

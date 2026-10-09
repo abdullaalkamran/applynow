@@ -251,6 +251,9 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
   const NORMAL = new THREE.Color(CYAN);
   const NORMAL_SOFT = new THREE.Color(0x9defff);
   let alertMix = 0;
+  const tintStrong = new THREE.Color();
+  const tintSoft = new THREE.Color();
+  const idleEuler = new THREE.Euler();
   const scanDir = new THREE.Vector3();
   const scanQuat = new THREE.Quaternion();
   const DOWN = new THREE.Vector3(0, -1, 0);
@@ -279,11 +282,8 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
   const hud = document.createElement("div");
   hud.className = "globe-hud is-idle";
   container.appendChild(hud);
-  const hudLink = document.createElement("div"); // dashed line tying the report back to the robot
-  hudLink.className = "globe-hud-link is-idle";
-  container.appendChild(hudLink);
 
-  type ReportLine = { label: string; value: string; tone: "dim" | "ok" | "warn" | "plain" };
+  type ReportLine = { label: string; value: string; tone: "dim" | "ok" | "warn" | "alert" | "plain" };
   type LineView = { el: HTMLElement; key: HTMLElement; val: HTMLElement; label: string; value: string };
   const caret = document.createElement("i");
   caret.className = "hud-caret";
@@ -293,24 +293,29 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
   let renderedChars = -1;
   let typingDelay = 0;
   let shownTarget: TrackablePlane | null = null;
-  let hudSize = { w: 214, h: 112 };
+  let hudSize = { w: 150, h: 70 };
   const hudPos = { x: 0, y: 0 };
-  let hudSlot = 0; // fractional position along the rim of the globe
   let hudPlaced = false;
 
   const buildReport = (plane: TrackablePlane): ReportLine[] => {
     const { student } = plane;
-    const registered = !student.warning;
+    if (student.warning) {
+      return [
+        { label: "> SCAN ", value: plane.label.toUpperCase(), tone: "dim" },
+        { label: "⚠ WARNING", value: "", tone: "alert" },
+        { label: "", value: "UNREGISTERED FLIGHT", tone: "warn" },
+        { label: "", value: "NO ROUTE ON FILE", tone: "warn" },
+        { label: "NAME ", value: student.name, tone: "plain" },
+        { label: "STATUS ", value: student.status, tone: "warn" },
+      ];
+    }
     return [
       { label: "> SCAN ", value: plane.label.toUpperCase(), tone: "dim" },
-      registered
-        ? { label: "✓ ", value: "ROUTE VERIFIED", tone: "ok" }
-        : { label: "⚠ ", value: "UNREGISTERED · NO ROUTE", tone: "warn" },
-      { label: "NAME    ", value: student.name, tone: "plain" },
-      { label: "UNI     ", value: student.university, tone: "plain" },
-      { label: "PROGRAM ", value: student.program, tone: "plain" },
-      { label: "INTAKE  ", value: student.intake, tone: "plain" },
-      { label: "STATUS  ", value: student.status, tone: registered ? "plain" : "warn" },
+      { label: "✓ ", value: "ROUTE VERIFIED", tone: "ok" },
+      { label: "NAME ", value: student.name, tone: "plain" },
+      { label: "UNI ", value: student.university, tone: "plain" },
+      { label: "PROG ", value: student.program, tone: "plain" },
+      { label: "STATUS ", value: student.status, tone: "plain" },
     ];
   };
 
@@ -318,7 +323,6 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     if (plane === shownTarget) return;
     shownTarget = plane;
     hud.classList.toggle("is-idle", !plane);
-    hudLink.classList.toggle("is-idle", !plane);
     if (!plane) return;
     hud.replaceChildren();
     lineViews = buildReport(plane).map((line) => {
@@ -336,7 +340,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     typedChars = 0;
     renderedChars = -1;
     typingDelay = 0.35; // a short "acquiring target" beat before the first letter
-    hudSize = { w: hud.offsetWidth || 214, h: hud.offsetHeight || 112 };
+    hudSize = { w: hud.offsetWidth || 150, h: hud.offsetHeight || 70 };
   };
 
   /** Reveal the report letter by letter. */
@@ -565,8 +569,8 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     // Scan effect on the primary plane
     const scanTarget = slots[0].target;
     alertMix = THREE.MathUtils.damp(alertMix, scanTarget?.student.warning ? 1 : 0, 10, dt);
-    const strong = NORMAL.clone().lerp(ALERT, alertMix);
-    const soft = NORMAL_SOFT.clone().lerp(ALERT_SOFT, alertMix);
+    const strong = tintStrong.copy(NORMAL).lerp(ALERT, alertMix);
+    const soft = tintSoft.copy(NORMAL_SOFT).lerp(ALERT_SOFT, alertMix);
     scanConeMaterial.color.copy(strong);
     sweepMaterial.color.copy(strong);
     slots[0].ringMaterial.color.copy(strong);
@@ -613,7 +617,8 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
       const angle = identity.angleTo(targetQuat);
       if (angle > MAX_HEAD_TURN) targetQuat.copy(identity).slerp(targetQuat, MAX_HEAD_TURN / angle);
     } else {
-      targetQuat.setFromEuler(new THREE.Euler(Math.sin(t * 0.7) * 0.08, Math.sin(t * 0.45) * 0.4, 0));
+      idleEuler.set(Math.sin(t * 0.7) * 0.08, Math.sin(t * 0.45) * 0.4, 0);
+      targetQuat.setFromEuler(idleEuler);
     }
     head.quaternion.slerp(targetQuat, 1 - Math.exp(-dt * 6.5));
 
@@ -662,74 +667,23 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
       help.style.transform = `translate(${x}px, ${THREE.MathUtils.clamp(y, 6, Math.max(6, height - helpSize.h - 6))}px)`;
     }
 
-    // The report travels with the robot but always stays outside the globe. It rides around the globe's rim:
-    // 72 slots around the disc, only the ones where the whole readout fits on the page are usable, and it
-    // glides slot to slot along the rim (never cutting across the Earth) toward the robot's side.
-    const cx = width / 2;
-    const cy = height / 2;
-    const SLOTS = 72;
-    const margin = 10;
-    const slotPos: Array<{ x: number; y: number } | null> = [];
-    for (let i = 0; i < SLOTS; i += 1) {
-      const angle = (i / SLOTS) * Math.PI * 2;
-      const ux = Math.cos(angle);
-      const uy = Math.sin(angle);
-      const reach = view.globePx + margin + Math.abs(ux) * (hudSize.w / 2) + Math.abs(uy) * (hudSize.h / 2);
-      const left = cx + ux * reach - hudSize.w / 2;
-      const top = cy + uy * reach - hudSize.h / 2;
-      const fits = left >= 4 && left + hudSize.w <= width + view.overhangX && top >= 2 && top + hudSize.h <= height + 34;
-      slotPos.push(fits ? { x: left, y: top } : null);
-    }
-    const wrap = (i: number) => ((i % SLOTS) + SLOTS) % SLOTS;
-    const baseSlot = wrap(Math.round((Math.atan2(sy - cy, sx - cx) / (Math.PI * 2)) * SLOTS));
-    let targetSlot = -1;
-    for (let d = 0; d <= SLOTS / 2 && targetSlot < 0; d += 1) {
-      if (slotPos[wrap(baseSlot + d)]) targetSlot = wrap(baseSlot + d);
-      else if (slotPos[wrap(baseSlot - d)]) targetSlot = wrap(baseSlot - d);
-    }
-    if (targetSlot >= 0) {
-      const here = wrap(Math.round(hudSlot));
-      if (!hudPlaced || !slotPos[here]) {
-        hudSlot = targetSlot; // first placement, or the slot vanished (resize): just snap
-        hudPlaced = true;
-      } else if (here !== targetSlot) {
-        // walk the rim in whichever direction stays on usable slots and is shorter
-        const walk = (dir: number) => {
-          let steps = 0;
-          for (let i = here; i !== targetSlot; i = wrap(i + dir)) {
-            if (!slotPos[wrap(i + dir)]) return Infinity;
-            steps += 1;
-          }
-          return steps;
-        };
-        const forward = walk(1);
-        const backward = walk(-1);
-        if (forward === Infinity && backward === Infinity) hudSlot = targetSlot;
-        else {
-          const dir = forward <= backward ? 1 : -1;
-          hudSlot = wrap(hudSlot + dir * Math.min(Math.min(forward, backward), 38 * dt));
-        }
-      }
-      const lowSlot = Math.floor(hudSlot);
-      const highSlot = wrap(lowSlot + 1);
-      const from = slotPos[wrap(lowSlot)];
-      const to = slotPos[highSlot] ?? from;
-      if (from && to) {
-        const mix = hudSlot - lowSlot;
-        hudPos.x = from.x + (to.x - from.x) * mix;
-        hudPos.y = from.y + (to.y - from.y) * mix;
-      }
+    // The report is carried by the robot: it hangs right beside it (on whichever side has room) and glides along
+    const gap = robotPx * 0.42;
+    const roomRight = width + view.overhangX - (sx + gap) - 4;
+    let targetX = roomRight >= hudSize.w ? sx + gap : sx - gap - hudSize.w;
+    let targetY = sy - hudSize.h * 0.4;
+    targetX = THREE.MathUtils.clamp(targetX, 2, Math.max(2, width + view.overhangX - hudSize.w));
+    targetY = THREE.MathUtils.clamp(targetY, 2, Math.max(2, height + 20 - hudSize.h));
+    if (!hudPlaced) {
+      hudPos.x = targetX;
+      hudPos.y = targetY;
+      hudPlaced = true;
+    } else {
+      const follow = 1 - Math.exp(-dt * 9);
+      hudPos.x += (targetX - hudPos.x) * follow;
+      hudPos.y += (targetY - hudPos.y) * follow;
     }
     hud.style.transform = `translate(${hudPos.x}px, ${hudPos.y}px)`;
-
-    const anchorX = THREE.MathUtils.clamp(sx, hudPos.x, hudPos.x + hudSize.w);
-    const anchorY = THREE.MathUtils.clamp(sy, hudPos.y, hudPos.y + hudSize.h);
-    const startY = sy + robotPx * 0.15;
-    const linkDx = anchorX - sx;
-    const linkDy = anchorY - startY;
-    hudLink.style.width = `${Math.hypot(linkDx, linkDy)}px`;
-    hudLink.style.transform = `translate(${sx}px, ${startY}px) rotate(${Math.atan2(linkDy, linkDx)}rad)`;
-    hudLink.classList.toggle("is-hidden", helpOpen);
   };
 
   const dispose = () => {
@@ -739,7 +693,6 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     });
     scene.remove(scanCone, planeSweep, ...pulses);
     hud.remove();
-    hudLink.remove();
     help.remove();
     trigger.remove();
     disposables.forEach((item) => item.dispose());

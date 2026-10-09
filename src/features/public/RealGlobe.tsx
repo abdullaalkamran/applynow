@@ -275,14 +275,15 @@ export default function RealGlobe() {
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "default" });
     } catch {
       return; // WebGL unavailable: leave the stage empty rather than crash the page
     }
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    let pixelRatio = Math.min(window.devicePixelRatio, 1.5); // 2x doubles the pixels shaded for little visible gain
+    renderer.setPixelRatio(pixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.domElement.className = "globe-webgl";
     container.appendChild(renderer.domElement);
@@ -328,7 +329,7 @@ export default function RealGlobe() {
         fragmentShader: EARTH_FRAGMENT,
       }),
     );
-    const earthGeometry = track(new THREE.SphereGeometry(GLOBE_RADIUS, 96, 96));
+    const earthGeometry = track(new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64));
     group.add(new THREE.Mesh(earthGeometry, earthMaterial));
 
     // Atmosphere is fixed to the camera (not the spinning group) so the halo stays even.
@@ -403,7 +404,7 @@ export default function RealGlobe() {
     const glowMaterial = makeRouteMaterial(0.1); // soft neon halo
 
     // Several planes share each route; every plane has its own random speed and waits a random time between flights.
-    const PLANES_PER_ROUTE = 4;
+    const PLANES_PER_ROUTE = 3;
     const randomSpeed = () => 0.05 + Math.random() * 0.09;
     const flights: Array<{ plane: THREE.Mesh; curve: THREE.Curve<THREE.Vector3>; progress: number; speed: number; landing: Landing; label: string; student: StudentProfile }> = [];
 
@@ -447,7 +448,7 @@ export default function RealGlobe() {
     });
 
     // Roaming planes: never land, just circle the planet on their own random great-circle orbits
-    const ROAMERS = 48;
+    const ROAMERS = 32;
     const roamers = Array.from({ length: ROAMERS }, () => {
       const plane = new THREE.Mesh(planeGeometry, planeMaterial);
       plane.scale.setScalar(0.017 + Math.random() * 0.009);
@@ -555,6 +556,15 @@ export default function RealGlobe() {
     const clock = new THREE.Clock();
     let lastT = 0;
 
+    // Scratch objects reused every frame (avoids hundreds of short-lived allocations that keep the GC busy)
+    const sPos = new THREE.Vector3();
+    const sForward = new THREE.Vector3();
+    const sUp = new THREE.Vector3();
+    const sRight = new THREE.Vector3();
+    const sTrueUp = new THREE.Vector3();
+    const sMatrix = new THREE.Matrix4();
+    const landings = Array.from(new Set(tinted.map((entry) => entry.landing)));
+
     const renderFrame = () => {
       const t = clock.getElapsedTime();
       const dt = Math.min(t - lastT, 0.05);
@@ -565,14 +575,13 @@ export default function RealGlobe() {
       }
 
       colorUniform.value += ((hovering || dragging ? 1 : 0) - colorUniform.value) * 0.08;
-      tinted.forEach(({ material, base, landing }) => {
+      landings.forEach((landing) => {
         landing.flash = Math.max(0, landing.flash - dt * 0.7);
+      });
+      tinted.forEach(({ material, base, landing }) => {
         material.color.setRGB(1, 1, 1).lerp(base, Math.max(colorUniform.value, landing.flash));
       });
-      const burstsDone = new Set<Landing>();
-      tinted.forEach(({ landing }) => {
-        if (burstsDone.has(landing)) return;
-        burstsDone.add(landing);
+      landings.forEach((landing) => {
         landing.age += dt;
         const life = 1.2;
         const active = landing.age < life;
@@ -604,13 +613,13 @@ export default function RealGlobe() {
           return;
         }
         plane.visible = true;
-        const position = curve.getPoint(u);
-        const forward = curve.getTangent(u);
-        const up = position.clone().normalize();
-        const right = new THREE.Vector3().crossVectors(up, forward).normalize();
-        const trueUp = new THREE.Vector3().crossVectors(forward, right);
-        plane.position.copy(position);
-        plane.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, trueUp, forward));
+        curve.getPoint(u, sPos);
+        curve.getTangent(u, sForward);
+        sUp.copy(sPos).normalize();
+        sRight.crossVectors(sUp, sForward).normalize();
+        sTrueUp.crossVectors(sForward, sRight);
+        plane.position.copy(sPos);
+        plane.quaternion.setFromRotationMatrix(sMatrix.makeBasis(sRight, sTrueUp, sForward));
         // Bank gently into the flight and ease the plane in/out at the ends
         plane.rotateZ(Math.sin(u * Math.PI * 2) * 0.25);
         plane.scale.setScalar(0.026 * Math.min(1, u * 8, (1 - u) * 8));
@@ -620,12 +629,12 @@ export default function RealGlobe() {
         roamer.angle += dt * roamer.speed;
         const cos = Math.cos(roamer.angle);
         const sin = Math.sin(roamer.angle);
-        const direction = roamer.start.clone().multiplyScalar(cos).addScaledVector(roamer.side, sin);
-        const forward = roamer.start.clone().multiplyScalar(-sin).addScaledVector(roamer.side, cos).multiplyScalar(Math.sign(roamer.speed));
-        const right = new THREE.Vector3().crossVectors(direction, forward).normalize();
-        const trueUp = new THREE.Vector3().crossVectors(forward, right);
-        roamer.plane.position.copy(direction).multiplyScalar(GLOBE_RADIUS + roamer.altitude + Math.sin(t * 0.8 + roamer.phase) * 0.008);
-        roamer.plane.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, trueUp, forward));
+        sUp.copy(roamer.start).multiplyScalar(cos).addScaledVector(roamer.side, sin); // direction from the centre
+        sForward.copy(roamer.start).multiplyScalar(-sin).addScaledVector(roamer.side, cos).multiplyScalar(Math.sign(roamer.speed));
+        sRight.crossVectors(sUp, sForward).normalize();
+        sTrueUp.crossVectors(sForward, sRight);
+        roamer.plane.position.copy(sUp).multiplyScalar(GLOBE_RADIUS + roamer.altitude + Math.sin(t * 0.8 + roamer.phase) * 0.008);
+        roamer.plane.quaternion.setFromRotationMatrix(sMatrix.makeBasis(sRight, sTrueUp, sForward));
         roamer.plane.rotateZ(Math.sin(t * 0.6 + roamer.phase) * 0.3);
         roamer.plane.rotateX(Math.sin(t * 1.3 + roamer.phase) * 0.06); // slight pitch weave
       });
@@ -635,9 +644,26 @@ export default function RealGlobe() {
       robot.render(renderer);
     };
 
-    const loop = () => {
-      renderFrame();
+    // Frame pacing: a 120Hz display would otherwise render twice as many frames for no benefit.
+    // Full 60fps only while someone is interacting with the globe; a calm 30fps the rest of the time,
+    // which roughly halves the GPU/CPU work (and the heat) of the idle hero.
+    let lastFrameAt = 0;
+    let costAverage = 0;
+    const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
+      const interactive = hovering || dragging;
+      if (now - lastFrameAt < (interactive ? 1000 / 60 - 2 : 1000 / 30 - 2)) return;
+      lastFrameAt = now;
+
+      const began = performance.now();
+      renderFrame();
+      costAverage = costAverage * 0.9 + (performance.now() - began) * 0.1;
+      // Struggling machine? Drop to 1x resolution instead of letting it run hot and stutter.
+      if (costAverage > 14 && pixelRatio > 1) {
+        pixelRatio = 1;
+        renderer.setPixelRatio(1);
+        renderer.setSize(container.clientWidth, container.clientHeight);
+      }
     };
     const start = () => {
       if (!frame && visible && !document.hidden) frame = requestAnimationFrame(loop);
