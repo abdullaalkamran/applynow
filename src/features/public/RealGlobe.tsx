@@ -282,7 +282,7 @@ export default function RealGlobe() {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    let pixelRatio = Math.min(window.devicePixelRatio, 1.5); // 2x doubles the pixels shaded for little visible gain
+    let pixelRatio = Math.min(window.devicePixelRatio, 2); // full sharpness; only steps down if the machine can't keep up
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.domElement.className = "globe-webgl";
@@ -329,7 +329,7 @@ export default function RealGlobe() {
         fragmentShader: EARTH_FRAGMENT,
       }),
     );
-    const earthGeometry = track(new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64));
+    const earthGeometry = track(new THREE.SphereGeometry(GLOBE_RADIUS, 128, 96));
     group.add(new THREE.Mesh(earthGeometry, earthMaterial));
 
     // Atmosphere is fixed to the camera (not the spinning group) so the halo stays even.
@@ -660,8 +660,9 @@ export default function RealGlobe() {
       costAverage = costAverage * 0.9 + (performance.now() - began) * 0.1;
       // Struggling machine? Drop to 1x resolution instead of letting it run hot and stutter.
       if (costAverage > 14 && pixelRatio > 1) {
-        pixelRatio = 1;
-        renderer.setPixelRatio(1);
+        pixelRatio = pixelRatio > 1.5 ? 1.5 : 1; // step down gradually: 2x -> 1.5x -> 1x
+        costAverage = 0;
+        renderer.setPixelRatio(pixelRatio);
         renderer.setSize(container.clientWidth, container.clientHeight);
       }
     };

@@ -328,6 +328,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     lineViews = buildReport(plane).map((line) => {
       const el = document.createElement("div");
       el.className = `hud-line tone-${line.tone}`;
+      el.style.visibility = "hidden"; // revealed when its first letter is typed (layout space is kept)
       const key = document.createElement("span");
       key.className = "k";
       const val = document.createElement("span");
@@ -363,6 +364,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
       remaining -= valueCount;
       line.key.textContent = line.label.slice(0, labelCount);
       line.val.textContent = line.value.slice(0, valueCount);
+      line.el.style.visibility = labelCount + valueCount > 0 ? "visible" : "hidden";
       if (!active && (labelCount < line.label.length || valueCount < line.value.length)) active = line;
     });
     const last = lineViews[lineViews.length - 1];
