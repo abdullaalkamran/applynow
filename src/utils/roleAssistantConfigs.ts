@@ -2,6 +2,7 @@ import type { Role } from "../types";
 import type { RoleAssistantConfig } from "./assistantEngine";
 import { studentTools } from "./studentAssistantTools";
 import { counsellorTools } from "./counsellorAssistantTools";
+import { catalogTools, CATALOG_GUIDANCE } from "./catalogAssistantTools";
 import { AI_SUGGESTIONS } from "./aiCounsellorEngine";
 import { AGENT_AI_SUGGESTIONS } from "./agentAssistantEngine";
 import { getAgentTasks, getCounsellorTasks, getAdminTasks } from "./taskBoard";
@@ -29,8 +30,9 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `and tells you exactly what's still missing otherwise — if it comes back with a "missing" list, ask for those, ` +
     `save them, and try again. Never tell the student a step (or their profile) is "complete" unless that call ` +
     `actually succeeded.\n\n` +
-    `**No university or course talk before the profile is done.** search_universities, get_university_detail, ` +
-    `list_subjects, get_subject_detail, get_country_detail, and create_application all refuse to run until every ` +
+    `**No university or course talk before the profile is done.** search_universities, search_courses, ` +
+    `get_university_detail, list_subjects, get_subject_detail, get_country_detail, and create_application all ` +
+    `refuse to run until every ` +
     `profile step is ` +
     `complete, coming back as \`{ error, pendingSteps }\` instead of real catalog data — that specific shape means ` +
     `"profile incomplete," never "not in our network." When you see it, don't retry the same call, tell the student ` +
@@ -61,7 +63,7 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `name-based search_universities call (or list_subjects/get_subject_detail for a subject) actually comes back ` +
     `empty — never after a gated response (see below) or a filtered-but-not-name search. If totalMatches is higher ` +
     `than the list shown, say so and offer to narrow it down rather than presenting the list as everything there ` +
-    `is. For full detail on one confirmed university, use get_university_detail with its real id — it has every ` +
+    `is. For specific courses (by name, level, subject, fee, intake, or university) use search_courses. For full detail on one confirmed university, use get_university_detail with its real id — it has every ` +
     `course, fee, and requirement for that university, so lean on it for a thorough answer rather than re-searching. ` +
     `For a country generally (visa costs, required documents, application/visa steps, cost of living, intakes), use ` +
     `get_country_detail — a country having no guide yet doesn't mean it isn't in the network, only that this ` +
@@ -80,8 +82,10 @@ const AGENT_CONFIG: RoleAssistantConfig = {
   role: "agent",
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an education agent managing a caseload of students. ` +
+    `${CATALOG_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
+    ...catalogTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -121,10 +125,12 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
     `never something you did. Tie it to the real blocker/deadline/next action a tool returned (cost hesitation, ` +
     `stalling, family pushback, fear of the process, or a competitor comparison are the usual culprits). Never ` +
     `invent urgency or a fact to support the tip — skip it for a routine, unblocked case.\n\n` +
+    `${CATALOG_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise ` +
     `and practical — you're saving a busy counsellor time, not writing an essay.`,
   tools: (ctx) => [
     ...counsellorTools(ctx),
+    ...catalogTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -141,8 +147,10 @@ const ADMIN_CONFIG: RoleAssistantConfig = {
   role: "admin",
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an admin. ` +
+    `${CATALOG_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
+    ...catalogTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -160,10 +168,11 @@ function genericConfig(role: Role, label: string): RoleAssistantConfig {
     role,
     systemPrompt: (ctx) =>
       `You are the UnifinderAi assistant for ${ctx.userName} (${label}). ` +
-      `You don't have any tools wired up for this role yet — say so plainly if asked to do something specific, ` +
-      `and answer general questions as best you can. Keep replies concise.`,
-    tools: () => [],
-    suggestions: ["What can you help me with?"],
+      `${CATALOG_GUIDANCE}\n\n` +
+      `You have no other tools wired up for this role yet — say so plainly if asked to do something outside the ` +
+      `catalog, and answer general questions as best you can. Keep replies concise.`,
+    tools: () => catalogTools(),
+    suggestions: ["What can you help me with?", "Which universities do we partner with?", "Show courses under $15,000"],
   };
 }
 

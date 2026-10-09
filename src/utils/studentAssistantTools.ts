@@ -2,9 +2,8 @@ import { getAllStudents } from "../data/allStudentsStore";
 import { loadStaff } from "../data/staffStore";
 import { getAllApplications, createApplication } from "../data/applicationsStore";
 import { addNextStep, toggleNextStepDone, loadNextSteps } from "../data/applicationNextStepsStore";
-import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
-import { getCountryByName } from "../data/countryRegistry";
-import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
+import { getUniversityById } from "../data/universityCatalogStore";
+import { catalogTools } from "./catalogAssistantTools";
 import { getProfileCompletion, markStepComplete, PROFILE_STEPS, isProfileDataComplete, isChainComplete } from "../data/profileCompletion";
 import {
   loadPersonalInfo, savePersonalInfo,
@@ -77,24 +76,6 @@ function assertOwnApplication(studentId: string, applicationId: string): { error
     return { error: `No application with id "${applicationId}" belongs to this student.` };
   }
   return null;
-}
-
-// Our catalog stores abbreviated/short country names ("UK", "United States") but a student
-// speaking naturally (and the model relaying it) says the full name — a plain one-directional
-// substring check meant "united kingdom" could never match stored "UK", making a real partner
-// university look nonexistent. Checking both directions, plus a couple of common aliases our
-// short forms don't cover on their own, fixes that without needing a full country database.
-const COUNTRY_ALIASES: Record<string, string[]> = {
-  uk: ["united kingdom", "britain", "great britain", "england"],
-  usa: ["united states", "america", "us"],
-  uae: ["united arab emirates"],
-};
-
-function countryMatches(storedCountry: string, query: string): boolean {
-  const stored = storedCountry.toLowerCase();
-  const q = query.toLowerCase();
-  if (stored.includes(q) || q.includes(stored)) return true;
-  return (COUNTRY_ALIASES[stored] ?? []).some((alias) => alias.includes(q) || q.includes(alias));
 }
 
 export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
@@ -346,128 +327,8 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
           : base;
       },
     },
-    {
-      spec: {
-        name: "get_country_detail",
-        description: "Get the real Country Guide for a destination country — why study there, the visa cost/proof-of-funds breakdown, required documents, application and visa procedure, and key facts (popular intakes, cost of living, post-study work visa, part-time work rules, processing time). Use this whenever the student asks about a country generally, before or alongside naming a specific university there.",
-        parameters: { type: "object", properties: { country: { type: "string" } }, required: ["country"] },
-      },
-      execute: (args) => {
-        const blocked = requireCompleteProfile(studentId);
-        if (blocked) return blocked;
-        const record = getCountryByName(String(args.country));
-        if (!record) return { error: `"${args.country}" doesn't match a country we have a guide for yet — call search_universities with a country filter to see what's actually in the network.` };
-        return record;
-      },
-    },
-    {
-      spec: {
-        name: "search_universities",
-        description: "Search the university catalog by name and/or destination country, subject, study level, maximum budget in USD, or scholarship availability. Always pass `name` (a partial match is fine) whenever the student names a specific university directly — never conclude a university isn't in the network from a country/subject-only search that just didn't happen to include it. Returns up to 15 matches with a few matching courses each, plus totalMatches so you know if more exist than are shown.",
-        parameters: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            country: { type: "string" },
-            subject: { type: "string" },
-            studyLevel: { type: "string" },
-            maxBudget: { type: "number" },
-            scholarshipOnly: { type: "boolean" },
-          },
-        },
-      },
-      execute: (args) => {
-        const blocked = requireCompleteProfile(studentId);
-        if (blocked) return blocked;
-
-        const name = args.name as string | undefined;
-        const country = args.country as string | undefined;
-        const subject = args.subject as string | undefined;
-        const studyLevel = args.studyLevel as string | undefined;
-        const maxBudget = args.maxBudget as number | undefined;
-        const scholarshipOnly = args.scholarshipOnly as boolean | undefined;
-
-        const results = getAllUniversities()
-          .filter((u) => {
-            if (name && !u.name.toLowerCase().includes(name.toLowerCase())) return false;
-            if (country && !countryMatches(u.country, country)) return false;
-            if (scholarshipOnly && !u.scholarshipsAvailable) return false;
-            if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
-            return true;
-          })
-          .map((u) => ({
-            u,
-            // A single course must satisfy BOTH level and budget together — checking them as two
-            // independent `some()` calls (the previous bug) let a university pass with an
-            // expensive course covering level and an unrelated cheap course covering budget,
-            // while no course actually matched both, leaving matchingCourses empty below.
-            matchingCourses: u.courses
-              .filter((c) => !studyLevel || c.level.toLowerCase().includes(studyLevel.toLowerCase()))
-              .filter((c) => !maxBudget || c.feeUSD <= maxBudget),
-          }))
-          // Only require a real matching course when level/budget were actually specified —
-          // a plain country/subject search shouldn't demand a course match at all.
-          .filter(({ matchingCourses }) => !(studyLevel || maxBudget) || matchingCourses.length > 0);
-
-        return {
-          totalMatches: results.length,
-          universities: results.slice(0, 15).map(({ u, matchingCourses }) => ({
-            id: u.id,
-            name: u.name,
-            country: u.country,
-            worldRank: u.worldRank,
-            employability: u.employability,
-            scholarshipsAvailable: u.scholarshipsAvailable,
-            courseCount: u.courses.length,
-            matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
-          })),
-        };
-      },
-    },
-    {
-      spec: {
-        name: "get_university_detail",
-        description: "Get full detail for one university by id (requirements, fees, English test requirements, scholarships, courses).",
-        parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
-      },
-      execute: (args) => {
-        const blocked = requireCompleteProfile(studentId);
-        if (blocked) return blocked;
-        const uni = getUniversityById(String(args.id));
-        if (!uni) return { error: "No university found with that id." };
-        return uni;
-      },
-    },
-    {
-      spec: {
-        name: "list_subjects",
-        description: "List every field of study/subject a partner university actually offers right now — use this when the student doesn't already know what they want to study, before guessing a subject to search with.",
-        parameters: { type: "object", properties: {} },
-      },
-      // Derived from the live catalog (what real courses actually exist), not the full picklist of
-      // possible subject names Data Management can choose from — the latter includes subjects with
-      // zero courses behind them, which would have the assistant confidently offering a subject the
-      // student can't actually apply to anywhere.
-      execute: () => requireCompleteProfile(studentId) ?? Array.from(new Set(getAllUniversities().flatMap((u) => u.subjects))).sort(),
-    },
-    {
-      spec: {
-        name: "get_subject_detail",
-        description: "Get typical modules and career outcomes for a subject, plus how many partner universities currently offer it. Use an exact subject name from list_subjects.",
-        parameters: { type: "object", properties: { subject: { type: "string" } }, required: ["subject"] },
-      },
-      execute: (args) => {
-        const blocked = requireCompleteProfile(studentId);
-        if (blocked) return blocked;
-        const subject = String(args.subject);
-        const curriculum = SUBJECT_CURRICULUM[subject];
-        const universityCount = getAllUniversities().filter((u) => u.subjects.includes(subject)).length;
-        if (!curriculum && universityCount === 0) {
-          return { error: `"${subject}" doesn't match a subject in our network. Call list_subjects for the real options.` };
-        }
-        return { subject, universityCount, modules: curriculum?.modules ?? [], careers: curriculum?.careers ?? [] };
-      },
-    },
+    // Same catalog tools every role gets (shared file), kept behind the student's own profile-complete gate.
+    ...catalogTools(() => requireCompleteProfile(studentId)),
     {
       spec: {
         name: "list_my_applications",
