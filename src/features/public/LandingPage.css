@@ -1563,8 +1563,10 @@
   background: transparent;
   color: #fff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 7.5px;
-  line-height: 11px;
+  --hud-fs: 7.5px; /* phones override these two so the report stays readable */
+  --hud-lh: 11px;
+  font-size: var(--hud-fs);
+  line-height: var(--hud-lh);
   letter-spacing: 0.02em;
   /* white text with a dark outline: readable over the dark globe and the light page alike */
   white-space: nowrap;
@@ -1581,7 +1583,7 @@
   /* flat label strips: no shadow or outline, always legible on both the dark globe and the light page */
   display: block;
   width: max-content;
-  height: 11px;
+  height: var(--hud-lh);
   margin-bottom: 2px;
   padding: 0 4px;
   overflow: hidden;
@@ -1631,7 +1633,7 @@
   border-radius: 2px;
   background: #e5160f;
   color: #fff;
-  font-size: 8.5px;
+  font-size: calc(var(--hud-fs) * 1.13);
   font-weight: 900;
   letter-spacing: 0.14em;
   animation: hud-alert-flash 0.55s steps(2, end) infinite;
@@ -1741,9 +1743,15 @@
   }
 }
 
-@media (max-width: 480px) {
+/* Phones: bigger type (readable at arm's length) and the report stays visible instead of being hidden */
+@media (max-width: 600px) {
   .globe-canvas .globe-hud {
-    display: none;
+    --hud-fs: 9px;
+    --hud-lh: 14px;
+  }
+
+  .hud-line {
+    padding: 0 5px;
   }
 }
 

@@ -499,14 +499,17 @@ export default function RealGlobe() {
     const AUTO_SPEED = reducedMotion ? 0 : 0.0016;
 
     let hovering = false;
-    const onPointerEnter = () => {
+    const onPointerEnter = (event: PointerEvent) => {
       hovering = true;
+      robot.setPointer(event.clientX, event.clientY);
     };
     const onPointerLeave = () => {
       if (!dragging) hovering = false;
+      robot.setPointer(null);
     };
     let robotPress: { x: number; y: number } | null = null;
     const onPointerDown = (event: PointerEvent) => {
+      robot.setPointer(event.clientX, event.clientY);
       if (robot.hitTest(event.clientX, event.clientY)) {
         // Pressing the robot opens its help bubble instead of spinning the globe
         robotPress = { x: event.clientX, y: event.clientY };
@@ -521,6 +524,7 @@ export default function RealGlobe() {
       canvas.style.cursor = "grabbing";
     };
     const onPointerMove = (event: PointerEvent) => {
+      robot.setPointer(event.clientX, event.clientY);
       if (!dragging) {
         if (event.pointerType === "mouse") canvas.style.cursor = robot.hitTest(event.clientX, event.clientY) ? "pointer" : "grab";
         return;
@@ -534,6 +538,7 @@ export default function RealGlobe() {
       group.rotation.x = THREE.MathUtils.clamp(group.rotation.x + dy * 0.004, -0.6, 1.0);
     };
     const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") robot.setPointer(null); // a lifted finger is not a cursor
       if (robotPress) {
         const moved = Math.hypot(event.clientX - robotPress.x, event.clientY - robotPress.y);
         robotPress = null;

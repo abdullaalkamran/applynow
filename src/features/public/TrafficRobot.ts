@@ -299,6 +299,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
 
   const buildReport = (plane: TrackablePlane): ReportLine[] => {
     const { student } = plane;
+    const compact = container.clientWidth < 520; // phones: drop the long university line so the report stays small
     if (student.warning) {
       return [
         { label: "> SCAN ", value: plane.label.toUpperCase(), tone: "dim" },
@@ -313,10 +314,20 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
       { label: "> SCAN ", value: plane.label.toUpperCase(), tone: "dim" },
       { label: "✓ ", value: "ROUTE VERIFIED", tone: "ok" },
       { label: "NAME ", value: student.name, tone: "plain" },
-      { label: "UNI ", value: student.university, tone: "plain" },
+      ...(compact ? [] : [{ label: "UNI ", value: student.university, tone: "plain" as const }]),
       { label: "PROG ", value: student.program, tone: "plain" },
       { label: "STATUS ", value: student.status, tone: "plain" },
     ];
+  };
+
+  /** Size the readout to its longest line at the current font size (it changes on phones), so placement is exact. */
+  const measureHud = () => {
+    if (!lineViews.length) return;
+    const fontPx = parseFloat(getComputedStyle(hud).fontSize) || 7.5;
+    const longest = Math.max(...lineViews.map((line) => line.label.length + line.value.length));
+    const width = Math.min(Math.ceil(longest * fontPx * 0.63 + 14), Math.max(120, container.clientWidth - 8));
+    hud.style.width = `${width}px`;
+    hudSize = { w: width, h: hud.offsetHeight || 70 };
   };
 
   const showReport = (plane: TrackablePlane | null) => {
@@ -341,7 +352,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     typedChars = 0;
     renderedChars = -1;
     typingDelay = 0.35; // a short "acquiring target" beat before the first letter
-    hudSize = { w: hud.offsetWidth || 150, h: hud.offsetHeight || 70 };
+    measureHud();
   };
 
   /** Reveal the report letter by letter. */
@@ -454,6 +465,21 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
   const worldPosition = (plane: TrackablePlane, out: THREE.Vector3) => plane.object.getWorldPosition(out);
   const isTrackable = (plane: TrackablePlane) => plane.isActive() && !isOccluded(worldPosition(plane, tmpC));
 
+  // Where the visitor's cursor (or finger) is over the globe, in container pixels; null = nobody is pointing.
+  // With a pointer the robot shadows the plane nearest to it; without one it scans random planes.
+  let pointer: { x: number; y: number } | null = null;
+  let wasCursorMode = false;
+  let lastSwitchAt = -10;
+  const projectedPlane = new THREE.Vector3();
+  const setPointer = (clientX: number | null, clientY?: number) => {
+    if (clientX === null || clientY === undefined) {
+      pointer = null;
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    pointer = { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
   const pickTarget = (slot: Slot) => {
     const taken = new Set(slots.map((s) => s.target));
     const candidates = planes.filter((plane) => !taken.has(plane) && isTrackable(plane));
@@ -479,6 +505,7 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
       lastPosition.copy(home);
     }
     camera.updateMatrixWorld();
+    measureHud(); // orientation change / window resize can change the font size and available width
   };
 
   const update = (t: number, dt: number) => {
@@ -542,15 +569,52 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     head.getWorldPosition(headWorld);
     const eyeWorld = head.localToWorld(tmpB.copy(eyeLocal));
 
-    // Re-target planes
-    slots.forEach((slot, index) => {
-      if (slot.target && !isTrackable(slot.target)) {
-        slot.target = null;
-        slot.nextPick = t;
+    // Choose what to watch. With a cursor over the globe: the plane nearest to it (the rest of the beams go to
+    // the next-nearest ones). With no cursor: wander across random planes.
+    const cursorMode = pointer !== null && !helpOpen;
+    if (cursorMode && pointer) {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const scored: Array<{ plane: TrackablePlane; d: number }> = [];
+      for (const plane of planes) {
+        if (!plane.isActive()) continue;
+        worldPosition(plane, tmpC);
+        if (isOccluded(tmpC)) continue;
+        projectedPlane.copy(tmpC).project(camera);
+        const px = (projectedPlane.x * 0.5 + 0.5) * width;
+        const py = (-projectedPlane.y * 0.5 + 0.5) * height;
+        scored.push({ plane, d: Math.hypot(px - pointer.x, py - pointer.y) });
       }
-      if (!slot.target || t >= slot.nextPick) {
-        pickTarget(slot);
-        slot.nextPick = t + (index === 0 ? 3 + Math.random() * 3 : 0.8 + Math.random() * 1.8);
+      scored.sort((a, b) => a.d - b.d);
+
+      let primaryPick: TrackablePlane | null = scored[0]?.plane ?? null;
+      const current = slots[0].target;
+      if (current && scored[0]) {
+        const entry = scored.find((item) => item.plane === current);
+        // keep the current plane unless another is clearly closer and it has been watched for a moment,
+        // so the robot doesn't flicker between two planes that are equally near the cursor
+        if (entry && (entry.d <= scored[0].d + 18 || t - lastSwitchAt < 0.6)) primaryPick = current;
+      }
+      if (primaryPick !== current) lastSwitchAt = t;
+      slots[0].target = primaryPick;
+      const rest = scored.filter((item) => item.plane !== primaryPick);
+      for (let i = 1; i < slots.length; i += 1) slots[i].target = rest[i - 1]?.plane ?? null;
+      slots.forEach((slot) => (slot.nextPick = t + 0.3));
+    } else if (wasCursorMode) {
+      slots.forEach((slot) => (slot.nextPick = t)); // cursor left: go back to scanning at random straight away
+    }
+    wasCursorMode = cursorMode;
+
+    slots.forEach((slot, index) => {
+      if (!cursorMode) {
+        if (slot.target && !isTrackable(slot.target)) {
+          slot.target = null;
+          slot.nextPick = t;
+        }
+        if (!slot.target || t >= slot.nextPick) {
+          pickTarget(slot);
+          slot.nextPick = t + (index === 0 ? 3 + Math.random() * 3 : 0.8 + Math.random() * 1.8);
+        }
       }
 
       const target = slot.target;
@@ -709,5 +773,5 @@ export function createTrafficRobot({ scene, camera, container, planes, onStart }
     renderer.autoClear = previous;
   };
 
-  return { update, resize, dispose, render, hitTest, toggleHelp: () => setHelp(!helpOpen) };
+  return { update, resize, dispose, render, hitTest, setPointer, toggleHelp: () => setHelp(!helpOpen) };
 }
