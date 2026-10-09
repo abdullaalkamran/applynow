@@ -71,8 +71,11 @@ const EARTH_FRAGMENT = /* glsl */ `
     vec3 L = normalize(sunDir);
     float ndl = dot(N, L);
 
-    vec3 day = texture2D(dayMap, vUv).rgb;
-    vec3 night = texture2D(nightMap, vUv).rgb;
+    // Negative mip bias picks a sharper level of the satellite image (the source is soft), then a light
+    // local-contrast lift brings coastlines and mountain ranges out.
+    vec3 day = texture2D(dayMap, vUv, -0.6).rgb;
+    day = clamp((day - 0.5) * 1.03 + 0.5, 0.0, 1.0);
+    vec3 night = texture2D(nightMap, vUv, -0.5).rgb;
     float water = texture2D(waterMap, vUv).r;
 
     float dayMix = smoothstep(-0.12, 0.28, ndl);
@@ -282,7 +285,8 @@ export default function RealGlobe() {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    let pixelRatio = Math.min(window.devicePixelRatio, 2); // full sharpness; only steps down if the machine can't keep up
+    // Always at least 1.5x (supersampled on ordinary 1x screens so edges aren't jagged) and up to a crisp 2x on retina.
+    let pixelRatio = THREE.MathUtils.clamp(window.devicePixelRatio, 1.5, 2);
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.domElement.className = "globe-webgl";
@@ -648,26 +652,43 @@ export default function RealGlobe() {
     // Full 60fps only while someone is interacting with the globe; a calm 30fps the rest of the time,
     // which roughly halves the GPU/CPU work (and the heat) of the idle hero.
     let lastFrameAt = 0;
-    let costAverage = 0;
+    let windowStart = 0;
+    let windowFrames = 0;
+    let slowWindows = 0;
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
       const interactive = hovering || dragging;
-      if (now - lastFrameAt < (interactive ? 1000 / 60 - 2 : 1000 / 30 - 2)) return;
+      const target = interactive ? 60 : 30;
+      if (now - lastFrameAt < 1000 / target - 2) return;
       lastFrameAt = now;
+      if (!windowStart) windowStart = now;
 
-      const began = performance.now();
       renderFrame();
-      costAverage = costAverage * 0.9 + (performance.now() - began) * 0.1;
-      // Struggling machine? Drop to 1x resolution instead of letting it run hot and stutter.
-      if (costAverage > 14 && pixelRatio > 1) {
-        pixelRatio = pixelRatio > 1.5 ? 1.5 : 1; // step down gradually: 2x -> 1.5x -> 1x
-        costAverage = 0;
-        renderer.setPixelRatio(pixelRatio);
-        renderer.setSize(container.clientWidth, container.clientHeight);
+
+      // Resolution safety net, judged on the real frame rate (not CPU time): if we render well below the
+      // target for several seconds in a row, the machine is struggling, so step the resolution down one notch.
+      windowFrames += 1;
+      if (now - windowStart >= 3000) {
+        const fps = (windowFrames * 1000) / (now - windowStart);
+        const lagging = fps < target * 0.55 && !document.hidden;
+        slowWindows = lagging ? slowWindows + 1 : 0;
+        if (slowWindows >= 2 && pixelRatio > 1) {
+          pixelRatio = pixelRatio > 1.5 ? 1.5 : 1;
+          renderer.setPixelRatio(pixelRatio);
+          renderer.setSize(container.clientWidth, container.clientHeight);
+          slowWindows = 0;
+        }
+        windowStart = now;
+        windowFrames = 0;
       }
     };
     const start = () => {
-      if (!frame && visible && !document.hidden) frame = requestAnimationFrame(loop);
+      if (!frame && visible && !document.hidden) {
+        windowStart = 0; // a pause (hidden tab / scrolled away) must not count as "slow"
+        windowFrames = 0;
+        slowWindows = 0;
+        frame = requestAnimationFrame(loop);
+      }
     };
     const stop = () => {
       cancelAnimationFrame(frame);
