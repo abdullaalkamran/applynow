@@ -43,6 +43,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Universities", path: "/staff/data/universities", icon: Landmark },
     { label: "Subjects", path: "/staff/data/subjects", icon: BookOpen },
     { label: "Content Catalog", path: "/staff/data/catalog", icon: BookOpen },
+    { label: "Training Knowledge", path: "/staff/data/knowledge", icon: GraduationCap },
     { label: "Messages", path: "/messages", icon: MessageCircle },
   ],
   finance: [

@@ -119,6 +119,16 @@ export default function CounsellorUniversityDetail() {
                     <FactTile icon={<Clock3 size={14} />} label="Duration" value={course.duration} />
                   </div>
                   <CourseAccreditations accreditations={course.accreditations} />
+                  {course.courseUrl && (
+                    <a
+                      href={websiteHref(course.courseUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-[13px] font-medium text-slate-700"
+                    >
+                      View this course on the university website <ExternalLink size={13} />
+                    </a>
+                  )}
                   <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} />
                   <div className="rounded-xl bg-slate-50 p-4">
                     <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-700">

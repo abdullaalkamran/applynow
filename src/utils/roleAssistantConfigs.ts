@@ -3,6 +3,7 @@ import type { RoleAssistantConfig } from "./assistantEngine";
 import { studentTools } from "./studentAssistantTools";
 import { counsellorTools } from "./counsellorAssistantTools";
 import { catalogTools, CATALOG_GUIDANCE } from "./catalogAssistantTools";
+import { knowledgeTools, KNOWLEDGE_GUIDANCE } from "./knowledgeAssistantTools";
 import { AI_SUGGESTIONS } from "./aiCounsellorEngine";
 import { AGENT_AI_SUGGESTIONS } from "./agentAssistantEngine";
 import { getAgentTasks, getCounsellorTasks, getAdminTasks } from "./taskBoard";
@@ -83,9 +84,11 @@ const AGENT_CONFIG: RoleAssistantConfig = {
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an education agent managing a caseload of students. ` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${KNOWLEDGE_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
     ...catalogTools(),
+    ...knowledgeTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -125,12 +128,16 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
     `never something you did. Tie it to the real blocker/deadline/next action a tool returned (cost hesitation, ` +
     `stalling, family pushback, fear of the process, or a competitor comparison are the usual culprits). Never ` +
     `invent urgency or a fact to support the tip — skip it for a routine, unblocked case.\n\n` +
+    `**Suggesting programs.** When asked what to suggest for a student, call get_student_profile for them (use ` +
+    `list_my_students to find the id), then follow the recommendation rules below using the catalog tools.\n\n` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${KNOWLEDGE_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise ` +
     `and practical — you're saving a busy counsellor time, not writing an essay.`,
   tools: (ctx) => [
     ...counsellorTools(ctx),
     ...catalogTools(),
+    ...knowledgeTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -140,7 +147,7 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
       execute: () => getCounsellorTasks(ctx.userId),
     },
   ],
-  suggestions: ["What tasks do I have today?", "Which of my students need follow-up?", "What's blocking Sarah Khan's application?"],
+  suggestions: ["What tasks do I have today?", "Suggest courses and scholarships for Sarah Khan", "What's blocking Sarah Khan's application?"],
 };
 
 const ADMIN_CONFIG: RoleAssistantConfig = {
@@ -148,9 +155,11 @@ const ADMIN_CONFIG: RoleAssistantConfig = {
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an admin. ` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${KNOWLEDGE_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
     ...catalogTools(),
+    ...knowledgeTools(),
     {
       spec: {
         name: "list_my_tasks",
@@ -169,9 +178,10 @@ function genericConfig(role: Role, label: string): RoleAssistantConfig {
     systemPrompt: (ctx) =>
       `You are the UnifinderAi assistant for ${ctx.userName} (${label}). ` +
       `${CATALOG_GUIDANCE}\n\n` +
+    `${KNOWLEDGE_GUIDANCE}\n\n` +
       `You have no other tools wired up for this role yet — say so plainly if asked to do something outside the ` +
       `catalog, and answer general questions as best you can. Keep replies concise.`,
-    tools: () => catalogTools(),
+    tools: () => [...catalogTools(), ...knowledgeTools()],
     suggestions: ["What can you help me with?", "Which universities do we partner with?", "Show courses under $15,000"],
   };
 }

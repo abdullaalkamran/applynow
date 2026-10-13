@@ -5,6 +5,7 @@
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
 import { getCountryByName } from "../data/countryRegistry";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
+import { scholarshipLabel } from "./universityFilter";
 import type { ToolDefinition } from "./assistantEngine";
 
 // Our catalog stores abbreviated/short country names ("UK", "United States") but a person speaking naturally
@@ -28,14 +29,23 @@ export function countryMatches(storedCountry: string, query: string): boolean {
 /** Shown to every role's model so it uses the tools instead of claiming it has no access to the catalog. */
 export const CATALOG_GUIDANCE =
   `**You DO have access to the platform's real university and course catalog** — through search_universities, ` +
-  `search_courses, get_university_detail, list_subjects, get_subject_detail and get_country_detail. Never say you ` +
+  `search_courses, get_university_detail, list_subjects, get_subject_detail, search_scholarships and get_country_detail. Never say you ` +
   `lack access to universities, courses, fees or requirements: call the tool. When someone names a specific ` +
   `university, call search_universities with that exact name in the \`name\` field before ruling anything out; for ` +
   `courses (by name, level, subject, country, fee, or university) use search_courses; for the full picture of one ` +
   `university (every course, fee, requirement) use get_university_detail with the id from a search. Only say ` +
   `something isn't in the network after a search by name actually came back empty. Report only what tools ` +
   `returned — never invent a university, course, fee or deadline. If totalMatches exceeds what's listed, say so ` +
-  `and offer to narrow it down.`;
+  `and offer to narrow it down.\n\n` +
+  `**Recommending courses, universities and scholarships.** When asked to suggest or shortlist for a student, ` +
+  `build it only from catalog tool results (what the data team entered), never from general knowledge: first ` +
+  `gather the student's real constraints — from their profile if a tool gives it, otherwise ask for the missing ` +
+  `ones (study level, subject, destination, yearly budget, GPA, English score, intake). Then call search_courses ` +
+  `(and search_universities / search_scholarships) with those filters, compare each course's minIELTS/minGPA ` +
+  `against the student's scores, and present 3–5 options. For each give university, course, country, yearly fee, ` +
+  `intake/deadline, scholarship (name and amount if one exists), and one line on why it fits plus any gap ` +
+  `(e.g. IELTS below minimum, over budget). Say plainly when nothing fits and which constraint to relax. ` +
+  `Scholarships: only name ones search_scholarships returned and quote their real eligibility — never promise an award.`;
 
 type Gate = () => unknown | null;
 
@@ -179,7 +189,34 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
             universityId: u.id,
             university: u.name,
             country: u.country,
+            scholarship: scholarshipLabel(u) ?? undefined,
+            minIELTS: u.minIELTS,
+            minGPA: u.minGPA,
           })),
+        };
+      },
+    },
+    {
+      spec: {
+        name: "search_scholarships",
+        description: "Find the scholarships partner universities have actually entered, each with its award amount and eligibility note. Filter by country, university name, and/or subject. Use this whenever a student's budget or funding comes up, or when asked what scholarships exist. Universities flagged scholarshipsAvailable with no named scholarship are listed separately.",
+        parameters: { type: "object", properties: { country: { type: "string" }, university: { type: "string" }, subject: { type: "string" } } },
+      },
+      execute: (args) => {
+        const refusal = blocked();
+        if (refusal) return refusal;
+        const country = args.country as string | undefined;
+        const university = (args.university as string | undefined)?.toLowerCase();
+        const subject = (args.subject as string | undefined)?.toLowerCase();
+        const unis = getAllUniversities().filter((u) =>
+          (!country || countryMatches(u.country, country)) &&
+          (!university || u.name.toLowerCase().includes(university)) &&
+          (!subject || u.subjects.some((s) => s.toLowerCase().includes(subject))));
+        return {
+          scholarships: unis.flatMap((u) => (u.scholarships ?? []).map((sc) => ({
+            university: u.name, universityId: u.id, country: u.country, scholarship: sc.name, amount: sc.amount, eligibility: sc.description,
+          }))).slice(0, 30),
+          otherUniversitiesWithScholarships: unis.filter((u) => u.scholarshipsAvailable && !(u.scholarships ?? []).length).map((u) => ({ university: u.name, universityId: u.id })).slice(0, 15),
         };
       },
     },

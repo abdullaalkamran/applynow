@@ -5,6 +5,8 @@
 // counsellor's students, mirroring the id-validation discipline studentAssistantTools.ts already
 // enforces for create_application.
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
+import { loadPersonalInfo, loadEnglishTests, loadWorkExperience, loadPreferences } from "../data/studentProfileDetailsStore";
+import { loadAcademicLevels } from "../data/academicProfileStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { addTask, patchTask, toggleTaskDone, type TaskPerson } from "../data/tasksStore";
 import { requestDocument as requestStageDocument } from "../data/documentsStore";
@@ -46,6 +48,25 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
   const appIdParam = { applicationId: { type: "string" } };
 
   const readTools: ToolDefinition[] = [
+    {
+      spec: { name: "list_my_students", description: "List the students assigned to you (id, name, home country) — use the id with get_student_profile.", parameters: { type: "object", properties: {} } },
+      execute: () => loadAssignedStudents().map((s) => ({ studentId: s.id, name: s.name, country: s.country })),
+    },
+    {
+      spec: {
+        name: "get_student_profile",
+        description: "Read a caseload student's profile on file: personal info, English test scores, work experience, study preferences (destination, level, budget) and academic history. Use before recommending courses, universities or scholarships for them.",
+        parameters: { type: "object", properties: { studentId: { type: "string" } }, required: ["studentId"] },
+      },
+      execute: (args) => {
+        const id = String(args.studentId);
+        if (!loadAssignedStudents().some((s) => s.id === id)) return { error: `Student "${id}" is not in your caseload.` };
+        return {
+          personalInfo: loadPersonalInfo(id), englishTests: loadEnglishTests(id), workExperience: loadWorkExperience(id),
+          preferences: loadPreferences(id), academicLevels: loadAcademicLevels(id),
+        };
+      },
+    },
     {
       spec: { name: "get_application_summary", description: "Get the compact current-state summary for one application in your caseload: stage, status, progress, blockers, next action.", parameters: { type: "object", properties: appIdParam, required: ["applicationId"] } },
       execute: (args) => assertOwnApplication(String(args.applicationId)) ?? getApplicationSummary(String(args.applicationId)),

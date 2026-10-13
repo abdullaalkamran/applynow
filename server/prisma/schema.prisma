@@ -1115,3 +1115,16 @@ model UniversityImportItem {
 
   @@index([createdAt])
 }
+
+// Counsellor/agent training material (notes from British Council / ICEF courses, playbooks, FAQs)
+// that Data Management pastes in. The role assistants search it through the `search_knowledge` tool
+// (routes/knowledge.js) instead of the model being retrained.
+model KnowledgeDoc {
+  id        String   @id @default(cuid())
+  title     String
+  source    String?  @db.Text
+  category  String?
+  content   String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

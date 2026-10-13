@@ -87,6 +87,7 @@ const ComplianceRiskQueue = lazy(() => import("./features/staff/compliance/RiskQ
 const DataCatalog = lazy(() => import("./features/staff/data/Catalog"));
 const DataSubjects = lazy(() => import("./features/staff/data/Subjects"));
 const DataSubjectForm = lazy(() => import("./features/staff/data/SubjectForm"));
+const DataKnowledge = lazy(() => import("./features/staff/data/Knowledge"));
 const DataCountries = lazy(() => import("./features/staff/data/Countries"));
 const DataUniversities = lazy(() => import("./features/staff/data/Universities"));
 const DataUniversityDetail = lazy(() => import("./features/staff/data/UniversityDetail"));
@@ -253,6 +254,7 @@ export default function App() {
             <Route path="/staff/data/subjects" element={<DataSubjects />} />
             <Route path="/staff/data/subjects/new" element={<DataSubjectForm />} />
             <Route path="/staff/data/subjects/:id" element={<DataSubjectForm />} />
+            <Route path="/staff/data/knowledge" element={<DataKnowledge />} />
             <Route path="/staff/data/catalog" element={<DataCatalog />} />
             <Route path="/staff/finance" element={<FinanceCommissionApprovals />} />
 

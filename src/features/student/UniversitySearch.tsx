@@ -338,7 +338,7 @@ export default function UniversitySearch() {
         {tab === "countries" ? (
           <div className="mt-4">
             <p className="text-[13px] text-slate-500">{countryStatsFiltered.length} destination{countryStatsFiltered.length === 1 ? "" : "s"} to explore.</p>
-            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-1">
               {countryStatsFiltered.map((c) => (
                 <button
                   key={c.name}
@@ -383,7 +383,7 @@ export default function UniversitySearch() {
 
             {/* Same card shape as the Universities tab below (big logo tile, title, location line,
                 divider, detail row) so both tabs read as one consistent catalog. */}
-            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3">
               {programsPage.pageItems.map(({ university: u, course: c }) => {
                 const scholarship = scholarshipLabel(u);
                 const programKey = `${u.id}::${c.name}`;
@@ -493,7 +493,7 @@ export default function UniversitySearch() {
               <p className="text-[13px] text-slate-500">{results.length} {results.length === 1 ? "university" : "universities"} found</p>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-3">
               {results.length === 0 && (
                 <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)] lg:col-span-full">
                   <p className="text-sm font-medium text-slate-700">No universities match your filters</p>
