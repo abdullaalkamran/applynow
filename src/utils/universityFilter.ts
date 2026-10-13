@@ -485,3 +485,36 @@ export function applyFilters(universities: University[], f: UniversityFilterStat
     return true;
   });
 }
+
+// Course-level counterpart to applyFilters(): applyFilters() keeps a university when *any* of its
+// courses matches, which is right for the Universities tab but leaves the flat program list showing
+// every course of a surviving university. This narrows that list to the courses that actually match
+// the search text and the course-specific Advanced Search fields.
+export function courseMatchesFilters(u: University, c: University["courses"][number], f: UniversityFilterState, searchQuery = ""): boolean {
+  const q = searchQuery.trim().toLowerCase();
+  if (q) {
+    const hit =
+      u.name.toLowerCase().includes(q) ||
+      u.city.toLowerCase().includes(q) ||
+      u.country.toLowerCase().includes(q) ||
+      c.name.toLowerCase().includes(q) ||
+      c.subject.toLowerCase().includes(q);
+    if (!hit) return false;
+  }
+  const courseQuery = f.courseQuery.trim().toLowerCase();
+  const subjectQuery = f.subjectQuery.trim().toLowerCase();
+  if (courseQuery && !c.name.toLowerCase().includes(courseQuery)) return false;
+  if (subjectQuery && !c.subject.toLowerCase().includes(subjectQuery)) return false;
+  if (f.disciplineArea && getSubjectRecord(c.subject)?.disciplineArea !== f.disciplineArea) return false;
+  if (f.duration && c.duration !== f.duration) return false;
+  if (f.level && c.level !== f.level) return false;
+  if (f.programLevel && !(c.programLevel ?? []).includes(f.programLevel)) return false;
+  if (f.standardizedTests.size > 0 && !(c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t))) return false;
+  if (f.withoutGRE && (c.standardizedTests ?? []).includes("GRE")) return false;
+  if (f.withoutGMAT && (c.standardizedTests ?? []).includes("GMAT")) return false;
+  if (f.withoutMaths && c.mathsRequired !== false) return false;
+  if (f.stemOnly && !c.isStemProgram) return false;
+  if (f.accepts15YearsOnly && !c.accepts15YearsEducation) return false;
+  if (f.openProgramsOnly && !courseHasOpenIntake(u, c)) return false;
+  return true;
+}

@@ -13,7 +13,7 @@ import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters,
-  allPrograms, scholarshipLabel, depositLabel, courseHasOpenIntake,
+  allPrograms, courseMatchesFilters, scholarshipLabel, depositLabel, courseHasOpenIntake,
   countryStats, intakeOptions, yearOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
@@ -113,11 +113,12 @@ export default function UniversitySearch() {
     () =>
       allPrograms().filter(({ university: u, course: c }) => {
         if (!advancedFilteredUniversityIds.has(u.id)) return false;
+        if (!courseMatchesFilters(u, c, filters, query)) return false;
         if (programShortlistedOnly && !isShortlisted(`${u.id}::${c.name}`)) return false;
         return true;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
-    [advancedFilteredUniversityIds, programShortlistedOnly, shortlistTick]
+    [advancedFilteredUniversityIds, filters, query, programShortlistedOnly, shortlistTick]
   );
   const programFiltersActive = programShortlistedOnly;
   const programsPage = usePagedList(programs, 30, `${query}:${JSON.stringify(filters)}:${programShortlistedOnly}`);
