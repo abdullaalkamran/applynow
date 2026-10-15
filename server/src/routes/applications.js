@@ -681,3 +681,7 @@ router.patch("/:id/journey/:stageType", requireAuth, requireInternal, async (req
 });
 
 module.exports = router;
+
+// Shared with routes/worker.js so the portal worker writes back through exactly the same journey/notification
+// logic a counsellor's own edit goes through.
+router.helpers = { computeUpdatedStage, applyStageToApplication, getApplicationParticipants };

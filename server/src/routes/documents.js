@@ -178,6 +178,23 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
   }
 });
 
+// Re-labelling a document (name / type) so it lands on the right checklist row — internal staff only
+// (counsellor, admission, compliance, data, finance, admin). Never touches the file, its status, or its owner.
+router.patch("/:id/organise", requireAuth, async (req, res, next) => {
+  try {
+    if (!isInternal(req.authUser)) return res.status(403).json({ error: "Staff access required." });
+    const { name, type } = req.body || {};
+    const data = {};
+    if (typeof name === "string" && name.trim()) data.name = name.trim().slice(0, 191);
+    if (typeof type === "string" && type.trim()) data.type = type.trim().slice(0, 191);
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "Provide a name and/or type." });
+    if (!(await prisma.document.findUnique({ where: { id: req.params.id } }))) return res.status(404).json({ error: "Document not found." });
+    res.json(serializeDocument(await prisma.document.update({ where: { id: req.params.id }, data })));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Verifying (approving/rejecting) an uploaded document is a counsellor-only action — the student
 // and agent can both upload and view, but only the counsellor signs off on whether it's acceptable.
 // A rejection requires a reason, which the student then sees on the checklist prompting a re-upload.

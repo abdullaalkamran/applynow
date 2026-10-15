@@ -6,7 +6,19 @@ export interface ToolDefinition {
   spec: ToolSpec;
   // Runs the real store mutator/reader in the browser — the backend never touches localStorage.
   execute: (args: Record<string, unknown>) => Promise<unknown> | unknown;
+  // Risky actions (creating a profile, submitting to an external portal...) don't run until the person
+  // approves. `describe` is the plain-language summary shown on the approval card.
+  requiresApproval?: boolean;
+  describe?: (args: Record<string, unknown>) => string;
 }
+
+export interface ApprovalRequest {
+  toolName: string;
+  summary: string;
+  args: Record<string, unknown>;
+}
+/** Resolves true when the person approves, false when they decline. */
+export type ApprovalHandler = (request: ApprovalRequest) => Promise<boolean>;
 
 export interface AssistantUserContext {
   userId: string;
@@ -51,7 +63,8 @@ export async function runAssistantTurn(
   ctx: AssistantUserContext,
   history: AssistantMessage[],
   userText: string,
-  token: string
+  token: string,
+  approve?: ApprovalHandler
 ): Promise<{ reply: string; updatedHistory: AssistantMessage[] }> {
   const tools = config.tools(ctx);
   const toolsByName = new Map(tools.map((tool) => [tool.spec.name, tool]));
@@ -88,7 +101,17 @@ export async function runAssistantTurn(
       const tool = toolsByName.get(call.name);
       let result: unknown;
       try {
-        result = tool ? await tool.execute(call.arguments || {}) : { error: `Unknown tool "${call.name}"` };
+        if (tool?.requiresApproval) {
+          const args = call.arguments || {};
+          const approved = approve
+            ? await approve({ toolName: call.name, summary: tool.describe?.(args) ?? `Run ${call.name}`, args })
+            : false;
+          result = approved
+            ? await tool.execute(args)
+            : { declined: true, message: "The counsellor did not approve this action, so nothing was changed. Do not retry it unless they ask." };
+        } else {
+          result = tool ? await tool.execute(call.arguments || {}) : { error: `Unknown tool "${call.name}"` };
+        }
       } catch (err) {
         result = { error: err instanceof Error ? err.message : String(err) };
       }

@@ -5,6 +5,7 @@ import {
   loadWorkExperience, loadWorkStatus,
 } from "./studentProfileDetailsStore";
 import { loadAcademicLevels } from "./academicProfileStore";
+import { getServerSection, putServerSection } from "./profileSync";
 
 export interface ProfileStep {
   key: string;
@@ -39,6 +40,7 @@ const STORAGE_PREFIX = "sd-profile-step:";
 
 export function isStepComplete(key: string, studentId: string = CURRENT_STUDENT_ID): boolean {
   const defaults = DEFAULT_COMPLETE_BY_STUDENT[studentId] ?? {};
+  if (getServerSection<boolean>(studentId, `step:${key}`) === true) return true;
   if (typeof window === "undefined") return defaults[key] ?? false;
   const stored = window.localStorage.getItem(`${STORAGE_PREFIX}${studentId}:${key}`);
   if (stored === "true") return true;
@@ -47,6 +49,7 @@ export function isStepComplete(key: string, studentId: string = CURRENT_STUDENT_
 }
 
 export function markStepComplete(key: string, studentId: string = CURRENT_STUDENT_ID) {
+  putServerSection(studentId, `step:${key}`, true);
   if (typeof window === "undefined") return;
   window.localStorage.setItem(`${STORAGE_PREFIX}${studentId}:${key}`, "true");
 }

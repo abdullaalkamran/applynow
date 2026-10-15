@@ -8,6 +8,7 @@ import { refreshStaff } from "../data/staffStore";
 import { refreshAgentStudents } from "../data/agentStudentsStore";
 import { refreshAssignedStudents } from "../data/counsellorStudentsStore";
 import { refreshAllStudents } from "../data/allStudentsStore";
+import { refreshProfileSections, clearProfileCache } from "../data/profileSync";
 import { refreshCoreDocs } from "../data/coreDocsStore";
 import { refreshApplicationDocs } from "../data/applicationDocsStore";
 import { refreshNextSteps } from "../data/applicationNextStepsStore";
@@ -57,6 +58,7 @@ export function warmCaches() {
   refreshNextSteps().catch((err) => console.warn("Failed to warm next-steps cache:", err));
   refreshDocDueDates().catch((err) => console.warn("Failed to warm document-due-dates cache:", err));
   refreshFinancialReadiness().catch((err) => console.warn("Failed to warm financial-readiness cache:", err));
+  refreshProfileSections().catch((err) => console.warn("Failed to warm student-profile cache:", err));
   refreshInbox().catch((err) => console.warn("Failed to warm inbox cache:", err));
   refreshCachedStudentComments();
   refreshThreadsList().catch((err) => console.warn("Failed to warm message-threads cache:", err));
@@ -123,6 +125,7 @@ export function clearAllCaches() {
   clearAgentStudentsCache();
   clearCounsellorStudentsCache();
   clearAllStudentsCache();
+  clearProfileCache();
   clearCoreDocsCache();
   clearApplicationDocsCache();
   clearApplicationNextStepsCache();

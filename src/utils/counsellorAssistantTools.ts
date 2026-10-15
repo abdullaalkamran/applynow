@@ -7,6 +7,10 @@
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
 import { loadPersonalInfo, loadEnglishTests, loadWorkExperience, loadPreferences } from "../data/studentProfileDetailsStore";
 import { loadAcademicLevels } from "../data/academicProfileStore";
+import { loadCoreDocs, organiseCoreDoc } from "../data/coreDocsStore";
+import { buildCoreChecklist } from "./documentChecklist";
+import { listPortals, listSubmissions, queueSubmission, confirmSubmission } from "../data/portalsStore";
+import { getStagedFiles, readStagedDocuments, describeProposal, createStudentFromProposal } from "./profileFromDocuments";
 import { getAllApplications } from "../data/applicationsStore";
 import { addTask, patchTask, toggleTaskDone, type TaskPerson } from "../data/tasksStore";
 import { requestDocument as requestStageDocument } from "../data/documentsStore";
@@ -47,7 +51,56 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
 
   const appIdParam = { applicationId: { type: "string" } };
 
+  const inCaseload = (studentId: string) => loadAssignedStudents().some((s) => s.id === studentId);
+
+  // Portal names for the approval cards (describe() is synchronous), filled whenever the portals are listed.
+  const portalNames = new Map<string, string>();
+  const appLabel = (applicationId: string) => {
+    const a = getAllApplications().find((x) => x.id === applicationId);
+    const student = a ? loadAssignedStudents().find((s) => s.id === a.studentId)?.name : undefined;
+    return a ? `${student ?? "student"}'s application to ${a.university} — ${a.course}` : `application ${applicationId}`;
+  };
+
   const readTools: ToolDefinition[] = [
+    {
+      spec: { name: "list_my_portals", description: "List the external university / B2B agent portals the counsellor has saved logins for (id, name, kind, whether the last login worked). Credentials are never shown. Use the id with submit_application_to_portal.", parameters: { type: "object", properties: {} } },
+      execute: async () => {
+        try {
+          const portals = await listPortals();
+          portals.forEach((p) => portalNames.set(p.id, p.name));
+          return portals.map((p) => ({ portalId: p.id, name: p.name, kind: p.kind, lastLoginOk: p.lastLoginOk }));
+        } catch (err) { return { error: err instanceof Error ? err.message : "Couldn't load portals." }; }
+      },
+    },
+    {
+      spec: { name: "list_portal_submissions", description: "Check where applications stand on external portals: status (queued, preparing, awaiting_confirm = filled in and waiting for the counsellor's final confirmation, submitted, needs_human, failed), the portal's own reference and last status read from the portal, and when it was last checked. Optionally for one application.", parameters: { type: "object", properties: { applicationId: { type: "string" } } } },
+      execute: async (args) => {
+        try {
+          if (args.applicationId) { const err = assertOwnApplication(String(args.applicationId)); if (err) return err; }
+          return await listSubmissions(args.applicationId ? String(args.applicationId) : undefined);
+        } catch (err) { return { error: err instanceof Error ? err.message : "Couldn't load submissions." }; }
+      },
+    },
+    {
+      spec: {
+        name: "list_student_documents",
+        description: "Check a caseload student's document vault: every uploaded file (id, name, type, status) plus the required-document checklist showing what is missing, uploaded, verified or rejected (with the rejection reason). Use before asking for documents, organising them, or building a profile.",
+        parameters: { type: "object", properties: { studentId: { type: "string" } }, required: ["studentId"] },
+      },
+      execute: (args) => {
+        const id = String(args.studentId);
+        if (!inCaseload(id)) return { error: `Student "${id}" is not in your caseload.` };
+        return {
+          documents: loadCoreDocs(id).map((d) => ({ id: d.id, name: d.name, type: d.type, status: d.status, uploadedAt: d.uploadedAt, rejectionReason: d.rejectionReason })),
+          checklist: buildCoreChecklist(id).map((r) => ({
+            type: r.type,
+            state: r.rejected ? "rejected" : r.own ? r.own.status : "missing",
+            documentId: r.own?.id ?? r.rejected?.id,
+            rejectionReason: r.rejected?.reason,
+          })),
+        };
+      },
+    },
     {
       spec: { name: "list_my_students", description: "List the students assigned to you (id, name, home country) — use the id with get_student_profile.", parameters: { type: "object", properties: {} } },
       execute: () => loadAssignedStudents().map((s) => ({ studentId: s.id, name: s.name, country: s.country })),
@@ -115,12 +168,94 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
   const writeTools: ToolDefinition[] = [
     {
       spec: {
+        name: "submit_application_to_portal",
+        description: "Start submitting one of the counsellor's applications to a saved external portal. The counsellor must approve first. A background worker then logs in, fills the portal from the student's profile and documents, and STOPS before the final submit — it never submits on its own. Afterwards tell the counsellor to review the filled-in preview on the Portals page and then confirm (confirm_portal_submission).",
+        parameters: { type: "object", properties: { portalId: { type: "string" }, applicationId: { type: "string" } }, required: ["portalId", "applicationId"] },
+      },
+      requiresApproval: true,
+      describe: (args) => `Prepare ${appLabel(String(args.applicationId))} for submission on the "${portalNames.get(String(args.portalId)) ?? "selected"}" portal.\n\nThe AI agent will log in with your saved credentials and fill the portal in using the student's profile and documents. It stops before the final submit — you confirm that separately.`,
+      execute: async (args) => {
+        const err = assertOwnApplication(String(args.applicationId));
+        if (err) return err;
+        try { return await queueSubmission(String(args.portalId), String(args.applicationId)); }
+        catch (e) { return { error: e instanceof Error ? e.message : "Couldn't queue the submission." }; }
+      },
+    },
+    {
+      spec: {
+        name: "confirm_portal_submission",
+        description: "Give the final go-ahead for a submission that is awaiting_confirm (the portal is filled in and waiting). The counsellor must approve; only call this after they have said they reviewed the preview, and never on your own initiative.",
+        parameters: { type: "object", properties: { submissionId: { type: "string" } }, required: ["submissionId"] },
+      },
+      requiresApproval: true,
+      describe: () => "Send the final submit on the external portal. This applies to a real university / agent portal and can't be undone from here.",
+      execute: async (args) => {
+        try { return await confirmSubmission(String(args.submissionId)); }
+        catch (e) { return { error: e instanceof Error ? e.message : "Couldn't confirm the submission." }; }
+      },
+    },
+    {
+      spec: {
+        name: "read_attached_documents",
+        description: "Read the documents the counsellor attached in this chat (passport, transcripts, certificates, English test reports, CV — images or text PDFs): classifies each and extracts a proposed profile (personal details, education, English tests, work). Nothing is saved. Call this first when the counsellor wants a student profile built from documents, then summarise what was found, flag gaps/warnings, and ask for anything missing (especially the student's email) before create_student_from_documents.",
+        parameters: { type: "object", properties: {} },
+      },
+      execute: async () => {
+        if (getStagedFiles().length === 0) return { error: "No documents are attached — ask the counsellor to attach the student's files with the paperclip button in the chat." };
+        try {
+          const r = await readStagedDocuments();
+          if (!r.available) return { error: r.warnings[0] ?? "Document reading isn't available." };
+          return { fileCount: r.fileCount, documents: r.documents.map((d) => ({ fileName: d.fileName, docType: d.docType, warnings: d.warnings })), proposedProfile: r.profile };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : "Couldn't read the documents." };
+        }
+      },
+    },
+    {
+      spec: {
+        name: "create_student_from_documents",
+        description: "Create a new student assigned to the counsellor from the documents read by read_attached_documents: saves the extracted profile sections and files the documents in the student's vault. The counsellor must approve first (an approval card appears). Requires the student's email; name and country default to what the documents show. Never invent an email.",
+        parameters: { type: "object", properties: { name: { type: "string" }, email: { type: "string" }, country: { type: "string" }, phone: { type: "string" } }, required: ["email"] },
+      },
+      requiresApproval: true,
+      describe: (args) => describeProposal({ name: args.name as string | undefined, email: args.email as string | undefined, country: args.country as string | undefined }),
+      execute: async (args) => {
+        try {
+          return await createStudentFromProposal({
+            name: args.name as string | undefined, email: String(args.email), country: args.country as string | undefined, phone: args.phone as string | undefined,
+          });
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : "Couldn't create the student." };
+        }
+      },
+    },
+    {
+      spec: {
+        name: "organise_document",
+        description: "Re-label one of a caseload student's uploaded vault documents (new name and/or type, e.g. type \"Passport\") so it lands on the right checklist row. Only changes the label — never the file or its verification status. Use list_student_documents first to get document ids and decide the correct label.",
+        parameters: { type: "object", properties: { studentId: { type: "string" }, documentId: { type: "string" }, name: { type: "string" }, type: { type: "string" } }, required: ["studentId", "documentId"] },
+      },
+      execute: async (args) => {
+        const studentId = String(args.studentId);
+        if (!inCaseload(studentId)) return { error: `Student "${studentId}" is not in your caseload.` };
+        if (!loadCoreDocs(studentId).some((d) => d.id === args.documentId)) return { error: "That document isn't in this student's vault." };
+        try {
+          const d = await organiseCoreDoc(String(args.documentId), { name: args.name as string | undefined, type: args.type as string | undefined });
+          return { id: d.id, name: d.name, type: d.type, status: d.status };
+        } catch (err) {
+          return { error: err instanceof Error ? err.message : "Couldn't update the document." };
+        }
+      },
+    },
+    {
+      spec: {
         name: "create_task",
-        description: "Create a task for a specific person (student, agent, admission officer, or yourself) about an application, optionally linked to a stage.",
+        description: "Create a task for a specific person (student, agent, admission officer, or yourself). Pass studentId for a task about a student in general, or applicationId for one about a specific application (optionally linked to a stage); at least one is required.",
         parameters: {
           type: "object",
           properties: {
             applicationId: { type: "string" },
+            studentId: { type: "string" },
             title: { type: "string" },
             assignToRole: { type: "string", enum: ["student", "agent", "admission", "counsellor"] },
             assignToId: { type: "string" },
@@ -129,13 +264,20 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
             dueDate: { type: "string" },
             priority: { type: "string", enum: ["low", "medium", "high"] },
           },
-          required: ["applicationId", "title", "assignToRole", "assignToId", "assignToName"],
+          required: ["title", "assignToRole", "assignToId", "assignToName"],
         },
       },
       execute: (args) => {
-        const err = assertOwnApplication(String(args.applicationId));
-        if (err) return err;
-        const application = getAllApplications().find((a) => a.id === args.applicationId);
+        if (!args.applicationId && !args.studentId) return { error: "Provide a studentId or an applicationId for the task." };
+        let studentId: string | undefined;
+        if (args.applicationId) {
+          const err = assertOwnApplication(String(args.applicationId));
+          if (err) return err;
+          studentId = getAllApplications().find((a) => a.id === args.applicationId)?.studentId;
+        } else {
+          studentId = String(args.studentId);
+          if (!loadAssignedStudents().some((s) => s.id === studentId)) return { error: `Student "${studentId}" is not in your caseload.` };
+        }
         const assignedTo: TaskPerson = { id: String(args.assignToId), role: args.assignToRole as TaskPerson["role"], name: String(args.assignToName) };
         const assignedBy: TaskPerson = { id: counsellorId, role: "counsellor", name: ctx.userName };
         return addTask({
@@ -143,11 +285,11 @@ export function counsellorTools(ctx: AssistantUserContext): ToolDefinition[] {
           assignedTo,
           assignedBy,
           dueDate: args.dueDate as string | undefined,
-          applicationId: String(args.applicationId),
+          applicationId: args.applicationId ? String(args.applicationId) : undefined,
           stageType: args.stageType as StageType | undefined,
           priority: args.priority as "low" | "medium" | "high" | undefined,
-          studentId: application?.studentId,
-          studentName: application ? loadAssignedStudents().find((s) => s.id === application.studentId)?.name : undefined,
+          studentId,
+          studentName: loadAssignedStudents().find((s) => s.id === studentId)?.name,
         });
       },
     },

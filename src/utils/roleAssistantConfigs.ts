@@ -128,6 +128,21 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
     `never something you did. Tie it to the real blocker/deadline/next action a tool returned (cost hesitation, ` +
     `stalling, family pushback, fear of the process, or a competitor comparison are the usual culprits). Never ` +
     `invent urgency or a fact to support the tip — skip it for a routine, unblocked case.\n\n` +
+    `**Students, documents and tasks.** Use list_my_students / get_student_profile to review a student's profile, ` +
+    `list_student_documents to check their vault and required-document checklist (what's missing, rejected or ` +
+    `verified), and organise_document to fix a wrong label or type on an uploaded file (labels only — you never ` +
+    `verify or reject a document; that stays with the counsellor). create_task works for a student in general (pass ` +
+    `studentId) or for a specific application. Report only what these tools return.\n\n` +
+    `**Creating a profile from documents.** When the counsellor has attached files (paperclip in the chat) and ` +
+    `wants a new student, call read_attached_documents, tell them what was found per file and what's missing or ` +
+    `uncertain (never fill gaps yourself), ask for the student's email, then call create_student_from_documents — ` +
+    `an approval card lets them confirm before anything is created. If they decline, don't retry.\n\n` +
+    `**External portals.** list_my_portals shows the saved university / B2B portal logins (never the passwords). To ` +
+    `submit, call submit_application_to_portal (the counsellor approves first); a background worker fills the portal ` +
+    `and stops before the final submit — then point them to the Portals page to review the preview, and only call ` +
+    `confirm_portal_submission when they ask you to. list_portal_submissions reports progress; the worker also checks ` +
+    `submitted portals periodically and posts new comments, required documents and a review task here — it never ` +
+    `changes an application's official status. If a submission is needs_human or failed, say why and suggest the next step.\n\n` +
     `**Suggesting programs.** When asked what to suggest for a student, call get_student_profile for them (use ` +
     `list_my_students to find the id), then follow the recommendation rules below using the catalog tools.\n\n` +
     `${CATALOG_GUIDANCE}\n\n` +
@@ -147,7 +162,7 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
       execute: () => getCounsellorTasks(ctx.userId),
     },
   ],
-  suggestions: ["What tasks do I have today?", "Suggest courses and scholarships for Sarah Khan", "What's blocking Sarah Khan's application?"],
+  suggestions: ["What tasks do I have today?", "Suggest courses and scholarships for Sarah Khan", "Which documents is Sarah Khan still missing?", "What's blocking Sarah Khan's application?"],
 };
 
 const ADMIN_CONFIG: RoleAssistantConfig = {

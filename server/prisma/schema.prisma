@@ -1128,3 +1128,88 @@ model KnowledgeDoc {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Server copy of everything the student-side profile pages used to keep only in the browser's
+// localStorage (personal info, academic levels, English tests, work experience, preferences, the
+// per-step "complete" flags) — one JSON document per (student, section), mirroring the client
+// stores' own shapes exactly (src/data/studentProfileDetailsStore.ts, academicProfileStore.ts,
+// profileCompletion.ts). Lets staff, the AI agent and server-side jobs read a student's profile
+// instead of it living in whichever browser the student typed it into.
+model StudentProfileSection {
+  studentId String
+  section   String
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@id([studentId, section])
+}
+
+// A counsellor-supplied login to a partner university or B2B agent portal. Username/password are stored
+// encrypted (src/secretBox.js, AES-256-GCM) and are write-only through the API — only the portal worker ever
+// decrypts them (routes/worker.js), and they are never sent to a browser or an AI model.
+model PortalConnection {
+  id            String   @id @default(cuid())
+  counsellorId  String
+  name          String
+  url           String   @db.Text
+  kind          String   // "b2b" | "university"
+  universityId  String?
+  usernameEnc   String   @db.Text
+  passwordEnc   String   @db.Text
+  lastLoginOk   Boolean?
+  lastLoginAt   DateTime?
+  failedLogins  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([counsellorId])
+}
+
+// One application's presence on one external portal: what was submitted, the portal's own reference, and the
+// last status snapshot the monitor read back.
+model PortalSubmission {
+  id                 String    @id @default(cuid())
+  applicationId      String
+  portalConnectionId String
+  status             String    @default("queued") // queued | preparing | awaiting_confirm | submitted | needs_human | failed
+  externalRef        String?
+  submittedAt        DateTime?
+  lastCheckedAt      DateTime?
+  snapshot           Json?
+  lastError          String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([applicationId, portalConnectionId])
+  @@index([portalConnectionId])
+}
+
+// A unit of work for the portal worker (a separate service — portal-worker/). `submit` fills the portal and
+// stops before the final click; the counsellor's second approval flips it to `confirm_submit`; `check` is the
+// periodic status read. Screenshots are stored on disk and referenced by path.
+model PortalJob {
+  id            String   @id @default(cuid())
+  submissionId  String
+  kind          String   // submit | confirm_submit | check
+  status        String   @default("queued") // queued | running | awaiting_confirm | done | failed | needs_human
+  log           Json?
+  screenshot    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([submissionId])
+}
+
+model PortalAuditLog {
+  id                 String   @id @default(cuid())
+  at                 DateTime @default(now())
+  actorType          String   // counsellor | ai | worker
+  actorId            String?
+  action             String
+  portalConnectionId String?
+  applicationId      String?
+  detail             String?  @db.Text
+
+  @@index([portalConnectionId])
+}

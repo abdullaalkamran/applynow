@@ -142,6 +142,15 @@ export function ensureCoreDocRequested(studentId: string, type: string): void {
 }
 
 /** Counsellor-only — approves an uploaded core document. */
+/** Staff-only — re-labels a vault document (name and/or type) so it lands on the right checklist row. */
+export async function organiseCoreDoc(id: string, patch: { name?: string; type?: string }): Promise<CoreDoc> {
+  const serverDoc = await apiPatch<ServerDocument>(`/api/documents/${id}/organise`, patch);
+  const updated = toCoreDoc(serverDoc);
+  cache = cache.map((d) => (d.id === id ? updated : d));
+  notifyCacheChange();
+  return updated;
+}
+
 export function verifyCoreDoc(id: string): void {
   const prev = cache;
   cache = cache.map((d) => (d.id === id ? { ...d, status: "verified" } : d));

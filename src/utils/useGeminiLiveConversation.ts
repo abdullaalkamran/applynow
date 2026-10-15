@@ -263,7 +263,10 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
         const tool = toolsByName.get(message.name);
         let result: unknown;
         try {
-          result = tool ? await tool.execute((message.arguments as Record<string, unknown>) || {}) : { error: `Unknown tool "${message.name}"` };
+          // Approval-gated tools can't be confirmed mid-voice-call, so they never run from here.
+          result = tool?.requiresApproval
+            ? { error: "This action needs the counsellor's approval — ask them to request it in the typed AI chat instead." }
+            : tool ? await tool.execute((message.arguments as Record<string, unknown>) || {}) : { error: `Unknown tool "${message.name}"` };
         } catch (err) {
           result = { error: err instanceof Error ? err.message : String(err) };
         }

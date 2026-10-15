@@ -1,0 +1,15 @@
+{
+  "name": "unifinderai-portal-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-automation worker for the counsellor AI agent: submits applications to external university / B2B portals and monitors them. Runs on its own host (needs Chromium) and talks to the UnifinderAi API with WORKER_API_TOKEN.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "mock-portal": "node mock-portal/server.js",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

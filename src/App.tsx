@@ -66,6 +66,8 @@ const AgentTasks = lazy(() => import("./features/agent/Tasks"));
 const AgentProfile = lazy(() => import("./features/agent/Profile"));
 const AgentMessages = lazy(() => import("./features/agent/Messages"));
 
+const CounsellorAIAssistant = lazy(() => import("./features/staff/counsellor/AIAssistant"));
+const CounsellorPortals = lazy(() => import("./features/staff/counsellor/Portals"));
 const CounsellorDashboard = lazy(() => import("./features/staff/counsellor/Dashboard"));
 const CounsellorLeads = lazy(() => import("./features/staff/counsellor/Leads"));
 const CounsellorCaseQueue = lazy(() => import("./features/staff/counsellor/CaseQueue"));
@@ -190,6 +192,8 @@ export default function App() {
           <Route element={<RequireAuth roles={["counsellor"]} />}>
           <Route element={<CounsellorShell />}>
             <Route path="/staff/counsellor" element={<CounsellorDashboard />} />
+            <Route path="/staff/counsellor/assistant" element={<CounsellorAIAssistant />} />
+            <Route path="/staff/counsellor/portals" element={<CounsellorPortals />} />
             <Route path="/staff/counsellor/leads" element={<CounsellorLeads />} />
             <Route path="/staff/counsellor/students" element={<CounsellorCaseQueue />} />
             <Route path="/staff/counsellor/students/:id" element={<CounsellorStudentProfile />} />

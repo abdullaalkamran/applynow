@@ -1,4 +1,5 @@
 import { CURRENT_STUDENT_ID } from "./mockData";
+import { getServerSection, putServerSection } from "./profileSync";
 
 // Real, staff-visible records of exactly what a student submitted on each profile step — every
 // field the student-side form collects, not a trimmed summary, so a counsellor sees the same
@@ -172,6 +173,8 @@ function keyFor(section: string, studentId: string) {
 }
 
 function load<T>(section: string, studentId: string): T | null {
+  const fromServer = getServerSection<T>(studentId, section);
+  if (fromServer !== undefined) return fromServer;
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(keyFor(section, studentId));
@@ -182,6 +185,7 @@ function load<T>(section: string, studentId: string): T | null {
 }
 
 function save<T>(section: string, value: T, studentId: string) {
+  putServerSection(studentId, section, value);
   if (typeof window === "undefined") return;
   window.localStorage.setItem(keyFor(section, studentId), JSON.stringify(value));
 }

@@ -1,4 +1,5 @@
 import { CURRENT_STUDENT_ID } from "./mockData";
+import { getServerSection, putServerSection } from "./profileSync";
 
 export interface AcademicLevelEntry {
   level: string;
@@ -36,6 +37,8 @@ const SEED_LEVELS: Record<string, AcademicLevelEntry[]> = {
 };
 
 export function loadAcademicLevels(studentId: string = CURRENT_STUDENT_ID): AcademicLevelEntry[] {
+  const fromServer = getServerSection<AcademicLevelEntry[]>(studentId, "academic");
+  if (fromServer !== undefined) return fromServer;
   const fallback = SEED_LEVELS[studentId] ?? [];
   if (typeof window === "undefined") return fallback;
   try {
@@ -47,6 +50,7 @@ export function loadAcademicLevels(studentId: string = CURRENT_STUDENT_ID): Acad
 }
 
 export function saveAcademicLevels(entries: AcademicLevelEntry[], studentId: string = CURRENT_STUDENT_ID) {
+  putServerSection(studentId, "academic", entries);
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_PREFIX + studentId, JSON.stringify(entries));
 }

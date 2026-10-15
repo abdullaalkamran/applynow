@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Gem, Lightbulb, ArrowRight, X, LogOut,
+  Gem, Lightbulb, ArrowRight, X, LogOut, Sparkles, Globe2,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
@@ -56,7 +56,9 @@ export default function CounsellorShell() {
 
   const navItems: NavEntry[] = [
     { label: "Dashboard", path: "/staff/counsellor", icon: LayoutGrid },
+    { label: "AI Agent", path: "/staff/counsellor/assistant", icon: Sparkles },
     { label: "Leads", path: "/staff/counsellor/leads", icon: UserPlus, badge: newLeads },
+    { label: "External Portals", path: "/staff/counsellor/portals", icon: Globe2 },
     { label: "My Students", path: "/staff/counsellor/students", icon: Users },
     { label: "Applications", path: "/staff/counsellor/applications", icon: FileText, badge: newApplications },
     { label: "Counseling", path: "/staff/counsellor/counseling", icon: MessageCircle },
