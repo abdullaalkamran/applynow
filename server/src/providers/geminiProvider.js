@@ -2,9 +2,15 @@ const { getConfig } = require("../config");
 
 const LLM_TIMEOUT_MS = 90_000;
 
-function apiUrl(config) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${config.gemini.apiKey}`;
+function apiUrl(config, model = config.gemini.model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.gemini.apiKey}`;
 }
+
+// Google answers 503 "high demand" / 429 / 500 in short, temporary spikes — one such blip used to surface as a
+// failed reply. Retry a couple of times with a short back-off, then try a second model before giving up.
+const RETRYABLE = new Set([429, 500, 503]);
+const FALLBACK_MODEL = "gemini-2.5-flash";
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Gemini requires functionResponse.response to be a JSON object (protobuf Struct) — a tool that
 // returns a plain string, number, boolean, or array (several of ours do, e.g.
@@ -79,27 +85,45 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   }
 
   const hasTools = Array.isArray(tools) && tools.length > 0;
-  const response = await fetch(apiUrl(config), {
-    method: "POST",
-    // Bounded so a hung upstream can never pin a request worker indefinitely.
-    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: toGeminiContents(messages),
-      ...(hasTools ? { tools: toGeminiTools(tools) } : {}),
-      // gemini-3.6-flash is a thinking model — without this it reasons internally before every
-      // single reply *and* every intermediate tool-call step, and a multi-tool turn (e.g. check
-      // profile, then search universities) pays that cost multiple times in one request.
-      // Gemini 3.x models use thinkingLevel (2.5-generation models used thinkingBudget instead,
-      // e.g. the Live relay's native-audio model) — thinkingBudget is rejected outright here.
-      generationConfig: {
-        thinkingConfig: { thinkingLevel: "minimal" },
-        ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
-        ...(jsonMode ? { responseMimeType: "application/json" } : {}),
-      },
-    }),
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: toGeminiContents(messages),
+    ...(hasTools ? { tools: toGeminiTools(tools) } : {}),
+    // gemini-3.6-flash is a thinking model — without this it reasons internally before every
+    // single reply *and* every intermediate tool-call step, and a multi-tool turn (e.g. check
+    // profile, then search universities) pays that cost multiple times in one request.
+    // Gemini 3.x models use thinkingLevel (2.5-generation models used thinkingBudget instead,
+    // e.g. the Live relay's native-audio model) — thinkingBudget is rejected outright here.
+    generationConfig: {
+      thinkingConfig: { thinkingLevel: "minimal" },
+      ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+      ...(jsonMode ? { responseMimeType: "application/json" } : {}),
+    },
   });
+  // The fallback is a 2.5-generation model, which takes thinkingBudget instead of thinkingLevel.
+  const fallbackBody = JSON.parse(body);
+  fallbackBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+
+  const post = (model, payload) =>
+    fetch(apiUrl(config, model), {
+      method: "POST",
+      // Bounded so a hung upstream can never pin a request worker indefinitely.
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+      headers: { "content-type": "application/json" },
+      body: payload,
+    });
+
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    response = await post(config.gemini.model, body);
+    if (response.ok || !RETRYABLE.has(response.status)) break;
+    if (attempt < 2) await sleep(1000 * (attempt + 1));
+  }
+  if (!response.ok && RETRYABLE.has(response.status) && config.gemini.model !== FALLBACK_MODEL) {
+    console.warn(`Gemini ${config.gemini.model} unavailable (${response.status}) — falling back to ${FALLBACK_MODEL}.`);
+    const fallback = await post(FALLBACK_MODEL, JSON.stringify(fallbackBody));
+    if (fallback.ok) response = fallback;
+  }
 
   if (!response.ok) {
     const detail = await response.text();
