@@ -1,6 +1,8 @@
-import { MicOff, Sparkles, Square, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useActiveVoiceConversation } from "../../utils/useActiveVoiceConversation";
 import { useAssistant } from "../../context/AssistantContext";
+import { useMicLevel } from "../../utils/useMicLevel";
+import { VoiceOrb } from "./VoiceOrb";
 
 const STATE_LABEL: Record<string, string> = {
   listening: "Listening…",
@@ -19,8 +21,7 @@ export function AIAssistantWidget({ raised = false }: { raised?: boolean }) {
   const { state, caption, errorText, start, stop } = useActiveVoiceConversation(ask);
   const active = state !== "idle";
 
-  const orbTone =
-    state === "listening" ? "bg-[#2955C4]" : state === "thinking" ? "bg-[#6D3FBF]" : state === "speaking" ? "bg-[image:var(--sd-gradient)]" : "bg-[image:var(--sd-gradient)]";
+  const micLevel = useMicLevel(state === "listening");
 
   const fabBottom = raised ? "bottom-[calc(72px+env(safe-area-inset-bottom))]" : "bottom-5";
   const captionBottom = raised ? "bottom-[calc(140px+env(safe-area-inset-bottom))]" : "bottom-[88px]";
@@ -46,18 +47,22 @@ export function AIAssistantWidget({ raised = false }: { raised?: boolean }) {
         </div>
       )}
 
+      {/* Idle: the gradient button. Live: the button turns into the small glowing globe, right where it was —
+          tap it to end the conversation. */}
       <button
         onClick={() => (active ? stop() : start())}
         aria-label={active ? "Stop AI Assistant" : "Talk to AI Assistant"}
-        className={`fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-all active:scale-95 lg:right-8 lg:bottom-6 ${fabBottom} ${orbTone}`}
+        className={`fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white transition-all active:scale-95 lg:right-8 lg:bottom-6 ${fabBottom} ${
+          active ? "bg-transparent" : "bg-[image:var(--sd-gradient)] shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
+        }`}
       >
-        {(state === "listening" || state === "speaking") && (
-          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-current opacity-30" />
+        {active ? (
+          <span className="pointer-events-none absolute -inset-[11px]">
+            <VoiceOrb state={state} size={78} level={micLevel} floor={false} />
+          </span>
+        ) : (
+          <Sparkles size={22} />
         )}
-        {state === "thinking" && (
-          <span className="absolute inset-0 animate-spin rounded-full border-2 border-white/25 border-t-white/80" />
-        )}
-        {state === "error" ? <MicOff size={22} /> : active ? <Square size={18} /> : <Sparkles size={22} />}
       </button>
     </>
   );
