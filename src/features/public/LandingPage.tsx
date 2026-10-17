@@ -7,7 +7,8 @@ import "./LandingPage.css";
 
 type Destination = { id: string; name: string; universityCount?: number; photoUrl?: string };
 
-// Shown only until (or if the server can't deliver) the real list — never as a substitute for it once loaded.
+// Shown only if the server can't deliver the real list (offline / empty) — never while it's still loading, since
+// that flashed four fake country cards before the real ones replaced them.
 const PLACEHOLDER_DESTINATIONS: Destination[] = [
   { id: "uk", name: "UK" },
   { id: "canada", name: "Canada" },
@@ -15,7 +16,7 @@ const PLACEHOLDER_DESTINATIONS: Destination[] = [
   { id: "usa", name: "USA" },
 ];
 
-/** Study destinations from the server's public landing endpoint (no login needed). */
+/** Study destinations from the server's public landing endpoint (no login needed). `null` = still loading. */
 function useDestinations() {
   const [destinations, setDestinations] = useState<Destination[] | null>(null);
 
@@ -24,10 +25,11 @@ function useDestinations() {
     fetch(`${BACKEND_BASE}/api/public/landing`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
       .then((data: { countries?: Destination[] }) => {
-        if (Array.isArray(data.countries) && data.countries.length > 0) setDestinations(data.countries.slice(0, 4));
+        setDestinations(Array.isArray(data.countries) && data.countries.length > 0 ? data.countries.slice(0, 4) : PLACEHOLDER_DESTINATIONS);
       })
-      .catch(() => {
-        /* offline / server down: keep the placeholders */
+      .catch((err) => {
+        // offline / server down: show the placeholders instead of skeletons forever (an abort is just unmount)
+        if ((err as Error)?.name !== "AbortError") setDestinations(PLACEHOLDER_DESTINATIONS);
       });
     return () => controller.abort();
   }, []);
@@ -74,7 +76,7 @@ export default function LandingPage() {
     event.preventDefault();
     navigate("/login");
   };
-  const destinations = useDestinations() ?? PLACEHOLDER_DESTINATIONS;
+  const destinations = useDestinations();
 
   return (
     <main className="ai-landing" aria-label="UnifinderAi landing page">
@@ -105,7 +107,8 @@ export default function LandingPage() {
       </section>
 
       <section className="destination-grid" aria-label="Study destinations">
-        {destinations.map((item) => {
+        {destinations === null && [0, 1, 2, 3].map((i) => <div className="destination-card is-skeleton" key={i} aria-hidden="true" />)}
+        {(destinations ?? []).map((item) => {
           const photo = photoSrc(item.photoUrl);
           return (
             <Link className="destination-card" to="/login" key={item.id} aria-label={`Explore ${item.name}`}>

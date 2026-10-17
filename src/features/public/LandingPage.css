@@ -1786,3 +1786,18 @@
   font-size: 12px;
   letter-spacing: 0.02em;
 }
+
+/* Placeholder tiles shown while the real destinations load — no fake country names. */
+.destination-card.is-skeleton {
+  pointer-events: none;
+  background: linear-gradient(100deg, #eceef3 30%, #f6f7fa 50%, #eceef3 70%);
+  background-size: 200% 100%;
+  animation: destination-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes destination-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .destination-card.is-skeleton { animation: none; }
+}

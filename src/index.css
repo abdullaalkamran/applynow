@@ -11,25 +11,24 @@
      they're set correctly and fully interactive. */
   color-scheme: light;
 
-  /* Brand green (#06D001, as given) plus two deepened shades of the same hue for surfaces that
-     need to carry white text/icons — pure #06D001 against white text sits at only ~2:1 contrast
-     (WCAG AA needs 4.5:1 for text), so --brand-600/--sd-ink darken it just enough to stay readable
-     while --brand-500 keeps the exact requested color for accents, gradients, and light-bg uses. */
-  --brand-50: #eafbe8;
-  --brand-100: #c8f5c2;
-  --brand-500: #06d001;
-  --brand-600: #048a00;
-  --brand-700: #036b00;
+  /* Brand colour: black. The numbered shades keep the same roles the old green scale had —
+     --brand-500 accents/gradients, --brand-600/--sd-ink filled surfaces and brand text (white text on
+     them stays well above WCAG AA), --brand-700 hover/pressed, 50/100 soft tints for light fills. */
+  --brand-50: #f5f5f5;
+  --brand-100: #e5e5e5;
+  --brand-500: #262626;
+  --brand-600: #0a0a0a;
+  --brand-700: #000000;
   --ink-900: #0f172a;
 
   /* Student mobile app tokens */
   --sd-bg: #ffffff;
   --sd-card: #ffffff;
-  --sd-ink: #048a00;
-  --sd-ink-2: #036b00;
+  --sd-ink: #0a0a0a;
+  --sd-ink-2: #000000;
   /* The one gradient used for every filled brand surface app-wide (buttons, badges, active
      highlights). */
-  --sd-gradient: linear-gradient(135deg, #17c00c, #048f00);
+  --sd-gradient: linear-gradient(135deg, #2b2b2b, #000000);
   --sd-teal: #0f9d6d;
   --sd-muted: #6b7280;
 }

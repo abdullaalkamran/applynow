@@ -297,7 +297,8 @@ export default function RealGlobe() {
     camera.position.set(0, 0, 4.8);
 
     const sunDir = new THREE.Vector3(1.1, 0.45, 1.0).normalize();
-    const colorUniform = { value: 0 }; // 0 = black & white, 1 = full colour
+    // 0 = black & white, 1 = full colour. Pinned to 1 — the globe is always colourful (it used to fade in only on hover).
+    const colorUniform = { value: 1 };
     const disposables: Array<{ dispose: () => void }> = [];
     const track = <T extends { dispose: () => void }>(item: T) => {
       disposables.push(item);
@@ -583,7 +584,6 @@ export default function RealGlobe() {
         group.rotation.y += AUTO_SPEED + velocityY;
       }
 
-      colorUniform.value += ((hovering || dragging ? 1 : 0) - colorUniform.value) * 0.08;
       landings.forEach((landing) => {
         landing.flash = Math.max(0, landing.flash - dt * 0.7);
       });
