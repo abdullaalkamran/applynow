@@ -56,7 +56,7 @@ const iconBg: Record<string, string> = {
   blue: "bg-[#E7EEFC] text-[#2955C4]",
   green: "bg-[#E3F6EC] text-[#12805A]",
   violet: "bg-[#F1EAFB] text-[#6D3FBF]",
-  rose: "bg-[#FCEAE8] text-[#D8473C]",
+  rose: "bg-rose-100 text-rose-500",
   slate: "bg-slate-100 text-slate-500",
 };
 
@@ -301,18 +301,18 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
               {requiredRemaining > 0 && (
                 <button
                   onClick={() => navigate((pendingSteps.find((s) => s.required) ?? pendingSteps[0]).path)}
-                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left bg-rose-50/60 ${nextStepTasks.length > 0 ? "border-b border-slate-50" : ""}`}
+                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${nextStepTasks.length > 0 ? "border-b border-slate-50" : ""}`}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-500">
                     <AlertCircle size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-rose-700">Complete your profile</p>
-                    <p className="truncate text-xs text-rose-500">
+                    <p className="truncate text-sm font-semibold text-rose-500">Complete your profile</p>
+                    <p className="truncate text-xs text-rose-400">
                       {requiredRemaining} required step{requiredRemaining > 1 ? "s" : ""} left — needed to explore and apply to programs
                     </p>
                   </div>
@@ -341,17 +341,18 @@ export default function Dashboard() {
                         const dest = taskDestination(t, primaryApplication?.id);
                         navigate(dest.path, dest.state ? { state: dest.state } : undefined);
                       }}
-                      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${required ? "bg-rose-50/60" : ""} ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
                     >
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
                         <Icon size={16} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-medium ${required ? "text-rose-700" : "text-slate-800"}`}>{t.title}</p>
-                        <p className={`truncate text-xs ${required ? "text-rose-500" : "text-slate-400"}`}>
-                          {t.subtitle}
+                        {/* One line: the title, then any extra detail (university, rejection reason, due date) in a lighter weight. */}
+                        <p className={`truncate text-sm ${required ? "text-rose-500" : "text-slate-800"}`}>
+                          <span className="font-medium">{t.title}</span>
+                          {t.subtitle && <span className={`text-xs ${required ? "text-rose-400" : "text-slate-400"}`}> · {t.subtitle}</span>}
                           {t.dueDate && (
-                            <span className={t.tone === "overdue" ? "font-medium text-rose-500" : ""}>
+                            <span className={`text-xs ${t.tone === "overdue" ? "font-medium text-rose-500" : required ? "text-rose-400" : "text-slate-400"}`}>
                               {" — Due "}{new Date(`${t.dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                             </span>
                           )}

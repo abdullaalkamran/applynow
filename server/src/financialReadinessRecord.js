@@ -101,4 +101,83 @@ async function listFinancialReadinessHistory(studentId) {
   return rows.map(serializeHistory);
 }
 
-module.exports = { serialize, saveFinancialReadiness, listFinancialReadinessHistory, TERMINAL_STATUSES };
+// --- Multiple bank accounts -------------------------------------------------------------------
+// A student may hold the required funds across several banks. Each account lives in StudentBankAccount; the shared
+// record above keeps a derived summary so everything downstream (journey stage, tasks, notifications, AI tools)
+// continues to read one set of fields.
+const ACCOUNT_STATUSES = ["Not Required", "Not Started", "Preparing", "Maintaining", "Matured", "Ready", "Expired"];
+// Overall status is the least-advanced account's: funds aren't "Ready" until every account is.
+const STATUS_RANK = { Expired: 0, "Not Started": 1, Preparing: 2, Maintaining: 3, Matured: 4, Ready: 5 };
+const HOLDING_STATUSES = new Set(["Maintaining", "Matured", "Ready"]);
+
+function serializeAccount(a) {
+  return {
+    id: a.id, studentId: a.studentId, bankName: a.bankName, depositType: a.depositType || undefined,
+    openingDate: toDateString(a.openingDate), amount: a.amount ?? undefined, currency: a.currency || undefined,
+    accountHolder: a.accountHolder || undefined, accountType: a.accountType || undefined, status: a.status,
+  };
+}
+
+/** Folds a student's accounts into the single-record fields: names joined, amount summed, cash-in date = the most
+ * recent one (conservative — all funds have then been held at least that long), status = least advanced, and
+ * deposit/holder/type from the first account. Returns null when there are no accounts. */
+function summarizeAccounts(accounts) {
+  if (accounts.length === 0) return null;
+  const active = accounts.filter((a) => a.status !== "Not Required");
+  const counted = active.length ? active : accounts;
+  const holding = counted.filter((a) => HOLDING_STATUSES.has(a.status));
+  const dates = holding.map((a) => a.openingDate).filter(Boolean).map((d) => new Date(d).getTime());
+  const first = counted[0];
+  const bankStatus = active.length
+    ? active.reduce((worst, a) => ((STATUS_RANK[a.status] ?? 1) < (STATUS_RANK[worst] ?? 1) ? a.status : worst), active[0].status)
+    : "Not Required";
+  return {
+    bankStatus,
+    bankName: counted.map((a) => a.bankName).join(", ").slice(0, 190),
+    requiredAmount: holding.length ? holding.reduce((sum, a) => sum + (a.amount || 0), 0) : null,
+    currency: holding.find((a) => a.currency)?.currency ?? first.currency ?? null,
+    openingDate: dates.length ? new Date(Math.max(...dates)) : null,
+    depositType: first.depositType ?? null,
+    accountHolder: first.accountHolder ?? null,
+    accountType: first.accountType ?? null,
+  };
+}
+
+async function listBankAccounts(studentId) {
+  const rows = await prisma.studentBankAccount.findMany({ where: { studentId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  return rows.map(serializeAccount);
+}
+
+/** Replaces the student's whole account list (the editor sends the full list) and refreshes the shared summary,
+ * so the save lands in the same history trail and completion rule as any other edit. */
+async function replaceBankAccounts(studentId, accounts, actor) {
+  await prisma.$transaction(async (tx) => {
+    const keep = accounts.filter((a) => a.id).map((a) => a.id);
+    await tx.studentBankAccount.deleteMany({ where: { studentId, ...(keep.length ? { id: { notIn: keep } } : {}) } });
+    for (const a of accounts) {
+      const data = {
+        bankName: a.bankName, depositType: a.depositType ?? null, openingDate: a.openingDate ?? null, amount: a.amount ?? null,
+        currency: a.currency ?? null, accountHolder: a.accountHolder ?? null, accountType: a.accountType ?? null, status: a.status,
+      };
+      if (a.id && (await tx.studentBankAccount.findFirst({ where: { id: a.id, studentId } }))) {
+        await tx.studentBankAccount.update({ where: { id: a.id }, data });
+      } else {
+        await tx.studentBankAccount.create({ data: { studentId, ...data } });
+      }
+    }
+  });
+  const saved = await prisma.studentBankAccount.findMany({ where: { studentId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+  const summary = summarizeAccounts(saved);
+  const existing = await prisma.studentFinancialReadiness.findUnique({ where: { studentId } });
+  const record = summary
+    ? await saveFinancialReadiness(studentId, {
+        evidenceRequired: existing?.evidenceRequired ?? true,
+        holdingPeriodDays: existing?.holdingPeriodDays ?? null,
+        maturityDate: existing?.maturityDate ?? null,
+        ...summary,
+      }, actor)
+    : existing ? serialize(existing) : null;
+  return { accounts: saved.map(serializeAccount), record };
+}
+
+module.exports = { serialize, serializeAccount, listBankAccounts, replaceBankAccounts, summarizeAccounts, ACCOUNT_STATUSES, saveFinancialReadiness, listFinancialReadinessHistory, TERMINAL_STATUSES };

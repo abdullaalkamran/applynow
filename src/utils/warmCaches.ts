@@ -14,6 +14,7 @@ import { refreshApplicationDocs } from "../data/applicationDocsStore";
 import { refreshNextSteps } from "../data/applicationNextStepsStore";
 import { refreshDocDueDates } from "../data/documentDueDatesStore";
 import { refreshFinancialReadiness } from "../data/studentFinancialReadinessStore";
+import { refreshBankAccounts, clearBankAccountsCache } from "../data/studentBankAccountsStore";
 import { refreshCachedJourneys } from "../data/applicationJourneyStore";
 import { refreshCachedActivity } from "../data/applicationActivityStore";
 import { refreshInbox } from "../data/inboxStore";
@@ -58,6 +59,7 @@ export function warmCaches() {
   refreshNextSteps().catch((err) => console.warn("Failed to warm next-steps cache:", err));
   refreshDocDueDates().catch((err) => console.warn("Failed to warm document-due-dates cache:", err));
   refreshFinancialReadiness().catch((err) => console.warn("Failed to warm financial-readiness cache:", err));
+  refreshBankAccounts().catch((err) => console.warn("Failed to warm bank-accounts cache:", err));
   refreshProfileSections().catch((err) => console.warn("Failed to warm student-profile cache:", err));
   refreshInbox().catch((err) => console.warn("Failed to warm inbox cache:", err));
   refreshCachedStudentComments();
@@ -131,6 +133,7 @@ export function clearAllCaches() {
   clearApplicationNextStepsCache();
   clearDocumentDueDatesCache();
   clearStudentFinancialReadinessCache();
+  clearBankAccountsCache();
   clearApplicationJourneyCache();
   clearApplicationActivityCache();
   clearInboxCache();

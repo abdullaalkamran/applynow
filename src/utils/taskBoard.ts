@@ -259,6 +259,19 @@ export function getAgentTasks(personId: string): DisplayTask[] {
   ]);
 }
 
+/** The task builders above are shared with the counsellor/agent boards, where the student's name says whose task it
+ * is. On the student's own screens it only repeats the obvious — "Fill Financial Readiness info for Sarah Khan" /
+ * "Sarah Khan · Bank balance…" — so it's stripped from both lines. */
+function withoutOwnName(task: DisplayTask, name: string): DisplayTask {
+  if (!name) return task;
+  let title = task.title.split(` for ${name}`).join("");
+  let subtitle = task.subtitle?.split(`${name} · `).join("").replace(new RegExp(`^For ${name}$`), "").trim();
+  // Short, one-line wording for the two generic cases whose second line only restated the obvious.
+  if (title === "Fill Financial Readiness info") { title = "Add your bank details"; subtitle = undefined; }
+  if (subtitle === "Core document") subtitle = undefined;
+  return { ...task, title, subtitle: subtitle || undefined };
+}
+
 export function getStudentTasks(studentId: string): DisplayTask[] {
   // A real (non-seed) student's id never appears in the old mockData.ts STUDENTS array — looking
   // there instead of the real Postgres-backed store silently dropped next-step/document/finance
@@ -271,7 +284,7 @@ export function getStudentTasks(studentId: string): DisplayTask[] {
     ...nextStepTasksFor([student], apps),
     ...documentTasksFor(student, apps),
     ...financialReadinessTaskFor(student),
-  ]);
+  ].map((t) => withoutOwnName(t, student.name)));
 }
 
 export function getAdminTasks(personId: string): DisplayTask[] {

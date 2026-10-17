@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Check, Circle, Lock, AlertTriangle, CalendarClock } from "lucide-react";
-import { STAGE_ORDER, STAGE_LABEL, DEPOSIT_TYPES, type StageType, type ApplicationJourney } from "../types/journey";
+import { STAGE_ORDER, STAGE_LABEL, type StageType, type ApplicationJourney } from "../types/journey";
 import { FinancialReadinessHistory } from "./FinancialReadinessHistory";
 import { daysHeldLabel } from "../utils/financialReadiness";
+import { BankAccountsEditor, BankAccountsSummary } from "./BankAccountsEditor";
+import { loadBankAccounts } from "../data/studentBankAccountsStore";
+import { loadFinancialReadiness } from "../data/studentFinancialReadinessStore";
 import { JourneyStageGrid } from "./JourneyStageGrid";
 import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
@@ -341,6 +344,35 @@ function StudentSummary({ journey, currentStage }: { journey: ApplicationJourney
   );
 }
 
+/** The student's bank accounts as a counsellor sees them: the saved list, with an editor to add/change/remove banks. */
+function BankAccountsPanel({ studentId, readOnly }: { studentId: string; readOnly: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const saved = loadBankAccounts(studentId);
+  const record = loadFinancialReadiness(studentId);
+  const accounts = saved.length
+    ? saved
+    : record?.bankName
+      ? [{ bankName: record.bankName, status: record.bankStatus, depositType: record.depositType, openingDate: record.openingDate, amount: record.requiredAmount, currency: record.currency, accountHolder: record.accountHolder, accountType: record.accountType }]
+      : [];
+
+  if (editing) {
+    return <BankAccountsEditor studentId={studentId} initial={accounts} onDone={() => setEditing(false)} onCancel={() => setEditing(false)} />;
+  }
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Bank accounts{accounts.length > 1 ? ` (${accounts.length})` : ""}</p>
+        {!readOnly && (
+          <button type="button" onClick={() => setEditing(true)} className="text-[11.5px] font-semibold text-[var(--brand-600)]">
+            {accounts.length ? "Edit banks" : "Add bank"}
+          </button>
+        )}
+      </div>
+      {accounts.length ? <BankAccountsSummary accounts={accounts} /> : <p className="text-[12px] text-slate-400">No bank account added yet.</p>}
+    </div>
+  );
+}
+
 function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: StageType; journey: ApplicationJourney; onPatch: (p: Record<string, unknown>) => void; readOnly: boolean }) {
   const record = journey.stages[stageType]!;
   const [open, setOpen] = useState(stageType === computeCurrentStage(journey));
@@ -464,22 +496,19 @@ function FullDepthFields({ stageType, data, status, onPatch, readOnly, studentId
   }
 
   if (stageType === "financial_readiness") {
-    // Same field set, in the same order, as the student's own FinancialReadinessCard — both edit
-    // the one shared record per student, so a counsellor sees exactly what the student entered
-    // (and vice versa), with the same running days-held count under the cash-in date.
+    // The student may hold their funds across several banks — this lists every one and edits the very same list as
+    // the student's own Financial Readiness card. The fields below are the combined summary of those accounts.
     const daysHeld = daysHeldLabel(data.openingDate as string | undefined);
     return (
       <>
-        <SelectFieldInline label="Bank status" value={data.bankStatus} options={["Not Required", "Not Started", "Preparing", "Maintaining", "Matured", "Ready", "Expired"]} onChange={(v) => onPatch({ bankStatus: v, status: v })} readOnly={readOnly} />
-        <Field label="Bank name" value={data.bankName} onChange={(v) => onPatch({ bankName: v })} readOnly={readOnly} />
-        <SelectFieldInline label="Deposit" value={data.depositType} options={DEPOSIT_TYPES} onChange={(v) => onPatch({ depositType: v })} readOnly={readOnly} />
-        <Field label="Cash-in" value={data.openingDate} type="date" onChange={(v) => onPatch({ openingDate: v })} readOnly={readOnly} />
-        <Field label="Amt (BDT)" value={data.requiredAmount} type="number" onChange={(v) => onPatch({ requiredAmount: Number(v), currency: "BDT" })} readOnly={readOnly} />
-        <SelectFieldInline label="Holder" value={data.accountHolder} options={["Student", "Mother", "Father", "Brother/Sister", "Other"]} onChange={(v) => onPatch({ accountHolder: v })} readOnly={readOnly} />
-        <SelectFieldInline label="Acc. type" value={data.accountType} options={["Savings", "Current", "FDR", "Other"]} onChange={(v) => onPatch({ accountType: v })} readOnly={readOnly} />
+        {studentId && (
+          <div className="@sm:col-span-2">
+            <BankAccountsPanel studentId={studentId} readOnly={readOnly} />
+          </div>
+        )}
         {daysHeld && (
           <p className="flex items-center gap-1 text-[11.5px] font-medium text-slate-600 @sm:col-span-2">
-            <CalendarClock size={12} className="text-slate-400" /> {daysHeld}
+            <CalendarClock size={12} className="text-slate-400" /> {daysHeld} (since the most recent cash-in)
           </p>
         )}
         {studentId && (

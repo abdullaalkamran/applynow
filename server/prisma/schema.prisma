@@ -1213,3 +1213,23 @@ model PortalAuditLog {
 
   @@index([portalConnectionId])
 }
+
+// One row per bank account a student holds funds in (a student may use several). The shared
+// StudentFinancialReadiness record keeps a derived summary of these (see financialReadinessRecord.js
+// summarizeAccounts) so the journey stage, tasks and notifications keep working off one set of fields.
+model StudentBankAccount {
+  id            String    @id @default(cuid())
+  studentId     String
+  bankName      String
+  depositType   String?
+  openingDate   DateTime? @db.Date
+  amount        Float?
+  currency      String?
+  accountHolder String?
+  accountType   String?
+  status        String    @default("Not Started")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([studentId])
+}

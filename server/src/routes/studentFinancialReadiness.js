@@ -1,7 +1,7 @@
 const express = require("express");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
-const { serialize, saveFinancialReadiness, listFinancialReadinessHistory } = require("../financialReadinessRecord");
+const { serialize, serializeAccount, saveFinancialReadiness, listFinancialReadinessHistory, replaceBankAccounts, ACCOUNT_STATUSES } = require("../financialReadinessRecord");
 const { studentWhere, accessibleStudent } = require("../middleware/access");
 
 const router = express.Router();
@@ -16,6 +16,49 @@ router.get("/", requireAuth, async (req, res, next) => {
     if (studentId) where.studentId = String(studentId);
     const rows = await prisma.studentFinancialReadiness.findMany({ where, orderBy: { studentId: "asc" } });
     res.json(rows.map(serialize));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Every bank account the caller may see (one student may have several). Registered before "/:studentId/…".
+router.get("/accounts", requireAuth, async (req, res, next) => {
+  try {
+    const scope = studentWhere(req.authUser);
+    const where = Object.keys(scope).length ? { studentId: { in: (await prisma.student.findMany({ where: scope, select: { id: true } })).map((s) => s.id) } } : {};
+    if (req.query.studentId) where.studentId = String(req.query.studentId);
+    const rows = await prisma.studentBankAccount.findMany({ where, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    res.json(rows.map(serializeAccount));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Replaces the student's full list of bank accounts — the same door for a student and for their counsellor/agent.
+router.put("/:studentId/accounts", requireAuth, async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    if (!(await accessibleStudent(req.authUser, studentId))) return res.status(404).json({ error: "Student not found." });
+    const raw = req.body?.accounts;
+    if (!Array.isArray(raw) || raw.length > 20) return res.status(400).json({ error: "accounts must be a list of up to 20 bank accounts." });
+    const accounts = [];
+    for (const a of raw) {
+      if (!a || typeof a.bankName !== "string" || !a.bankName.trim()) return res.status(400).json({ error: "Every bank account needs a bank name." });
+      if (!ACCOUNT_STATUSES.includes(a.status)) return res.status(400).json({ error: "Invalid bank account status." });
+      if (a.amount != null && (typeof a.amount !== "number" || !Number.isFinite(a.amount) || a.amount < 0)) return res.status(400).json({ error: "Amount must be a positive number." });
+      const date = a.openingDate ? new Date(a.openingDate) : null;
+      if (date && Number.isNaN(date.getTime())) return res.status(400).json({ error: "Cash-in date must be valid." });
+      for (const key of ["depositType", "currency", "accountHolder", "accountType"]) {
+        if (a[key] != null && typeof a[key] !== "string") return res.status(400).json({ error: `${key} must be a string.` });
+      }
+      accounts.push({
+        id: typeof a.id === "string" ? a.id : undefined, bankName: a.bankName.trim().slice(0, 190), depositType: a.depositType || null,
+        openingDate: date, amount: a.amount ?? null, currency: a.currency || null, accountHolder: a.accountHolder || null,
+        accountType: a.accountType || null, status: a.status,
+      });
+    }
+    const actor = { id: req.authUser.roleUserId, role: req.authUser.role, name: req.authUser.name };
+    res.json(await replaceBankAccounts(studentId, accounts, actor));
   } catch (err) {
     next(err);
   }
