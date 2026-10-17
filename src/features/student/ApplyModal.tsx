@@ -79,17 +79,17 @@ export function ApplyModal({
       >
         {confirmedId ? (
           <div className="flex flex-col items-center py-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E3F6EC] text-[#12805A]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800">
               <CheckCircle2 size={28} />
             </div>
-            <h2 className="mt-4 text-[16px] font-bold text-slate-900">Application submitted</h2>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500">
+            <h2 className="mt-4 text-[16px] font-bold text-neutral-900">Application submitted</h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-neutral-500">
               {course.name} at {university.name} — {campus}, {intake} intake. Your counsellor and agent can now see this application too.
             </p>
             <div className="mt-5 flex w-full items-center gap-3">
               <button
                 onClick={onClose}
-                className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700"
+                className="flex flex-1 items-center justify-center rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700"
               >
                 Done
               </button>
@@ -105,16 +105,16 @@ export function ApplyModal({
           <>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{university.name}</p>
-                <h2 className="mt-0.5 truncate text-[16px] font-bold text-slate-900">Apply to {course.name}</h2>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{university.name}</p>
+                <h2 className="mt-0.5 truncate text-[16px] font-bold text-neutral-900">Apply to {course.name}</h2>
               </div>
-              <button onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <button onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
                 <X size={15} />
               </button>
             </div>
 
             {profileIncomplete ? (
-              <div className="mt-4 rounded-xl bg-rose-50 p-3 text-[13px] text-rose-800">
+              <div className="mt-4 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3 text-[13px] text-neutral-900">
                 <p>
                   Complete your profile before applying — {profileCompletion.requiredRemaining} required step
                   {profileCompletion.requiredRemaining > 1 ? "s" : ""} left.
@@ -128,7 +128,7 @@ export function ApplyModal({
                 </button>
               </div>
             ) : alreadyApplied ? (
-              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
+              <p className="mt-4 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3 text-[13px] text-neutral-800">
                 You've already applied to {course.name} at {university.name}. Check your{" "}
                 <button
                   type="button"
@@ -140,19 +140,19 @@ export function ApplyModal({
                 for its status.
               </p>
             ) : !canApply ? (
-              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-[13px] text-amber-800">
+              <p className="mt-4 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3 text-[13px] text-neutral-800">
                 Applications aren't currently open for this course — check back once its intake opens.
               </p>
             ) : (
               <>
-                <p className="mt-4 text-xs font-medium text-slate-500">Select a campus</p>
+                <p className="mt-4 text-xs font-medium text-neutral-500">Select a campus</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {campuses.map((c) => (
                     <Chip key={c.name} label={c.name} selected={campus === c.name} onClick={() => setCampus(c.name)} />
                   ))}
                 </div>
 
-                <p className="mt-4 text-xs font-medium text-slate-500">Select an intake</p>
+                <p className="mt-4 text-xs font-medium text-neutral-500">Select an intake</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {openIntakes.map((i) => (
                     <Chip key={i} label={i} selected={intake === i} onClick={() => setIntake(i)} />
@@ -160,12 +160,12 @@ export function ApplyModal({
                 </div>
 
                 {missingCoreDocs.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="mt-4 rounded-xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
                     <div className="flex items-start gap-2">
-                      <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-700" />
+                      <AlertCircle size={15} className="mt-0.5 shrink-0 text-neutral-700" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-semibold text-amber-900">Core documents required before submitting</p>
-                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-amber-800">
+                        <p className="text-[12.5px] font-semibold text-neutral-800">Core documents required before submitting</p>
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-neutral-800">
                           Upload {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
                           {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}.
                         </p>
@@ -173,14 +173,14 @@ export function ApplyModal({
                     </div>
                     <button
                       onClick={() => navigate("/student/documents")}
-                      className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-amber-900"
+                      className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-neutral-800"
                     >
                       Go to Documents <ChevronRight size={13} />
                     </button>
                   </div>
                 )}
 
-                {error && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</p>}
+                {error && <p className="mt-4 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-[12.5px] text-neutral-900">{error}</p>}
 
                 <button
                   onClick={confirm}

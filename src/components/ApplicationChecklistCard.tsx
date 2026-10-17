@@ -100,9 +100,11 @@ export function ApplicationChecklistCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-          <p className="truncate text-[11px] text-rose-600">
-            {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : row.requested ? "Requested by counsellor — not uploaded yet" : "Not uploaded yet"}
-          </p>
+          {(rejected || row.requested) && (
+            <p className="truncate text-[11px] text-rose-600">
+              {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : "Requested by counsellor"}
+            </p>
+          )}
         </div>
         {onRemoveRequest && (
           <button onClick={onRemoveRequest} aria-label={`Remove request for ${row.type}`} className="shrink-0 text-slate-300 hover:text-slate-500">

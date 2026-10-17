@@ -61,9 +61,7 @@ export function ChecklistCard({ row }: { row: ChecklistRow }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12.5px] font-medium text-slate-800">{row.type}</p>
-        <p className="text-[11px] text-rose-600">
-          {row.requested ? "Requested by counsellor — not uploaded yet" : "Not uploaded yet"}
-        </p>
+        {row.requested && <p className="text-[11px] text-rose-600">Requested by counsellor</p>}
       </div>
     </div>
   );

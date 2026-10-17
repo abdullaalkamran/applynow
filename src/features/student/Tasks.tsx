@@ -25,14 +25,14 @@ export default function StudentTasks() {
   };
 
   if (!student) {
-    return <p className="p-5 text-sm text-slate-400">Loading your tasks…</p>;
+    return <p className="p-5 text-sm text-neutral-400">Loading your tasks…</p>;
   }
 
   return (
     <div className="pb-8">
       <MobileHeader title="My Tasks" />
       <div className="px-5">
-        <p className="-mt-2 mb-4 text-xs text-slate-500">{openCount} open task{openCount === 1 ? "" : "s"}.</p>
+        <p className="mb-4 mt-1 text-xs text-neutral-500">{openCount} open task{openCount === 1 ? "" : "s"}.</p>
         <TaskBoard
           tasks={tasks}
           from={{ id: student.id, role: "student", name: student.name }}

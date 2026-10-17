@@ -39,7 +39,7 @@ export default function StudentShell() {
   const raiseFab = showTabs || hasStickyActionBar(location.pathname);
 
   return (
-    <div className="flex h-dvh w-full bg-[var(--sd-bg)]">
+    <div className="neu-theme flex h-dvh w-full bg-[var(--sd-bg)]">
       <div className="hidden lg:block">
         <Sidebar />
       </div>
@@ -47,6 +47,9 @@ export default function StudentShell() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div ref={scrollRef} className="no-scrollbar flex-1 overflow-y-auto">
           <Outlet key={cacheTick} />
+          {/* Room to scroll the last field clear of the floating assistant button. Skipped on pages with their own sticky
+              action bar — padding there would lift the bar off the bottom edge. */}
+          {!hasStickyActionBar(location.pathname) && <div className="h-16 shrink-0 lg:hidden" aria-hidden="true" />}
         </div>
         {showTabs && (
           <div className="lg:hidden">

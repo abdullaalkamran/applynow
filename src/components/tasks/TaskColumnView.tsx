@@ -56,22 +56,22 @@ function TaskCard({ task, columnKey, getTaskTarget, muted = false }: { task: Dis
   const isRequiredTask = (task.source === "document" || task.source === "next-step" || task.source === "finance") && !task.done;
   const isReviewTask = task.source === "review" && !task.done;
   const cardClass = isRequiredTask
-    ? "border-rose-200 bg-rose-50/60"
+    ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"
     : isReviewTask
-      ? "border-amber-200 bg-amber-50/60"
-      : "border-slate-100 bg-white";
-  const textClass = isRequiredTask ? "text-rose-700" : isReviewTask ? "text-amber-800" : "text-slate-800";
-  const subtleClass = isRequiredTask ? "text-rose-500" : isReviewTask ? "text-amber-600" : "";
+      ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"
+      : "border-transparent bg-white";
+  const textClass = isRequiredTask ? "text-neutral-900" : isReviewTask ? "text-neutral-800" : "text-neutral-800";
+  const subtleClass = isRequiredTask ? "text-neutral-900" : isReviewTask ? "text-neutral-700" : "";
   const badgeClass = isRequiredTask
-    ? "bg-rose-100 text-rose-600"
+    ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900"
     : isReviewTask
-      ? "bg-amber-100 text-amber-700"
-      : "bg-slate-100 text-slate-500";
-  const dotClass = isRequiredTask ? "bg-rose-400" : isReviewTask ? "bg-amber-400" : "bg-slate-300";
+      ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700"
+      : "bg-neutral-100 text-neutral-500";
+  const dotClass = isRequiredTask ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : isReviewTask ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : "bg-neutral-300";
   return (
     <div
       onClick={target ? () => navigate(target.path, { state: target.state }) : undefined}
-      className={`rounded-lg border p-2.5 ${cardClass} ${muted ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-slate-50" : ""}`}
+      className={`rounded-lg border p-2.5 ${cardClass} ${muted ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-neutral-50" : ""}`}
     >
       <div className="flex items-start gap-2">
         {task.onToggle ? (
@@ -83,28 +83,28 @@ function TaskCard({ task, columnKey, getTaskTarget, muted = false }: { task: Dis
             // A completed next step is locked (see applicationNextStepsStore.ts) — the toggle
             // would no-op anyway, but disabling it here avoids the checkbox visibly snapping back.
             disabled={task.source === "next-step" && task.done}
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-neutral-300"
           />
         ) : (
           <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
         )}
         <div className="min-w-0 flex-1">
           <p className={`text-[12.5px] font-medium ${textClass} ${task.done ? "line-through" : ""}`}>{task.title}</p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-slate-400">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] text-neutral-400">
             <span className={`rounded-full px-1.5 py-0.5 font-medium ${badgeClass}`}>
               {SOURCE_LABEL[task.source]}
             </span>
             {dueLabel && (
-              <span className={`rounded-full px-1.5 py-0.5 font-medium ${dueLabel.startsWith("Was due") ? "bg-rose-50 text-rose-500" : "bg-amber-50 text-amber-600"}`}>
+              <span className={`rounded-full px-1.5 py-0.5 font-medium ${dueLabel.startsWith("Was due") ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700"}`}>
                 {dueLabel}
               </span>
             )}
             {task.subtitle && <span className={`truncate ${subtleClass}`}>{task.subtitle}</span>}
           </div>
-          {task.assignedByName && <p className="mt-0.5 truncate text-[10.5px] text-slate-400">from {task.assignedByName}</p>}
+          {task.assignedByName && <p className="mt-0.5 truncate text-[10.5px] text-neutral-400">from {task.assignedByName}</p>}
         </div>
         {task.onDelete && (
-          <button onClick={(e) => { e.stopPropagation(); task.onDelete!(); }} aria-label="Delete task" className="shrink-0 text-slate-300 hover:text-rose-500">
+          <button onClick={(e) => { e.stopPropagation(); task.onDelete!(); }} aria-label="Delete task" className="shrink-0 text-neutral-300 hover:text-neutral-900">
             <Trash2 size={12} />
           </button>
         )}
@@ -148,9 +148,9 @@ export function TaskColumnView({
   return (
     <div ref={rowRef} onWheel={handleWheel} className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
       {undated.length > 0 && (
-        <div className="flex w-64 shrink-0 flex-col rounded-2xl border border-dashed border-slate-200 bg-slate-50/60">
-          <div className="border-b border-dashed border-slate-200 px-3 py-2 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">No due date</p>
+        <div className="flex w-64 shrink-0 flex-col rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/60">
+          <div className="border-b border-dashed border-neutral-200 px-3 py-2 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">No due date</p>
           </div>
           <div data-col-scroll className="max-h-[560px] space-y-2 overflow-y-auto p-2">
             {undated.map((t) => (
@@ -165,17 +165,17 @@ export function TaskColumnView({
         const dayTasks = tasks.filter((t) => showsOnColumn(t, key, todayKey));
         const isToday = key === todayKey;
         return (
-          <div key={key} className={`flex w-64 shrink-0 flex-col rounded-2xl border bg-white ${isToday ? "border-[var(--sd-ink)]" : "border-slate-200"}`}>
-            <div className={`flex items-center justify-between gap-2 border-b px-3 py-2 ${isToday ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-slate-100"}`}>
+          <div key={key} className={`flex w-64 shrink-0 flex-col rounded-2xl border bg-white ${isToday ? "border-[var(--sd-ink)]" : "border-neutral-200"}`}>
+            <div className={`flex items-center justify-between gap-2 border-b px-3 py-2 ${isToday ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-transparent"}`}>
               <div className="min-w-0 flex-1 text-center">
-                <p className={`text-[11px] font-medium ${isToday ? "text-white/70" : "text-slate-400"}`}>{d.toLocaleDateString(undefined, { weekday: "short" })}</p>
-                <p className={`text-sm font-semibold ${isToday ? "text-white" : "text-slate-800"}`}>{d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</p>
+                <p className={`text-[11px] font-medium ${isToday ? "text-white/70" : "text-neutral-400"}`}>{d.toLocaleDateString(undefined, { weekday: "short" })}</p>
+                <p className={`text-sm font-semibold ${isToday ? "text-white" : "text-neutral-800"}`}>{d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</p>
               </div>
               {onAddTask && (
                 <button
                   onClick={() => onAddTask(key)}
                   aria-label={`Add task due ${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`}
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isToday ? "text-white/80 hover:bg-white/10" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${isToday ? "text-white/80 hover:bg-white/10" : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"}`}
                 >
                   <Plus size={14} />
                 </button>
@@ -183,7 +183,7 @@ export function TaskColumnView({
             </div>
             <div data-col-scroll className="max-h-[560px] space-y-2 overflow-y-auto p-2">
               {dayTasks.length === 0 ? (
-                <p className="py-6 text-center text-[11px] text-slate-300">No tasks</p>
+                <p className="py-6 text-center text-[11px] text-neutral-300">No tasks</p>
               ) : (
                 dayTasks.map((t) => <TaskCard key={t.id} task={t} columnKey={key} getTaskTarget={getTaskTarget} muted={t.done} />)
               )}

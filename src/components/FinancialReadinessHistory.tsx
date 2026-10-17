@@ -39,28 +39,28 @@ export function FinancialReadinessHistory({ studentId, refreshKey = 0, tone = "s
     return () => { cancelled = true; };
   }, [open, studentId, refreshKey]);
 
-  const text = tone === "emerald" ? "text-emerald-700" : "text-slate-500";
+  const text = tone === "emerald" ? "text-neutral-700" : "text-neutral-500";
 
   return (
     <div className="mt-2">
-      <button onClick={() => setOpen((v) => !v)} className={`flex items-center gap-1 text-[11.5px] font-semibold ${text}`}>
+      <button onClick={() => setOpen((v) => !v)} className={`flex items-center gap-1 text-[11px] font-semibold ${text}`}>
         <History size={12} /> Edit history
         <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="mt-1.5 space-y-1.5">
-          {entries === null && <p className="text-[11.5px] text-slate-400">Loading…</p>}
-          {entries?.length === 0 && <p className="text-[11.5px] text-slate-400">No changes recorded yet.</p>}
+          {entries === null && <p className="text-[11px] text-neutral-400">Loading…</p>}
+          {entries?.length === 0 && <p className="text-[11px] text-neutral-400">No changes recorded yet.</p>}
           {entries?.map((e) => (
-            <div key={e.id} className="rounded-lg border border-slate-100 bg-white px-2.5 py-2">
-              <p className="text-[11px] text-slate-400">
+            <div key={e.id} className="rounded-lg border border-transparent bg-white px-2.5 py-2">
+              <p className="text-[11px] text-neutral-400">
                 {new Date(e.changedAt).toLocaleString()} · {e.changedBy.name} <span className="capitalize">({e.changedBy.role})</span>
               </p>
               <ul className="mt-0.5 space-y-0.5">
                 {e.changes.map((c) => (
-                  <li key={c.field} className="text-[12px] text-slate-700">
+                  <li key={c.field} className="text-[12px] text-neutral-700">
                     <span className="font-medium">{FIELD_LABELS[c.field] ?? c.field}:</span>{" "}
-                    <span className="text-slate-400">{formatValue(c.field, c.from)}</span> → {formatValue(c.field, c.to)}
+                    <span className="text-neutral-400">{formatValue(c.field, c.from)}</span> → {formatValue(c.field, c.to)}
                   </li>
                 ))}
               </ul>

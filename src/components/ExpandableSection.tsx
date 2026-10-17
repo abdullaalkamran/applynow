@@ -30,15 +30,15 @@ export function ExpandableSection({
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-5"
       >
-        <span className="flex items-center gap-4 text-[15px] font-semibold text-slate-900">
-          {icon && <span className="shrink-0 text-slate-900 [&>svg]:h-5 [&>svg]:w-5">{icon}</span>}
+        <span className="flex items-center gap-4 text-[15px] font-semibold text-neutral-900">
+          {icon && <span className="shrink-0 text-neutral-900 [&>svg]:h-5 [&>svg]:w-5">{icon}</span>}
           {title}
         </span>
-        <ChevronDown size={18} className={`shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        <ChevronDown size={18} className={`shrink-0 text-neutral-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
       {!expanded && preview && (
         <div className="max-h-0 overflow-hidden px-4 transition-all duration-200 group-hover:max-h-16 group-hover:pb-3.5 sm:px-5">
-          <p className="truncate text-xs text-slate-400">{preview}</p>
+          <p className="truncate text-xs text-neutral-400">{preview}</p>
         </div>
       )}
       {expanded && <div className={`px-4 pb-4 sm:px-5 ${bodyClassName}`}>{children}</div>}

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 :root {
@@ -22,16 +22,39 @@
   --ink-900: #0f172a;
 
   /* Student mobile app tokens */
-  --sd-bg: #ffffff;
-  --sd-card: #ffffff;
-  --sd-ink: #0a0a0a;
+  --sd-bg: #e8e8e8;
+  --sd-card: #eeeeee;
+  --sd-ink: #111111;
   --sd-ink-2: #000000;
   /* The one gradient used for every filled brand surface app-wide (buttons, badges, active
      highlights). */
-  --sd-gradient: linear-gradient(135deg, #2b2b2b, #000000);
-  --sd-teal: #0f9d6d;
-  --sd-muted: #6b7280;
+  --sd-gradient: linear-gradient(145deg, #2b2b2b, #111111);
+  --sd-teal: #111111;
+  --sd-muted: #666666;
+
+  /* --- Black & white neumorphism (soft UI) -------------------------------------------------------------
+     Light comes from the top-left: raised surfaces carry a white highlight up-left and a soft grey shadow
+     down-right; inset surfaces (inputs) reverse it. Monochrome only — hierarchy comes from depth, not colour. */
+  --neu-bg: #e8e8e8;
+  --neu-bg-2: #f2f2f2;
+  --neu-surface: #eeeeee;
+  --neu-light: #ffffff;
+  --neu-dark: #c5c5c5;
+  --neu-inset-dark: #c8c8c8;
+  --neu-border: #dddddd;
+  --neu-ink: #111111;
+  --neu-ink-2: #666666;
+  --neu-muted: #929292;
+  --neu-black: #171717;
 }
+
+@utility shadow-neu-sm { box-shadow: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light); }
+@utility shadow-neu { box-shadow: 8px 8px 18px var(--neu-dark), -8px -8px 18px var(--neu-light); }
+@utility shadow-neu-lg { box-shadow: 12px 12px 26px var(--neu-dark), -12px -12px 26px var(--neu-light); }
+@utility shadow-neu-inset { box-shadow: inset 5px 5px 10px var(--neu-inset-dark), inset -5px -5px 10px var(--neu-light); }
+@utility shadow-neu-inset-sm { box-shadow: inset 3px 3px 6px var(--neu-inset-dark), inset -3px -3px 6px var(--neu-light); }
+/* Raised black (primary buttons, active nav item). */
+@utility shadow-neu-dark { box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.32), -5px -5px 12px var(--neu-light); }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -44,7 +67,7 @@ body {
   margin: 0;
   background-color: #f5f7fb;
   color: var(--ink-900);
-  font-family: "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", "Roboto", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -97,4 +120,264 @@ body {
   .justify-text li {
     text-align: justify;
   }
+}
+
+/* "Needs your action" styling for required documents: a soft-red raised card with a recessed icon tile, and a solid red
+   raised Upload button. Same soft-UI depth as every other surface, just tinted red. */
+.neu-card-red {
+  background: #f4e4e4;
+  box-shadow: 6px 6px 14px #d6c2c2, -6px -6px 14px #ffffff;
+}
+.neu-icon-red {
+  background: #f4e4e4;
+  box-shadow: inset 3px 3px 6px #d9c4c4, inset -3px -3px 6px #ffffff;
+}
+/* Verified documents: a soft green gradient raised card with a recessed icon tile. */
+.neu-card-green {
+  background: linear-gradient(145deg, #eef7f0, #d8ecdd);
+  box-shadow: 6px 6px 14px #c6d8cb, -6px -6px 14px #ffffff;
+}
+.neu-icon-green {
+  background: linear-gradient(145deg, #dcefe1, #eaf6ed);
+  box-shadow: inset 3px 3px 6px #c3d6c8, inset -3px -3px 6px #ffffff;
+}
+.neu-card-amber {
+  background: linear-gradient(145deg, #fdf5e4, #f6e5bd);
+  box-shadow: 5px 5px 12px #e3d2a8, -5px -5px 12px #ffffff;
+}
+.neu-icon-amber {
+  background: linear-gradient(145deg, #f6e5bd, #fbf1d6);
+  box-shadow: inset 3px 3px 6px #e0cd9f, inset -3px -3px 6px #ffffff;
+}
+.neu-btn-red {
+  background: linear-gradient(145deg, #e23a3a, #c81f1f);
+  color: #ffffff;
+  box-shadow: 5px 5px 11px rgba(190, 40, 40, 0.38), -4px -4px 10px #ffffff;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.neu-btn-red:active,
+button:active > .neu-btn-red {
+  box-shadow: inset 3px 3px 7px rgba(110, 10, 10, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.25);
+}
+@media (hover: hover) {
+  .neu-btn-red:hover { box-shadow: 7px 7px 14px rgba(190, 40, 40, 0.42), -5px -5px 12px #ffffff; }
+}
+
+/* ---- Neumorphic theme (student app) ---------------------------------------------------------------------
+   Wrap a screen in .neu-theme and every form control becomes a recessed surface, every control gets a smooth
+   press state, and cards lift gently on hover (desktop only). Colours stay monochrome. */
+.neu-theme {
+  background: var(--neu-bg);
+  color: var(--neu-ink);
+}
+.neu-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="submit"]):not([type="button"]):not(.bg-transparent),
+.neu-theme select,
+.neu-theme textarea:not(.bg-transparent),
+.neu-theme :has(> input.bg-transparent) {
+  background: var(--neu-surface);
+  border-color: transparent;
+  color: var(--neu-ink);
+  box-shadow: inset 5px 5px 10px var(--neu-inset-dark), inset -5px -5px 10px var(--neu-light);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.neu-theme input::placeholder,
+.neu-theme textarea::placeholder { color: var(--neu-muted); }
+.neu-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="submit"]):not([type="button"]):not(.bg-transparent):focus,
+.neu-theme select:focus,
+.neu-theme textarea:not(.bg-transparent):focus,
+.neu-theme :has(> input.bg-transparent:focus) {
+  outline: none;
+  background: #ebebeb;
+  box-shadow: inset 7px 7px 14px #bcbcbc, inset -7px -7px 14px var(--neu-light);
+}
+/* Safety net for any flat white card left in the student app (shared blocks, older screens): same soft raised
+   surface as everything else, and no hard border. */
+.neu-theme .bg-white:is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-lg) {
+  background-color: var(--neu-surface);
+  border-color: transparent;
+  box-shadow: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
+}
+
+/* Contrast on the grey surfaces: Tailwind's light greys fall below 4.5:1 on #eee, so secondary/muted text is pinned to the
+   brief's #666 and a slightly lighter step that still passes AA for body-size text. */
+.neu-theme .text-neutral-500 { color: var(--neu-ink-2); }
+.neu-theme .text-neutral-400 { color: #707070; }
+.neu-theme .text-neutral-300 { color: #8a8a8a; }
+.neu-theme button,
+.neu-theme a { transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
+.neu-theme button:not(:disabled):active { transform: scale(0.97); }
+.neu-theme button:focus-visible,
+.neu-theme a:focus-visible { outline: 2px solid var(--neu-ink); outline-offset: 3px; }
+@media (hover: hover) {
+  .neu-theme .neu-hover:hover { box-shadow: 12px 12px 26px var(--neu-dark), -12px -12px 26px var(--neu-light); transform: translateY(-1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neu-theme * { transition: none !important; }
+}
+
+/* ---- Responsive type for the student app --------------------------------------------------------------------
+   Phones (< 640px) get a smaller scale; tablets and desktop keep the normal sizes (those are the `sm:`/`lg:` ranges, so
+   nothing here applies to them). One place for every screen — the sizes are one notch down each step, never below 10px.
+   Applied through the wrapper like .profile-compact above, because the screens set sizes with a mix of Tailwind steps and
+   arbitrary px values. */
+@media (max-width: 639px) {
+  .neu-theme .text-3xl { font-size: 24px; }
+  .neu-theme .text-2xl { font-size: 20px; }
+  .neu-theme .text-xl { font-size: 18px; }
+  .neu-theme .text-lg { font-size: 16px; }
+  .neu-theme .text-base { font-size: 15px; }
+  .neu-theme .text-\[17px\] { font-size: 15px; }
+  .neu-theme .text-\[15px\] { font-size: 14px; }
+  .neu-theme .text-sm,
+  .neu-theme .text-\[14px\] { font-size: 13px; }
+  .neu-theme .text-\[13px\] { font-size: 12px; }
+  .neu-theme .text-xs,
+  .neu-theme .text-\[12px\] { font-size: 11px; }
+  .neu-theme .text-\[11px\] { font-size: 10px; }
+}
+
+/* ---- Form controls (student app): flatter corners, softer inset, one dropdown style, soft checkboxes ------------- */
+.neu-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="submit"]):not([type="button"]):not(.bg-transparent),
+.neu-theme select,
+.neu-theme textarea:not(.bg-transparent),
+.neu-theme :has(> input.bg-transparent),
+select.neu-select {
+  border-radius: 12px;
+  box-shadow: inset 3px 3px 6px var(--neu-inset-dark), inset -3px -3px 6px var(--neu-light);
+}
+.neu-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="submit"]):not([type="button"]):not(.bg-transparent):focus,
+.neu-theme select:focus,
+.neu-theme textarea:not(.bg-transparent):focus,
+.neu-theme :has(> input.bg-transparent:focus),
+select.neu-select:focus {
+  box-shadow: inset 4px 4px 8px #bcbcbc, inset -4px -4px 8px var(--neu-light);
+}
+/* Every dropdown gets the same chevron, set inside the field with room for the text. */
+.neu-theme select,
+select.neu-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23111111' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  padding-right: 34px;
+}
+.neu-theme select:disabled { opacity: 0.7; }
+
+.neu-theme input[type="checkbox"],
+.neu-theme input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--neu-surface);
+  box-shadow: inset 2px 2px 4px var(--neu-inset-dark), inset -2px -2px 4px var(--neu-light);
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.neu-theme input[type="radio"] { border-radius: 50%; }
+.neu-theme input[type="checkbox"]:checked,
+.neu-theme input[type="radio"]:checked {
+  background: #171717;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.28), -2px -2px 5px var(--neu-light);
+}
+.neu-theme input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+  transition: transform 0.12s ease;
+}
+.neu-theme input[type="radio"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  transform: scale(0);
+  transition: transform 0.12s ease;
+}
+.neu-theme input[type="checkbox"]:checked::before,
+.neu-theme input[type="radio"]:checked::before { transform: scale(1); }
+.neu-theme input[type="checkbox"]:focus-visible,
+.neu-theme input[type="radio"]:focus-visible { outline: 2px solid var(--neu-ink); outline-offset: 2px; }
+
+/* Phones: a smaller, tighter scale again, and compact controls. Form text keeps a 12px floor so fields stay legible. */
+@media (max-width: 639px) {
+  .neu-theme .text-3xl { font-size: 22px; }
+  .neu-theme .text-2xl { font-size: 19px; }
+  .neu-theme .text-xl { font-size: 17px; }
+  .neu-theme .text-lg { font-size: 15px; }
+  .neu-theme .text-base { font-size: 14px; }
+  .neu-theme .text-\[17px\] { font-size: 14.5px; }
+  .neu-theme .text-\[15px\] { font-size: 13px; }
+  .neu-theme .text-sm,
+  .neu-theme .text-\[14px\] { font-size: 12px; }
+  .neu-theme .text-\[13px\] { font-size: 11.5px; }
+  .neu-theme .text-xs,
+  .neu-theme .text-\[12px\] { font-size: 10.5px; }
+  .neu-theme .text-\[11px\] { font-size: 10px; }
+  .neu-theme input:not(.__):not([type="checkbox"]):not([type="radio"]),
+  .neu-theme select:not(.__),
+  .neu-theme textarea:not(.__) { font-size: 12px; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+}
+
+/* ---- NeuSelect trigger (the app's own dropdown field) -------------------------------------------------------------- */
+.neu-select-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--neu-surface);
+  box-shadow: inset 3px 3px 6px var(--neu-inset-dark), inset -3px -3px 6px var(--neu-light);
+  color: var(--neu-ink);
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.neu-select-trigger:focus-visible,
+.neu-select-trigger[aria-expanded="true"] {
+  outline: none;
+  background: #ebebeb;
+  box-shadow: inset 4px 4px 8px #bcbcbc, inset -4px -4px 8px var(--neu-light);
+}
+.neu-select-trigger:disabled { opacity: 0.7; cursor: not-allowed; }
+/* A compact raised chip, for a picker sitting inside another field (e.g. the phone dial code). */
+.neu-select-trigger--inline {
+  width: auto;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--neu-surface);
+  box-shadow: 3px 3px 6px var(--neu-dark), -3px -3px 6px var(--neu-light);
+}
+@media (max-width: 639px) {
+  .neu-select-trigger { font-size: 12px; padding-top: 9px; padding-bottom: 9px; }
+  .neu-select-trigger--inline { padding: 7px 9px; }
+}
+
+/* The typing box inside a searchable dropdown: no field chrome of its own — the dropdown trigger around it is the field. */
+.neu-theme input.neu-select-input,
+.neu-theme input.neu-select-input:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  outline: none;
 }

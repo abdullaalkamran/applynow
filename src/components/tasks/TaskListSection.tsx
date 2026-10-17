@@ -17,7 +17,7 @@ export type TaskTarget = { path: string; state?: unknown };
 export type GetTaskTarget = (task: DisplayTask) => TaskTarget | undefined;
 
 function GroupHeader({ label }: { label: string }) {
-  return <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400 first:mt-0">{label}</p>;
+  return <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-neutral-400 first:mt-0">{label}</p>;
 }
 
 function TaskRow({ task, getTaskTarget }: { task: DisplayTask; getTaskTarget?: GetTaskTarget }) {
@@ -32,22 +32,22 @@ function TaskRow({ task, getTaskTarget }: { task: DisplayTask; getTaskTarget?: G
   const isRequiredTask = (task.source === "document" || task.source === "next-step" || task.source === "finance") && !task.done;
   const isReviewTask = task.source === "review" && !task.done;
   const cardClass = isRequiredTask
-    ? "border-rose-200 bg-rose-50/60"
+    ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"
     : isReviewTask
-      ? "border-amber-200 bg-amber-50/60"
-      : "border-slate-100 bg-white";
-  const textClass = isRequiredTask ? "text-rose-700" : isReviewTask ? "text-amber-800" : "text-slate-800";
-  const subtleClass = isRequiredTask ? "text-rose-500" : isReviewTask ? "text-amber-600" : "";
+      ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"
+      : "border-transparent bg-white";
+  const textClass = isRequiredTask ? "text-neutral-900" : isReviewTask ? "text-neutral-800" : "text-neutral-800";
+  const subtleClass = isRequiredTask ? "text-neutral-900" : isReviewTask ? "text-neutral-700" : "";
   const badgeClass = isRequiredTask
-    ? "bg-rose-100 text-rose-600"
+    ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900"
     : isReviewTask
-      ? "bg-amber-100 text-amber-700"
-      : "bg-slate-100 text-slate-500";
-  const dotClass = isRequiredTask ? "bg-rose-400" : isReviewTask ? "bg-amber-400" : "bg-slate-300";
+      ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700"
+      : "bg-neutral-100 text-neutral-500";
+  const dotClass = isRequiredTask ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : isReviewTask ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : "bg-neutral-300";
   return (
     <div
       onClick={target ? () => navigate(target.path, { state: target.state }) : undefined}
-      className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 ${cardClass} ${task.done ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-slate-50" : ""}`}
+      className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 ${cardClass} ${task.done ? "opacity-60" : ""} ${target ? "cursor-pointer hover:bg-neutral-50" : ""}`}
     >
       {task.onToggle ? (
         <input
@@ -58,28 +58,28 @@ function TaskRow({ task, getTaskTarget }: { task: DisplayTask; getTaskTarget?: G
           // A completed next step is locked (see applicationNextStepsStore.ts) — the toggle would
           // no-op anyway, but disabling it here avoids the checkbox visibly snapping back.
           disabled={task.source === "next-step" && task.done}
-          className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300"
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-neutral-300"
         />
       ) : (
         <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
       )}
       <div className="min-w-0 flex-1">
         <p className={`text-sm font-medium ${textClass} ${task.done ? "line-through" : ""}`}>{task.title}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400">
           <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badgeClass}`}>
             {SOURCE_LABEL[task.source]}
           </span>
           {task.subtitle && <span className={subtleClass}>{task.subtitle}</span>}
           {task.assignedByName && <span>from {task.assignedByName}</span>}
           {task.dueDate && (
-            <span className={task.tone === "overdue" ? "font-semibold text-rose-600" : task.tone === "soon" ? "font-semibold text-amber-600" : ""}>
+            <span className={task.tone === "overdue" ? "font-semibold text-neutral-900" : task.tone === "soon" ? "font-semibold text-neutral-700" : ""}>
               Due {new Date(`${task.dueDate}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
             </span>
           )}
         </div>
       </div>
       {task.onDelete && (
-        <button onClick={(e) => { e.stopPropagation(); task.onDelete!(); }} aria-label="Delete task" className="shrink-0 text-slate-300 hover:text-rose-500">
+        <button onClick={(e) => { e.stopPropagation(); task.onDelete!(); }} aria-label="Delete task" className="shrink-0 text-neutral-300 hover:text-neutral-900">
           <Trash2 size={15} />
         </button>
       )}
@@ -89,7 +89,7 @@ function TaskRow({ task, getTaskTarget }: { task: DisplayTask; getTaskTarget?: G
 
 export function TaskListSection({ tasks, getTaskTarget }: { tasks: DisplayTask[]; getTaskTarget?: GetTaskTarget }) {
   if (tasks.length === 0) {
-    return <p className="text-sm text-slate-400">No tasks here yet.</p>;
+    return <p className="text-sm text-neutral-400">No tasks here yet.</p>;
   }
 
   const open = tasks.filter((t) => !t.done);

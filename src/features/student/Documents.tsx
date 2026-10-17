@@ -111,15 +111,15 @@ export default function Documents() {
       </div>
 
       <div className="px-5 pb-6 lg:mx-auto lg:w-full lg:max-w-4xl lg:px-10">
-        <p className="mb-3 text-[13px] text-slate-500">
+        <p className="mb-3 text-[clamp(11px,3.1vw,13.5px)] leading-relaxed text-neutral-500">
           Every document you need across your core vault and every application, grouped by what's
           left to do — upload whatever's still required, and everything else takes care of itself.
         </p>
 
         {applications.length === 0 && coreRows.length === 0 && (
-          <div className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-            <p className="text-sm font-medium text-slate-700">No applications yet</p>
-            <p className="mt-1 text-xs text-slate-400">Apply to a program to see its document checklist here.</p>
+          <div className="rounded-2xl border border-transparent bg-[var(--sd-card)] p-6 text-center shadow-neu">
+            <p className="text-sm font-medium text-neutral-700">No applications yet</p>
+            <p className="mt-1 text-xs text-neutral-400">Apply to a program to see its document checklist here.</p>
             <button onClick={() => navigate("/student/search")} className="mt-3 text-[13px] font-semibold text-[var(--sd-ink)]">
               Explore universities
             </button>
@@ -129,23 +129,23 @@ export default function Documents() {
         <div className="space-y-5">
           <section>
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-red-600">
                 <AlertCircle size={13} />
               </span>
-              <p className="text-[13px] font-semibold text-slate-900">Required — not uploaded yet</p>
-              <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+              <p className="text-[clamp(11px,3.1vw,13.5px)] font-semibold text-red-700">Required — not uploaded yet</p>
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[clamp(10px,2.8vw,12px)] font-semibold text-red-700">
                 {requiredRows.length}
               </span>
             </div>
             {academicProfileIncomplete(CURRENT_STUDENT_ID) && (
-              <p className="mb-2 rounded-xl bg-slate-50 px-3 py-2 text-[11.5px] leading-relaxed text-slate-500">
+              <p className="mb-2 rounded-xl bg-neutral-50 px-3 py-2 text-[11.5px] leading-relaxed text-neutral-500">
                 Your academic profile isn't fully filled in yet, so we can't always tell exactly which
                 transcript or certificate you need. If something's missing from the list below, add it yourself.
               </p>
             )}
             <div className="space-y-2">
               {requiredRows.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                <p className="rounded-2xl border border-dashed border-neutral-200 bg-white p-3.5 text-[12.5px] text-neutral-400">
                   Nothing required right now — you're all caught up.
                 </p>
               )}
@@ -160,17 +160,17 @@ export default function Documents() {
 
           <section>
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-600">
                 <Clock3 size={13} />
               </span>
-              <p className="text-[13px] font-semibold text-slate-900">Pending review</p>
-              <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              <p className="text-[clamp(11px,3.1vw,13.5px)] font-semibold text-amber-700">Pending review</p>
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[clamp(10px,2.8vw,12px)] font-semibold text-amber-700">
                 {pendingRows.length}
               </span>
             </div>
             <div className="space-y-2">
               {pendingRows.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                <p className="rounded-2xl border border-dashed border-neutral-200 bg-white p-3.5 text-[12.5px] text-neutral-400">
                   Nothing awaiting review at the moment.
                 </p>
               ) : (
@@ -181,17 +181,17 @@ export default function Documents() {
 
           <section>
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-green-600">
                 <CheckCircle2 size={13} />
               </span>
-              <p className="text-[13px] font-semibold text-slate-900">Uploaded &amp; verified</p>
-              <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <p className="text-[clamp(11px,3.1vw,13.5px)] font-semibold text-green-700">Uploaded &amp; verified</p>
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[clamp(10px,2.8vw,12px)] font-semibold text-green-700">
                 {verifiedRows.length}
               </span>
             </div>
             <div className="space-y-2">
               {verifiedRows.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-3.5 text-[12.5px] text-slate-400">
+                <p className="rounded-2xl border border-dashed border-neutral-200 bg-white p-3.5 text-[12.5px] text-neutral-400">
                   Nothing verified yet.
                 </p>
               ) : (
@@ -202,13 +202,13 @@ export default function Documents() {
 
           {extraDocsByApp.length > 0 && (
             <section>
-              <p className="mb-2 text-[13px] font-semibold text-slate-900">Other documents on file</p>
+              <p className="mb-2 text-[13px] font-semibold text-neutral-900">Other documents on file</p>
               <div className="space-y-2">
                 {extraDocsByApp.map((d) => (
-                  <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                  <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 shadow-neu">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12.5px] font-medium text-slate-700">{d.name}</p>
-                      <p className="text-[11px] text-slate-400">{d.type}</p>
+                      <p className="truncate text-[12.5px] font-medium text-neutral-700">{d.name}</p>
+                      <p className="text-[11px] text-neutral-400">{d.type}</p>
                     </div>
                   </div>
                 ))}

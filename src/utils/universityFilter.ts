@@ -9,7 +9,7 @@ import type { University } from "../types";
 // so a university or course added through Data Management shows up immediately — a plain const
 // computed once at import time would never see it without a full page reload.
 export function destinationOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().map((u) => u.country)));
+  return Array.from(new Set(getAllUniversities().map((u) => u.country).filter(Boolean))).sort();
 }
 export function cityOptions(): string[] {
   return Array.from(new Set(getAllUniversities().map((u) => u.city))).sort();
@@ -21,27 +21,34 @@ export function courseOptions(): string[] {
   return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.name)))).sort();
 }
 export function durationOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.duration)))).sort(
-    (a, b) => parseFloat(a) - parseFloat(b)
+  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.duration)).filter(Boolean))).sort(
+    (a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0) || a.localeCompare(b)
   );
 }
+// The one "Level" list in Advanced Search, built only from what Data Management entered on courses:
+// each course's Level (Undergraduate / Postgraduate) and its Program Level tags (UG Diploma, PhD,
+// Pathway Programs, …). A level nobody has used on any course never shows up as a dead option.
 export function levelOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.level))));
+  const used = new Set<string>();
+  getAllUniversities().forEach((u) => u.courses.forEach((c) => {
+    if (c.level) used.add(c.level);
+    (c.programLevel ?? []).forEach((p) => used.add(p));
+  }));
+  const taxonomy = (PROGRAM_LEVEL_OPTIONS as readonly string[]).filter((p) => used.has(p));
+  const broad = [...used].filter((l) => !(PROGRAM_LEVEL_OPTIONS as readonly string[]).includes(l)).sort();
+  return [...broad, ...taxonomy];
 }
 export function subjectOptions(): string[] {
   return getAllSubjects();
 }
 const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 export function intakeOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().flatMap((u) => u.intakes))).sort(
+  return Array.from(new Set(getAllUniversities().flatMap((u) => [...u.intakes, ...u.courses.flatMap((c) => c.intakes ?? [])]))).sort(
     (a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b)
   );
 }
 export function accreditationOptions(): string[] {
   return Array.from(new Set(getAllUniversities().flatMap((u) => u.accreditations))).sort();
-}
-export function provinceOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().map((u) => u.state).filter((s): s is string => !!s))).sort();
 }
 export function disciplineAreaOptions(): string[] {
   return Array.from(new Set(getSubjectCatalog().map((s) => s.disciplineArea).filter((d): d is string => !!d))).sort();
@@ -61,16 +68,6 @@ function universityYears(u: University): Set<string> {
 }
 export function yearOptions(): string[] {
   return Array.from(new Set(getAllUniversities().flatMap((u) => [...universityYears(u)]))).sort();
-}
-
-// Real, distinct field-of-study groupings above Subject — see Subject.disciplineArea.
-function universityDisciplineAreas(u: University): Set<string> {
-  const areas = new Set<string>();
-  u.subjects.forEach((s) => {
-    const area = getSubjectRecord(s)?.disciplineArea;
-    if (area) areas.add(area);
-  });
-  return areas;
 }
 
 // Every English test named anywhere in the university's own or any of its courses' requirements —
@@ -163,6 +160,26 @@ export function toIELTSEquivalent(testName: string, score: number): number {
 
 // Approximate FX rates to USD, used only to make the fee filter comparable across currencies.
 const FX_TO_USD: Record<string, number> = { "£": 1.27, "$": 1.0, "C$": 0.74, "A$": 0.66, "€": 1.09, "AED ": 0.27 };
+
+export interface FilterCurrency {
+  symbol: string; // as shown to the student, e.g. "£"
+  usdPerUnit: number; // one unit of this currency in USD
+}
+
+/** The currency the fee filter should speak in for a chosen destination: whatever the universities in
+ * that country are priced in (the most common currencySymbol Data Management entered), USD when no
+ * country is chosen or nothing there has a known rate. Filter values themselves stay in USD. */
+export function currencyForDestination(destination: string): FilterCurrency {
+  const usd: FilterCurrency = { symbol: "$", usdPerUnit: 1 };
+  if (!destination) return usd;
+  const counts = new Map<string, number>();
+  getAllUniversities().filter((u) => u.country === destination && u.currencySymbol).forEach((u) => {
+    counts.set(u.currencySymbol, (counts.get(u.currencySymbol) ?? 0) + 1);
+  });
+  const top = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
+  if (!top || FX_TO_USD[top] === undefined) return usd;
+  return { symbol: top.trim(), usdPerUnit: FX_TO_USD[top] };
+}
 
 export function tuitionInUSD(u: University): number {
   const tuition = u.fees.find((f) => f.label === "Tuition Fee")?.amount ?? 0;
@@ -310,10 +327,32 @@ export function countryStats(): CountryStat[] {
     .sort((a, b) => b.universityCount - a.universityCount);
 }
 
-export function citiesForDestination(destination: string): string[] {
-  const universities = getAllUniversities();
-  if (!destination) return Array.from(new Set(universities.map((u) => u.city))).sort();
-  return Array.from(new Set(universities.filter((u) => u.country === destination).map((u) => u.city))).sort();
+// Where a course is actually taught: the cities of the campuses Data Management ticked on it (all of
+// the university's campuses when it ticked none), plus the university's state/province. A university
+// that hasn't entered campuses falls back to its own city. This is the single source for the
+// "City / State" filter, so one pick covers both a city ("Manchester") and a region ("Ontario").
+function courseLocations(u: University, c: University["courses"][number]): string[] {
+  const campuses = u.campuses ?? [];
+  const ids = c.campusIds ?? [];
+  const own = ids.length ? campuses.filter((k) => ids.includes(k.id)) : [];
+  const used = own.length ? own : campuses;
+  const cities = used.map((k) => k.city).filter(Boolean);
+  return [...(cities.length ? cities : [u.city]), ...(u.state ? [u.state] : [])].filter(Boolean);
+}
+
+function universityLocations(u: University): string[] {
+  const set = new Set<string>([u.city, ...(u.state ? [u.state] : [])]);
+  u.courses.forEach((c) => courseLocations(u, c).forEach((l) => set.add(l)));
+  return [...set].filter(Boolean);
+}
+
+/** Every city/state a course is taught in, narrowed to the chosen country. */
+export function locationOptions(destination = ""): string[] {
+  const seen = new Map<string, string>();
+  getAllUniversities().filter((u) => !destination || u.country === destination).forEach((u) => {
+    universityLocations(u).forEach((l) => { const k = normalizeText(l.trim()); if (k && !seen.has(k)) seen.set(k, l.trim()); });
+  });
+  return [...seen.values()].sort((x, y) => x.localeCompare(y));
 }
 
 // Some university.country values are short forms ("UK") that don't match the full country
@@ -325,18 +364,15 @@ function fullCountryName(country: string): string {
 export interface UniversityFilterState {
   residenceCountry: string; // countries.ts iso2, "" = not set — doubles as "Student's Nationality" in Advanced Search
   destination: string; // "" = any — "Country" in Advanced Search
-  city: string; // "" = any
-  province: string; // "" = any — the university's own state/province (its location)
+  location: string; // "" = any — a city (from the course's campuses) or the university's state/province
   studentState: string; // "" = not set — the student's own home state, matched against restrictedRegions
   universityQuery: string;
   courseQuery: string;
   duration: string; // "" = any
   level: string; // "" = any
   year: string; // "" = any
-  subjectQuery: string;
   disciplineArea: string; // "" = any
   intakes: Set<string>;
-  programLevel: string; // "" = any
   standardizedTests: Set<string>;
   acceptedEnglishTests: Set<string>;
   minFeeUSD: string;
@@ -361,18 +397,15 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
   return {
     residenceCountry,
     destination: "",
-    city: "",
-    province: "",
+    location: "",
     studentState: "",
     universityQuery: "",
     courseQuery: "",
     duration: "",
     level: "",
     year: "",
-    subjectQuery: "",
     disciplineArea: "",
     intakes: new Set(),
-    programLevel: "",
     standardizedTests: new Set(),
     acceptedEnglishTests: new Set(),
     minFeeUSD: String(FEE_MIN_USD),
@@ -397,21 +430,18 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
 export function countActiveFilters(f: UniversityFilterState): number {
   let n = 0;
   if (f.destination) n++;
-  if (f.city) n++;
-  if (f.province) n++;
+  if (f.location) n++;
   if (f.studentState) n++;
   if (f.universityQuery.trim()) n++;
   if (f.courseQuery.trim()) n++;
   if (f.duration) n++;
   if (f.level) n++;
   if (f.year) n++;
-  if (f.subjectQuery.trim()) n++;
   if (f.disciplineArea) n++;
   if (f.intakes.size > 0) n++;
-  if (f.programLevel) n++;
   if (f.standardizedTests.size > 0) n++;
   if (f.acceptedEnglishTests.size > 0) n++;
-  if (Number(f.minFeeUSD) > FEE_MIN_USD || Number(f.maxFeeUSD) < FEE_MAX_USD) n++;
+  { const r = feeRange(f); if (r.min > FEE_MIN_USD || r.max < FEE_MAX_USD) n++; }
   if (f.englishScore) n++;
   if (f.accreditedOnly) n++;
   if (f.scholarshipOnly) n++;
@@ -428,62 +458,157 @@ export function countActiveFilters(f: UniversityFilterState): number {
   return n;
 }
 
-export function applyFilters(universities: University[], f: UniversityFilterState, searchQuery = ""): University[] {
-  const q = searchQuery.trim().toLowerCase();
+// ---- Free-text search -------------------------------------------------------------------------
+// Every word the student types must appear somewhere in the searchable text (any order, any field),
+// ignoring case and accents — so "msc data leeds", "data science uk" and "leeds computer" all find
+// what Data Management entered, instead of requiring one field to contain the whole phrase.
+function normalizeText(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function searchTokens(query: string): string[] {
+  return normalizeText(query).split(/[\s,]+/).filter(Boolean);
+}
+
+// The university's own details only. Its `subjects` list is deliberately NOT here: Data Management's
+// server merges every course's subject into it, so including it would make a search for one subject
+// match every course of any university that offers that subject somewhere.
+function universitySearchText(u: University): string {
+  return normalizeText([u.name, u.city, u.state ?? "", u.country, fullCountryName(u.country), ...(u.tags ?? [])].join(" | "));
+}
+
+function courseSearchText(u: University, c: University["courses"][number]): string {
+  return normalizeText([c.name, c.subject, c.level, c.studyMode ?? "", c.duration, ...(c.programLevel ?? []), ...courseLocations(u, c)].join(" | "));
+}
+
+function tokensMatch(text: string, tokens: string[]): boolean {
+  return tokens.every((t) => text.includes(t));
+}
+
+// 0 is a legitimate slider position (max fee "$0"), so test for a real number rather than truthiness.
+function feeRange(f: UniversityFilterState): { min: number; max: number } {
+  const min = Number(f.minFeeUSD), max = Number(f.maxFeeUSD);
+  return { min: f.minFeeUSD !== "" && Number.isFinite(min) ? min : FEE_MIN_USD, max: f.maxFeeUSD !== "" && Number.isFinite(max) ? max : FEE_MAX_USD };
+}
+
+// Fee actually charged for a course (USD): the course's own fee, else the university's tuition row.
+function courseFeeUSD(u: University, c: University["courses"][number]): number {
+  return c.feeUSD > 0 ? c.feeUSD : tuitionInUSD(u);
+}
+
+/** The university-wide (non-course) part of the filters, as a predicate built once per filter state. */
+function makeUniversityGate(f: UniversityFilterState): (u: University) => boolean {
   const residenceName = f.residenceCountry ? countryByIso2(f.residenceCountry)?.name : undefined;
-  const minFee = Number(f.minFeeUSD) || FEE_MIN_USD;
-  const maxFee = Number(f.maxFeeUSD) || FEE_MAX_USD;
   const englishScore = f.englishScore ? Number(f.englishScore) : null;
   const ieltsEquivalent = englishScore !== null ? toIELTSEquivalent(f.englishTestName, englishScore) : null;
   const gpa = f.minGPA ? Number(f.minGPA) : null;
-  const courseQuery = f.courseQuery.trim().toLowerCase();
-  const universityQuery = f.universityQuery.trim().toLowerCase();
-  const subjectQuery = f.subjectQuery.trim().toLowerCase();
-
-  return universities.filter((u) => {
-    if (q) {
-      const matches =
-        u.name.toLowerCase().includes(q) ||
-        u.city.toLowerCase().includes(q) ||
-        u.country.toLowerCase().includes(q) ||
-        u.courses.some((c) => c.name.toLowerCase().includes(q));
-      if (!matches) return false;
-    }
+  const universityQuery = normalizeText(f.universityQuery.trim());
+  return (u) => {
     if (residenceName && fullCountryName(u.country) === residenceName) return false;
     if (f.destination && u.country !== f.destination) return false;
-    if (f.city && u.city !== f.city) return false;
-    if (f.province && u.state !== f.province) return false;
     if (f.studentState && (u.restrictedRegions ?? []).some((r) => r.toLowerCase() === f.studentState.toLowerCase())) return false;
-    if (universityQuery && !u.name.toLowerCase().includes(universityQuery)) return false;
-    if (courseQuery && !u.courses.some((c) => c.name.toLowerCase().includes(courseQuery))) return false;
-    if (f.duration && !u.courses.some((c) => c.duration === f.duration)) return false;
-    if (f.level && !u.courses.some((c) => c.level === f.level)) return false;
+    if (universityQuery && !normalizeText(u.name).includes(universityQuery)) return false;
     if (f.year && !universityYears(u).has(f.year)) return false;
-    if (subjectQuery && !u.subjects.some((s) => s.toLowerCase().includes(subjectQuery))) return false;
-    if (f.disciplineArea && !universityDisciplineAreas(u).has(f.disciplineArea)) return false;
-    if (f.intakes.size > 0 && !u.intakes.some((i) => f.intakes.has(i))) return false;
-    if (f.programLevel && !u.courses.some((c) => (c.programLevel ?? []).includes(f.programLevel))) return false;
-    if (f.standardizedTests.size > 0 && !u.courses.some((c) => (c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t)))) return false;
     if (f.acceptedEnglishTests.size > 0) {
       const accepted = universityAcceptedEnglishTests(u);
       if (![...f.acceptedEnglishTests].some((t) => accepted.has(t))) return false;
     }
-    if (tuitionInUSD(u) < minFee || tuitionInUSD(u) > maxFee) return false;
     if (ieltsEquivalent !== null && u.minIELTS > ieltsEquivalent) return false;
     if (f.accreditedOnly && u.accreditations.length === 0) return false;
     if (f.scholarshipOnly && !u.scholarshipsAvailable) return false;
     if (gpa !== null && u.minGPA > gpa) return false;
     if (f.withoutEnglishProficiency && !u.moiAccepted) return false;
-    if (f.withoutGRE && !u.courses.some((c) => !(c.standardizedTests ?? []).includes("GRE"))) return false;
-    if (f.withoutGMAT && !u.courses.some((c) => !(c.standardizedTests ?? []).includes("GMAT"))) return false;
-    if (f.withoutMaths && !u.courses.some((c) => c.mathsRequired === false)) return false;
-    if (f.stemOnly && !u.courses.some((c) => c.isStemProgram)) return false;
-    if (f.accepts15YearsOnly && !u.courses.some((c) => c.accepts15YearsEducation)) return false;
     if (f.feeWaiverOnly && !u.applicationFeeWaiverAvailable) return false;
     if (f.eslElpOnly && !u.eslElpAvailable) return false;
-    if (f.openProgramsOnly && !u.courses.some((c) => courseHasOpenIntake(u, c))) return false;
     return true;
+  };
+}
+
+// Whether any filter can only be satisfied by a course (so a university with no courses entered yet can't pass).
+function courseConditionsActive(f: UniversityFilterState): boolean {
+  const { min, max } = feeRange(f);
+  return (
+    !!(f.courseQuery.trim() || f.disciplineArea || f.duration || f.level) ||
+    f.standardizedTests.size > 0 || f.withoutGRE || f.withoutGMAT || f.withoutMaths || f.stemOnly ||
+    f.accepts15YearsOnly || f.openProgramsOnly || f.intakes.size > 0 || min > FEE_MIN_USD || max < FEE_MAX_USD
+  );
+}
+
+// A university with no courses entered can still be found by its own details (name, place, tags, subjects).
+function courselessUniversityPasses(u: University, f: UniversityFilterState, tokens: string[]): boolean {
+  if (f.location && !universityLocations(u).some((l) => normalizeText(l.trim()) === normalizeText(f.location.trim()))) return false;
+  if (courseConditionsActive(f)) return false;
+  return tokens.length === 0 || tokensMatch(`${universitySearchText(u)} | ${normalizeText((u.subjects ?? []).join(" | "))}`, tokens);
+}
+
+export function applyFilters(universities: University[], f: UniversityFilterState, searchQuery = ""): University[] {
+  const universityGate = makeUniversityGate(f);
+  const tokens = searchTokens(searchQuery);
+
+  return universities.filter((u) => {
+    if (!universityGate(u)) return false;
+
+    // Search text and every course-level filter are judged against the SAME course, so e.g. "Level:
+    // Postgraduate" + "Duration: 1 year" only keeps a university that has one course that is both.
+    if (u.courses.length > 0) return u.courses.some((c) => courseMatchesFilters(u, c, f, searchQuery));
+    return courselessUniversityPasses(u, f, tokens);
   });
+}
+
+// ---- Linked dropdown options ----------------------------------------------------------------------
+// Each dropdown in Advanced Search lists only values that still exist among the courses passing every
+// OTHER filter — pick a country and the cities, universities, courses, intakes and levels shrink to
+// that country; pick an intake and the universities/courses narrow to ones running it; and so on. A
+// field's own selection is left out of its own list, so you can always switch it to a sibling value.
+export type FacetKey = "destination" | "location" | "university" | "course" | "discipline" | "level" | "duration" | "intake";
+
+export function facetOptions(f: UniversityFilterState, facet: FacetKey): string[] {
+  const g: UniversityFilterState = { ...f };
+  switch (facet) {
+    case "destination": g.destination = ""; break;
+    case "location": g.location = ""; break;
+    case "university": g.universityQuery = ""; break;
+    case "course": g.courseQuery = ""; break;
+    case "discipline": g.disciplineArea = ""; break;
+    case "level": g.level = ""; break;
+    case "duration": g.duration = ""; break;
+    case "intake": g.intakes = new Set(); break;
+  }
+  const gate = makeUniversityGate(g);
+  const seen = new Map<string, string>();
+  const add = (v: string | undefined) => { const t = v?.trim(); if (t) { const k = normalizeText(t); if (!seen.has(k)) seen.set(k, t); } };
+  getAllUniversities().forEach((u) => {
+    if (!gate(u)) return;
+    if (u.courses.length === 0) {
+      if (!courselessUniversityPasses(u, g, [])) return;
+      if (facet === "destination") add(u.country);
+      else if (facet === "university") add(u.name);
+      else if (facet === "location") universityLocations(u).forEach(add);
+      else if (facet === "intake") u.intakes.forEach(add);
+      return;
+    }
+    u.courses.forEach((c) => {
+      if (!courseMatchesFilters(u, c, g)) return;
+      switch (facet) {
+        case "destination": add(u.country); break;
+        case "location": courseLocations(u, c).forEach(add); break;
+        case "university": add(u.name); break;
+        case "course": add(c.name); break;
+        case "discipline": add(getSubjectRecord(c.subject)?.disciplineArea); break;
+        case "level": add(c.level); (c.programLevel ?? []).forEach(add); break;
+        case "duration": add(c.duration); break;
+        case "intake": (c.intakes && c.intakes.length > 0 ? c.intakes : u.intakes).forEach(add); break;
+      }
+    });
+  });
+  const out = [...seen.values()];
+  if (facet === "intake") return out.sort((x, y) => MONTH_ORDER.indexOf(x) - MONTH_ORDER.indexOf(y));
+  if (facet === "duration") return out.sort((x, y) => (parseFloat(x) || 0) - (parseFloat(y) || 0) || x.localeCompare(y));
+  if (facet === "level") {
+    const tax = PROGRAM_LEVEL_OPTIONS as readonly string[];
+    return [...out.filter((l) => !tax.includes(l)).sort(), ...tax.filter((l) => out.includes(l))];
+  }
+  return out.sort((x, y) => x.localeCompare(y));
 }
 
 // Course-level counterpart to applyFilters(): applyFilters() keeps a university when *any* of its
@@ -491,30 +616,32 @@ export function applyFilters(universities: University[], f: UniversityFilterStat
 // every course of a surviving university. This narrows that list to the courses that actually match
 // the search text and the course-specific Advanced Search fields.
 export function courseMatchesFilters(u: University, c: University["courses"][number], f: UniversityFilterState, searchQuery = ""): boolean {
-  const q = searchQuery.trim().toLowerCase();
-  if (q) {
-    const hit =
-      u.name.toLowerCase().includes(q) ||
-      u.city.toLowerCase().includes(q) ||
-      u.country.toLowerCase().includes(q) ||
-      c.name.toLowerCase().includes(q) ||
-      c.subject.toLowerCase().includes(q);
-    if (!hit) return false;
+  const tokens = searchTokens(searchQuery);
+  if (tokens.length > 0 && !tokensMatch(`${universitySearchText(u)} | ${courseSearchText(u, c)}`, tokens)) return false;
+  const courseQuery = normalizeText(f.courseQuery.trim());
+  if (courseQuery && !normalizeText(c.name).includes(courseQuery)) return false;
+  const { min: minFee, max: maxFee } = feeRange(f);
+  if (minFee > FEE_MIN_USD || maxFee < FEE_MAX_USD) {
+    const fee = courseFeeUSD(u, c);
+    if (fee < minFee || fee > maxFee) return false;
   }
-  const courseQuery = f.courseQuery.trim().toLowerCase();
-  const subjectQuery = f.subjectQuery.trim().toLowerCase();
-  if (courseQuery && !c.name.toLowerCase().includes(courseQuery)) return false;
-  if (subjectQuery && !c.subject.toLowerCase().includes(subjectQuery)) return false;
+  if (f.location) {
+    const want = normalizeText(f.location.trim());
+    if (!courseLocations(u, c).some((l) => normalizeText(l.trim()) === want)) return false;
+  }
   if (f.disciplineArea && getSubjectRecord(c.subject)?.disciplineArea !== f.disciplineArea) return false;
   if (f.duration && c.duration !== f.duration) return false;
-  if (f.level && c.level !== f.level) return false;
-  if (f.programLevel && !(c.programLevel ?? []).includes(f.programLevel)) return false;
+  if (f.level && c.level !== f.level && !(c.programLevel ?? []).includes(f.level)) return false;
   if (f.standardizedTests.size > 0 && !(c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t))) return false;
   if (f.withoutGRE && (c.standardizedTests ?? []).includes("GRE")) return false;
   if (f.withoutGMAT && (c.standardizedTests ?? []).includes("GMAT")) return false;
   if (f.withoutMaths && c.mathsRequired !== false) return false;
   if (f.stemOnly && !c.isStemProgram) return false;
   if (f.accepts15YearsOnly && !c.accepts15YearsEducation) return false;
+  if (f.intakes.size > 0) {
+    const months = c.intakes && c.intakes.length > 0 ? c.intakes : u.intakes;
+    if (!months.some((m) => f.intakes.has(m))) return false;
+  }
   if (f.openProgramsOnly && !courseHasOpenIntake(u, c)) return false;
   return true;
 }

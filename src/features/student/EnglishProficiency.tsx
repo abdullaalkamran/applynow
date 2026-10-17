@@ -7,6 +7,7 @@ import {
   loadEnglishTests, saveEnglishTests, loadEnglishStatus, saveEnglishStatus,
   type EnglishTestDetails, type EnglishProficiencyStatus,
 } from "../../data/studentProfileDetailsStore";
+import { NeuSelect } from "../../components/ui/NeuSelect";
 
 const STATUS_OPTIONS: { value: EnglishProficiencyStatus["status"]; label: string }[] = [
   { value: "yes", label: "Yes" },
@@ -213,8 +214,8 @@ export default function EnglishProficiency() {
       <MobileHeader title="English Proficiency" />
 
       <div className="px-5">
-        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-          <p className="mb-2 text-[13px] font-medium text-slate-700">Do you have English proficiency proof?</p>
+        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
+          <p className="mb-2 text-[13px] font-medium text-neutral-700">Do you have English proficiency proof?</p>
           <div className="flex flex-wrap gap-2">
             {STATUS_OPTIONS.map((o) => (
               <button
@@ -223,7 +224,7 @@ export default function EnglishProficiency() {
                 className={`rounded-full border px-3.5 py-1.5 text-[12px] font-medium ${
                   status === o.value
                     ? "border-transparent bg-[image:var(--sd-gradient)] text-white"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                 }`}
               >
                 {o.label}
@@ -246,7 +247,7 @@ export default function EnglishProficiency() {
         </div>
 
         {status === "yes" && (
-        <p className="mb-4 text-[13px] text-slate-500">
+        <p className="mb-4 text-[13px] text-neutral-500">
           Upload your test certificate or score report — we'll detect the test and fill in the rest.
         </p>
         )}
@@ -276,27 +277,27 @@ export default function EnglishProficiency() {
           ))}
 
           {addMenuOpen ? (
-            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="mb-2 text-[12px] font-medium text-slate-500">Choose a test to add</p>
+            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
+              <p className="mb-2 text-[12px] font-medium text-neutral-500">Choose a test to add</p>
               <div className="flex flex-wrap gap-2">
                 {TEST_NAMES.map((t) => (
                   <button
                     key={t}
                     onClick={() => addEntry(t)}
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-full border border-neutral-200 px-3 py-1.5 text-[12px] font-medium text-neutral-600 hover:bg-neutral-50"
                   >
                     {t}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-slate-400">
+              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-neutral-400">
                 Cancel
               </button>
             </div>
           ) : (
             <button
               onClick={() => setAddMenuOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
             >
               <Plus size={16} /> Add Test
             </button>
@@ -307,9 +308,9 @@ export default function EnglishProficiency() {
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">
         {errors.length > 0 && (
-          <div className="mb-2 rounded-xl bg-[#FCEAE8] p-3">
+          <div className="mb-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
             {errors.map((e) => (
-              <p key={e} className="text-[12px] font-medium text-[#B8382C]">{e}</p>
+              <p key={e} className="text-[12px] font-medium text-neutral-800">{e}</p>
             ))}
           </div>
         )}
@@ -341,10 +342,10 @@ function TestCard({
   const expiryWarning = getExpiryWarning(entry.expiryDate);
 
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
       <div className="flex items-center justify-between">
         <Pill tone="navy">{entry.testName}</Pill>
-        <button onClick={onRemove} aria-label="Remove test" className="text-slate-300 hover:text-slate-500">
+        <button onClick={onRemove} aria-label="Remove test" className="text-neutral-300 hover:text-neutral-500">
           <X size={16} />
         </button>
       </div>
@@ -379,12 +380,12 @@ function TestCard({
           <>
             {needsTestType(entry.testName) && (
               <FieldShell label="Test Type" autoFilled={entry.autoFilled.has("testType")}>
-                <select value={entry.testType} onChange={(e) => onUpdate("testType", e.target.value)} className={inputClass}>
+                <NeuSelect value={entry.testType} onChange={(e) => onUpdate("testType", e.target.value)} className={inputClass}>
                   <option value="">Select test type</option>
                   {IELTS_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
-                </select>
+                </NeuSelect>
               </FieldShell>
             )}
 
@@ -424,9 +425,9 @@ function TestCard({
           </FieldShell>
         )}
         {expiryWarning && (
-          <div className="flex items-start gap-2 rounded-xl bg-[#FDF0DC] p-3">
-            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#B8791C]" />
-            <p className="text-[12px] leading-snug text-[#8A5A14]">{expiryWarning}</p>
+          <div className="flex items-start gap-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-neutral-800" />
+            <p className="text-[12px] leading-snug text-neutral-800">{expiryWarning}</p>
           </div>
         )}
 

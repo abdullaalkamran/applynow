@@ -11,6 +11,7 @@ import { getAllUniversities } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
+import { NeuTabs } from "../../components/ui/NeuTabs";
 
 const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
@@ -52,12 +53,12 @@ export default function CountryDetail() {
     <div className="pb-6">
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
+          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/student/search")}
               aria-label="Search"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
             >
               <Search size={16} />
             </button>
@@ -71,28 +72,17 @@ export default function CountryDetail() {
             actions={
               <button
                 onClick={() => setTab("Universities")}
-                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-white/90"
+                className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-neutral-800 hover:bg-white/90"
               >
                 Explore Universities
               </button>
             }
           />
-          <p className="mt-3 text-[13px] text-slate-500">
+          <p className="mt-3 text-[13px] text-neutral-500">
             {universities.length} {universities.length === 1 ? "university" : "universities"} · {totalCourses} {totalCourses === 1 ? "program" : "programs"}
           </p>
 
-          <div className="mt-4 flex items-center gap-5 overflow-x-auto border-b border-black/5">
-            {TABS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
-              >
-                {t}
-                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
-              </button>
-            ))}
-          </div>
+          <NeuTabs tabs={TABS} value={tab} onChange={setTab} ariaLabel="Sections" className="mt-4" />
         </div>
 
         {tab === "Overview" && (
@@ -118,22 +108,22 @@ export default function CountryDetail() {
               <button
                 key={`${u.id}::${c.name}`}
                 onClick={() => openCourse(u.id, c.name)}
-                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-neu"
               >
                 <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">{c.name}</p>
-                  <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
-                  <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold text-slate-700">
-                    <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                  <p className="truncate text-sm font-semibold text-neutral-900">{c.name}</p>
+                  <p className="truncate text-xs text-neutral-400">{u.name} · {c.level} · {c.duration}</p>
+                  <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold text-neutral-700">
+                    <Wallet size={11} className="text-neutral-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
                   </p>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                <ChevronRight size={16} className="shrink-0 text-neutral-300" />
               </button>
             ))}
             {courseOfferings.length === 0 && (
-              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                <p className="text-sm font-medium text-slate-700">No courses listed in {country} yet</p>
+              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
+                <p className="text-sm font-medium text-neutral-700">No courses listed in {country} yet</p>
               </div>
             )}
           </div>
@@ -145,23 +135,23 @@ export default function CountryDetail() {
               <button
                 key={subjectName}
                 onClick={() => openSubject(subjectName)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-neu"
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E7EEFC] text-[#2955C4]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                     <BookOpen size={16} />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{subjectName}</p>
-                    <p className="text-xs text-slate-400">{count} program{count === 1 ? "" : "s"}</p>
+                    <p className="truncate text-sm font-semibold text-neutral-900">{subjectName}</p>
+                    <p className="text-xs text-neutral-400">{count} program{count === 1 ? "" : "s"}</p>
                   </div>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                <ChevronRight size={16} className="shrink-0 text-neutral-300" />
               </button>
             ))}
             {subjectCounts.length === 0 && (
-              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                <p className="text-sm font-medium text-slate-700">No subjects listed yet</p>
+              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
+                <p className="text-sm font-medium text-neutral-700">No subjects listed yet</p>
               </div>
             )}
           </div>
@@ -173,23 +163,23 @@ export default function CountryDetail() {
               <button
                 key={u.id}
                 onClick={() => openUniversityProfile(u.id)}
-                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-4 text-left shadow-neu"
               >
                 <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">{u.name}</p>
-                  <p className="truncate text-xs text-slate-400">{u.city}, {u.country}</p>
-                  <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
+                  <p className="truncate text-sm font-semibold text-neutral-900">{u.name}</p>
+                  <p className="truncate text-xs text-neutral-400">{u.city}, {u.country}</p>
+                  <div className="mt-1 flex items-center gap-3 text-[11px] text-neutral-500">
                     <span className="inline-flex items-center gap-1"><GraduationCap size={11} /> {u.worldRank} world rank</span>
                     <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
                   </div>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                <ChevronRight size={16} className="shrink-0 text-neutral-300" />
               </button>
             ))}
             {universities.length === 0 && (
-              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                <p className="text-sm font-medium text-slate-700">No universities in {country} yet</p>
+              <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
+                <p className="text-sm font-medium text-neutral-700">No universities in {country} yet</p>
               </div>
             )}
           </div>

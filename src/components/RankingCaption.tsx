@@ -6,9 +6,9 @@ import type { University } from "../types";
 export function RankingCaption({ university, className = "" }: { university: University; className?: string }) {
   if (!university.qsRanking && !university.timesHigherRanking) return null;
   return (
-    <p className={`flex flex-wrap gap-3 text-[11px] text-slate-400 ${className}`}>
-      {university.qsRanking && <span>QS Ranking: <span className="font-semibold text-slate-600">{university.qsRanking}</span></span>}
-      {university.timesHigherRanking && <span>Times Higher: <span className="font-semibold text-slate-600">{university.timesHigherRanking}</span></span>}
+    <p className={`flex flex-wrap gap-3 text-[11px] text-neutral-400 ${className}`}>
+      {university.qsRanking && <span>QS Ranking: <span className="font-semibold text-neutral-600">{university.qsRanking}</span></span>}
+      {university.timesHigherRanking && <span>Times Higher: <span className="font-semibold text-neutral-600">{university.timesHigherRanking}</span></span>}
     </p>
   );
 }

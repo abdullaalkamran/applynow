@@ -86,7 +86,7 @@ export default function Preferences() {
       <MobileHeader title="Preferences" />
 
       <div className="px-5">
-        <p className="mb-4 text-[13px] text-slate-500">
+        <p className="mb-4 text-[13px] text-neutral-500">
           Tell us what you're looking for so we can tailor recommendations and reminders.
         </p>
 
@@ -152,14 +152,14 @@ export default function Preferences() {
               label="Scholarship opportunities"
               description="Notify me about scholarships I may be eligible for."
             />
-            <div className="my-3 h-px bg-slate-100" />
+            <div className="my-3 h-px bg-neutral-100" />
             <div className="space-y-2.5">
               <Toggle checked={emailUpdates} onChange={(v) => { setEmailUpdates(v); setSaved(false); }} label="Email" />
               <Toggle checked={smsUpdates} onChange={(v) => { setSmsUpdates(v); setSaved(false); }} label="SMS" />
               <Toggle checked={whatsappUpdates} onChange={(v) => { setWhatsappUpdates(v); setSaved(false); }} label="WhatsApp" />
               <Toggle checked={pushUpdates} onChange={(v) => { setPushUpdates(v); setSaved(false); }} label="Push notifications" />
             </div>
-            <div className="my-3 h-px bg-slate-100" />
+            <div className="my-3 h-px bg-neutral-100" />
             <SubLabel>Preferred Contact Language</SubLabel>
             <ChipRow>
               {LANGUAGES.map((l) => (
@@ -172,9 +172,9 @@ export default function Preferences() {
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">
         {errors.length > 0 && (
-          <div className="mb-2 rounded-xl bg-[#FCEAE8] p-3">
+          <div className="mb-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
             {errors.map((e) => (
-              <p key={e} className="text-[12px] font-medium text-[#B8382C]">{e}</p>
+              <p key={e} className="text-[12px] font-medium text-neutral-800">{e}</p>
             ))}
           </div>
         )}

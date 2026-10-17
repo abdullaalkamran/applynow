@@ -14,13 +14,13 @@ export default function Onboarding() {
           </div>
           <span className="text-[15px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
         </div>
-        <button onClick={() => navigate("/student")} className="text-sm font-medium text-slate-400">
+        <button onClick={() => navigate("/student")} className="text-sm font-medium text-neutral-400">
           Skip
         </button>
       </div>
 
       <div className="px-6 pt-6">
-        <h1 className="text-[34px] font-bold leading-[1.08] text-slate-900">
+        <h1 className="text-[34px] font-bold leading-[1.08] text-neutral-900">
           A Brighter
           <br />
           You.
@@ -29,7 +29,7 @@ export default function Onboarding() {
           <br />
           Tomorrow.
         </h1>
-        <p className="mt-4 max-w-[260px] text-sm leading-relaxed text-slate-500">
+        <p className="mt-4 max-w-[260px] text-sm leading-relaxed text-neutral-500">
           Global education. Real guidance. From application to arrival.
         </p>
       </div>

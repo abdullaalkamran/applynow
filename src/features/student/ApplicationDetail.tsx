@@ -18,14 +18,15 @@ import { docMatchesType, buildChecklist, buildCoreChecklist, coreDocTypes } from
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
 import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
+import { NeuTabs } from "../../components/ui/NeuTabs";
 
 const TABS = ["Overview", "Documents", "Updates", "Comments"] as const;
 
 const docStatusTone: Record<string, string> = {
   verified: "text-[var(--sd-teal)]",
-  pending: "text-[#B8791C]",
-  rejected: "text-rose-500",
-  flagged: "text-rose-500",
+  pending: "text-neutral-800",
+  rejected: "text-neutral-900",
+  flagged: "text-neutral-900",
 };
 
 export default function ApplicationDetail() {
@@ -75,7 +76,7 @@ export default function ApplicationDetail() {
   if (!application) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-sm text-slate-500">Loading this application…</p>
+        <p className="text-sm text-neutral-500">Loading this application…</p>
         <button onClick={() => navigate("/student/applications")} className="text-[13px] font-semibold text-[var(--sd-ink)]">
           Back to Applications
         </button>
@@ -162,32 +163,32 @@ export default function ApplicationDetail() {
     <div className="min-h-full pb-8">
       <div className="lg:mx-auto lg:max-w-3xl">
         <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <button onClick={() => navigate(-1)} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow-[0_0_8px_rgba(0,0,0,0.07)]">
+          <button onClick={() => navigate(-1)} aria-label="Back" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow-neu-sm">
             <ArrowLeft size={17} />
           </button>
           <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="More options"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow-neu-sm"
             >
               <MoreVertical size={17} />
             </button>
             {menuOpen && (
               <>
                 <button aria-hidden className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} tabIndex={-1} />
-                <div className="absolute right-0 z-20 mt-1.5 w-48 overflow-hidden rounded-xl bg-[var(--sd-card)] py-1 shadow-[0_0_20px_rgba(0,0,0,0.15)]">
+                <div className="absolute right-0 z-20 mt-1.5 w-48 overflow-hidden rounded-xl bg-[var(--sd-card)] py-1 shadow-neu-lg">
                   {university && (
                     <button
                       onClick={() => navigate(`/student/universities/${university.id}`)}
-                      className="block w-full px-3.5 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-50"
+                      className="block w-full px-3.5 py-2.5 text-left text-[13px] text-neutral-700 hover:bg-neutral-50"
                     >
                       View University Profile
                     </button>
                   )}
                   <button
                     onClick={() => navigate("/student/messages")}
-                    className="block w-full px-3.5 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-50"
+                    className="block w-full px-3.5 py-2.5 text-left text-[13px] text-neutral-700 hover:bg-neutral-50"
                   >
                     Message Counsellor
                   </button>
@@ -202,76 +203,65 @@ export default function ApplicationDetail() {
             <div className="flex min-w-0 items-center gap-3">
               <LogoBadge name={application.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-12 w-12 shrink-0" />
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-bold text-slate-900">{application.university}</p>
-                <p className="truncate text-xs text-slate-400">{university ? `${university.city}, ${university.country}` : application.country}</p>
+                <p className="truncate text-[15px] font-bold text-neutral-900">{application.university}</p>
+                <p className="truncate text-xs text-neutral-400">{university ? `${university.city}, ${university.country}` : application.country}</p>
               </div>
             </div>
             <button
               onClick={() => setSaved((v) => !v)}
               aria-label="Save"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-600"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-neutral-600"
             >
-              <Heart size={16} className={saved ? "fill-rose-500 text-rose-500" : ""} />
+              <Heart size={16} className={saved ? "fill-rose-500 text-neutral-900" : ""} />
             </button>
           </div>
 
-          <h1 className="mt-4 text-[22px] font-bold leading-tight text-slate-900">{application.course}</h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-slate-500">
+          <h1 className="mt-4 text-[22px] font-bold leading-tight text-neutral-900">{application.course}</h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-neutral-500">
             <span className="inline-flex items-center gap-1">
-              <Calendar size={13} className="text-slate-400" /> {application.intake}
+              <Calendar size={13} className="text-neutral-400" /> {application.intake}
             </span>
             <span className="inline-flex items-center gap-1">
-              <MapPin size={13} className="text-slate-400" /> {application.campus ?? "Main Campus"}
+              <MapPin size={13} className="text-neutral-400" /> {application.campus ?? "Main Campus"}
             </span>
           </div>
 
-          <div className="mt-5 flex items-center gap-5 overflow-x-auto border-b border-black/5">
-            {TABS.map((t) => (
-              <button
-                key={t}
-                onClick={() => selectTab(t)}
-                className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
-              >
-                {t}
-                {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
-              </button>
-            ))}
-          </div>
+          <NeuTabs tabs={TABS} value={tab} onChange={selectTab} ariaLabel="Sections" className="mt-5" />
 
           <div className="py-4">
             {tab === "Overview" && (
               <>
                 {nextSteps.length > 0 && (
-                  <div className="mb-5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800">
-                      <ListChecks size={15} className="text-slate-400" /> Next Steps
+                  <div className="mb-5 rounded-2xl border border-transparent bg-[var(--sd-card)] p-4 shadow-neu">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-neutral-800">
+                      <ListChecks size={15} className="text-neutral-400" /> Next Steps
                     </p>
                     <div className="space-y-2">
                       {nextSteps.map((ns) => (
                         <div
                           key={ns.id}
-                          className={`flex items-center gap-2.5 rounded-xl p-2.5 ${ns.done ? "" : "border border-rose-200 bg-rose-50/60"}`}
+                          className={`flex items-center gap-2.5 rounded-xl p-2.5 ${ns.done ? "" : "border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"}`}
                         >
                           <button
                             onClick={() => { if (!ns.done) { toggleNextStepDone(application.id, ns.id); forceTick((t) => t + 1); } }}
                             disabled={ns.done}
                             aria-label={ns.done ? `"${ns.title}" completed — locked` : `Mark "${ns.title}" done`}
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                              ns.done ? "border-[var(--sd-teal)] bg-[var(--sd-teal)] text-white" : "border-rose-300"
+                              ns.done ? "border-[var(--sd-teal)] bg-[var(--sd-teal)] text-white" : "border-neutral-300"
                             }`}
                           >
                             {ns.done && <Check size={11} />}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <p className={`text-[13px] ${ns.done ? "text-slate-400 line-through" : "font-medium text-rose-700"}`}>{ns.title}</p>
+                            <p className={`text-[13px] ${ns.done ? "text-neutral-400 line-through" : "font-medium text-neutral-900"}`}>{ns.title}</p>
                             {ns.done
                               ? ns.completedAt && (
-                                  <p className="text-[11px] text-slate-400">
+                                  <p className="text-[11px] text-neutral-400">
                                     Completed {new Date(`${ns.completedAt}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
                                   </p>
                                 )
                               : ns.dueDate && (
-                                  <p className="text-[11px] text-rose-500">
+                                  <p className="text-[11px] text-neutral-900">
                                     Due {new Date(`${ns.dueDate}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
                                   </p>
                                 )}
@@ -285,47 +275,47 @@ export default function ApplicationDetail() {
                 {coreDocsBlocked && (
                   <button
                     onClick={() => navigate("/student/documents")}
-                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left"
+                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-4 text-left"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700">
                       <AlertCircle size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold text-amber-950">Upload core documents</p>
-                      <p className="truncate text-[11.5px] text-amber-800">
+                      <p className="text-[13px] font-semibold text-neutral-800">Upload core documents</p>
+                      <p className="truncate text-[11.5px] text-neutral-800">
                         Missing {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
                         {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}
                       </p>
                     </div>
-                    <ChevronRight size={16} className="shrink-0 text-amber-700" />
+                    <ChevronRight size={16} className="shrink-0 text-neutral-700" />
                   </button>
                 )}
 
                 {missingAppDocs.length > 0 && (
                   <button
                     onClick={() => selectTab("Documents")}
-                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-left"
+                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-4 text-left"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                       <AlertCircle size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold text-rose-950">
+                      <p className="text-[13px] font-semibold text-neutral-900">
                         {missingAppDocs.length} document{missingAppDocs.length === 1 ? "" : "s"} required for this application
                       </p>
-                      <p className="truncate text-[11.5px] text-rose-800">
+                      <p className="truncate text-[11.5px] text-neutral-900">
                         {missingAppDocs.slice(0, 2).map((row) => row.type).join(", ")}
                         {missingAppDocs.length > 2 ? ` and ${missingAppDocs.length - 2} more` : ""}
                       </p>
                     </div>
-                    <ChevronRight size={16} className="shrink-0 text-rose-700" />
+                    <ChevronRight size={16} className="shrink-0 text-neutral-900" />
                   </button>
                 )}
 
-                <div className="flex items-center gap-4 rounded-2xl bg-[#E7EEFC] p-4">
+                <div className="flex items-center gap-4 rounded-2xl bg-[var(--sd-card)] shadow-neu-inset-sm p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-[#1B2C57]">Application Status</p>
-                    <p className="mt-1 text-[19px] font-bold text-[#1B2C57]">{application.status}</p>
+                    <p className="text-[13px] font-semibold text-neutral-900">Application Status</p>
+                    <p className="mt-1 text-[19px] font-bold text-neutral-900">{application.status}</p>
                   </div>
                   <ProgressRing pct={ringPct} label={`${ringNumerator} / ${ringDenominator}`} />
                 </div>
@@ -335,37 +325,36 @@ export default function ApplicationDetail() {
                     on a phone; capped at a modest max width on desktop so the connectors don't
                     stretch into long bars. The connector between step i and i+1 reads as done
                     exactly when step i is done. */}
-                <div className="mx-auto mt-4 w-full max-w-md">
-                  <div className="flex items-start">
+                <div className="no-scrollbar mx-auto mt-4 w-full max-w-md overflow-x-auto pb-1">
+                  {/* Each step is at least 50px wide, so labels wrap at spaces only; below ~350px the strip scrolls sideways. */}
+                  <div className="flex min-w-[350px] items-start">
                     {STEPS.map((label, i) => {
                       const done = i < currentIdx;
                       const current = i === currentIdx;
                       return (
                         <div key={label} className="flex min-w-0 flex-1 flex-col items-center">
                           <div className="flex w-full items-center">
-                            <div className={`h-px flex-1 ${i === 0 ? "bg-transparent" : done || current ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`} />
+                            <div className={`h-px flex-1 ${i === 0 ? "bg-transparent" : done || current ? "bg-[var(--sd-teal)]" : "bg-neutral-200"}`} />
                             <div
                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold ${
-                                done ? "bg-[var(--sd-teal)] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100 text-slate-400"
+                                done ? "bg-neutral-900 text-white shadow-neu-sm" : current ? "bg-[image:var(--sd-gradient)] text-white shadow-neu-dark" : "bg-[var(--sd-card)] text-neutral-500 shadow-neu-inset-sm"
                               }`}
                             >
                               {done ? <Check size={11} /> : i + 1}
                             </div>
-                            <div className={`h-px flex-1 ${i === STEPS.length - 1 ? "bg-transparent" : done ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`} />
+                            <div className={`h-px flex-1 ${i === STEPS.length - 1 ? "bg-transparent" : done ? "bg-[var(--sd-teal)]" : "bg-neutral-200"}`} />
                           </div>
-                          {/* Labels wrap word-by-word and hyphenate ("Appli-cation") where a word is
-                              wider than its ~45px phone column, so 7 of them sit side by side
-                              without spilling into each other. */}
+                          {/* Labels wrap word-by-word inside their 50px+ column. */}
                           <p
                             lang="en"
-                            className={`mt-1 w-full break-words px-0.5 text-center text-[8.5px] font-medium leading-[1.15] hyphens-auto sm:text-[10px] ${
-                              current ? "text-[var(--sd-ink)]" : done ? "text-slate-700" : "text-slate-400"
+                            className={`mt-1.5 w-full px-0.5 text-center text-[9px] font-medium leading-[1.2] sm:text-[10px] ${
+                              current ? "text-neutral-900" : done ? "text-neutral-700" : "text-neutral-500"
                             }`}
                           >
                             {label}
                           </p>
                           {stepDates[i] && (
-                            <p className="mt-0.5 w-full text-center text-[8px] leading-tight text-slate-400 sm:text-[9px]">
+                            <p className="mt-0.5 w-full text-center text-[8px] leading-tight text-neutral-400 sm:text-[9px]">
                               <span className="sm:hidden">{stepDatesShort[i]}</span>
                               <span className="hidden sm:inline">{stepDates[i]}</span>
                             </p>
@@ -381,13 +370,13 @@ export default function ApplicationDetail() {
                 </div>
 
                 {course && university && (
-                  <div className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                  <div className="rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu">
                     <button
                       onClick={() => setProgramInfoOpen((v) => !v)}
                       className="flex w-full items-center justify-between p-4 text-left"
                     >
-                      <span className="text-[14px] font-semibold text-slate-900">Program Information</span>
-                      <ChevronDown size={16} className={`text-slate-400 transition-transform ${programInfoOpen ? "rotate-180" : ""}`} />
+                      <span className="text-[14px] font-semibold text-neutral-900">Program Information</span>
+                      <ChevronDown size={16} className={`text-neutral-400 transition-transform ${programInfoOpen ? "rotate-180" : ""}`} />
                     </button>
                     {programInfoOpen && (
                       <div className="px-4 pb-4">
@@ -406,22 +395,22 @@ export default function ApplicationDetail() {
               <div className="space-y-2.5">
                 <button
                   onClick={() => navigate("/student/documents")}
-                  className="flex w-full items-center justify-between gap-2 rounded-2xl border border-[#B9D4FA] bg-[#EEF4FE] p-3.5 text-left"
+                  className="flex w-full items-center justify-between gap-2 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3.5 text-left"
                 >
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-semibold text-[#1B2C57]">Core documents</p>
-                    <p className="text-[11px] text-[#3A4B76]">Passport, transcript, CV, English & more — uploaded once, shared across every application</p>
+                    <p className="text-[12.5px] font-semibold text-neutral-900">Core documents</p>
+                    <p className="text-[11px] text-neutral-600">Passport, transcript, CV, English & more — uploaded once, shared across every application</p>
                   </div>
-                  <ChevronRight size={15} className="shrink-0 text-[#3A4B76]" />
+                  <ChevronRight size={15} className="shrink-0 text-neutral-600" />
                 </button>
 
                 <div>
-                  <p className="text-[13px] font-semibold text-slate-900">University-Specific Checklist</p>
-                  <p className="text-xs text-slate-400">What {university?.name ?? "this university"} needs beyond your core documents.</p>
+                  <p className="text-[13px] font-semibold text-neutral-900">University-Specific Checklist</p>
+                  <p className="text-xs text-neutral-400">What {university?.name ?? "this university"} needs beyond your core documents.</p>
                 </div>
 
                 {checklistRows.length === 0 && (
-                  <p className="rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 text-[12.5px] text-slate-500 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                  <p className="rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 text-[12.5px] text-neutral-500 shadow-neu">
                     This university doesn't need anything beyond your core documents.
                   </p>
                 )}
@@ -453,16 +442,16 @@ export default function ApplicationDetail() {
 
                 {extraDocs.length > 0 && (
                   <div className="pt-1">
-                    <p className="mb-2 text-xs font-medium text-slate-500">Other documents on file</p>
+                    <p className="mb-2 text-xs font-medium text-neutral-500">Other documents on file</p>
                     <div className="space-y-2">
                       {extraDocs.map((d) => (
-                        <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+                        <div key={d.id} className="flex items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 shadow-neu">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                             <FileText size={16} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-medium text-slate-800">{d.name}</p>
-                            <p className="text-xs text-slate-400">{d.type}</p>
+                            <p className="truncate text-[13px] font-medium text-neutral-800">{d.name}</p>
+                            <p className="text-xs text-neutral-400">{d.type}</p>
                           </div>
                           <span className={`shrink-0 text-xs font-medium capitalize ${docStatusTone[d.status]}`}>{d.status}</span>
                         </div>
@@ -473,18 +462,18 @@ export default function ApplicationDetail() {
 
                 <button
                   onClick={() => navigate("/student/documents")}
-                  className="flex w-full items-center justify-center gap-1.5 py-2 text-[12.5px] font-medium text-slate-400"
+                  className="flex w-full items-center justify-center gap-1.5 py-2 text-[12.5px] font-medium text-neutral-400"
                 >
                   Manage all documents <ChevronRight size={13} />
                 </button>
 
                 {reviewTeam.length > 0 && (
                   <div className="pt-2">
-                    <p className="mb-2 text-[13px] font-semibold text-slate-900">Your Application Team</p>
-                    <div className="overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                    <p className="mb-2 text-[13px] font-semibold text-neutral-900">Your Application Team</p>
+                    <div className="overflow-hidden rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu">
                       {reviewTeam.map((contact, i) => (
                         <div key={contact.id}>
-                          {i > 0 && <div className="border-t border-slate-50" />}
+                          {i > 0 && <div className="border-t border-neutral-50" />}
                           <SupportRow contact={contact} onChat={() => navigate("/student/messages")} />
                         </div>
                       ))}
@@ -500,14 +489,14 @@ export default function ApplicationDetail() {
                   if (i > currentIdx) return null;
                   const isCurrent = i === currentIdx;
                   return (
-                    <div key={label} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+                    <div key={label} className="flex items-start gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 shadow-neu">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                         <Clock size={14} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[13px] font-medium text-slate-800">{label}</p>
-                        <p className="text-xs text-slate-400">{stepDates[i] ?? "Today"}</p>
-                        {isCurrent && <p className="mt-0.5 text-xs text-slate-500">{visibleNextAction}</p>}
+                        <p className="text-[13px] font-medium text-neutral-800">{label}</p>
+                        <p className="text-xs text-neutral-400">{stepDates[i] ?? "Today"}</p>
+                        {isCurrent && <p className="mt-0.5 text-xs text-neutral-500">{visibleNextAction}</p>}
                       </div>
                     </div>
                   );
@@ -517,10 +506,10 @@ export default function ApplicationDetail() {
 
             {tab === "Comments" && (
               <div>
-                <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-slate-600">
-                  <MessageCircle size={15} className="text-slate-400" /> Comments on this application
+                <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-neutral-600">
+                  <MessageCircle size={15} className="text-neutral-400" /> Comments on this application
                 </div>
-                <p className="mb-3 text-xs text-slate-400">
+                <p className="mb-3 text-xs text-neutral-400">
                   Visible to your counsellor, admission officer and agent — they'll be notified when you post.
                 </p>
                 <ApplicationCommentsCard applicationId={application.id} />
@@ -534,7 +523,7 @@ export default function ApplicationDetail() {
         <div className="sticky bottom-0 mt-2 flex items-center gap-3 bg-[var(--sd-bg)] px-5 py-4 lg:mx-auto lg:max-w-3xl">
           <button
             onClick={() => navigate("/student/messages")}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700"
           >
             Contact University <MessageCircle size={14} />
           </button>
@@ -561,7 +550,7 @@ function ProgressRing({ pct, label }: { pct: number; label: string }) {
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="#C9D6F2" strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#D4D4D4" strokeWidth={stroke} fill="none" />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -574,17 +563,17 @@ function ProgressRing({ pct, label }: { pct: number; label: string }) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#1B2C57]">{label}</span>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-neutral-900">{label}</span>
     </div>
   );
 }
 
 function InfoRow({ icon, label, value, last }: { icon: React.ReactNode; label: string; value: string; last?: boolean }) {
   return (
-    <div className={`flex items-center gap-3 py-2.5 ${last ? "" : "border-b border-slate-50"}`}>
-      <span className="text-slate-400">{icon}</span>
-      <span className="flex-1 text-[13px] text-slate-500">{label}</span>
-      <span className="text-[13px] font-medium text-slate-800">{value}</span>
+    <div className={`flex items-center gap-3 py-2.5 ${last ? "" : "border-b border-neutral-50"}`}>
+      <span className="text-neutral-400">{icon}</span>
+      <span className="flex-1 text-[13px] text-neutral-500">{label}</span>
+      <span className="text-[13px] font-medium text-neutral-800">{value}</span>
     </div>
   );
 }

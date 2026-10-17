@@ -101,7 +101,7 @@ export default function AICounsellor() {
             <button
               onClick={() => { setVoiceMode((v) => !v); window.speechSynthesis?.cancel(); }}
               aria-label={voiceMode ? "Turn off spoken replies" : "Turn on spoken replies"}
-              className={`flex h-8 w-8 items-center justify-center rounded-full ${voiceMode ? "bg-[#F1EAFB] text-[#6D3FBF]" : "bg-slate-100 text-slate-400"}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-full ${voiceMode ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800" : "bg-neutral-100 text-neutral-400"}`}
             >
               {voiceMode ? <Volume2 size={14} /> : <VolumeX size={14} />}
             </button>
@@ -117,13 +117,13 @@ export default function AICounsellor() {
             {messages.map((m) => (
               <div key={m.id} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
                 {m.from === "ai" && (
-                  <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
+                  <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800">
                     <Sparkles size={13} />
                   </div>
                 )}
                 <div
                   className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
-                    m.from === "me" ? "rounded-tr-sm bg-[image:var(--sd-gradient)] text-white" : "rounded-tl-sm bg-[var(--sd-card)] text-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                    m.from === "me" ? "rounded-tr-sm bg-[image:var(--sd-gradient)] text-white" : "rounded-tl-sm bg-[var(--sd-card)] text-neutral-700 shadow-neu"
                   }`}
                 >
                   {m.text}
@@ -133,13 +133,13 @@ export default function AICounsellor() {
 
             {isThinking && (
               <div className="flex justify-start">
-                <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
+                <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800">
                   <Sparkles size={13} />
                 </div>
-                <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-[var(--sd-card)] px-4 py-3 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+                <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-[var(--sd-card)] px-4 py-3 shadow-neu">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400" />
                 </div>
               </div>
             )}
@@ -150,7 +150,7 @@ export default function AICounsellor() {
                   <button
                     key={s}
                     onClick={() => send(s)}
-                    className="block w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-2.5 text-left text-[13px] text-[#2955C4] shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                    className="block w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-2.5 text-left text-[13px] text-neutral-900 shadow-neu"
                   >
                     {s}
                   </button>
@@ -160,20 +160,20 @@ export default function AICounsellor() {
           </div>
 
           <div className="sticky bottom-0 bg-[var(--sd-bg)] px-5 pb-2 pt-3">
-            <div className="flex items-center gap-2 rounded-2xl bg-[var(--sd-card)] px-3 py-2 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+            <div className="flex items-center gap-2 rounded-2xl bg-[var(--sd-card)] px-3 py-2 shadow-neu">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send(input)}
                 disabled={isThinking}
                 placeholder={isThinking ? "Waiting for a reply…" : "Type, or tap the mic to talk live..."}
-                className="w-full bg-transparent text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
+                className="w-full bg-transparent text-[13px] text-neutral-700 placeholder:text-neutral-400 focus:outline-none disabled:opacity-60"
               />
               <button
                 onClick={() => setVoiceOpen(true)}
                 aria-label="Start live voice conversation"
                 disabled={isThinking}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF] disabled:opacity-40"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800 disabled:opacity-40"
               >
                 <Mic size={17} />
               </button>
@@ -185,7 +185,7 @@ export default function AICounsellor() {
                 <Send size={14} />
               </button>
             </div>
-            <button onClick={() => navigate("/student/messages")} className="w-full pb-1 pt-2.5 text-center text-[11px] text-slate-400">
+            <button onClick={() => navigate("/student/messages")} className="w-full pb-1 pt-2.5 text-center text-[11px] text-neutral-400">
               Powered by UnifinderAi · Talk to a human counsellor
             </button>
           </div>

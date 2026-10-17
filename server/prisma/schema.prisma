@@ -1223,6 +1223,8 @@ model StudentBankAccount {
   bankName      String
   depositType   String?
   openingDate   DateTime? @db.Date
+  // Chosen by the counsellor: once this date arrives a "Maintaining" account becomes "Matured" automatically.
+  maturityDate  DateTime? @db.Date
   amount        Float?
   currency      String?
   accountHolder String?

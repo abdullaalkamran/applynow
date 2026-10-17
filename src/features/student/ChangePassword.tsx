@@ -3,7 +3,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import { MobileHeader } from "../../components/ui/mobile";
 import { changePassword } from "../../utils/authClient";
 
-const INPUT_CLASS = "mt-1 w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]";
+const INPUT_CLASS = "mt-1 w-full rounded-xl border border-neutral-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-neutral-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -45,17 +45,17 @@ export default function ChangePassword() {
 
       <div className="px-5">
         <div className="mb-4 flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
             <ShieldCheck size={16} />
           </div>
           <div>
-            <p className="text-[14px] font-semibold text-slate-900">Change Password</p>
-            <p className="text-[12px] text-slate-400">Update the password you use to sign in.</p>
+            <p className="text-[14px] font-semibold text-neutral-900">Change Password</p>
+            <p className="text-[12px] text-neutral-400">Update the password you use to sign in.</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          <label className="block text-[12px] font-medium text-slate-500">
+          <label className="block text-[12px] font-medium text-neutral-500">
             Current password
             <input
               type="password"
@@ -65,7 +65,7 @@ export default function ChangePassword() {
               className={INPUT_CLASS}
             />
           </label>
-          <label className="block text-[12px] font-medium text-slate-500">
+          <label className="block text-[12px] font-medium text-neutral-500">
             New password
             <input
               type="password"
@@ -77,7 +77,7 @@ export default function ChangePassword() {
               className={INPUT_CLASS}
             />
           </label>
-          <label className="block text-[12px] font-medium text-slate-500">
+          <label className="block text-[12px] font-medium text-neutral-500">
             Confirm new password
             <input
               type="password"
@@ -88,7 +88,7 @@ export default function ChangePassword() {
             />
           </label>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</p>}
+          {error && <p className="rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-[12.5px] text-neutral-900">{error}</p>}
           {saved && (
             <p className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--sd-teal)]">
               <Check size={14} /> Password updated

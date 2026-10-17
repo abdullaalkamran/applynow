@@ -10,6 +10,7 @@ const router = express.Router();
 const DATA_URL = /^data:(image\/(?:png|jpe?g|webp|gif|avif));base64,([A-Za-z0-9+/=\s]+)$/i;
 const CACHE_MS = 5 * 60 * 1000;
 const MAX_COUNTRIES = 8;
+const MAX_LOGOS = 40;
 
 // Photos are stored either as a real file URL (/uploads/…) or, for older records, an inline base64
 // data: URL. A data URL must never be embedded in the JSON (a single photo can be megabytes), so those
@@ -58,7 +59,19 @@ async function buildLandingPayload() {
     out.push({ id: c.id, name: c.name, tagline: c.tagline || undefined, universityCount, photoUrl });
   }
 
-  return { stats: { countries: countries.length, universities: universityTotal }, countries: out };
+  // Partner-university logos for the landing page's scrolling strip — only universities that actually have
+  // one, name + logo and nothing else.
+  const withLogo = await prisma.university.findMany({
+    where: { logoUrl: { not: null } },
+    orderBy: { createdAt: "asc" },
+    take: MAX_LOGOS,
+    select: { id: true, name: true, logoUrl: true },
+  });
+  const universities = withLogo
+    .map((u) => ({ id: u.id, name: u.name, logoUrl: photoRef("universityLogo", u.id, u.logoUrl) }))
+    .filter((u) => u.logoUrl);
+
+  return { stats: { countries: countries.length, universities: universityTotal }, countries: out, universities };
 }
 
 router.get("/landing", async (_req, res, next) => {
@@ -74,6 +87,7 @@ router.get("/landing", async (_req, res, next) => {
 const PHOTO_SOURCES = {
   country: (id) => prisma.country.findUnique({ where: { id }, select: { photoUrl: true } }).then((r) => r?.photoUrl),
   university: (id) => prisma.university.findUnique({ where: { id }, select: { coverPhotoUrl: true } }).then((r) => r?.coverPhotoUrl),
+  universityLogo: (id) => prisma.university.findUnique({ where: { id }, select: { logoUrl: true } }).then((r) => r?.logoUrl),
 };
 
 router.get("/photo/:kind/:id", async (req, res, next) => {

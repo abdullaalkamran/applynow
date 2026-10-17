@@ -26,6 +26,7 @@ import { EnglishTestNotices } from "../../components/EnglishTestNotices";
 import { CourseAccreditations } from "../../components/CourseAccreditations";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
+import { NeuTabs } from "../../components/ui/NeuTabs";
 
 const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 
@@ -53,10 +54,10 @@ export default function UniversityDetail() {
   if (!university) {
     return (
       <div className="px-5 py-6">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           <ArrowLeft size={14} /> Back
         </button>
-        <p className="text-xs text-slate-400">University not found.</p>
+        <p className="text-xs text-neutral-400">University not found.</p>
       </div>
     );
   }
@@ -68,22 +69,32 @@ export default function UniversityDetail() {
           onClick={() => setSaved((v) => !v)}
           aria-label="Shortlist"
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border py-3 text-[13px] font-semibold ${
-            saved ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-slate-200 bg-[var(--sd-card)] text-slate-700"
+            saved ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-neutral-200 bg-[var(--sd-card)] text-neutral-700"
           }`}
         >
           <Bookmark size={16} className={saved ? "fill-white" : ""} />
         </button>
         <button
           onClick={() => setActiveCourseName(null)}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700"
         >
           University <ArrowUpRight size={13} />
         </button>
+        {course.courseUrl && (
+          <a
+            href={websiteHref(course.courseUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-200 bg-[var(--sd-card)] px-2 py-3 text-[13px] font-semibold text-neutral-700"
+          >
+            Course page <ExternalLink size={13} />
+          </a>
+        )}
         <a
           href={websiteHref(university.website)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700"
         >
           Website <ExternalLink size={13} />
         </a>
@@ -102,12 +113,20 @@ export default function UniversityDetail() {
     </div>
   ) : (
     <div className="flex w-full items-center gap-3">
-      <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-slate-700">
+      <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700">
         Shortlist
       </button>
+      <a
+        href={websiteHref(university.website)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700"
+      >
+        Website <ExternalLink size={13} />
+      </a>
       <button
         onClick={() => setUniTab("Courses")}
-        className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
+        className="flex flex-[1.6] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white"
       >
         View Courses <ArrowLeft size={14} className="rotate-180" />
       </button>
@@ -130,7 +149,7 @@ export default function UniversityDetail() {
             <button
               onClick={() => (course && !navState?.selectedCourseName ? setActiveCourseName(null) : navigate(-1))}
               aria-label="Back"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow"
             >
               <ArrowLeft size={17} />
             </button>
@@ -138,11 +157,11 @@ export default function UniversityDetail() {
               <button
                 onClick={() => setSaved((v) => !v)}
                 aria-label="Save"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow"
               >
                 <Bookmark size={16} className={saved ? "fill-[var(--sd-ink)] text-[var(--sd-ink)]" : ""} />
               </button>
-              <button aria-label="Share" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-800 shadow">
+              <button aria-label="Share" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow">
                 <Share2 size={16} />
               </button>
             </div>
@@ -196,8 +215,8 @@ function CourseView({
       <div className="flex items-start gap-3">
         <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-11 w-11 shrink-0 text-sm lg:h-14 lg:w-14 lg:text-base" />
         <div className="min-w-0">
-          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400 lg:text-[11px]">{university.name}</p>
-          <h1 className="mt-0.5 break-words text-[18px] font-bold leading-snug text-slate-900 lg:mt-1 lg:text-[28px] lg:leading-tight">{course.name}</h1>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-neutral-400 lg:text-[11px]">{university.name}</p>
+          <h1 className="mt-0.5 break-words text-[18px] font-bold leading-snug text-neutral-900 lg:mt-1 lg:text-[28px] lg:leading-tight">{course.name}</h1>
         </div>
       </div>
 
@@ -210,33 +229,21 @@ function CourseView({
         </button>
       )}
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <StatTile icon={<Wallet size={18} />} value={`${university.currencySymbol}${Math.round(course.feeUSD).toLocaleString()}`} label="per year" />
-        <StatTile icon={<CalendarDays size={18} />} value={university.openIntake} label="intake" />
-        <StatTile icon={<GraduationCap size={18} />} value={scholarship ?? "—"} label="scholarship" />
-      </div>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <FactTile icon={<Building2 size={16} />} label="Campus" value={campusLabelFor(university, course)} onClick={openCampuses} />
-        <FactTile icon={<Clock size={16} />} label="Duration" value={course.duration} />
-        <FactTile icon={<Users size={16} />} label="Study Mode" value={course.studyMode || "Full-time"} />
-      </div>
-
-      {course.courseUrl && (
-        <a
-          href={websiteHref(course.courseUrl)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-[var(--sd-card)] px-4 py-2.5 text-[13px] font-medium text-[var(--sd-ink)]"
-        >
-          View this course on the university website <ExternalLink size={13} />
-        </a>
-      )}
-
       {/* One scrolling page of cards (no tabs): overview, then Deposit & Payment, Modules, Entry
           Requirements and Careers, each in the same card style. */}
       <div className="min-w-0 space-y-4 break-words py-4">
-        <div>
-          <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
+        {/* The key facts and the overview text share one card, separated by thin lines. */}
+        <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
+          <div className="-mt-3 grid grid-cols-3">
+            <InfoCell icon={<Wallet size={18} />} value={`${university.currencySymbol}${Math.round(course.feeUSD).toLocaleString()}`} label="per year" className="border-b border-r" />
+            <InfoCell icon={<CalendarDays size={18} />} value={university.openIntake} label="intake" className="border-b border-r" />
+            <InfoCell icon={<GraduationCap size={18} />} value={scholarship ?? "—"} label="scholarship" className="border-b" />
+            <InfoCell icon={<Building2 size={18} />} value={campusLabelFor(university, course)} label="campus" onClick={openCampuses} className="border-r" />
+            <InfoCell icon={<Clock size={18} />} value={course.duration} label="duration" className="border-r" />
+            <InfoCell icon={<Users size={18} />} value={course.studyMode || "Full-time"} label="study mode" />
+          </div>
+          <div className="mb-4 mt-1 h-px bg-neutral-300/70" />
+          <p className="text-[13px] leading-relaxed text-neutral-500">{description}</p>
           <CourseAccreditations accreditations={course.accreditations} className="mt-4" />
           <RestrictedRegionsNotice university={university} className="mt-4" />
         </div>
@@ -245,7 +252,7 @@ function CourseView({
           <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
           <ul className="space-y-2">
             {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-              <li key={r} className="flex items-start gap-2 text-[13px] text-slate-600">
+              <li key={r} className="flex items-start gap-2 text-[13px] text-neutral-600">
                 <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
                 {r}
               </li>
@@ -261,8 +268,8 @@ function CourseView({
           <CourseSectionCard icon={<BookOpen size={15} />} title="Modules">
             <ul className="space-y-2">
               {modules.map((m) => (
-                <li key={m} className="flex items-start gap-2 text-[13px] text-slate-600">
-                  <GraduationCap size={15} className="mt-0.5 shrink-0 text-[#2955C4]" />
+                <li key={m} className="flex items-start gap-2 text-[13px] text-neutral-600">
+                  <GraduationCap size={15} className="mt-0.5 shrink-0 text-neutral-900" />
                   {m}
                 </li>
               ))}
@@ -274,8 +281,8 @@ function CourseView({
           <CourseSectionCard icon={<Briefcase size={15} />} title="Careers">
             <ul className="space-y-2">
               {careers.map((c) => (
-                <li key={c} className="flex items-start gap-2 text-[13px] text-slate-600">
-                  <Briefcase size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                <li key={c} className="flex items-start gap-2 text-[13px] text-neutral-600">
+                  <Briefcase size={14} className="mt-0.5 shrink-0 text-neutral-400" />
                   {c}
                 </li>
               ))}
@@ -289,8 +296,8 @@ function CourseView({
 
 function CourseSectionCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-      <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">{icon} {title}</p>
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900">{icon} {title}</p>
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -313,27 +320,27 @@ function CoursesTab({ university, onSelectCourse }: { university: University; on
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-neutral-100 p-1">
         {COURSE_LEVELS.map((l) => (
           <button
             key={l}
             onClick={() => setLevel(l)}
             className={`rounded-lg py-2 text-[12.5px] font-semibold transition ${
-              level === l ? "bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-sm" : "text-slate-500"
+              level === l ? "bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-sm" : "text-neutral-500"
             }`}
           >
-            {l} <span className="font-normal text-slate-400">({byLevel(l).length})</span>
+            {l} <span className="font-normal text-neutral-400">({byLevel(l).length})</span>
           </button>
         ))}
       </div>
 
       <div className="relative mt-3">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
         <input
           value={query}
           onChange={(e) => setQueries((q) => ({ ...q, [level]: e.target.value }))}
           placeholder={`Search ${level.toLowerCase()} courses`}
-          className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] py-2.5 pl-9 pr-3 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+          className="w-full rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-2.5 pl-9 pr-3 text-[13px] text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
         />
       </div>
 
@@ -342,16 +349,16 @@ function CoursesTab({ university, onSelectCourse }: { university: University; on
           <button
             key={c.name}
             onClick={() => onSelectCourse(c.name)}
-            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.08)]"
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-neu"
           >
-            <span className="min-w-0 break-words text-[13px] font-semibold leading-snug text-slate-900">{c.name}</span>
-            <span className="shrink-0 text-[12.5px] font-semibold text-slate-700">
+            <span className="min-w-0 break-words text-[13px] font-semibold leading-snug text-neutral-900">{c.name}</span>
+            <span className="shrink-0 text-[12.5px] font-semibold text-neutral-700">
               {c.currencySymbol ?? university.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
             </span>
           </button>
         ))}
         {courses.length === 0 && (
-          <p className="rounded-2xl bg-[var(--sd-card)] p-6 text-center text-[13px] text-slate-400 [text-align:center]">
+          <p className="rounded-2xl bg-[var(--sd-card)] p-6 text-center text-[13px] text-neutral-400 [text-align:center]">
             {needle ? `No ${level.toLowerCase()} courses match "${query.trim()}".` : `No ${level.toLowerCase()} courses listed.`}
           </p>
         )}
@@ -373,56 +380,36 @@ function UniversityView({
       <div className="flex items-start gap-3">
         <LogoBadge name={university.name} tone={university.tone} logoUrl={university.logoUrl} className="h-14 w-14 shrink-0 text-base" />
         <div className="min-w-0">
-          <h1 className="text-[22px] font-bold leading-tight text-slate-900 lg:text-[26px]">{university.name}</h1>
-          <p className="mt-1 text-xs text-slate-400">{university.city}, {university.country}</p>
+          <h1 className="text-[22px] font-bold leading-tight text-neutral-900 lg:text-[26px]">{university.name}</h1>
+          <p className="mt-1 text-xs text-neutral-400">{university.city}, {university.country}</p>
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {university.tags.map((t) => <Pill key={t} tone="blue">{t}</Pill>)}
         {university.accreditations.map((a) => <Pill key={a} tone="navy">{a}</Pill>)}
       </div>
-      <a
-        href={websiteHref(university.website)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--sd-ink)]"
-      >
-        {university.website} <ExternalLink size={12} />
-      </a>
-
-      <div className="mt-5 flex items-center gap-5 overflow-x-auto border-b border-black/5">
-        {UNIVERSITY_TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative shrink-0 whitespace-nowrap pb-3 text-[13px] font-medium transition ${tab === t ? "text-[var(--sd-ink)]" : "text-slate-400"}`}
-          >
-            {t}
-            {tab === t && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[image:var(--sd-gradient)]" />}
-          </button>
-        ))}
-      </div>
+      <NeuTabs tabs={UNIVERSITY_TABS} value={tab} onChange={setTab} ariaLabel="Sections" className="mt-5" />
 
       <div className="py-4">
         {tab === "Overview" && (
           <>
-            <p className="text-[13px] leading-relaxed text-slate-500">{university.description}</p>
+            <p className="text-[13px] leading-relaxed text-neutral-500">{university.description}</p>
 
             <RestrictedRegionsNotice university={university} className="mt-4" />
             <EnglishTestNotices university={university} className="mt-4" />
 
-            <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+            <div className="mt-4 grid grid-cols-3 gap-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
               <Stat value={university.worldRank} label="in the World" />
               <Stat value={university.employability} label="Employability" />
               <Stat value={university.studentCount} label="Students" />
             </div>
             <RankingCaption university={university} className="mt-2" />
 
-            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-100 bg-[var(--sd-card)]">
+            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-transparent bg-[var(--sd-card)]">
               <ExpandableSection title="Why study here?" className="max-lg:[&_p]:text-left max-lg:[&_li]:text-left" preview={highlightsPreview(university)}>
                 <ul className="space-y-2.5">
                   {university.highlights.map((h) => (
-                    <li key={h} className="flex items-center gap-2 text-[13px] text-slate-600">
+                    <li key={h} className="flex items-center gap-2 text-[13px] text-neutral-600">
                       <CheckCircle2 size={16} className="shrink-0 text-[var(--sd-teal)]" />
                       {h}
                     </li>
@@ -434,9 +421,9 @@ function UniversityView({
                 <ExpandableSection icon={<Building2 size={15} />} title="Campuses" preview={campusesPreview(university)}>
                   <div className="space-y-1.5">
                     {university.campuses!.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2 text-[13px]">
-                        <span className="text-slate-700">{c.name}</span>
-                        <span className="text-slate-400">{c.city}</span>
+                      <div key={c.id} className="flex items-center justify-between rounded-xl border border-transparent px-3 py-2 text-[13px]">
+                        <span className="text-neutral-700">{c.name}</span>
+                        <span className="text-neutral-400">{c.city}</span>
                       </div>
                     ))}
                   </div>
@@ -465,7 +452,7 @@ function UniversityView({
         {tab === "Courses" && <CoursesTab university={university} onSelectCourse={onSelectCourse} />}
 
         {tab === "Requirements" && (
-          <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+          <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
             <EntryRequirementsView
               requirements={university.requirements}
               englishRequirements={university.englishRequirements}
@@ -485,16 +472,16 @@ function UniversityView({
           <div className="space-y-3">
             <CostCalculator university={university} recommendedFundsUSD={country?.recommendedFundsUSD} />
             {country?.visaCostConfig && <VisaCostBreakdown university={university} config={country.visaCostConfig} />}
-            <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+            <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
               {university.fees.map((f) => (
-                <div key={f.label} className="flex items-center justify-between border-b border-slate-50 py-2.5 last:border-0">
-                  <span className="text-[13px] text-slate-500">{f.label}</span>
-                  <span className="text-[13px] font-medium text-slate-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
+                <div key={f.label} className="flex items-center justify-between border-b border-neutral-50 py-2.5 last:border-0">
+                  <span className="text-[13px] text-neutral-500">{f.label}</span>
+                  <span className="text-[13px] font-medium text-neutral-800">{university.currencySymbol}{f.amount.toLocaleString()}</span>
                 </div>
               ))}
               <button
                 onClick={() => navigate("/student/cost-planner")}
-                className="mt-3 w-full rounded-xl bg-slate-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
+                className="mt-3 w-full rounded-xl bg-neutral-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
               >
                 Open full Cost Planner
               </button>
@@ -511,35 +498,26 @@ function UniversityView({
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <p className="text-[15px] font-bold text-slate-900">{value}</p>
-      <p className="text-[10px] text-slate-400">{label}</p>
+      <p className="text-[15px] font-bold text-neutral-900">{value}</p>
+      <p className="text-[10px] text-neutral-400">{label}</p>
     </div>
   );
 }
 
-function StatTile({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
-  return (
-    <div className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-slate-100 px-1.5 py-3 text-center">
-      <span className="text-[var(--sd-ink)]">{icon}</span>
-      <p className="w-full break-words text-[12px] font-bold leading-tight text-slate-900 [text-align:center]">{value}</p>
-      <p className="text-[10px] text-slate-400">{label}</p>
-    </div>
-  );
-}
-
-function FactTile({ icon, label, value, onClick }: { icon: React.ReactNode; label: string; value: string; onClick?: () => void }) {
+function InfoCell({ icon, value, label, onClick, className = "" }: { icon: React.ReactNode; value: string; label: string; onClick?: () => void; className?: string }) {
   const Comp = onClick ? "button" : "div";
   return (
     <Comp
       onClick={onClick}
-      className="flex min-w-0 flex-col items-start gap-2 rounded-2xl border border-slate-100 p-3 text-left"
+      className={`flex min-w-0 flex-col items-center gap-1.5 border-neutral-300/70 px-1.5 py-3 text-center ${className}`}
     >
-      <span className="text-slate-500">{icon}</span>
-      <span className="text-[10.5px] text-slate-400">{label}</span>
-      <span className="flex w-full min-w-0 items-center gap-0.5 break-words text-[12px] font-semibold leading-tight text-slate-800">
-        {value}
-        {onClick && <ChevronRight size={12} className="text-slate-300" />}
+      <span className="text-[var(--sd-ink)]">{icon}</span>
+      {/* Values can wrap to two lines; this slot always reserves two so every label sits on the same line. */}
+      <span className="flex min-h-[2.5em] w-full items-center justify-center gap-0.5 break-words text-[12px] font-bold leading-tight text-neutral-900 [text-align:center]">
+        <span className="min-w-0 break-words">{value}</span>
+        {onClick && <ChevronRight size={12} className="shrink-0 text-neutral-400" />}
       </span>
+      <span className="text-[10px] leading-none text-neutral-500">{label}</span>
     </Comp>
   );
 }

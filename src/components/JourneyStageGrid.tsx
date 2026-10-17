@@ -70,50 +70,51 @@ const ONGOING_STATUSES: Partial<Record<StageType, string[]>> = {
   payment: ["Preparing", "Waiting for Confirmation"],
 };
 
+// Monochrome: state is shown with depth, not colour — completed tiles are raised, the current one is pressed in with a
+// black icon, pending ones sit flat and dashed.
 const TONE_STYLES: Record<Tone, { card: string; iconWrap: string; title: string; status: string; number: string }> = {
   completed: {
-    card: "border-emerald-100 bg-emerald-50/70",
-    iconWrap: "bg-emerald-100 text-emerald-600",
-    title: "text-slate-900",
-    status: "text-slate-500",
-    number: "text-slate-500",
+    card: "border-transparent neu-card-green",
+    iconWrap: "neu-icon-green text-green-700",
+    title: "text-neutral-900",
+    status: "text-green-800",
+    number: "text-neutral-500",
   },
   current: {
-    card: "border-2 border-rose-500 bg-rose-50/70",
-    iconWrap: "bg-rose-500 text-white",
-    title: "text-slate-900",
-    status: "text-slate-500",
-    number: "text-slate-500",
+    card: "border-transparent neu-card-amber",
+    iconWrap: "neu-icon-amber text-amber-700",
+    title: "text-neutral-900",
+    status: "text-amber-800",
+    number: "text-neutral-600",
   },
   ongoing: {
-    card: "border-amber-200 bg-amber-50/80",
-    iconWrap: "bg-amber-100 text-amber-700",
-    title: "text-slate-900",
+    card: "border-transparent neu-card-amber",
+    iconWrap: "neu-icon-amber text-amber-700",
+    title: "text-neutral-900",
     status: "text-amber-800",
-    number: "text-slate-500",
+    number: "text-neutral-500",
   },
   pending: {
-    card: "border-slate-200 bg-slate-50",
-    iconWrap: "bg-slate-100 text-slate-800",
-    title: "text-slate-900",
-    status: "text-slate-500",
-    number: "text-slate-500",
+    card: "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm",
+    iconWrap: "bg-[var(--sd-card)] text-neutral-600 shadow-neu-inset-sm",
+    title: "text-neutral-800",
+    status: "text-neutral-500",
+    number: "text-neutral-500",
   },
   notRequired: {
-    card: "border-slate-200 bg-slate-50",
-    iconWrap: "bg-slate-100 text-slate-500",
-    title: "text-slate-800",
-    status: "text-slate-400",
-    number: "text-slate-400",
+    card: "border-dashed border-neutral-300 bg-transparent opacity-70",
+    iconWrap: "bg-[var(--sd-card)] text-neutral-500 shadow-neu-inset-sm",
+    title: "text-neutral-700",
+    status: "text-neutral-500",
+    number: "text-neutral-500",
   },
 };
 
 const LEGEND: { label: string; dot: string }[] = [
-  { label: "Completed", dot: "bg-emerald-500" },
-  { label: "In Progress", dot: "bg-rose-500" },
-  { label: "Ongoing", dot: "bg-amber-400" },
-  { label: "Pending", dot: "bg-slate-400" },
-  { label: "Not Required", dot: "bg-slate-200" },
+  { label: "Completed", dot: "bg-green-500" },
+  { label: "In Progress / Ongoing", dot: "bg-amber-400" },
+  { label: "Pending", dot: "bg-neutral-400" },
+  { label: "Not Required", dot: "bg-neutral-200" },
 ];
 
 function shortDate(iso: string | undefined): string | null {
@@ -132,13 +133,13 @@ function RowBracket({ row, done }: { row: number; done: boolean }) {
   const y1 = `calc(${rowTop(row)} + var(--card-h) / 2)`; // exit height (card centre) on the upper row
   const yg = `calc(${rowTop(row)} + var(--card-h) + var(--gap-y) / 2)`; // the horizontal run between rows
   const hookHeight = "calc(var(--card-h) / 2 + var(--gap-y) / 2)"; // y1→yg and yg→y2 are the same distance
-  const line = done ? "border-emerald-500" : "border-slate-200";
+  const line = done ? "border-green-500" : "border-neutral-400";
   const hook: CSSProperties = { width: "var(--pad)", height: hookHeight };
   return (
     <>
-      <div className={`pointer-events-none absolute rounded-r-2xl border-b border-r border-t ${line}`} style={{ ...hook, left: "100%", top: y1 }} />
-      <div className={`pointer-events-none absolute left-0 right-0 border-t ${line}`} style={{ top: yg }} />
-      <div className={`pointer-events-none absolute rounded-l-2xl border-b border-l border-t ${line}`} style={{ ...hook, left: "calc(-1 * var(--pad))", top: yg }} />
+      <div className={`pointer-events-none absolute rounded-r-2xl border-b-2 border-r-2 border-t-2 ${line}`} style={{ ...hook, left: "100%", top: y1 }} />
+      <div className={`pointer-events-none absolute left-0 right-0 border-t-2 ${line}`} style={{ top: yg }} />
+      <div className={`pointer-events-none absolute rounded-l-2xl border-b-2 border-l-2 border-t-2 ${line}`} style={{ ...hook, left: "calc(-1 * var(--pad))", top: yg }} />
     </>
   );
 }
@@ -184,7 +185,7 @@ export function JourneyStageGrid({
                   <div className="w-full min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <span className={`text-[9.5px] font-medium @2xl:text-[11px] @4xl:text-[12px] ${s.number}`}>{String(i + 1).padStart(2, "0")}</span>
-                      {date && <span className="truncate text-[9px] text-slate-500 @2xl:text-[11px] @4xl:text-[12px]">{date}</span>}
+                      {date && <span className="truncate text-[9px] text-neutral-500 @2xl:text-[11px] @4xl:text-[12px]">{date}</span>}
                     </div>
                     <p className={`truncate text-[12px] font-semibold leading-tight tracking-tight @2xl:mt-0.5 @2xl:tracking-normal ${s.title}`}>
                       {STAGE_TITLE[stageType]}
@@ -193,7 +194,7 @@ export function JourneyStageGrid({
                     {current && (
                       <span
                         className={`mt-1 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-medium @2xl:px-2 @2xl:text-[10px] @4xl:text-[11px] ${
-                          ongoing ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-600"
+                          ongoing ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700" : "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900"
                         }`}
                       >
                         Current Stage
@@ -204,7 +205,7 @@ export function JourneyStageGrid({
                 {/* Straight connector to the next card in the same row. */}
                 {!last && !lastInRow && (
                   <div
-                    className={`pointer-events-none absolute left-full w-[var(--gap-x)] border-t ${done ? "border-emerald-500" : "border-slate-200"}`}
+                    className={`pointer-events-none absolute left-full w-[var(--gap-x)] border-t-2 ${done ? "border-green-500" : "border-neutral-400"}`}
                     style={{ top: "calc(var(--card-h) / 2)" }}
                   />
                 )}
@@ -221,7 +222,7 @@ export function JourneyStageGrid({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 @2xl:mt-6">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 @2xl:gap-x-6 @2xl:gap-y-2">
           {LEGEND.map((l) => (
-            <span key={l.label} className="flex items-center gap-1.5 text-[11px] text-slate-600 @2xl:gap-2 @2xl:text-[13px]">
+            <span key={l.label} className="flex items-center gap-1.5 text-[11px] text-neutral-600 @2xl:gap-2 @2xl:text-[13px]">
               <span className={`h-2 w-2 rounded-full @2xl:h-3 @2xl:w-3 ${l.dot}`} /> {l.label}
             </span>
           ))}
@@ -229,7 +230,7 @@ export function JourneyStageGrid({
         {onViewDetails && (
           <button
             onClick={(e) => { e.stopPropagation(); onViewDetails(); }}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11.5px] font-semibold text-[#1B2C57] hover:border-slate-300 @2xl:gap-2 @2xl:rounded-xl @2xl:px-4 @2xl:py-2.5 @2xl:text-[13px]"
+            className="flex items-center gap-1.5 rounded-lg bg-[var(--sd-card)] px-3 py-2 text-[11.5px] font-semibold text-neutral-900 shadow-neu-sm @2xl:gap-2 @2xl:rounded-xl @2xl:px-4 @2xl:py-2.5 @2xl:text-[13px]"
           >
             {viewDetailsLabel} <ArrowRight className="h-3.5 w-3.5 @2xl:h-[15px] @2xl:w-[15px]" />
           </button>

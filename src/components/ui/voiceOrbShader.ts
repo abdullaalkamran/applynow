@@ -13,6 +13,7 @@ varying vec2 vUv;
 uniform float uTime;
 uniform float uEnergy;
 uniform float uGray;
+uniform float uHue;
 uniform float uPx;
 
 float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -71,15 +72,20 @@ void main() {
   vec3 deep = vec3(0.01, 0.025, 0.17);
   vec3 royal = vec3(0.05, 0.13, 0.78);
   vec3 base = mix(royal, deep, trough * 0.85);
+  // While it talks the whole body drifts through the palette: the dark water takes on the colour of the moment too.
+  float live = clamp(uEnergy * 2.2, 0.0, 1.0);
+  base = mix(base, pal(uHue * 0.8 + 0.3 + f * 0.4) * 0.5, live * 0.65);
   // Mostly cyan -> blue -> violet; pink and orange only toward the lower right, like the rim light.
-  vec3 bandCol = pal(0.05 + f * 0.55 + (p.x - p.y) * 0.34 + t * 0.02);
+  vec3 bandCol = pal(0.05 + f * 0.55 + (p.x - p.y) * 0.34 + t * 0.02 + uHue);
   vec3 col = base;
   col = mix(col, bandCol * 1.0, fill * 0.78); // blend (not add) so the band keeps its saturated colour
   col += mix(vec3(0.9, 0.97, 1.0), bandCol, 0.45) * crest * (0.7 + uEnergy * 0.3);
   col += mix(vec3(1.0), pal(f + 0.45), 0.6) * fine * 0.2;
 
   float fres = pow(1.0 - z, 2.4);
-  vec3 rim = mix(vec3(0.1, 0.8, 1.0), vec3(1.0, 0.55, 0.28), smoothstep(-0.7, 0.9, uv.x - uv.y * 0.55));
+  float side = smoothstep(-0.7, 0.9, uv.x - uv.y * 0.55);
+  vec3 rim = mix(vec3(0.1, 0.8, 1.0), vec3(1.0, 0.55, 0.28), side);
+  rim = mix(rim, mix(pal(uHue + 0.1), pal(uHue + 0.65), side), live * 0.8);
   col += rim * fres * (1.1 + uEnergy * 0.35);
   col += vec3(0.92, 0.25, 0.8) * smoothstep(0.1, -0.95, uv.y) * fres * 0.55;
 

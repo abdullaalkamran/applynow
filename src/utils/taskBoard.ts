@@ -8,6 +8,7 @@ import { loadNextSteps, toggleNextStepDone, dueDateTone as nextStepTone } from "
 import { buildCoreChecklist, buildChecklist } from "./documentChecklist";
 import { loadDocDueDate, dueDateTone as docTone } from "../data/documentDueDatesStore";
 import { loadFinancialReadiness } from "../data/studentFinancialReadinessStore";
+import { loadBankAccounts } from "../data/bankAccountsCache";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { getAllUniversities } from "../data/universityCatalogStore";
@@ -216,11 +217,14 @@ function requiredDocsTaskFor(student: Student, apps: Application[]): DisplayTask
 function financialReadinessTaskFor(student: Student): DisplayTask[] {
   const record = loadFinancialReadiness(student.id);
   if (record?.completedAt) return [];
+  // Once the student (or counsellor) has added a bank the step is no longer "add your bank" — it's waiting for the funds to
+  // mature and for the counsellor to confirm them.
+  const hasBank = loadBankAccounts(student.id).length > 0;
   return [
     {
       id: `finready-${student.id}`,
-      title: `Fill Financial Readiness info for ${student.name}`,
-      subtitle: `${student.name} · Bank balance evidence not yet confirmed`,
+      title: hasBank ? `Financial Readiness in progress for ${student.name}` : `Fill Financial Readiness info for ${student.name}`,
+      subtitle: hasBank ? `${student.name} · Waiting for the funds to mature and your counsellor to confirm` : `${student.name} · Bank balance evidence not yet confirmed`,
       done: false,
       source: "finance",
       tone: "none",

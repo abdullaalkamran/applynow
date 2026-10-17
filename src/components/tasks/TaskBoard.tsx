@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { type GetTaskTarget } from "./TaskListSection";
+import { TaskListSection, type GetTaskTarget } from "./TaskListSection";
 import { TaskColumnView } from "./TaskColumnView";
 import { AssignTaskModal } from "./AssignTaskModal";
 import type { DisplayTask } from "../../utils/taskBoard";
@@ -47,7 +47,14 @@ export function TaskBoard({
         </button>
       </div>
 
-      <TaskColumnView tasks={liveTasks} getTaskTarget={getTaskTarget} onAddTask={(date) => setAssignOpen(date)} />
+      {/* Phones get a single vertical list (overdue → due soon → the rest → done); the by-date column board needs width,
+          and on a phone it scrolled sideways with columns cut off. */}
+      <div className="sm:hidden">
+        <TaskListSection tasks={liveTasks} getTaskTarget={getTaskTarget} />
+      </div>
+      <div className="hidden sm:block">
+        <TaskColumnView tasks={liveTasks} getTaskTarget={getTaskTarget} onAddTask={(date) => setAssignOpen(date)} />
+      </div>
 
       {assignOpen !== null && (
         <AssignTaskModal

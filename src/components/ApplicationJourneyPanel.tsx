@@ -117,15 +117,15 @@ export function StageStatusStrip({ journey, dense = false }: { journey: Applicat
           <div
             key={stageType}
             title={`${STAGE_LABEL[stageType]}: ${record.status}`}
-            className={`min-w-[104px] flex-1 rounded-lg px-2 py-1.5 ${done ? "bg-emerald-50" : "bg-rose-50"} ${
+            className={`min-w-[104px] flex-1 rounded-lg px-2 py-1.5 ${done ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : "bg-[var(--sd-card)] shadow-neu-inset-sm"} ${
               active ? "ring-2 ring-[var(--sd-ink)] ring-offset-1" : ""
             } ${dense ? "" : "sm:min-w-[140px]"}`}
           >
-            <p className={`flex items-center gap-1 truncate text-[10px] font-medium uppercase tracking-wide ${done ? "text-emerald-600" : "text-rose-500"}`}>
+            <p className={`flex items-center gap-1 truncate text-[10px] font-medium uppercase tracking-wide ${done ? "text-neutral-700" : "text-neutral-900"}`}>
               {done ? <Check size={10} /> : record.blocked ? <AlertTriangle size={10} /> : <Circle size={8} />}
               {STAGE_LABEL_SHORT[stageType]}
             </p>
-            <p className={`line-clamp-2 text-[12px] font-medium leading-snug ${done ? "text-emerald-700" : "text-rose-700"}`}>
+            <p className={`line-clamp-2 text-[12px] font-medium leading-snug ${done ? "text-neutral-700" : "text-neutral-900"}`}>
               {record.status}
             </p>
           </div>
@@ -147,16 +147,16 @@ export function JourneyStepper({ journey, showStrip = true, showNextAction = tru
       {showStrip && <StageStatusStrip journey={journey} />}
 
       {nextAction && (
-        <div className="rounded-xl border border-slate-100 bg-white p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Next action</p>
-          <p className="mt-0.5 text-[13px] text-slate-700">{nextAction.title} <span className="text-slate-400">— {nextAction.owner.role}</span></p>
+        <div className="rounded-xl border border-transparent bg-white p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Next action</p>
+          <p className="mt-0.5 text-[13px] text-neutral-700">{nextAction.title} <span className="text-neutral-400">— {nextAction.owner.role}</span></p>
         </div>
       )}
       {blockers.length > 0 && (
-        <div className="space-y-1.5 rounded-xl border border-rose-100 bg-rose-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-500">Blockers</p>
+        <div className="space-y-1.5 rounded-xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-900">Blockers</p>
           {blockers.map((b, i) => (
-            <p key={i} className="text-[12.5px] text-rose-700">{b.description}</p>
+            <p key={i} className="text-[12.5px] text-neutral-900">{b.description}</p>
           ))}
         </div>
       )}
@@ -194,8 +194,8 @@ export function ResponsibleStaffCard({
   onChanged: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Responsible staff</p>
+    <div className="rounded-xl border border-transparent bg-white p-3">
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Responsible staff</p>
       <div className="grid grid-cols-2 gap-2">
         <SelectFieldInline
           label="Counsellor"
@@ -220,9 +220,9 @@ export function ResponsibleStaffCard({
           readOnly={!actor}
         />
       </div>
-      <div className="mt-2 border-t border-slate-50 pt-2">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Agent</p>
-        <p className="mt-0.5 text-[12.5px] text-slate-700">{agentName ?? "No agent (direct application)"}</p>
+      <div className="mt-2 border-t border-neutral-50 pt-2">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">Agent</p>
+        <p className="mt-0.5 text-[12.5px] text-neutral-700">{agentName ?? "No agent (direct application)"}</p>
       </div>
     </div>
   );
@@ -233,14 +233,14 @@ export function ResponsibleStaffCard({
 export function ApplicationTasksCard({ applicationId }: { applicationId: string }) {
   const tasks = getApplicationTasks(applicationId);
   if (tasks.length === 0) {
-    return <p className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-center text-[12px] text-slate-400">No tasks on this application yet.</p>;
+    return <p className="rounded-xl border border-dashed border-neutral-200 bg-white p-3 text-center text-[12px] text-neutral-400">No tasks on this application yet.</p>;
   }
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
+    <div className="rounded-xl border border-transparent bg-white p-3">
       {tasks.map((t) => (
-        <label key={t.id} className="flex items-center gap-2 py-1 text-[12.5px] text-slate-700">
+        <label key={t.id} className="flex items-center gap-2 py-1 text-[12.5px] text-neutral-700">
           <input type="checkbox" checked={t.done} onChange={t.onToggle} />
-          <span className={t.done ? "text-slate-400 line-through" : ""}>{t.title}</span>
+          <span className={t.done ? "text-neutral-400 line-through" : ""}>{t.title}</span>
         </label>
       ))}
     </div>
@@ -254,15 +254,15 @@ export function ApplicationActivityCard({ applicationId, limit = 8 }: { applicat
     .filter((e) => e.action !== "comment_added")
     .slice(0, limit);
   if (activity.length === 0) {
-    return <p className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-center text-[12px] text-slate-400">No activity recorded yet.</p>;
+    return <p className="rounded-xl border border-dashed border-neutral-200 bg-white p-3 text-center text-[12px] text-neutral-400">No activity recorded yet.</p>;
   }
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
+    <div className="rounded-xl border border-transparent bg-white p-3">
       {activity.map((e) => (
-        <p key={e.id} className="py-0.5 text-[12px] text-slate-600">
-          <span className="text-slate-400">{new Date(e.timestamp).toLocaleDateString()}</span>{" "}
+        <p key={e.id} className="py-0.5 text-[12px] text-neutral-600">
+          <span className="text-neutral-400">{new Date(e.timestamp).toLocaleDateString()}</span>{" "}
           {e.action.replace(/_/g, " ")}{e.newValue ? `: ${e.newValue}` : ""}{" "}
-          <span className="text-slate-400">— {e.performedBy.name}</span>
+          <span className="text-neutral-400">— {e.performedBy.name}</span>
         </p>
       ))}
     </div>
@@ -294,14 +294,14 @@ export function ApplicationCommentsCard({ applicationId }: { applicationId: stri
   }
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
+    <div className="rounded-xl border border-transparent bg-white p-3">
       <div className="flex items-start gap-2">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Add a comment — visible to everyone on this application, and sent to their inbox."
           rows={2}
-          className="flex-1 resize-none rounded-lg border border-slate-200 p-2 text-[12.5px] text-slate-700 outline-none focus:border-slate-300"
+          className="flex-1 resize-none rounded-lg border border-neutral-200 p-2 text-[12.5px] text-neutral-700 outline-none focus:border-neutral-300"
         />
         <button
           onClick={post}
@@ -313,14 +313,14 @@ export function ApplicationCommentsCard({ applicationId }: { applicationId: stri
       </div>
 
       {comments.length === 0 ? (
-        <p className="mt-3 text-center text-[12px] text-slate-400">No comments yet.</p>
+        <p className="mt-3 text-center text-[12px] text-neutral-400">No comments yet.</p>
       ) : (
         // Bounded to its own scroll area — a long thread shouldn't keep expanding the page height.
         <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
           {comments.map((c) => (
-            <div key={c.id} className="rounded-lg bg-slate-50 p-2.5">
-              <p className="text-[12.5px] text-slate-700">{c.notes}</p>
-              <p className="mt-1 text-[11px] text-slate-400">
+            <div key={c.id} className="rounded-lg bg-neutral-50 p-2.5">
+              <p className="text-[12.5px] text-neutral-700">{c.notes}</p>
+              <p className="mt-1 text-[11px] text-neutral-400">
                 {c.performedBy.name} ({c.performedBy.role}) — {new Date(c.timestamp).toLocaleString()}
               </p>
             </div>
@@ -334,12 +334,12 @@ export function ApplicationCommentsCard({ applicationId }: { applicationId: stri
 function StudentSummary({ journey, currentStage }: { journey: ApplicationJourney; currentStage: StageType | null }) {
   // Per the workflow spec: students get a simplified view — status/next action/required docs only,
   // never the full editable staff picture.
-  if (!currentStage) return <p className="text-[13px] text-slate-500">Every stage of your application is complete.</p>;
+  if (!currentStage) return <p className="text-[13px] text-neutral-500">Every stage of your application is complete.</p>;
   const record = journey.stages[currentStage]!;
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{STAGE_LABEL[currentStage]}</p>
-      <p className="mt-0.5 text-[13px] text-slate-700">Status: {record.status}</p>
+    <div className="rounded-xl border border-transparent bg-white p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">{STAGE_LABEL[currentStage]}</p>
+      <p className="mt-0.5 text-[13px] text-neutral-700">Status: {record.status}</p>
     </div>
   );
 }
@@ -361,14 +361,14 @@ function BankAccountsPanel({ studentId, readOnly }: { studentId: string; readOnl
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Bank accounts{accounts.length > 1 ? ` (${accounts.length})` : ""}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Bank accounts{accounts.length > 1 ? ` (${accounts.length})` : ""}</p>
         {!readOnly && (
           <button type="button" onClick={() => setEditing(true)} className="text-[11.5px] font-semibold text-[var(--brand-600)]">
             {accounts.length ? "Edit banks" : "Add bank"}
           </button>
         )}
       </div>
-      {accounts.length ? <BankAccountsSummary accounts={accounts} /> : <p className="text-[12px] text-slate-400">No bank account added yet.</p>}
+      {accounts.length ? <BankAccountsSummary accounts={accounts} /> : <p className="text-[12px] text-neutral-400">No bank account added yet.</p>}
     </div>
   );
 }
@@ -381,10 +381,10 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
   const studentId = getAllApplications().find((a) => a.id === journey.applicationId)?.studentId;
 
   return (
-    <div className="@container overflow-hidden rounded-xl border border-slate-100 bg-white">
+    <div className="@container overflow-hidden rounded-xl border border-transparent bg-white">
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between px-3 py-2.5 text-left">
-        <span className="text-[13px] font-medium text-slate-800">{STAGE_LABEL[stageType]}</span>
-        <span className="flex items-center gap-1.5 text-[11.5px] text-slate-400">
+        <span className="text-[13px] font-medium text-neutral-800">{STAGE_LABEL[stageType]}</span>
+        <span className="flex items-center gap-1.5 text-[11.5px] text-neutral-400">
           {readOnly && <Lock size={11} />}
           {record.status}
         </span>
@@ -396,7 +396,7 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
         // At counsellor-column widths that misfired into a 2-up split so tight (~83px/field) that
         // each field's fixed-width label alone exceeded it, collapsing the input to 0 width —
         // unclickable, looking like "the status form doesn't work".
-        <div className="grid grid-cols-1 gap-2.5 border-t border-slate-100 p-3 @sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 border-t border-transparent p-3 @sm:grid-cols-2">
           {FULL_DEPTH_STAGES.has(stageType) ? (
             <FullDepthFields stageType={stageType} data={data} status={record.status} onPatch={onPatch} readOnly={readOnly} studentId={studentId} />
           ) : (
@@ -411,9 +411,9 @@ function StageCard({ stageType, journey, onPatch, readOnly }: { stageType: Stage
 // Label sits inline, inside the same bordered row as the input, instead of on its own line above
 // it — one row per field instead of two, which is most of what was reading as "too much text" next
 // to how little space the actual field needs.
-const fieldRowClass = "flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-[var(--sd-ink)]";
-const fieldLabelClass = "w-[74px] shrink-0 truncate text-[10px] text-slate-400";
-const fieldInputClass = "min-w-0 flex-1 bg-transparent text-[12.5px] text-slate-700 focus:outline-none disabled:text-slate-400";
+const fieldRowClass = "flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 focus-within:ring-1 focus-within:ring-[var(--sd-ink)]";
+const fieldLabelClass = "w-[74px] shrink-0 truncate text-[10px] text-neutral-400";
+const fieldInputClass = "min-w-0 flex-1 bg-transparent text-[12.5px] text-neutral-700 focus:outline-none disabled:text-neutral-400";
 
 function Field({ label, value, onChange, type = "text", readOnly }: { label: string; value: unknown; onChange: (v: string) => void; type?: string; readOnly: boolean }) {
   return (
@@ -507,8 +507,8 @@ function FullDepthFields({ stageType, data, status, onPatch, readOnly, studentId
           </div>
         )}
         {daysHeld && (
-          <p className="flex items-center gap-1 text-[11.5px] font-medium text-slate-600 @sm:col-span-2">
-            <CalendarClock size={12} className="text-slate-400" /> {daysHeld} (since the most recent cash-in)
+          <p className="flex items-center gap-1 text-[11.5px] font-medium text-neutral-600 @sm:col-span-2">
+            <CalendarClock size={12} className="text-neutral-400" /> {daysHeld} (since the most recent cash-in)
           </p>
         )}
         {studentId && (

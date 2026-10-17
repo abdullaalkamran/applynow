@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { Button } from "../ui";
 import { addTask, type TaskPerson } from "../../data/tasksStore";
 import { recipientsFor } from "../../utils/taskAssignment";
+import { NeuSelect } from "../ui/NeuSelect";
 
 export function AssignTaskModal({
   from,
@@ -49,59 +50,59 @@ export function AssignTaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/30" />
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h3 className="text-sm font-semibold text-slate-800">Assign a task</h3>
-          <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600">
+      <div className="relative w-full max-w-md rounded-2xl border border-neutral-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-transparent px-5 py-4">
+          <h3 className="text-sm font-semibold text-neutral-800">Assign a task</h3>
+          <button onClick={onClose} aria-label="Close" className="text-neutral-400 hover:text-neutral-600">
             <X size={16} />
           </button>
         </div>
 
         <div className="space-y-3 px-5 py-4">
-          <label className="block text-xs font-medium text-slate-500">
+          <label className="block text-xs font-medium text-neutral-500">
             Title
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Upload bank statement"
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-800"
             />
           </label>
-          <label className="block text-xs font-medium text-slate-500">
+          <label className="block text-xs font-medium text-neutral-500">
             Description (optional)
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+              className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-800"
             />
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-neutral-500">
               Assign to
-              <select
+              <NeuSelect
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-800"
               >
                 {recipients.map((r) => (
                   <option key={r.id} value={r.id}>{r.id === from.id ? "Myself" : `${r.name} (${r.role})`}</option>
                 ))}
-              </select>
+              </NeuSelect>
             </label>
-            <label className="block text-xs font-medium text-slate-500">
+            <label className="block text-xs font-medium text-neutral-500">
               Due date (optional)
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+                className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-800"
               />
             </label>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-4">
+        <div className="flex justify-end gap-3 border-t border-transparent px-5 py-4">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={!canSubmit} onClick={handleSubmit}>Assign Task</Button>
         </div>

@@ -9,6 +9,7 @@ import { markStepComplete, isChainComplete, nextChainStep } from "../../data/pro
 import { loadPersonalInfo, savePersonalInfo, type PersonalInfoDetails } from "../../data/studentProfileDetailsStore";
 import { apiPostForm } from "../../utils/apiClient";
 import type { Student } from "../../types";
+import { NeuSelect } from "../../components/ui/NeuSelect";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEMO_OTP = "123456";
@@ -359,7 +360,7 @@ export default function PersonalInformation() {
             </div>
             <button
               aria-label="Change photo"
-              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-[0_0_8px_rgba(0,0,0,0.13)]"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-neu-sm"
             >
               <Camera size={13} />
             </button>
@@ -376,7 +377,7 @@ export default function PersonalInformation() {
           onRemove={removePassport}
         />
         {scanWarning && (
-          <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-amber-600">
+          <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-neutral-700">
             <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {scanWarning}
           </p>
         )}
@@ -404,42 +405,42 @@ export default function PersonalInformation() {
               type="email"
               value={form.email}
               onChange={(e) => update("email", e.target.value)}
-              className={`${inputClass} ${!emailValid ? "ring-2 ring-rose-200" : ""}`}
+              className={`${inputClass} ${!emailValid ? "ring-2 ring-neutral-300" : ""}`}
               placeholder="you@example.com"
             />
           </FieldShell>
 
           <FieldShell label="Phone Number" autoFilled={autoFilled.has("phoneCountry")}>
-            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <select
+            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-neu">
+              <NeuSelect
                 name="phoneCountry"
                 value={form.phoneCountry}
                 onChange={(e) => update("phoneCountry", e.target.value)}
-                className="shrink-0 rounded-lg bg-slate-50 px-2 py-2 text-[13px] text-slate-700 focus:outline-none"
+                variant="inline"
               >
                 {COUNTRIES.map((c) => (
                   <option key={c.iso2} value={c.iso2}>{c.flag} {c.dial}</option>
                 ))}
-              </select>
+              </NeuSelect>
               <input
                 name="phone"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
-                className="min-w-0 flex-1 bg-transparent px-1 py-2 text-[13px] text-slate-800 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent px-1 py-2 text-[13px] text-neutral-800 focus:outline-none"
                 placeholder="1XXX-XXXXXX"
               />
               <PhoneVerifyButton status={phoneStatus} onClick={sendOtp} />
             </div>
             {phoneStatus !== "unverified" && phoneStatus !== "verified" && (
-              <div className="mt-2 flex items-center gap-2 rounded-xl bg-[var(--sd-card)] p-2.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-                <span className="shrink-0 pl-1 text-[12px] text-slate-500">
+              <div className="mt-2 flex items-center gap-2 rounded-xl bg-[var(--sd-card)] p-2.5 shadow-neu">
+                <span className="shrink-0 pl-1 text-[12px] text-neutral-500">
                   Code sent to {phoneCountry?.dial} {form.phone || "—"}
                 </span>
                 <input
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="123456"
-                  className="min-w-0 flex-1 rounded-lg bg-slate-50 px-2 py-1.5 text-[13px] tracking-widest text-slate-800 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-lg bg-neutral-50 px-2 py-1.5 text-[13px] tracking-widest text-neutral-800 focus:outline-none"
                 />
                 <button
                   onClick={confirmOtp}
@@ -450,9 +451,9 @@ export default function PersonalInformation() {
                 </button>
               </div>
             )}
-            {otpError && <span className="mt-1 block text-[11px] font-medium text-rose-500">{otpError}</span>}
+            {otpError && <span className="mt-1 block text-[11px] font-medium text-neutral-900">{otpError}</span>}
             {import.meta.env.DEV && phoneStatus === "code-sent" && !otpError && (
-              <span className="mt-1 block text-[11px] text-slate-400">Demo code: {DEMO_OTP}</span>
+              <span className="mt-1 block text-[11px] text-neutral-400">Demo code: {DEMO_OTP}</span>
             )}
           </FieldShell>
 
@@ -461,11 +462,11 @@ export default function PersonalInformation() {
               <input name="dob" type="date" value={form.dob} onChange={(e) => update("dob", e.target.value)} className={inputClass} />
             </FieldShell>
             <FieldShell label="Gender" autoFilled={autoFilled.has("gender")}>
-              <select name="gender" value={form.gender} onChange={(e) => update("gender", e.target.value)} className={inputClass}>
+              <NeuSelect name="gender" value={form.gender} onChange={(e) => update("gender", e.target.value)} className={inputClass}>
                 {["Female", "Male", "Other", "Prefer not to say"].map((o) => (
                   <option key={o} value={o}>{o}</option>
                 ))}
-              </select>
+              </NeuSelect>
             </FieldShell>
           </div>
 
@@ -474,11 +475,11 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Nationality" autoFilled={autoFilled.has("nationality")}>
-            <select name="nationality" value={form.nationality} onChange={(e) => update("nationality", e.target.value)} className={inputClass}>
+            <NeuSelect name="nationality" value={form.nationality} onChange={(e) => update("nationality", e.target.value)} className={inputClass}>
               {COUNTRIES.map((c) => (
                 <option key={c.iso2} value={c.iso2}>{c.flag} {c.name}</option>
               ))}
-            </select>
+            </NeuSelect>
           </FieldShell>
 
           <div className="grid grid-cols-2 gap-3">
@@ -491,11 +492,11 @@ export default function PersonalInformation() {
           </div>
 
           <FieldShell label="Marital Status">
-            <select name="maritalStatus" value={form.maritalStatus} onChange={(e) => update("maritalStatus", e.target.value)} className={inputClass}>
+            <NeuSelect name="maritalStatus" value={form.maritalStatus} onChange={(e) => update("maritalStatus", e.target.value)} className={inputClass}>
               {["Single", "Married"].map((o) => (
                 <option key={o} value={o}>{o}</option>
               ))}
-            </select>
+            </NeuSelect>
           </FieldShell>
 
           <FieldShell label="Passport Number" autoFilled={autoFilled.has("passportNumber")}>
@@ -535,9 +536,9 @@ export default function PersonalInformation() {
             </FieldShell>
           </div>
           {expiryWarning && (
-            <div className="flex items-start gap-2 rounded-xl bg-[#FDF0DC] p-3">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#B8791C]" />
-              <p className="text-[12px] leading-snug text-[#8A5A14]">{expiryWarning}</p>
+            <div className="flex items-start gap-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-neutral-800" />
+              <p className="text-[12px] leading-snug text-neutral-800">{expiryWarning}</p>
             </div>
           )}
 
@@ -548,10 +549,10 @@ export default function PersonalInformation() {
               onChange={(e) => update("permanentAddress", e.target.value)}
               className={inputClass}
             />
-            <p className="mt-1.5 text-[11px] leading-snug text-slate-400">
+            <p className="mt-1.5 text-[11px] leading-snug text-neutral-400">
               Must exactly match the permanent address shown on your passport.
             </p>
-            <label className="mt-2 flex items-start gap-2 text-[12px] text-slate-600">
+            <label className="mt-2 flex items-start gap-2 text-[12px] text-neutral-600">
               <input
                 type="checkbox"
                 checked={permanentConfirmed}
@@ -563,7 +564,7 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Present Address">
-            <label className="mb-2 flex items-center gap-2 text-[12px] text-slate-600">
+            <label className="mb-2 flex items-center gap-2 text-[12px] text-neutral-600">
               <input
                 type="checkbox"
                 checked={sameAsPermanent}
@@ -577,34 +578,34 @@ export default function PersonalInformation() {
               value={presentAddressValue}
               disabled={sameAsPermanent}
               onChange={(e) => update("presentAddress", e.target.value)}
-              className={`${inputClass} ${sameAsPermanent ? "text-slate-400" : ""}`}
+              className={`${inputClass} ${sameAsPermanent ? "text-neutral-400" : ""}`}
             />
           </FieldShell>
 
           <div className="grid grid-cols-2 gap-3">
             <FieldShell label="Country" autoFilled={autoFilled.has("country")}>
-              <select name="country" value={form.country} onChange={(e) => handleCountryChange(e.target.value)} className={inputClass}>
+              <NeuSelect name="country" value={form.country} onChange={(e) => handleCountryChange(e.target.value)} className={inputClass}>
                 {COUNTRIES.map((c) => (
                   <option key={c.iso2} value={c.iso2}>{c.flag} {c.name}</option>
                 ))}
-              </select>
+              </NeuSelect>
             </FieldShell>
             <FieldShell label="City" autoFilled={autoFilled.has("city")}>
-              <select name="city" value={form.city} onChange={(e) => update("city", e.target.value)} className={inputClass}>
+              <NeuSelect name="city" value={form.city} onChange={(e) => update("city", e.target.value)} className={inputClass}>
                 {cityOptions.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
-              </select>
+              </NeuSelect>
             </FieldShell>
           </div>
 
           <div className="flex items-center gap-2 pt-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FCEAE8] text-[#D8473C]">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800">
               <LifeBuoy size={15} />
             </div>
             <div>
-              <h2 className="text-[14px] font-semibold text-slate-900">Emergency Contact</h2>
-              <p className="text-[11px] text-slate-400">Who should we reach if we can't contact you?</p>
+              <h2 className="text-[14px] font-semibold text-neutral-900">Emergency Contact</h2>
+              <p className="text-[11px] text-neutral-400">Who should we reach if we can't contact you?</p>
             </div>
           </div>
 
@@ -619,11 +620,11 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Relationship" autoFilled={ecAutoFilled.has("relationship")}>
-            <select name="ec-relationship" value={ec.relationship} onChange={(e) => updateEc("relationship", e.target.value)} className={inputClass}>
+            <NeuSelect name="ec-relationship" value={ec.relationship} onChange={(e) => updateEc("relationship", e.target.value)} className={inputClass}>
               {RELATIONSHIPS.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
-            </select>
+            </NeuSelect>
           </FieldShell>
 
           <FieldShell label="Address" autoFilled={ecAutoFilled.has("address")}>
@@ -631,22 +632,22 @@ export default function PersonalInformation() {
           </FieldShell>
 
           <FieldShell label="Phone Number" autoFilled={ecAutoFilled.has("phone")}>
-            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <select
+            <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] px-2 py-1.5 shadow-neu">
+              <NeuSelect
                 name="ec-phoneCountry"
                 value={ec.phoneCountry}
                 onChange={(e) => updateEc("phoneCountry", e.target.value)}
-                className="shrink-0 rounded-lg bg-slate-50 px-2 py-2 text-[13px] text-slate-700 focus:outline-none"
+                variant="inline"
               >
                 {COUNTRIES.map((c) => (
                   <option key={c.iso2} value={c.iso2}>{c.flag} {c.dial}</option>
                 ))}
-              </select>
+              </NeuSelect>
               <input
                 name="ec-phone"
                 value={ec.phone}
                 onChange={(e) => updateEc("phone", e.target.value)}
-                className="min-w-0 flex-1 bg-transparent px-1 py-2 text-[13px] text-slate-800 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent px-1 py-2 text-[13px] text-neutral-800 focus:outline-none"
                 placeholder="1XXX-XXXXXX"
               />
             </div>
@@ -663,7 +664,7 @@ export default function PersonalInformation() {
               value={ec.email}
               onChange={(e) => updateEc("email", e.target.value)}
               placeholder="optional"
-              className={`${inputClass} ${!ecEmailValid ? "ring-2 ring-rose-200" : ""}`}
+              className={`${inputClass} ${!ecEmailValid ? "ring-2 ring-neutral-300" : ""}`}
             />
           </FieldShell>
         </div>
@@ -671,9 +672,9 @@ export default function PersonalInformation() {
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">
         {errors.length > 0 && (
-          <div className="mb-2 rounded-xl bg-[#FCEAE8] p-3">
+          <div className="mb-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
             {errors.map((e) => (
-              <p key={e} className="text-[12px] font-medium text-[#B8382C]">{e}</p>
+              <p key={e} className="text-[12px] font-medium text-neutral-800">{e}</p>
             ))}
           </div>
         )}
@@ -704,7 +705,7 @@ function getExpiryWarning(expiryDate: string): string | null {
 function PhoneVerifyButton({ status, onClick }: { status: PhoneStatus; onClick: () => void }) {
   if (status === "verified") {
     return (
-      <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[#E3F6EC] px-2.5 py-2 text-[12px] font-semibold text-[#12805A]">
+      <span className="flex shrink-0 items-center gap-1 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-2.5 py-2 text-[12px] font-semibold text-neutral-800">
         <ShieldCheck size={13} /> Verified
       </span>
     );

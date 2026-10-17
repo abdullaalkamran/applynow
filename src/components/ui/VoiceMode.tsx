@@ -39,14 +39,14 @@ export function VoiceModePanel({
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-6">
       <VoiceOrb state={state} size={190} />
 
-      <p className="mt-9 text-[15px] font-medium text-slate-700">{state === "error" ? "Mic unavailable" : VOICE_STATE_LABEL[state]}</p>
-      <p className="mt-2 max-h-24 max-w-xs overflow-y-auto text-center text-[13px] leading-relaxed text-slate-500">
+      <p className="mt-9 text-[15px] font-medium text-neutral-700">{state === "error" ? "Mic unavailable" : VOICE_STATE_LABEL[state]}</p>
+      <p className="mt-2 max-h-24 max-w-xs overflow-y-auto text-center text-[13px] leading-relaxed text-neutral-500">
         {state === "error" ? errorText : caption}
       </p>
 
       <button
         onClick={exit}
-        className="mt-6 flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-[12.5px] font-medium text-slate-600"
+        className="mt-6 flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-[12.5px] font-medium text-neutral-600"
       >
         <PhoneOff size={13} /> End voice · back to chat
       </button>

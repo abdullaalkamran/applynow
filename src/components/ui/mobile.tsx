@@ -4,6 +4,7 @@ import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
   Sparkles, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Copy, AlertCircle,
 } from "lucide-react";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import type { SupportContact } from "../../types";
 import type { ChecklistDoc } from "../../utils/documentChecklist";
 
@@ -14,7 +15,7 @@ export function BackButton({ onBack }: { onBack?: () => void }) {
     <button
       onClick={() => (onBack ? onBack() : navigate(-1))}
       aria-label="Back"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-neu-sm"
     >
       <ArrowLeft size={18} />
     </button>
@@ -34,7 +35,7 @@ export function MobileHeader({
   return (
     <div className="flex items-center justify-between px-5 pb-2 pt-5">
       <BackButton onBack={onBack} />
-      <h1 className="truncate px-2 text-[15px] font-semibold text-slate-900">{title}</h1>
+      <h1 className="truncate px-2 text-[15px] font-semibold text-neutral-900">{title}</h1>
       {right ?? <div className="h-9 w-9 shrink-0" />}
     </div>
   );
@@ -51,20 +52,27 @@ export const STUDENT_TABS: { path: string; label: string; icon: typeof Home }[] 
 /** Bottom tab bar — the primary nav on narrow (mobile) viewports. */
 export function BottomNav() {
   const location = useLocation();
+  // A floating, raised bar (not a full-width strip) — the active tab is a raised black key with a white icon.
   return (
-    <div className="flex shrink-0 items-stretch justify-between border-t border-black/5 bg-[var(--sd-card)] px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
-      {STUDENT_TABS.map((t) => {
-        const active = location.pathname === t.path;
-        const Icon = t.icon;
-        return (
-          <NavLink key={t.path} to={t.path} className="flex flex-1 flex-col items-center gap-1 py-1">
-            <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${active ? "bg-[image:var(--sd-gradient)] text-white" : "text-slate-400"}`}>
-              <Icon size={19} strokeWidth={active ? 2.4 : 2} />
-            </span>
-            <span className={`text-[10px] font-medium ${active ? "text-[var(--sd-ink)]" : "text-slate-400"}`}>{t.label}</span>
-          </NavLink>
-        );
-      })}
+    <div className="shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-1">
+      <nav aria-label="Main" className="flex items-end justify-between rounded-[30px] bg-[var(--sd-card)] px-2 py-2 shadow-neu-lg">
+        {STUDENT_TABS.map((t) => {
+          const active = location.pathname === t.path;
+          const Icon = t.icon;
+          return (
+            <NavLink key={t.path} to={t.path} aria-current={active ? "page" : undefined} className="flex flex-1 flex-col items-center gap-1 py-0.5">
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-200 ${
+                  active ? "bg-neutral-900 text-white shadow-neu-dark" : "text-neutral-500"
+                }`}
+              >
+                <Icon size={21} strokeWidth={active ? 2.2 : 1.8} />
+              </span>
+              <span className={`text-[10px] font-semibold ${active ? "text-neutral-900" : "text-neutral-500"}`}>{t.label}</span>
+            </NavLink>
+          );
+        })}
+      </nav>
     </div>
   );
 }
@@ -73,18 +81,18 @@ export function BottomNav() {
 export function Sidebar() {
   const location = useLocation();
   return (
-    <aside className="flex h-dvh w-64 shrink-0 flex-col border-r border-black/5 bg-[var(--sd-card)] px-4 py-6">
+    <aside className="flex h-dvh w-64 shrink-0 flex-col bg-[var(--sd-card)] px-4 py-6 shadow-[10px_0_22px_var(--neu-dark)]">
       <div className="flex items-center gap-2.5 px-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
           <GraduationCap size={18} />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight text-slate-900">UnifinderAi</p>
-          <p className="truncate text-[11px] leading-tight text-slate-400">Student Portal</p>
+          <p className="truncate text-sm font-bold leading-tight text-neutral-900">UnifinderAi</p>
+          <p className="truncate text-[11px] leading-tight text-neutral-500">Student Portal</p>
         </div>
       </div>
 
-      <nav className="mt-8 flex flex-1 flex-col gap-1">
+      <nav className="mt-8 flex flex-1 flex-col gap-2">
         {STUDENT_TABS.map((t) => {
           const active = location.pathname === t.path;
           const Icon = t.icon;
@@ -92,11 +100,11 @@ export function Sidebar() {
             <NavLink
               key={t.path}
               to={t.path}
-              className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-medium transition-colors ${
-                active ? "bg-[var(--brand-50)] text-[var(--sd-ink)]" : "text-slate-600 hover:bg-slate-50"
+              aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-[13.5px] font-semibold transition-all duration-200 ${
+                active ? "bg-neutral-900 text-white shadow-neu-dark" : "text-neutral-600 hover:text-neutral-900 hover:shadow-neu-inset-sm"
               }`}
             >
-              {active && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[image:var(--sd-gradient)]" />}
               <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
               {t.label}
             </NavLink>
@@ -108,14 +116,14 @@ export function Sidebar() {
 }
 
 const pillTones: Record<string, string> = {
-  blue: "bg-[#E7EEFC] text-[#2955C4]",
-  green: "bg-[#E3F6EC] text-[#12805A]",
-  teal: "bg-[#E1F5F0] text-[#0F8A78]",
-  rose: "bg-[#FCEAF0] text-[#C23D6B]",
-  amber: "bg-[#FDF0DC] text-[#B8791C]",
-  violet: "bg-[#F1EAFB] text-[#6D3FBF]",
+  blue: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900",
+  green: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  teal: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  rose: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  amber: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  violet: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
   navy: "bg-[image:var(--sd-gradient)] text-white",
-  gray: "bg-slate-100 text-slate-500",
+  gray: "bg-neutral-100 text-neutral-500",
 };
 
 export function Pill({ children, tone = "gray", className = "" }: { children: ReactNode; tone?: keyof typeof pillTones; className?: string }) {
@@ -126,22 +134,16 @@ export function Pill({ children, tone = "gray", className = "" }: { children: Re
   );
 }
 
-export function IconTile({ icon, tone = "blue" }: { icon: ReactNode; tone?: "blue" | "green" | "violet" | "rose" | "amber" }) {
-  const bg: Record<string, string> = {
-    blue: "bg-[#E7EEFC] text-[#2955C4]",
-    green: "bg-[#E3F6EC] text-[#12805A]",
-    violet: "bg-[#F1EAFB] text-[#6D3FBF]",
-    rose: "bg-[#FCEAE8] text-[#D8473C]",
-    amber: "bg-[#FDF0DC] text-[#D9891F]",
-  };
-  return <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg[tone]}`}>{icon}</div>;
+export function IconTile({ icon }: { icon: ReactNode; tone?: "blue" | "green" | "violet" | "rose" | "amber" }) {
+  // Monochrome: a raised soft tile with a black line icon (the old per-tone colours are gone).
+  return <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm">{icon}</div>;
 }
 
 const skylineTones: Record<string, [string, string]> = {
-  violet: ["#8B7BD8", "#4B3F8C"],
-  amber: ["#E8B168", "#B9702E"],
-  teal: ["#6FC4B3", "#1F7A6C"],
-  rose: ["#E893A8", "#B14A63"],
+  violet: ["#9A9A9A", "#3F3F3F"],
+  amber: ["#B5B5B5", "#555555"],
+  teal: ["#8A8A8A", "#2F2F2F"],
+  rose: ["#A8A8A8", "#484848"],
 };
 
 /** Months between now and a yyyy-mm-dd date string (negative if already past); null if the date is blank/invalid. */
@@ -153,7 +155,7 @@ export function monthsUntil(dateStr: string): number | null {
 }
 
 export const inputClass =
-  "w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-slate-800 shadow-[0_0_10px_rgba(0,0,0,0.11)] focus:outline-none focus:ring-2 focus:ring-[var(--sd-ink)]/10 disabled:opacity-60";
+  "w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset transition-shadow focus:outline-none disabled:opacity-60";
 
 /** Labeled form field wrapper used across the mobile forms — shows an "Auto-filled" badge and/or an error line. */
 export function FieldShell({
@@ -161,16 +163,16 @@ export function FieldShell({
 }: { label: string; autoFilled?: boolean; error?: string; children: ReactNode }) {
   return (
     <div>
-      <span className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-medium text-slate-500">
+      <span className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-medium text-neutral-500">
         {label}
         {autoFilled && (
-          <span className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full bg-[#E3F6EC] px-1.5 py-0.5 text-[10px] font-medium text-[#12805A]">
+          <span className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[10px] font-medium text-neutral-800">
             <Sparkles size={9} /> Auto-filled
           </span>
         )}
       </span>
       {children}
-      {error && <span className="mt-1 block text-[11px] font-medium text-rose-500">{error}</span>}
+      {error && <span className="mt-1 block text-[11px] font-medium text-neutral-900">{error}</span>}
     </div>
   );
 }
@@ -185,8 +187,8 @@ export function Toggle({
   return (
     <div className="flex items-center justify-between gap-3 py-0.5">
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-slate-700">{label}</p>
-        {description && <p className="text-[11px] text-slate-400">{description}</p>}
+        <p className="text-[13px] font-medium text-neutral-700">{label}</p>
+        {description && <p className="text-[11px] text-neutral-400">{description}</p>}
       </div>
       <button
         type="button"
@@ -194,10 +196,10 @@ export function Toggle({
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-[var(--sd-teal)]" : "bg-slate-200"}`}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-[var(--sd-teal)]" : "bg-neutral-200"}`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-[var(--sd-card)] shadow-[0_0_6px_rgba(0,0,0,0.13)] transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-[var(--sd-card)] shadow-neu-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
         />
       </button>
     </div>
@@ -209,14 +211,14 @@ export function Section({
   icon, title, subtitle, children,
 }: { icon: ReactNode; title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_14px_rgba(0,0,0,0.11)]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu-lg">
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
           {icon}
         </div>
         <div>
-          <h2 className="text-[14px] font-semibold text-slate-900">{title}</h2>
-          {subtitle && <p className="text-[11px] text-slate-400">{subtitle}</p>}
+          <h2 className="text-[14px] font-semibold text-neutral-900">{title}</h2>
+          {subtitle && <p className="text-[11px] text-neutral-400">{subtitle}</p>}
         </div>
       </div>
       {children}
@@ -226,7 +228,7 @@ export function Section({
 
 /** Small uppercase-weight label above a control within a Section. */
 export function SubLabel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <p className={`mb-1.5 text-xs font-medium text-slate-500 ${className}`}>{children}</p>;
+  return <p className={`mb-1.5 text-xs font-medium text-neutral-500 ${className}`}>{children}</p>;
 }
 
 /** Flex-wrap row for a group of Chip buttons. */
@@ -242,7 +244,7 @@ export function Chip({
     <button
       onClick={onClick}
       className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
-        selected ? "bg-[image:var(--sd-gradient)] text-white" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+        selected ? "bg-[image:var(--sd-gradient)] text-white" : "border border-neutral-200 bg-[var(--sd-card)] text-neutral-600"
       }`}
     >
       {icon}
@@ -261,12 +263,12 @@ export function CheckboxList({
   return (
     <div className={`grid grid-cols-1 gap-2 ${colClass}`}>
       {options.map((opt) => (
-        <label key={opt} className="flex items-center gap-2 text-[12.5px] text-slate-600">
+        <label key={opt} className="flex items-center gap-2 text-[12.5px] text-neutral-600">
           <input
             type="checkbox"
             checked={selected.has(opt)}
             onChange={() => onToggle(opt)}
-            className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-[var(--sd-ink)] focus:ring-[var(--sd-ink)]"
+            className="h-3.5 w-3.5 shrink-0 rounded border-neutral-300 text-[var(--sd-ink)] focus:ring-[var(--sd-ink)]"
           />
           <span className="min-w-0 truncate">{opt}</span>
         </label>
@@ -292,6 +294,8 @@ export function DropdownChips({
   onToggleOpen: () => void;
   placeholder?: string;
 }) {
+  const [search, setSearch] = useState("");
+  const shown = search.trim() ? options.filter((o) => o.toLowerCase().includes(search.trim().toLowerCase())) : options;
   const summary = selected.size === 0 ? placeholder : selected.size === 1 ? [...selected][0] : `${selected.size} selected`;
   return (
     <div>
@@ -300,16 +304,26 @@ export function DropdownChips({
         type="button"
         aria-label={label}
         onClick={onToggleOpen}
-        className="flex w-full items-center justify-between rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-left text-[13px] shadow-[0_0_10px_rgba(0,0,0,0.11)] focus:outline-none"
+        className="flex w-full items-center justify-between rounded-xl bg-[var(--sd-card)] px-3.5 py-2.5 text-left text-[13px] shadow-neu-inset focus:outline-none"
       >
-        <span className={selected.size === 0 ? "text-slate-400" : "font-medium text-slate-800"}>{summary}</span>
-        <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className={selected.size === 0 ? "text-neutral-500" : "font-medium text-neutral-900"}>{summary}</span>
+        <ChevronDown size={14} className={`shrink-0 text-neutral-900 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="mt-2 flex flex-wrap gap-1.5 rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-          {options.map((o) => (
-            <Chip key={o} label={o} selected={selected.has(o)} onClick={() => onToggle(o)} />
-          ))}
+        <div className="mt-2 rounded-xl bg-[var(--sd-card)] p-2.5 shadow-neu-inset-sm">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${label.toLowerCase()}`}
+            aria-label={`Search ${label}`}
+            className="mb-2 w-full rounded-lg bg-[var(--sd-card)] px-3 py-2 text-[12.5px] text-neutral-800 shadow-neu-inset-sm focus:outline-none"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {shown.map((o) => (
+              <Chip key={o} label={o} selected={selected.has(o)} onClick={() => onToggle(o)} />
+            ))}
+            {shown.length === 0 && <span className="px-1 text-[12px] text-neutral-500">No matches</span>}
+          </div>
         </div>
       )}
     </div>
@@ -322,7 +336,7 @@ export function SuggestInput({
 }: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string }) {
   const [focused, setFocused] = useState(false);
   const q = value.trim().toLowerCase();
-  const suggestions = q ? options.filter((o) => o.toLowerCase().includes(q)).slice(0, 6) : [];
+  const suggestions = (q ? options.filter((o) => o.toLowerCase().includes(q)) : options).filter((o) => o.toLowerCase() !== q).slice(0, 50);
   const showSuggestions = focused && suggestions.length > 0;
 
   return (
@@ -336,14 +350,14 @@ export function SuggestInput({
         className={inputClass}
       />
       {showSuggestions && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl bg-[var(--sd-card)] shadow-[0_0_20px_rgba(0,0,0,0.13)]">
+        <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl bg-[var(--sd-card)] shadow-neu-lg">
           {suggestions.map((s) => (
             <button
               key={s}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => { onChange(s); setFocused(false); }}
-              className="block w-full px-3.5 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-50"
+              className="block w-full px-3.5 py-2.5 text-left text-[13px] text-neutral-700 hover:shadow-neu-inset-sm"
             >
               {s}
             </button>
@@ -373,35 +387,35 @@ export function DocumentUpload({
     return (
       <button
         onClick={onPick}
-        className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-[var(--sd-card)]/60 py-6 text-center"
+        className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-neutral-300 bg-[var(--sd-card)]/60 py-6 text-center"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7EEFC] text-[#2955C4]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
           <Upload size={17} />
         </div>
-        <p className="text-[13px] font-medium text-slate-700">{title}</p>
-        <p className="max-w-[240px] text-[11px] leading-snug text-slate-400">{description}</p>
+        <p className="text-[13px] font-medium text-neutral-700">{title}</p>
+        <p className="max-w-[240px] text-[11px] leading-snug text-neutral-400">{description}</p>
       </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3 shadow-[0_0_14px_rgba(0,0,0,0.11)]">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+    <div className="flex items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3 shadow-neu-lg">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
         {file.previewUrl ? (
           <img src={file.previewUrl} alt="Document preview" className="h-full w-full object-cover" />
         ) : (
-          <FileText size={20} className="text-slate-400" />
+          <FileText size={20} className="text-neutral-400" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-slate-800">{file.name}</p>
+        <p className="truncate text-[13px] font-medium text-neutral-800">{file.name}</p>
         {status === "scanning" && (
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-400">
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-neutral-400">
             <Loader2 size={12} className="animate-spin" /> {scanningLabel}
           </p>
         )}
         {status === "unavailable" && (
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] font-medium text-neutral-700">
             <AlertCircle size={12} /> {unavailableLabel}
           </p>
         )}
@@ -411,11 +425,11 @@ export function DocumentUpload({
           </p>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <button onClick={onPick} aria-label="Replace" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-50">
+      <div className="flex shrink-0 items-center gap-2.5">
+        <button onClick={onPick} aria-label="Replace" className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-50">
           <RotateCcw size={14} />
         </button>
-        <button onClick={onRemove} aria-label="Remove" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-50">
+        <button onClick={onRemove} aria-label="Remove" className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-50">
           <X size={14} />
         </button>
       </div>
@@ -457,10 +471,10 @@ export function SkylineArt({ tone = "violet", className = "" }: { tone?: keyof t
 }
 
 const logoBadgeTones: Record<string, [string, string]> = {
-  violet: ["#8B7BD8", "#4B3F8C"],
-  amber: ["#E8B168", "#B9702E"],
-  teal: ["#6FC4B3", "#1F7A6C"],
-  rose: ["#E893A8", "#B14A63"],
+  violet: ["#3a3a3a", "#111111"],
+  amber: ["#454545", "#171717"],
+  teal: ["#323232", "#0d0d0d"],
+  rose: ["#404040", "#141414"],
 };
 
 /** Monogram badge standing in for a university crest/logo — deterministic color from `tone`. Every
@@ -475,7 +489,7 @@ export function LogoBadge({
     // rather than getting cropped to fill the badge; the white backing keeps it legible on any
     // background the badge sits on, same as a real logo lockup would use.
     return (
-      <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white ${className}`}>
+      <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-transparent bg-white ${className}`}>
         <img
           src={logoUrl}
           alt={`${name} logo`}
@@ -553,20 +567,20 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
         onClick={() => goTo(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent"
       >
         <ChevronLeft size={16} />
       </button>
       {paginationRange(page, totalPages).map((p, i) =>
         p === "..." ? (
-          <span key={`gap-${i}`} className="px-1.5 text-xs text-slate-400">…</span>
+          <span key={`gap-${i}`} className="px-1.5 text-xs text-neutral-400">…</span>
         ) : (
           <button
             key={p}
             onClick={() => goTo(p)}
             aria-current={p === page ? "page" : undefined}
             className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12.5px] font-medium ${
-              p === page ? "bg-[var(--sd-ink,#1e293b)] text-white" : "text-slate-600 hover:bg-slate-100"
+              p === page ? "bg-[var(--sd-ink,#1e293b)] text-white" : "text-neutral-600 hover:bg-neutral-100"
             }`}
           >
             {p}
@@ -577,7 +591,7 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
         onClick={() => goTo(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent"
       >
         <ChevronRight size={16} />
       </button>
@@ -599,7 +613,7 @@ export function PillSelect({
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-2 text-[12.5px] font-medium transition-colors ${
-          isSet || active ? "bg-[var(--brand-500)] text-[var(--ink-900)]" : "border border-slate-200 bg-[var(--sd-card)] text-slate-600"
+          isSet || active ? "bg-[var(--brand-500)] text-[var(--ink-900)]" : "border border-neutral-200 bg-[var(--sd-card)] text-neutral-600"
         }`}
       >
         {isSet ? value : label}
@@ -608,10 +622,10 @@ export function PillSelect({
       {open && (
         <>
           <button aria-hidden className="fixed inset-0 z-10" onClick={() => setOpen(false)} tabIndex={-1} />
-          <div className="absolute left-0 z-20 mt-1.5 max-h-64 w-44 overflow-y-auto rounded-xl bg-[var(--sd-card)] p-1.5 shadow-[0_0_20px_rgba(0,0,0,0.15)]">
+          <div className="absolute left-0 z-20 mt-1.5 max-h-64 w-44 overflow-y-auto rounded-xl bg-[var(--sd-card)] p-1.5 shadow-neu-lg">
             <button
               onClick={() => { onChange(""); setOpen(false); }}
-              className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] ${value === "" ? "font-semibold text-[var(--sd-ink)]" : "text-slate-600"}`}
+              className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] ${value === "" ? "font-semibold text-[var(--sd-ink)]" : "text-neutral-600"}`}
             >
               {placeholder}
             </button>
@@ -619,7 +633,7 @@ export function PillSelect({
               <button
                 key={o}
                 onClick={() => { onChange(o); setOpen(false); }}
-                className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] ${value === o ? "font-semibold text-[var(--sd-ink)]" : "text-slate-600"}`}
+                className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13px] ${value === o ? "font-semibold text-[var(--sd-ink)]" : "text-neutral-600"}`}
               >
                 {o}
               </button>
@@ -635,42 +649,31 @@ export function PillSelect({
 export function SupportRow({ contact, onChat }: { contact: SupportContact; onChat: () => void }) {
   const initials = contact.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const digits = contact.phone.replace(/\D/g, "");
+  const btn = "flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm sm:h-10 sm:w-10";
 
+  // Avatar | name + role | the contact buttons — always on one line; the name and role truncate to make room. On very
+  // narrow phones (< 360px) the WhatsApp button is dropped so the name stays readable (chat and call remain).
   return (
     <div className="flex items-center gap-3 px-4 py-3.5">
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${contact.avatarColor}`}>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white shadow-neu-sm sm:h-12 sm:w-12">
         {initials}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-800">{contact.name}</p>
-        <p className="truncate text-xs text-slate-400">
+        <p className="truncate text-[15px] font-bold leading-tight text-neutral-900">{contact.name}</p>
+        <p className="mt-0.5 truncate text-[13px] text-neutral-500">
           {contact.role}
           {contact.organization ? ` · ${contact.organization}` : ""}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          onClick={onChat}
-          aria-label={`Chat with ${contact.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E7EEFC] text-[#2955C4]"
-        >
-          <MessageCircle size={14} />
+      <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <button onClick={onChat} aria-label={`Chat with ${contact.name}`} className={btn}>
+          <MessageCircle size={15} />
         </button>
-        <a
-          href={`https://wa.me/${digits}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`WhatsApp ${contact.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E3F6EC] text-[#12805A]"
-        >
-          <MessageCircle size={14} />
+        <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${contact.name}`} className={`${btn} max-[359px]:hidden`}>
+          <WhatsAppIcon size={16} />
         </a>
-        <a
-          href={`tel:+${digits}`}
-          aria-label={`Call ${contact.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white"
-        >
-          <Phone size={14} />
+        <a href={`tel:+${digits}`} aria-label={`Call ${contact.name}`} className={btn}>
+          <Phone size={15} />
         </a>
       </div>
     </div>
@@ -678,11 +681,18 @@ export function SupportRow({ contact, onChat }: { contact: SupportContact; onCha
 }
 
 const docStatusTone: Record<string, string> = {
-  verified: "text-[var(--sd-teal)]",
-  pending: "text-[#B8791C]",
-  uploaded: "text-[#B8791C]",
-  rejected: "text-rose-500",
-  flagged: "text-rose-500",
+  verified: "text-green-700",
+  pending: "text-amber-700",
+  uploaded: "text-amber-700",
+  rejected: "text-red-700",
+  flagged: "text-red-700",
+};
+const docStatusIcon: Record<string, string> = {
+  verified: "text-green-600",
+  pending: "text-amber-600",
+  uploaded: "text-amber-600",
+  rejected: "text-red-600",
+  flagged: "text-red-600",
 };
 
 const docStatusLabel: Record<string, string> = { uploaded: "Pending review" };
@@ -716,15 +726,15 @@ export function DocChecklistRow({
 }) {
   if (own) {
     return (
-      <div className={`flex items-center gap-3 rounded-2xl border p-3.5 ${highlighted ? "border-[#F3D9A8] bg-[#FDF6E9]" : "border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]"}`}>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
-          <FileText size={16} />
+      <div className={`flex items-center gap-3 rounded-2xl border p-3 min-[400px]:p-3.5 ${own.status === "verified" ? "neu-card-green border-transparent" : highlighted ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm" : "border-transparent bg-[var(--sd-card)] shadow-neu"}`}>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${own.status === "verified" ? "neu-icon-green" : "bg-[var(--sd-card)] shadow-neu-inset-sm"}`}>
+          <FileText size={16} className={docStatusIcon[own.status] ?? "text-neutral-900"} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
-          <p className="truncate text-xs text-slate-400">{own.name}</p>
+          <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">{type}</p>
+          <p className="truncate text-[11px] text-neutral-500">{own.name}</p>
         </div>
-        <span className={`shrink-0 text-xs font-medium capitalize ${docStatusTone[own.status] ?? "text-slate-400"}`}>
+        <span className={`shrink-0 text-[11px] font-semibold capitalize ${docStatusTone[own.status] ?? "text-neutral-400"}`}>
           {docStatusLabel[own.status] ?? own.status}
         </span>
       </div>
@@ -733,13 +743,13 @@ export function DocChecklistRow({
 
   if (reused) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-[#B9E2D4] bg-[#EAF9F2] p-3.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#12805A]/10 text-[#12805A]">
+      <div className="flex items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3 min-[400px]:p-3.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg min-[400px]:h-9 min-[400px]:w-9 bg-neutral-900 text-white">
           <Copy size={16} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
-          <p className="truncate text-xs text-[#12805A]">Reused from {reused.sourceUniversity ?? "a previous application"} — no need to re-upload</p>
+          <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">{type}</p>
+          <p className="truncate text-xs text-neutral-800">Reused from {reused.sourceUniversity ?? "a previous application"} — no need to re-upload</p>
         </div>
       </div>
     );
@@ -747,8 +757,8 @@ export function DocChecklistRow({
 
   if (isUploading) {
     return (
-      <div className={`rounded-2xl border p-3.5 ${highlighted ? "border-[#F3D9A8] bg-[#FDF6E9]" : "border-slate-100 bg-[var(--sd-card)]"}`}>
-        {highlighted && highlightLabel && <p className="mb-2 text-[12.5px] font-semibold text-[#8A5A11]">{highlightLabel}</p>}
+      <div className={`rounded-2xl border p-3 min-[400px]:p-3.5 ${highlighted ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm" : "border-transparent bg-[var(--sd-card)]"}`}>
+        {highlighted && highlightLabel && <p className="mb-2 text-[12.5px] font-semibold text-neutral-800">{highlightLabel}</p>}
         <DocumentUpload
           file={uploadingFile}
           status={scanStatus}
@@ -771,18 +781,20 @@ export function DocChecklistRow({
   return (
     <button
       onClick={onStartUpload}
-      className="flex w-full items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 text-left"
+      className="neu-card-red flex w-full items-center gap-3 rounded-2xl p-3 min-[400px]:p-3.5 text-left"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+      <div className="neu-icon-red flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600">
         <AlertCircle size={16} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-slate-800">{type}</p>
-        <p className="truncate text-xs text-rose-600">
-          {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : requested ? "Requested by counsellor — not uploaded yet" : highlighted && highlightLabel ? highlightLabel : "Not uploaded yet"}
-        </p>
+        <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">{type}</p>
+        {(rejected || requested || (highlighted && highlightLabel)) && (
+          <p className="line-clamp-2 text-[11px] font-medium text-red-700">
+            {rejected ? `Rejected — ${rejected.reason || "no reason given"}` : requested ? "Requested by counsellor" : highlightLabel}
+          </p>
+        )}
       </div>
-      <span className="flex shrink-0 items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 text-xs font-semibold text-white">
+      <span className="neu-btn-red flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold min-[400px]:px-3 min-[400px]:py-2">
         <Upload size={12} /> {rejected ? "Re-upload" : "Upload"}
       </span>
     </button>

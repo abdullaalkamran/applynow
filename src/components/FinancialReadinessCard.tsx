@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CheckCircle2, Wallet } from "lucide-react";
 import { FinancialReadinessHistory } from "./FinancialReadinessHistory";
 import { BankAccountsEditor, BankAccountsSummary } from "./BankAccountsEditor";
@@ -52,41 +52,47 @@ export function FinancialReadinessCard({
     onSaved();
   }
 
+  // One large raised container; the wallet sits on its own raised tile, exactly like the other section headers.
+  const shell = "mt-4 rounded-[28px] bg-[var(--sd-card)] p-4 shadow-neu min-[440px]:p-5";
+  // Icon + title on one line, the subtitle underneath at full width, and the action on the right — it drops to its own
+  // row on narrow phones so the title never gets squeezed into two lines.
+  const header = (title: string, subtitle?: string, action?: ReactNode) => (
+    <div>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm min-[440px]:h-12 min-[440px]:w-12">
+          {isComplete ? <CheckCircle2 size={22} strokeWidth={1.7} /> : <Wallet size={22} strokeWidth={1.7} />}
+        </span>
+        <p className="min-w-0 flex-1 text-[15px] font-bold leading-tight text-neutral-900">{title}</p>
+        {action && <span className="hidden shrink-0 min-[420px]:block">{action}</span>}
+      </div>
+      {subtitle && <p className="mt-2 text-[12.5px] leading-snug text-neutral-500">{subtitle}</p>}
+      {action && <div className="mt-3 min-[420px]:hidden">{action}</div>}
+    </div>
+  );
+
   if (!editing && accounts.length > 0) {
-    // Solid white like the Current Application card; only the heading/icon colour says confirmed vs. in progress.
-    const frame = "border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]";
-    const heading = isComplete ? "text-emerald-700" : "text-slate-900";
-    const body = isComplete ? "text-emerald-700" : "text-slate-500";
     return (
-      <div className={`mt-4 rounded-2xl border p-4 ${frame}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {isComplete ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Wallet size={16} className="text-[#2955C4]" />}
-            <p className={`text-sm font-semibold ${heading}`}>
-              {isComplete ? "Financial Readiness confirmed" : "Financial Readiness"}
-              {accounts.length > 1 && <span className={`ml-1.5 text-xs font-medium ${body}`}>· {accounts.length} banks</span>}
-            </p>
-          </div>
-          <button onClick={() => setEditing(true)} className={`shrink-0 text-xs font-semibold underline ${body}`}>
+      <div className={shell}>
+        {header(
+          isComplete ? "Financial Readiness confirmed" : "Financial Readiness",
+          accounts.length > 1 ? `${accounts.length} banks · shared across all your applications` : "Shared across all your applications",
+          <button
+            onClick={() => setEditing(true)}
+            className="rounded-full bg-[var(--sd-card)] px-4 py-2 text-[13px] font-semibold text-neutral-900 shadow-neu-sm transition-transform active:scale-95"
+          >
             Edit banks
           </button>
-        </div>
-        <div className="mt-3"><BankAccountsSummary accounts={accounts} tone={heading} /></div>
-        <FinancialReadinessHistory studentId={studentId} refreshKey={savedTick} tone={isComplete ? "emerald" : "slate"} />
+        )}
+        <div className="mt-4"><BankAccountsSummary accounts={accounts} tone="text-neutral-900" /></div>
+        <FinancialReadinessHistory studentId={studentId} refreshKey={savedTick} tone="slate" />
       </div>
     );
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-      <div className="flex items-center gap-2">
-        <Wallet size={16} className="text-rose-600" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">Financial Readiness</p>
-          <p className="text-xs text-slate-500">Shared across all your applications — add every bank your funds are in.</p>
-        </div>
-      </div>
-      <div className="mt-3">
+    <div className={shell}>
+      {header("Financial Readiness")}
+      <div className="mt-5">
         <BankAccountsEditor
           studentId={studentId}
           initial={accounts}
@@ -98,4 +104,3 @@ export function FinancialReadinessCard({
     </div>
   );
 }
-

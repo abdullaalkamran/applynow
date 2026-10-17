@@ -4,8 +4,9 @@ import {
   Search, Bell, FileText, CheckCircle2, MessageCircle, Briefcase, ShieldCheck,
   ChevronRight, Check, Calendar, MapPin, AlertCircle, Wallet, ClipboardCheck,
   BookOpen, Plane, Landmark, Laptop, Wrench, HeartPulse, Palette, Scale, FlaskConical, GraduationCap,
-  BarChart3,
+  BarChart3, Clock3, ListChecks,
 } from "lucide-react";
+import { CountryBadge } from "../../components/ui/CountryBadge";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
 import { DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
@@ -18,7 +19,6 @@ import { getProfileCompletion } from "../../data/profileCompletion";
 import { loadPreferences } from "../../data/studentProfileDetailsStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { countryStats, subjectStats } from "../../utils/universityFilter";
-import { COUNTRIES } from "../../data/countries";
 import { APPLICATION_STAGES, applicationStageIndex, applicationBucket, applicationStatusTone } from "../../utils/applicationStatus";
 import { unreadNotificationCount } from "../../utils/notifications";
 import { getStudentTasks, type DisplayTask } from "../../utils/taskBoard";
@@ -49,15 +49,25 @@ const QUICK_ACTIONS = [
   { icon: FileText, tone: "slate" as const, title: "Track Applications", subtitle: "Stay on top", path: "/student/applications" },
   { icon: MessageCircle, tone: "green" as const, title: "Ask AI Counsellor", subtitle: "Get personalized advice", path: "/student/counsellor" },
   { icon: Briefcase, tone: "violet" as const, title: "Manage Documents", subtitle: "Keep everything ready", path: "/student/documents" },
+  { icon: ListChecks, tone: "slate" as const, title: "Tasks", subtitle: "Everything left to do", path: "/student/tasks" },
   { icon: ClipboardCheck, tone: "green" as const, title: "Interview Prep", subtitle: "Practice with AI feedback", path: "/student/interview-prep" },
 ];
 
+// Next-step status colours — the one colour kept in the monochrome app: red = required / overdue, amber = waiting on
+// review or due soon.
+const STEP_TONE = {
+  red: { title: "text-red-700", sub: "text-red-600/80", icon: "text-red-600", chevron: "text-red-400" },
+  amber: { title: "text-amber-700", sub: "text-amber-700/80", icon: "text-amber-600", chevron: "text-amber-500" },
+  none: { title: "text-neutral-800", sub: "text-neutral-500", icon: "text-neutral-900", chevron: "text-neutral-400" },
+} as const;
+
+// Raised round surfaces, black line icons — monochrome; the tone only used to pick a colour before.
 const iconBg: Record<string, string> = {
-  blue: "bg-[#E7EEFC] text-[#2955C4]",
-  green: "bg-[#E3F6EC] text-[#12805A]",
-  violet: "bg-[#F1EAFB] text-[#6D3FBF]",
-  rose: "bg-rose-100 text-rose-500",
-  slate: "bg-slate-100 text-slate-500",
+  blue: "bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm",
+  green: "bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm",
+  violet: "bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm",
+  rose: "bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm",
+  slate: "bg-[var(--sd-card)] text-neutral-500 shadow-neu-sm",
 };
 
 function rankNumber(rank: string) {
@@ -99,7 +109,7 @@ function subjectIcon(subject: string) {
  * text-[var(--sd-ink)] shadow`), scaled down here for reuse inside cards/rows. */
 function RoundIconButton({ icon }: { icon: React.ReactNode }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-[0_0_8px_rgba(0,0,0,0.1)]">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-neu-sm">
       {icon}
     </span>
   );
@@ -144,9 +154,16 @@ export default function Dashboard() {
   // while genuinely incomplete. It's pinned first when present so it's never silently crowded out.
   const openStudentTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done);
   const financeTask = openStudentTasks.find((t) => t.source === "finance");
-  const nextStepTasks = financeTask
-    ? [financeTask, ...openStudentTasks.filter((t) => t.id !== financeTask.id)].slice(0, 3)
-    : openStudentTasks.slice(0, 3);
+  // Proof documents for a bank that now holds the student's funds (Bank Statement / Solvency Certificate) are the most
+  // time-sensitive of the document tasks, so they rank right after Financial Readiness itself.
+  const isBankProofTask = (t: { title: string }) => /^(Re-upload|Upload) (Bank Statement|Solvency Certificate) —/.test(t.title);
+  const bankProofTasks = openStudentTasks.filter(isBankProofTask);
+  const orderedTasks = [
+    ...(financeTask ? [financeTask] : []),
+    ...bankProofTasks,
+    ...openStudentTasks.filter((t) => t.id !== financeTask?.id && !isBankProofTask(t)),
+  ];
+  const nextStepTasks = orderedTasks.slice(0, 3);
 
   const safeApplicationIndex = activeApplications.length > 0 ? currentApplicationIndex % activeApplications.length : 0;
   const primaryApplication = activeApplications[safeApplicationIndex];
@@ -168,6 +185,16 @@ export default function Dashboard() {
     const missing = buildChecklist(university, app.studentId, app.id, docs).filter((r) => !r.own && !r.reused).length;
     return sum + missing;
   }, buildCoreChecklist(CURRENT_STUDENT_ID).filter((r) => !r.own).length);
+
+  // Documents the student has uploaded that are still waiting for the counsellor to verify them.
+  const pendingVerification = myApplications.reduce((sum, app) => {
+    const university = universities.find((u) => u.name === app.university);
+    const docs = [
+      ...DOCUMENTS.filter((d) => d.studentId === CURRENT_STUDENT_ID && d.applicationId === app.id),
+      ...loadUploadedDocs(app.id),
+    ];
+    return sum + buildChecklist(university, app.studentId, app.id, docs).filter((r) => r.own?.status === "uploaded").length;
+  }, buildCoreChecklist(CURRENT_STUDENT_ID).filter((r) => r.own?.status === "uploaded").length);
 
   // A real, unapplied-to university with a scholarship on offer, best-ranked first — not a
   // fabricated example.
@@ -191,7 +218,6 @@ export default function Dashboard() {
   const topDestinations = rankedCountryStats.slice(0, 4).map((s) => ({
     ...s,
     details: getCountryByName(s.name),
-    flag: COUNTRIES.find((c) => c.name === s.name)?.flag,
   }));
 
   // Same idea as topDestinations above, for fields of study — the student's own saved Preferences
@@ -209,7 +235,7 @@ export default function Dashboard() {
   // Only reachable once allStudentsStore's cache has actually resolved — brief on a fresh login,
   // matching the same trade-off every other migrated store makes (see syncCache.ts's doc comment).
   if (!student) {
-    return <p className="p-5 text-sm text-slate-400">Loading your dashboard…</p>;
+    return <p className="p-5 text-sm text-neutral-400">Loading your dashboard…</p>;
   }
   const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const firstName = student.name.split(" ")[0];
@@ -224,13 +250,13 @@ export default function Dashboard() {
     return (
       <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
         <div className="lg:mx-auto lg:max-w-6xl">
-          <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
+          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
           <div className="mt-10 flex flex-col items-center px-4 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
               <AlertCircle size={26} />
             </div>
-            <h2 className="mt-4 text-[19px] font-bold text-slate-900">Welcome, {firstName} — let's finish your profile</h2>
-            <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-slate-500">
+            <h2 className="mt-4 text-xl font-bold text-neutral-900">Welcome, {firstName} — let's finish your profile</h2>
+            <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-neutral-500">
               We need {requiredRemaining} more required step{requiredRemaining > 1 ? "s" : ""} before your dashboard, recommendations, and applications become available.
             </p>
             <button
@@ -246,36 +272,35 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
+    <div className="profile-compact px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
-            <p className="text-[11px] text-slate-400">Global Education. A Brighter You.</p>
+            <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/student/search")}
               aria-label="Search"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
             >
               <Search size={16} />
             </button>
             <button
               onClick={() => navigate("/student/notifications")}
               aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : "Notifications"}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
             >
               <Bell size={16} />
               {unreadNotifications > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-neutral-900 px-1 text-[11px] font-semibold text-white">
                   {unreadNotifications > 9 ? "9+" : unreadNotifications}
                 </span>
               )}
             </button>
             <button
               onClick={() => navigate("/student/profile")}
-              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
+              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-neutral-900 text-xs font-semibold text-white shadow-neu-dark"
             >
               {initials}
             </button>
@@ -289,38 +314,38 @@ export default function Dashboard() {
           <StatCard value={savedProgramsCount} label="Saved Programs" onClick={() => navigate("/student/search?shortlisted=1")} />
         </div>
 
-        <div className="lg:mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
+        <div className="mt-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
           <div className="lg:col-span-2">
             {/* Required actions — next steps, rejected documents needing a re-upload, and any task
                 a counsellor/agent has assigned — surfaced first, above the current application
                 summary, since these are the things actually waiting on the student right now. */}
             <div className="flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold text-slate-900">Your Next Steps</h2>
-              <button onClick={() => navigate("/student/tasks")} className="text-[13px] font-medium text-[#2955C4]">
+              <h2 className="text-[15px] font-bold text-neutral-900">Your Next Steps</h2>
+              <button onClick={() => navigate("/student/tasks")} className="text-[13px] font-medium text-neutral-900">
                 View All
               </button>
             </div>
 
-            <div className="mt-3 overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+            <div className="mt-3 overflow-hidden rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu">
               {requiredRemaining > 0 && (
                 <button
                   onClick={() => navigate((pendingSteps.find((s) => s.required) ?? pendingSteps[0]).path)}
-                  className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${nextStepTasks.length > 0 ? "border-b border-slate-50" : ""}`}
+                  className={`flex w-full items-center gap-3 px-3.5 py-3 text-left min-[400px]:px-4 min-[400px]:py-3.5 ${nextStepTasks.length > 0 ? "border-b border-neutral-50" : ""}`}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-red-600 min-[400px]:h-10 min-[400px]:w-10">
                     <AlertCircle size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-rose-500">Complete your profile</p>
-                    <p className="truncate text-xs text-rose-400">
+                    <p className="text-[13px] font-semibold leading-snug text-red-700">Complete your profile</p>
+                    <p className="text-[11px] leading-snug text-red-600/80">
                       {requiredRemaining} required step{requiredRemaining > 1 ? "s" : ""} left — needed to explore and apply to programs
                     </p>
                   </div>
-                  <ChevronRight size={16} className="shrink-0 text-rose-300" />
+                  <ChevronRight size={16} className="shrink-0 text-red-400" />
                 </button>
               )}
-              {nextStepTasks.length === 0 && requiredRemaining === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">You're all caught up — no open tasks.</p>
+              {nextStepTasks.length === 0 && requiredRemaining === 0 && pendingVerification === 0 ? (
+                <p className="px-4 py-6 text-center text-[13px] text-neutral-500">You're all caught up — no open tasks.</p>
               ) : (
                 nextStepTasks.map((t, i) => {
                   const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : t.source === "finance" ? Wallet : ShieldCheck;
@@ -330,6 +355,9 @@ export default function Dashboard() {
                   // keeps the due-date-based tone since it isn't inherently "required" the same way.
                   const required = t.source === "document" || t.source === "next-step" || t.source === "finance";
                   const tone = required ? "rose" : t.tone === "overdue" ? "rose" : t.tone === "soon" ? "blue" : "slate";
+                  // A bank has been added and the step is just waiting on the funds to mature — amber, not an action the student owes.
+                  const waiting = t.source === "finance" && t.title.startsWith("Financial Readiness in progress");
+                  const st = waiting ? STEP_TONE.amber : required || t.tone === "overdue" ? STEP_TONE.red : t.tone === "soon" ? STEP_TONE.amber : STEP_TONE.none;
                   return (
                     <button
                       key={t.id}
@@ -341,33 +369,48 @@ export default function Dashboard() {
                         const dest = taskDestination(t, primaryApplication?.id);
                         navigate(dest.path, dest.state ? { state: dest.state } : undefined);
                       }}
-                      className={`flex w-full items-center gap-3 px-4 py-3 text-left ${i !== nextStepTasks.length - 1 ? "border-b border-slate-50" : ""}`}
+                      className={`flex w-full items-center gap-3 px-3.5 py-3 text-left min-[400px]:px-4 ${i !== nextStepTasks.length - 1 ? "border-b border-neutral-50" : ""}`}
                     >
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
-                        <Icon size={16} />
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full min-[400px]:h-10 min-[400px]:w-10 ${iconBg[tone]}`}>
+                        <Icon size={16} className={st.icon} />
                       </div>
                       <div className="min-w-0 flex-1">
                         {/* One line: the title, then any extra detail (university, rejection reason, due date) in a lighter weight. */}
-                        <p className={`truncate text-sm ${required ? "text-rose-500" : "text-slate-800"}`}>
+                        <p className={`line-clamp-2 text-[13px] leading-snug ${st.title}`}>
                           <span className="font-medium">{t.title}</span>
-                          {t.subtitle && <span className={`text-xs ${required ? "text-rose-400" : "text-slate-400"}`}> · {t.subtitle}</span>}
+                          {t.subtitle && <span className={`text-[11px] ${st.sub}`}> · {t.subtitle}</span>}
                           {t.dueDate && (
-                            <span className={`text-xs ${t.tone === "overdue" ? "font-medium text-rose-500" : required ? "text-rose-400" : "text-slate-400"}`}>
+                            <span className={`text-[11px] ${t.tone === "overdue" ? "font-medium text-red-700" : st.sub}`}>
                               {" — Due "}{new Date(`${t.dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                             </span>
                           )}
                         </p>
                       </div>
-                      <ChevronRight size={16} className={`shrink-0 ${required ? "text-rose-300" : "text-slate-300"}`} />
+                      <ChevronRight size={16} className={`shrink-0 ${st.chevron}`} />
                     </button>
                   );
                 })
+              )}
+              {pendingVerification > 0 && (
+                <button
+                  onClick={() => navigate("/student/documents")}
+                  className={`flex w-full items-center gap-3 px-3.5 py-3 text-left min-[400px]:px-4 ${nextStepTasks.length > 0 || requiredRemaining > 0 ? "border-t border-neutral-50" : ""}`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm min-[400px]:h-10 min-[400px]:w-10">
+                    <Clock3 size={16} className="text-amber-600" />
+                  </div>
+                  <p className="min-w-0 flex-1 text-[13px] leading-snug text-amber-700">
+                    <span className="font-medium">Awaiting verification</span>
+                    <span className="text-[11px] text-amber-700/80"> · {pendingVerification} document{pendingVerification > 1 ? "s" : ""}</span>
+                  </p>
+                  <ChevronRight size={16} className="shrink-0 text-amber-500" />
+                </button>
               )}
             </div>
 
             {primaryApplication && (
               <div className="mt-6">
-                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                <div className="overflow-hidden rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu">
                   <div
                     className="flex transition-transform duration-700 ease-out"
                     style={{ transform: `translateX(-${safeApplicationIndex * 100}%)` }}
@@ -379,14 +422,14 @@ export default function Dashboard() {
                         <div key={app.id} className="w-full shrink-0 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Current Application</p>
-                              <p className="mt-1 text-[11px] text-slate-400">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Current Application</p>
+                              <p className="mt-1 text-[11px] text-neutral-400">
                                 {activeApplications.length > 1 ? `${index + 1} of ${activeApplications.length} running applications` : "1 running application"}
                               </p>
                             </div>
                             <button
                               onClick={() => navigate(`/student/applications/${app.id}`)}
-                              className="flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-[#2955C4]"
+                              className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-50 px-3 py-1.5 text-[11px] font-medium text-neutral-900"
                             >
                               Details <ChevronRight size={13} />
                             </button>
@@ -394,14 +437,14 @@ export default function Dashboard() {
                           <div className="mt-3 flex items-center gap-3">
                             <LogoBadge name={app.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-11 w-11 shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-[14px] font-semibold text-slate-900">{app.university}</p>
-                              <p className="truncate text-xs text-slate-400">{app.course}</p>
-                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                              <p className="truncate text-[14px] font-semibold text-neutral-900">{app.university}</p>
+                              <p className="truncate text-xs text-neutral-400">{app.course}</p>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
                                 <span className="inline-flex items-center gap-1">
-                                  <Calendar size={11} className="text-slate-400" /> {app.intake}
+                                  <Calendar size={11} className="text-neutral-400" /> {app.intake}
                                 </span>
                                 <span className="inline-flex items-center gap-1">
-                                  <MapPin size={11} className="text-slate-400" /> {app.campus ?? "Main Campus"}
+                                  <MapPin size={11} className="text-neutral-400" /> {app.campus ?? "Main Campus"}
                                 </span>
                               </div>
                             </div>
@@ -413,24 +456,24 @@ export default function Dashboard() {
                           {coreDocsBlocked && (
                             <button
                               onClick={() => navigate("/student/documents")}
-                              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left"
+                              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-left"
                             >
-                              <AlertCircle size={14} className="shrink-0 text-amber-700" />
-                              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-amber-900">
+                              <AlertCircle size={14} className="shrink-0 text-neutral-700" />
+                              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-neutral-800">
                                 Upload core documents before this application can move forward
                               </span>
-                              <ChevronRight size={13} className="shrink-0 text-amber-700" />
+                              <ChevronRight size={13} className="shrink-0 text-neutral-700" />
                             </button>
                           )}
 
                           <div className="mt-4 overflow-x-auto pb-1">
                             <div className="relative" style={{ width: APPLICATION_STAGES.length * STEP_WIDTH }}>
                               <div
-                                className="absolute top-3 h-0.5 rounded-full bg-slate-200"
+                                className="absolute top-3 h-0.5 rounded-full bg-neutral-200"
                                 style={{ left: STEP_WIDTH / 2, width: (APPLICATION_STAGES.length - 1) * STEP_WIDTH }}
                               />
                               <div
-                                className="absolute top-3 h-0.5 rounded-full bg-[#2955C4] transition-[width] duration-1000 ease-out"
+                                className="absolute top-3 h-0.5 rounded-full bg-neutral-900 transition-[width] duration-1000 ease-out"
                                 style={{ left: STEP_WIDTH / 2, width: stepperFilled ? stageIndex * STEP_WIDTH : 0 }}
                               />
                               <div className="relative flex">
@@ -443,13 +486,13 @@ export default function Dashboard() {
                                         {current && <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[var(--sd-ink)]/40" />}
                                         <div
                                           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-500 ${
-                                            done ? "bg-[#2955C4] text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-slate-100"
+                                            done ? "bg-neutral-900 text-white" : current ? "bg-[image:var(--sd-gradient)] text-white" : "bg-neutral-100"
                                           }`}
                                         >
                                           {done ? <Check size={12} /> : current ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
                                         </div>
                                       </div>
-                                      <p className={`mt-1.5 text-center text-[9.5px] leading-tight ${current ? "font-semibold text-[var(--sd-ink)]" : done ? "text-slate-500" : "text-slate-300"}`}>
+                                      <p className={`mt-1.5 text-center text-[11px] leading-tight ${current ? "font-semibold text-[var(--sd-ink)]" : done ? "text-neutral-500" : "text-neutral-300"}`}>
                                         {stage.replace("Application ", "").replace(" Verified", "").replace(" Application", "")}
                                       </p>
                                     </div>
@@ -470,7 +513,7 @@ export default function Dashboard() {
                         key={app.id}
                         onClick={() => setCurrentApplicationIndex(index)}
                         aria-label={`Show application ${index + 1}`}
-                        className={`h-1.5 rounded-full transition-all ${index === safeApplicationIndex ? "w-5 bg-[#2955C4]" : "w-1.5 bg-slate-200"}`}
+                        className={`h-1.5 rounded-full transition-all ${index === safeApplicationIndex ? "w-5 bg-neutral-900" : "w-1.5 bg-neutral-200"}`}
                       />
                     ))}
                   </div>
@@ -488,15 +531,15 @@ export default function Dashboard() {
               </div>
             )}
 
-            <h2 className="text-[15px] font-semibold text-slate-900">Quick Actions</h2>
-            <div className="mt-3 flex items-start justify-between gap-2">
+            <h2 className="mt-8 text-[15px] font-bold text-neutral-900">Quick Actions</h2>
+            {/* Six actions: a 3 × 2 grid on phones, one row from tablet width up. */}
+            <div className="mt-4 grid grid-cols-3 gap-x-2 gap-y-4 pb-2 sm:grid-cols-6 sm:gap-x-3">
               {QUICK_ACTIONS.map((a) => (
-                <button key={a.title} onClick={() => navigate(a.path)} className="flex flex-col items-center gap-1.5">
-                  <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full sm:h-16 sm:w-16 ${iconBg[a.tone]}`}>
-                    <a.icon size={22} className="sm:hidden" />
-                    <a.icon size={26} className="hidden sm:block" />
+                <button key={a.title} onClick={() => navigate(a.path)} className="group flex min-w-0 flex-col items-center gap-2">
+                  <span className="neu-hover flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[var(--sd-card)] text-neutral-900 shadow-neu sm:h-16 sm:w-16">
+                    <a.icon size={24} strokeWidth={1.7} />
                   </span>
-                  <span className="max-w-[64px] text-center text-[10.5px] font-medium leading-tight text-slate-600 sm:max-w-[76px] sm:text-[11.5px]">
+                  <span className="w-full text-center text-[11px] font-medium leading-tight tracking-tight text-neutral-600">
                     {a.title}
                   </span>
                 </button>
@@ -506,28 +549,28 @@ export default function Dashboard() {
             {recommended && recommendedCourse && (
               <>
                 <div className="mt-6 flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900">Recommended</h2>
-                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                  <h2 className="text-[15px] font-semibold text-neutral-900">Recommended</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-neutral-900">
                     See all <ChevronRight size={14} />
                   </button>
                 </div>
                 <button
                   onClick={() => navigate(`/student/universities/${recommended.id}`, { state: { selectedCourseName: recommendedCourse.name } })}
-                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 text-left shadow-neu"
                 >
                   <LogoBadge name={recommended.name} tone={recommended.tone} logoUrl={recommended.logoUrl} className="h-14 w-14 shrink-0 text-sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-semibold text-slate-900">{recommendedCourse.name}</p>
-                    <p className="truncate text-xs text-slate-400">{recommended.name}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-500">
+                    <p className="truncate text-[14px] font-semibold text-neutral-900">{recommendedCourse.name}</p>
+                    <p className="truncate text-xs text-neutral-400">{recommended.name}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-neutral-500">
                       <span className="inline-flex items-center gap-1">
-                        <BarChart3 size={11} className="text-slate-400" /> {recommended.worldRank}
+                        <BarChart3 size={11} className="text-neutral-400" /> {recommended.worldRank}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Calendar size={11} className="text-slate-400" /> {recommended.openIntake}
+                        <Calendar size={11} className="text-neutral-400" /> {recommended.openIntake}
                       </span>
                       {recommended.scholarshipsAvailable && (
-                        <span className="inline-flex items-center gap-1 text-[#12805A]">
+                        <span className="inline-flex items-center gap-1 text-neutral-800">
                           <ShieldCheck size={12} />
                         </span>
                       )}
@@ -541,8 +584,8 @@ export default function Dashboard() {
             {topDestinations.length > 0 && (
               <>
                 <div className="mt-6 flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900">Top Destinations</h2>
-                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                  <h2 className="text-[15px] font-semibold text-neutral-900">Top Destinations</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-neutral-900">
                     See all <ChevronRight size={14} />
                   </button>
                 </div>
@@ -559,11 +602,7 @@ export default function Dashboard() {
                       ) : (
                         <SkylineArt tone={skylineToneFor(d.name)} className="h-full w-full" />
                       )}
-                      {d.flag && (
-                        <span className="absolute bottom-2 left-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg leading-none shadow">
-                          {d.flag}
-                        </span>
-                      )}
+                      <CountryBadge name={d.name} className="absolute bottom-2 left-2 h-8 w-8 text-[17px]" />
                     </button>
                   ))}
                 </div>
@@ -573,8 +612,8 @@ export default function Dashboard() {
             {topDestinations.length > 0 && (
               <>
                 <div className="mt-6 flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900">Study Guide</h2>
-                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                  <h2 className="text-[15px] font-semibold text-neutral-900">Study Guide</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-neutral-900">
                     See all <ChevronRight size={14} />
                   </button>
                 </div>
@@ -585,17 +624,17 @@ export default function Dashboard() {
                     <button
                       key={d.name}
                       onClick={() => navigate(`/student/countries/${encodeURIComponent(d.name)}`)}
-                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-transparent bg-[var(--sd-card)] p-4 text-left shadow-neu"
                     >
                       <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
                         <GuideIcon size={24} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold text-slate-900">Studying in {d.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="text-[14px] font-semibold text-neutral-900">Studying in {d.name}</p>
+                        <p className="mt-1 text-xs text-neutral-500">
                           {d.universityCount} {d.universityCount === 1 ? "university" : "universities"}
                         </p>
-                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                        <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">
                           {d.details?.whyThisCountry?.split("\n")[0] ?? `${d.courseCount} programs available`}
                         </p>
                       </div>
@@ -609,8 +648,8 @@ export default function Dashboard() {
             {recommendedSubjects.length > 0 && (
               <>
                 <div className="mt-6 flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold text-slate-900">Recommended Subjects</h2>
-                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-[#2955C4]">
+                  <h2 className="text-[15px] font-semibold text-neutral-900">Recommended Subjects</h2>
+                  <button onClick={() => navigate("/student/search")} className="flex items-center gap-0.5 text-[13px] font-medium text-neutral-900">
                     See all <ChevronRight size={14} />
                   </button>
                 </div>
@@ -621,17 +660,17 @@ export default function Dashboard() {
                     <button
                       key={s.name}
                       onClick={() => navigate(`/student/subjects/${encodeURIComponent(s.name)}`)}
-                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                      className="mt-3 flex w-full items-center gap-3.5 rounded-2xl border border-transparent bg-[var(--sd-card)] p-4 text-left shadow-neu"
                     >
                       <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${iconBg[tone]}`}>
                         <SubjectIcon size={24} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-slate-900">{s.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="truncate text-[14px] font-semibold text-neutral-900">{s.name}</p>
+                        <p className="mt-1 text-xs text-neutral-500">
                           {s.universityCount} {s.universityCount === 1 ? "university" : "universities"}
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-500">offering this subject</p>
+                        <p className="mt-0.5 text-xs text-neutral-500">offering this subject</p>
                       </div>
                       <RoundIconButton icon={<ChevronRight size={16} />} />
                     </button>
@@ -646,13 +685,13 @@ export default function Dashboard() {
             {pendingSteps.length > 0 && requiredRemaining === 0 && (
               <button
                 onClick={() => navigate(pendingSteps[0].path)}
-                className="mt-6 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-4 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
+                className="mt-6 flex w-full items-center justify-between rounded-2xl border border-transparent bg-[var(--sd-card)] p-4 text-left shadow-neu"
               >
-                <span className="text-[12.5px] text-slate-600">
+                <span className="text-[13px] text-neutral-600">
                   Profile {percent}% complete · finish up
                   {outstandingDocs > 0 ? ` · ${outstandingDocs} document${outstandingDocs > 1 ? "s" : ""} needed` : ""}
                 </span>
-                <ChevronRight size={14} className="shrink-0 text-slate-300" />
+                <ChevronRight size={14} className="shrink-0 text-neutral-300" />
               </button>
             )}
           </div>
@@ -660,10 +699,10 @@ export default function Dashboard() {
           <div className="lg:col-span-1">
             {(myCounsellor || myAgent) && (
               <>
-                <h2 className="mt-6 text-[15px] font-semibold text-slate-900 lg:mt-0">Your Support Team</h2>
-                <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+                <h2 className="mt-6 text-[15px] font-bold text-neutral-900 lg:mt-0">Your Support Team</h2>
+                <div className="mt-3 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-neu">
                   {myCounsellor && <SupportRow contact={myCounsellor} onChat={() => navigate("/student/messages")} />}
-                  {myCounsellor && myAgent && <div className="border-t border-slate-50" />}
+                  {myCounsellor && myAgent && <div className="border-t border-neutral-50" />}
                   {myAgent && <SupportRow contact={myAgent} onChat={() => navigate("/student/messages")} />}
                 </div>
               </>
@@ -677,9 +716,10 @@ export default function Dashboard() {
 
 function StatCard({ value, label, onClick }: { value: number; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-[var(--sd-card)] p-2 text-center shadow-[0_0_10px_rgba(0,0,0,0.06)] sm:p-3.5">
-      <p className="text-[17px] font-bold leading-none text-slate-900 sm:text-[22px]">{value}</p>
-      <span className="mt-1 text-[9.5px] leading-tight text-slate-500 sm:text-[11.5px]">{label}</span>
+    <button onClick={onClick} className="flex flex-col items-center justify-start rounded-2xl border border-transparent bg-[var(--sd-card)] px-1.5 py-3 text-center shadow-neu sm:p-3.5">
+      {/* Fixed two-line label slot on phones so the numbers line up across all four tiles. */}
+      <p className="text-xl font-bold leading-none text-neutral-900">{value}</p>
+      <span className="mt-1.5 flex min-h-[2.3em] items-start justify-center text-[11px] leading-tight text-neutral-500 sm:min-h-0">{label}</span>
     </button>
   );
 }

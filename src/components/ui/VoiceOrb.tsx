@@ -16,11 +16,16 @@ const STATE_MOTION: Record<VoiceConversationState, { speed: number; energy: numb
   error: { speed: 0.3, energy: 0 },
 };
 
+// How fast (palette-units per second) the orb's colours travel round the palette, per state — on top of its energy.
+const HUE_SPEED: Record<VoiceConversationState, number> = { idle: 0.008, listening: 0.07, thinking: 0.5, speaking: 0.32, error: 0 };
+
 /** Renders the shader orb into a canvas. Returns false if WebGL isn't available so the caller can fall back. */
-function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, state: VoiceConversationState, level: MutableRefObject<number> | undefined, size: number) {
+function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, state: VoiceConversationState, level: MutableRefObject<number> | undefined, size: number, muted: boolean) {
   const [ok, setOk] = useState(true);
   const stateRef = useRef(state);
+  const mutedRef = useRef(muted);
   useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -58,6 +63,7 @@ function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, sta
     const uTime = gl.getUniformLocation(prog, "uTime");
     const uEnergy = gl.getUniformLocation(prog, "uEnergy");
     const uGray = gl.getUniformLocation(prog, "uGray");
+    const uHue = gl.getUniformLocation(prog, "uHue");
     const uPx = gl.getUniformLocation(prog, "uPx");
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -69,6 +75,7 @@ function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, sta
     let phase = 4;
     let energy = 0;
     let gray = 0;
+    let hue = 0;
     let last = performance.now();
     let raf = 0;
 
@@ -82,13 +89,17 @@ function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, sta
       if (st === "listening") target += (level?.current ?? 0) * 1.1;
       if (st === "speaking") target += 0.28 * (0.5 + 0.5 * Math.sin(now / 130)) * (0.6 + 0.4 * Math.sin(now / 410));
       energy += (target - energy) * Math.min(1, dt * 7);
-      gray += ((st === "error" ? 0.9 : 0) - gray) * Math.min(1, dt * 4);
+      // Muted = the resting, silvery globe; going live eases the colour in.
+      gray += ((st === "error" ? 0.9 : mutedRef.current ? 0.88 : 0) - gray) * Math.min(1, dt * (mutedRef.current ? 4 : 3));
       phase += dt * m.speed * (1 + energy * 0.6);
+      // The colours travel round the palette faster the more it's talking, so its body visibly changes colour.
+      hue += dt * (HUE_SPEED[st] + energy * 1.1);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uTime, phase);
       gl.uniform1f(uEnergy, energy);
       gl.uniform1f(uGray, gray);
+      gl.uniform1f(uHue, hue);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       if (!reduced) raf = requestAnimationFrame(draw);
     };
@@ -105,12 +116,12 @@ function useShaderOrb(canvasRef: MutableRefObject<HTMLCanvasElement | null>, sta
 /** The glowing glass orb — a GPU-shaded sphere of flowing light. It drifts calmly while listening (and swells with
  * the speaker's voice when `level` is given), whirls while thinking and breathes while speaking. Falls back to a
  * lighter CSS version where WebGL isn't available. Purely visual: it never touches the microphone itself. */
-export function VoiceOrb({ state, size = 260, level, floor = true }: { state: VoiceConversationState; size?: number; level?: MutableRefObject<number>; floor?: boolean }) {
+export function VoiceOrb({ state, size = 260, level, floor = true, muted = false }: { state: VoiceConversationState; size?: number; level?: MutableRefObject<number>; floor?: boolean; muted?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const webgl = useShaderOrb(canvasRef, state, level, size);
+  const webgl = useShaderOrb(canvasRef, state, level, size, muted);
 
   return (
-    <div className="vorb" data-state={state} style={{ ["--vorb-size" as string]: `${size}px` }} aria-hidden="true">
+    <div className="vorb" data-state={state} data-muted={muted || undefined} style={{ ["--vorb-size" as string]: `${size}px` }} aria-hidden="true">
       <div className="vorb-halo" />
       {webgl ? (
         <canvas ref={canvasRef} className="vorb-canvas" />

@@ -65,19 +65,19 @@ export default function SubjectDetail() {
     <div className="pb-6">
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <h1 className="text-[15px] font-bold text-slate-900">UnifinderAi</h1>
+          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/student/search")}
               aria-label="Search"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
             >
               <Search size={16} />
             </button>
             <button
               onClick={resetFilters}
               aria-label="Reset filters"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
             >
               <SlidersHorizontal size={16} />
             </button>
@@ -85,8 +85,8 @@ export default function SubjectDetail() {
         </div>
 
         <div className="px-5">
-          <h2 className="text-[26px] font-bold leading-tight text-slate-900">{subject}</h2>
-          <p className="mt-1 text-[13px] text-slate-500">
+          <h2 className="text-[26px] font-bold leading-tight text-neutral-900">{subject}</h2>
+          <p className="mt-1 text-[13px] text-neutral-500">
             {offerings.length} {offerings.length === 1 ? "program" : "programs"} from top universities worldwide.
           </p>
 
@@ -110,58 +110,58 @@ export default function SubjectDetail() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") openCourse(u.id, c.name); }}
-                className={`relative flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== pagedOfferings.length - 1 ? "border-b border-slate-100" : ""}`}
+                className={`relative flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== pagedOfferings.length - 1 ? "border-b border-transparent" : ""}`}
               >
                 <span
                   onClick={(e) => { e.stopPropagation(); toggleShortlist(key); }}
                   aria-label={isShortlisted ? "Remove from shortlist" : "Shortlist"}
-                  className={`absolute right-3 top-2 ${isShortlisted ? "text-[var(--sd-ink)]" : "text-slate-300"}`}
+                  className={`absolute right-3 top-2 ${isShortlisted ? "text-[var(--sd-ink)]" : "text-neutral-300"}`}
                 >
                   <Bookmark size={16} className={isShortlisted ? "fill-[var(--sd-ink)]" : ""} />
                 </span>
                 <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-12 w-12 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="min-w-0 pr-6">
-                    <p className="text-[14.5px] font-semibold leading-snug text-slate-900">{c.name}</p>
-                    <p className="flex items-center gap-1 text-[13px] text-slate-400">
+                    <p className="text-[14.5px] font-semibold leading-snug text-neutral-900">{c.name}</p>
+                    <p className="flex items-center gap-1 text-[13px] text-neutral-400">
                       <span className="min-w-0 truncate">{u.name}</span>
                       <span className="inline-flex shrink-0 items-center gap-0.5">
                         <Building2 size={10} /> Main Campus
                       </span>
                     </p>
                   </div>
-                  <div className="mt-1 flex items-center gap-x-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[10.5px] text-slate-500">
+                  <div className="mt-1 flex items-center gap-x-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[10.5px] text-neutral-500">
                     <span className="inline-flex shrink-0 items-center gap-1">
-                      <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}
+                      <Wallet size={11} className="text-neutral-400" /> {u.currencySymbol}
                       {Math.round(c.feeUSD).toLocaleString()}
                     </span>
                     {scholarshipText && (
                       <span className="inline-flex shrink-0 items-center gap-1">
-                        <GraduationCap size={11} className="text-slate-400" /> {scholarshipText}
+                        <GraduationCap size={11} className="text-neutral-400" /> {scholarshipText}
                       </span>
                     )}
                     {depositLabel(u) && (
                       <span className="inline-flex shrink-0 items-center gap-1">
-                        <Landmark size={11} className="text-slate-400" /> {depositLabel(u)}
+                        <Landmark size={11} className="text-neutral-400" /> {depositLabel(u)}
                       </span>
                     )}
                     {u.openIntake && (
                       <span className="inline-flex min-w-0 shrink items-center gap-1 truncate">
-                        <CalendarDays size={11} className="shrink-0 text-slate-400" /> <span className="truncate">{u.openIntake}</span>
+                        <CalendarDays size={11} className="shrink-0 text-neutral-400" /> <span className="truncate">{u.openIntake}</span>
                       </span>
                     )}
                     {(u.restrictedRegions ?? []).length > 0 && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-amber-600">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
                         <AlertTriangle size={11} /> Restricted regions
                       </span>
                     )}
                     {u.internalEnglishTestOffered && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-emerald-600">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
                         <GraduationCap size={11} /> Own English test
                       </span>
                     )}
                     {c.level !== "Undergraduate" && u.moiAccepted && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-emerald-600">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
                         <GraduationCap size={11} /> MOI accepted
                       </span>
                     )}
@@ -172,18 +172,18 @@ export default function SubjectDetail() {
                   disabled={!courseHasOpenIntake(u, c)}
                   aria-label={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
                   title={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-slate-200 disabled:text-slate-400"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-neutral-200 disabled:text-neutral-400"
                 >
                   <Send size={13} />
                 </button>
-                <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                <ChevronRight size={16} className="shrink-0 text-neutral-300" />
               </div>
             );
           })}
 
           {offerings.length === 0 && (
-            <div className="mx-5 rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="text-sm font-medium text-slate-700">No programs match these filters</p>
+            <div className="mx-5 rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
+              <p className="text-sm font-medium text-neutral-700">No programs match these filters</p>
               {filtersActive && (
                 <button onClick={resetFilters} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
                   Reset filters

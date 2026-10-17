@@ -11,21 +11,21 @@ export default function Messages() {
       <div className="flex items-center gap-3">
         <BackButton />
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Messages</h1>
-          <p className="mt-1 text-[13px] text-slate-500">AI guidance and direct lines to your team.</p>
+          <h1 className="text-xl font-bold text-neutral-900">Messages</h1>
+          <p className="mt-1 text-[13px] text-neutral-500">AI guidance and direct lines to your team.</p>
         </div>
       </div>
 
       <button
         onClick={() => navigate("/student/counsellor")}
-        className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+        className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu"
       >
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1EAFB] text-[#6D3FBF]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800">
           <Sparkles size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-slate-900">AI Counsellor</p>
-          <p className="truncate text-xs text-slate-500">Ask anything about your applications.</p>
+          <p className="truncate text-[13px] font-semibold text-neutral-900">AI Counsellor</p>
+          <p className="truncate text-xs text-neutral-500">Ask anything about your applications.</p>
         </div>
       </button>
 

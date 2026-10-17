@@ -75,7 +75,7 @@ export default function Profile() {
   }
 
   if (!student) {
-    return <p className="p-5 text-sm text-slate-400">Loading your profile…</p>;
+    return <p className="p-5 text-sm text-neutral-400">Loading your profile…</p>;
   }
 
   const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
@@ -83,7 +83,7 @@ export default function Profile() {
   return (
     <div className="profile-compact min-h-full pb-8">
       <div className="lg:mx-auto lg:w-full lg:max-w-2xl">
-        <MobileHeader title="My Profile" right={<button className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-500 shadow-sm"><Settings size={16} /></button>} />
+        <MobileHeader title="My Profile" right={<button className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-500 shadow-sm"><Settings size={16} /></button>} />
       </div>
 
       <div className="px-5 lg:mx-auto lg:w-full lg:max-w-2xl lg:px-10">
@@ -91,24 +91,24 @@ export default function Profile() {
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-xl font-semibold text-white">
             {initials}
           </div>
-          <p className="mt-3 text-[16px] font-bold text-slate-900">{student.name}</p>
-          <p className="text-[13px] text-slate-400">{student.email}</p>
+          <p className="mt-3 text-[16px] font-bold text-neutral-900">{student.name}</p>
+          <p className="text-[13px] text-neutral-400">{student.email}</p>
         </div>
 
-        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
               <Link2 size={14} />
             </div>
             {agentName ? (
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-slate-400">Connected agent</p>
-                <p className="truncate text-[13px] font-semibold text-slate-800">{agentName}</p>
+                <p className="text-[11px] text-neutral-400">Connected agent</p>
+                <p className="truncate text-[13px] font-semibold text-neutral-800">{agentName}</p>
               </div>
             ) : (
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-slate-700">Connect to an agent</p>
-                <p className="text-[11px] text-slate-400">Enter the referral code they shared with you.</p>
+                <p className="text-[13px] font-medium text-neutral-700">Connect to an agent</p>
+                <p className="text-[11px] text-neutral-400">Enter the referral code they shared with you.</p>
               </div>
             )}
           </div>
@@ -118,7 +118,7 @@ export default function Profile() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="Referral code"
-                className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-[12.5px] uppercase tracking-wider text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+                className="min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 font-mono text-[12.5px] uppercase tracking-wider text-neutral-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
               />
               <button
                 onClick={handleConnect}
@@ -129,20 +129,20 @@ export default function Profile() {
               </button>
             </div>
           )}
-          {connectError && <p className="mt-2 text-[11.5px] text-rose-600">{connectError}</p>}
+          {connectError && <p className="mt-2 text-[11.5px] text-neutral-900">{connectError}</p>}
         </div>
 
-        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+        <div className="mt-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-slate-700">Profile Completion</span>
+            <span className="text-[13px] font-medium text-neutral-700">Profile Completion</span>
             <span className="text-[13px] font-semibold text-[var(--sd-teal)]">{percent}%</span>
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-neutral-100">
             <div className="h-full rounded-full bg-[var(--sd-teal)] transition-all" style={{ width: `${percent}%` }} />
           </div>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+        <div className="mt-4 overflow-hidden rounded-2xl bg-[var(--sd-card)] shadow-neu">
           {SETTINGS.map((s, i) => {
             const complete = s.stepKey ? completeByKey.get(s.stepKey) : undefined;
             const locked = isLocked(s.stepKey);
@@ -152,16 +152,16 @@ export default function Profile() {
                 onClick={() => !locked && s.path && navigate(s.path)}
                 disabled={locked}
                 title={locked ? "Complete the previous section first" : undefined}
-                className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== SETTINGS.length - 1 ? "border-b border-slate-50" : ""} ${
+                className={`flex w-full items-center gap-3 px-4 py-3.5 text-left ${i !== SETTINGS.length - 1 ? "border-b border-neutral-50" : ""} ${
                   locked ? "cursor-not-allowed opacity-50" : ""
                 }`}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E7EEFC] text-[#2955C4]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                   <s.icon size={16} />
                 </div>
-                <span className="flex-1 text-[13px] font-medium text-slate-700">{s.label}</span>
+                <span className="flex-1 text-[13px] font-medium text-neutral-700">{s.label}</span>
                 {complete && <CheckCircle2 size={15} className="text-[var(--sd-teal)]" />}
-                {locked ? <Lock size={14} className="text-slate-300" /> : <ChevronRight size={16} className="text-slate-300" />}
+                {locked ? <Lock size={14} className="text-neutral-300" /> : <ChevronRight size={16} className="text-neutral-300" />}
               </button>
             );
           })}
@@ -169,12 +169,12 @@ export default function Profile() {
 
         <button
           onClick={handleLogout}
-          className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+          className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] px-4 py-3.5 text-left shadow-neu"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
             <LogOut size={16} />
           </div>
-          <span className="flex-1 text-[13px] font-medium text-rose-500">Log Out</span>
+          <span className="flex-1 text-[13px] font-medium text-neutral-900">Log Out</span>
         </button>
       </div>
     </div>

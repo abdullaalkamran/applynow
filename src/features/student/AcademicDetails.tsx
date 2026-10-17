@@ -4,6 +4,7 @@ import { Plus, X, Check, Lock } from "lucide-react";
 import { MobileHeader, FieldShell, inputClass, DocumentUpload, Pill, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { markStepComplete, isChainComplete, nextChainStep } from "../../data/profileCompletion";
 import { loadAcademicLevels, saveAcademicLevels, type AcademicLevelEntry } from "../../data/academicProfileStore";
+import { NeuSelect } from "../../components/ui/NeuSelect";
 
 const LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Bachelor's", "Master's", "PhD", "Other"] as const;
 
@@ -222,7 +223,7 @@ export default function AcademicDetails() {
       <MobileHeader title="Academic Details" />
 
       <div className="px-5">
-        <p className="mb-4 text-[13px] text-slate-500">
+        <p className="mb-4 text-[13px] text-neutral-500">
           Add every level of your education. Upload the certificate and transcript for each and we'll fill in the rest.
         </p>
 
@@ -250,8 +251,8 @@ export default function AcademicDetails() {
           )))}
 
           {addMenuOpen ? (
-            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="mb-2 text-[12px] font-medium text-slate-500">Choose a level to add</p>
+            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
+              <p className="mb-2 text-[12px] font-medium text-neutral-500">Choose a level to add</p>
               <div className="flex flex-wrap gap-2">
                 {LEVELS.map((l) => {
                   const enabled = canAddLevel(l);
@@ -263,8 +264,8 @@ export default function AcademicDetails() {
                       title={enabled ? undefined : `Add ${tierLabel(LEVEL_TIERS[l] - 1)} first`}
                       className={`flex items-center gap-1 rounded-full border px-3 py-1.5 text-[12px] font-medium ${
                         enabled
-                          ? "border-slate-200 text-slate-600 hover:bg-slate-50"
-                          : "cursor-not-allowed border-slate-100 text-slate-300"
+                          ? "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+                          : "cursor-not-allowed border-transparent text-neutral-300"
                       }`}
                     >
                       {!enabled && <Lock size={10} />} {l}
@@ -272,14 +273,14 @@ export default function AcademicDetails() {
                   );
                 })}
               </div>
-              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-slate-400">
+              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-neutral-400">
                 Cancel
               </button>
             </div>
           ) : (
             <button
               onClick={() => setAddMenuOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
             >
               <Plus size={16} /> Add Education
             </button>
@@ -289,9 +290,9 @@ export default function AcademicDetails() {
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">
         {errors.length > 0 && (
-          <div className="mb-2 rounded-xl bg-[#FCEAE8] p-3">
+          <div className="mb-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
             {errors.map((e) => (
-              <p key={e} className="text-[12px] font-medium text-[#B8382C]">{e}</p>
+              <p key={e} className="text-[12px] font-medium text-neutral-800">{e}</p>
             ))}
           </div>
         )}
@@ -321,10 +322,10 @@ function EducationCard({
   onRemoveFile: (docType: DocType) => void;
 }) {
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
       <div className="flex items-center justify-between">
         <Pill tone="navy">{entry.level}</Pill>
-        <button onClick={onRemove} aria-label="Remove entry" className="text-slate-300 hover:text-slate-500">
+        <button onClick={onRemove} aria-label="Remove entry" className="text-neutral-300 hover:text-neutral-500">
           <X size={16} />
         </button>
       </div>
@@ -357,23 +358,23 @@ function EducationCard({
 
         {needsGroup(entry.level) && (
           <FieldShell label="Education Board" autoFilled={entry.autoFilled.has("board")}>
-            <select value={entry.board} onChange={(e) => onUpdate("board", e.target.value)} className={inputClass}>
+            <NeuSelect value={entry.board} onChange={(e) => onUpdate("board", e.target.value)} className={inputClass}>
               <option value="">Select board</option>
               {BOARDS.map((b) => (
                 <option key={b} value={b}>{b}</option>
               ))}
-            </select>
+            </NeuSelect>
           </FieldShell>
         )}
 
         {needsGroup(entry.level) && (
           <FieldShell label="Section" autoFilled={entry.autoFilled.has("group")}>
-            <select value={entry.group} onChange={(e) => onUpdate("group", e.target.value)} className={inputClass}>
+            <NeuSelect value={entry.group} onChange={(e) => onUpdate("group", e.target.value)} className={inputClass}>
               <option value="">Select section</option>
               {GROUPS.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
-            </select>
+            </NeuSelect>
           </FieldShell>
         )}
 

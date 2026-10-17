@@ -113,9 +113,9 @@ export function CountryOverviewCards({
 
   if (!hasAnything) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
-        <p className="text-sm font-medium text-slate-700">Country overview not added yet</p>
-        <p className="mt-1 text-xs text-slate-400">Data Management hasn't filled in this country's overview content.</p>
+      <div className="rounded-2xl border border-dashed border-neutral-200 bg-white p-8 text-center">
+        <p className="text-sm font-medium text-neutral-700">Country overview not added yet</p>
+        <p className="mt-1 text-xs text-neutral-400">Data Management hasn't filled in this country's overview content.</p>
       </div>
     );
   }
@@ -134,8 +134,8 @@ export function CountryOverviewCards({
                       <Icon size={16} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-slate-800">{h.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{h.description}</p>
+                      <p className="text-[13px] font-semibold text-neutral-800">{h.title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">{h.description}</p>
                     </div>
                   </div>
                 );
@@ -149,10 +149,10 @@ export function CountryOverviewCards({
             <div className="divide-y divide-slate-100">
               {keyInfoRows.map((row) => (
                 <div key={row.key} className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-                  <span className="flex items-center gap-2 text-xs text-slate-500">
-                    <row.icon size={14} className="shrink-0 text-slate-400" /> {row.label}
+                  <span className="flex items-center gap-2 text-xs text-neutral-500">
+                    <row.icon size={14} className="shrink-0 text-neutral-400" /> {row.label}
                   </span>
-                  <span className="text-right text-xs font-medium text-slate-800">{countryDetails!.keyInfo![row.key]}</span>
+                  <span className="text-right text-xs font-medium text-neutral-800">{countryDetails!.keyInfo![row.key]}</span>
                 </div>
               ))}
             </div>
@@ -161,7 +161,7 @@ export function CountryOverviewCards({
 
         {countryDetails?.whyThisCountry && (
           <Card title="Why This Country">
-            <p className="whitespace-pre-line text-[13px] leading-relaxed text-slate-600">{countryDetails.whyThisCountry}</p>
+            <p className="whitespace-pre-line text-[13px] leading-relaxed text-neutral-600">{countryDetails.whyThisCountry}</p>
           </Card>
         )}
 
@@ -171,10 +171,10 @@ export function CountryOverviewCards({
               {topSubjects.map(({ subject, count }) => {
                 const Icon = subjectIcon(subject);
                 return (
-                  <div key={subject} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5">
-                    <Icon size={14} className="shrink-0 text-slate-500" />
-                    <span className="truncate text-xs font-medium text-slate-700">{subject}</span>
-                    <span className="ml-auto shrink-0 text-[10px] text-slate-400">{count}</span>
+                  <div key={subject} className="flex items-center gap-2 rounded-xl bg-neutral-50 px-3 py-2.5">
+                    <Icon size={14} className="shrink-0 text-neutral-500" />
+                    <span className="truncate text-xs font-medium text-neutral-700">{subject}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-neutral-400">{count}</span>
                   </div>
                 );
               })}
@@ -191,9 +191,9 @@ export function CountryOverviewCards({
                   href={safeHref(link.url)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:border-slate-300"
+                  className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 hover:border-neutral-300"
                 >
-                  {link.label} <ExternalLink size={11} className="text-slate-400" />
+                  {link.label} <ExternalLink size={11} className="text-neutral-400" />
                 </a>
               ))}
             </div>
@@ -209,18 +209,18 @@ export function CountryOverviewCards({
                 <button
                   key={u.id}
                   onClick={() => onOpenUniversity(u.id)}
-                  className="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-slate-50"
+                  className="flex w-full items-center gap-3 rounded-xl py-2 text-left hover:bg-neutral-50"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-500">
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-slate-800">{u.name}</p>
-                    <p className="flex items-center gap-1 text-[11px] text-slate-400">
+                    <p className="truncate text-xs font-semibold text-neutral-800">{u.name}</p>
+                    <p className="flex items-center gap-1 text-[11px] text-neutral-400">
                       <Trophy size={10} /> World Ranking {u.worldRank}
                     </p>
                   </div>
-                  <ChevronRight size={14} className="shrink-0 text-slate-300" />
+                  <ChevronRight size={14} className="shrink-0 text-neutral-300" />
                 </button>
               ))}
             </div>
@@ -233,9 +233,9 @@ export function CountryOverviewCards({
 
 function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
+        <p className="text-sm font-semibold text-neutral-900">{title}</p>
         {action}
       </div>
       {children}

@@ -15,10 +15,10 @@ export default function CampusOptions() {
   if (!university) {
     return (
       <div className="px-5 py-6">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           Back
         </button>
-        <p className="text-xs text-slate-400">University not found.</p>
+        <p className="text-xs text-neutral-400">University not found.</p>
       </div>
     );
   }
@@ -33,14 +33,14 @@ export default function CampusOptions() {
           title="Campus Options"
           onBack={() => navigate(-1)}
           right={
-            <button aria-label="Program details" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]">
+            <button aria-label="Program details" className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm">
               <BookOpen size={16} />
             </button>
           }
         />
 
         <div className="px-5">
-          <p className="text-[13px] leading-relaxed text-slate-500">
+          <p className="text-[13px] leading-relaxed text-neutral-500">
             {course.name} at {university.name} is available at multiple campuses. Choose a campus to see location-specific details.
           </p>
 
@@ -50,7 +50,7 @@ export default function CampusOptions() {
               return (
                 <button
                   key={c.name}
-                  className="w-full overflow-hidden rounded-2xl bg-[var(--sd-card)] text-left shadow-[0_0_10px_rgba(0,0,0,0.11)]"
+                  className="w-full overflow-hidden rounded-2xl bg-[var(--sd-card)] text-left shadow-neu"
                 >
                   <div className="h-36 w-full">
                     <CoverPhoto
@@ -62,21 +62,21 @@ export default function CampusOptions() {
                   </div>
                   <div className="p-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[14.5px] font-semibold text-slate-900">{c.name}</p>
-                      <ChevronRight size={16} className="shrink-0 text-slate-300" />
+                      <p className="text-[14.5px] font-semibold text-neutral-900">{c.name}</p>
+                      <ChevronRight size={16} className="shrink-0 text-neutral-300" />
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-400">{c.city}, {university.country}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                    <p className="mt-0.5 text-xs text-neutral-400">{c.city}, {university.country}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
                       <span className="inline-flex items-center gap-1">
-                        <Wallet size={11} className="text-slate-400" /> {university.currencySymbol}
+                        <Wallet size={11} className="text-neutral-400" /> {university.currencySymbol}
                         {Math.round(c.feeUSD).toLocaleString()}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <CalendarDays size={11} className="text-slate-400" /> {university.openIntake}
+                        <CalendarDays size={11} className="text-neutral-400" /> {university.openIntake}
                       </span>
                       {scholarship && (
                         <span className="inline-flex items-center gap-1">
-                          <GraduationCap size={11} className="text-slate-400" /> {scholarship}
+                          <GraduationCap size={11} className="text-neutral-400" /> {scholarship}
                         </span>
                       )}
                     </div>

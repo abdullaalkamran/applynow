@@ -113,7 +113,7 @@ const HOLDING_STATUSES = new Set(["Maintaining", "Matured", "Ready"]);
 function serializeAccount(a) {
   return {
     id: a.id, studentId: a.studentId, bankName: a.bankName, depositType: a.depositType || undefined,
-    openingDate: toDateString(a.openingDate), amount: a.amount ?? undefined, currency: a.currency || undefined,
+    openingDate: toDateString(a.openingDate), maturityDate: toDateString(a.maturityDate), amount: a.amount ?? undefined, currency: a.currency || undefined,
     accountHolder: a.accountHolder || undefined, accountType: a.accountType || undefined, status: a.status,
   };
 }
@@ -143,6 +143,45 @@ function summarizeAccounts(accounts) {
   };
 }
 
+// A "Maintaining" account whose counsellor-set maturity date has arrived becomes "Matured" on its own.
+// Dates are calendar days (a DATE column, stored as UTC midnight), so "reached" compares today's calendar date — taken in
+// the server's local time — as a UTC-midnight value against it, instead of mixing local and UTC midnights.
+const todayAsDate = () => { const d = new Date(); return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); };
+
+/** Flips this student's due Maintaining accounts to Matured. Returns whether anything changed. */
+async function applyMaturityTo(studentId) {
+  const r = await prisma.studentBankAccount.updateMany({
+    where: { studentId, status: "Maintaining", maturityDate: { not: null, lte: todayAsDate() } },
+    data: { status: "Matured" },
+  });
+  return r.count > 0;
+}
+
+let lastSweep = 0;
+/** Sweeps every student's due accounts to Matured and refreshes each affected student's shared summary (so the record's
+ * status, completion and history stay in step). Cheap and throttled — called whenever accounts/records are read. */
+async function sweepMaturity({ force = false } = {}) {
+  if (!force && Date.now() - lastSweep < 60_000) return;
+  lastSweep = Date.now();
+  const due = await prisma.studentBankAccount.findMany({
+    where: { status: "Maintaining", maturityDate: { not: null, lte: todayAsDate() } },
+    select: { studentId: true },
+  });
+  const students = [...new Set(due.map((d) => d.studentId))];
+  const system = { id: "system", role: "admin", name: "System (maturity date reached)" };
+  for (const studentId of students) {
+    await applyMaturityTo(studentId);
+    const accounts = await prisma.studentBankAccount.findMany({ where: { studentId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    const summary = summarizeAccounts(accounts);
+    const existing = await prisma.studentFinancialReadiness.findUnique({ where: { studentId } });
+    if (summary) {
+      await saveFinancialReadiness(studentId, {
+        evidenceRequired: existing?.evidenceRequired ?? true, holdingPeriodDays: existing?.holdingPeriodDays ?? null, maturityDate: existing?.maturityDate ?? null, ...summary,
+      }, system);
+    }
+  }
+}
+
 async function listBankAccounts(studentId) {
   const rows = await prisma.studentBankAccount.findMany({ where: { studentId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
   return rows.map(serializeAccount);
@@ -156,7 +195,7 @@ async function replaceBankAccounts(studentId, accounts, actor) {
     await tx.studentBankAccount.deleteMany({ where: { studentId, ...(keep.length ? { id: { notIn: keep } } : {}) } });
     for (const a of accounts) {
       const data = {
-        bankName: a.bankName, depositType: a.depositType ?? null, openingDate: a.openingDate ?? null, amount: a.amount ?? null,
+        bankName: a.bankName, depositType: a.depositType ?? null, openingDate: a.openingDate ?? null, maturityDate: a.maturityDate ?? null, amount: a.amount ?? null,
         currency: a.currency ?? null, accountHolder: a.accountHolder ?? null, accountType: a.accountType ?? null, status: a.status,
       };
       if (a.id && (await tx.studentBankAccount.findFirst({ where: { id: a.id, studentId } }))) {
@@ -166,6 +205,7 @@ async function replaceBankAccounts(studentId, accounts, actor) {
       }
     }
   });
+  await applyMaturityTo(studentId);
   const saved = await prisma.studentBankAccount.findMany({ where: { studentId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
   const summary = summarizeAccounts(saved);
   const existing = await prisma.studentFinancialReadiness.findUnique({ where: { studentId } });
@@ -180,4 +220,4 @@ async function replaceBankAccounts(studentId, accounts, actor) {
   return { accounts: saved.map(serializeAccount), record };
 }
 
-module.exports = { serialize, serializeAccount, listBankAccounts, replaceBankAccounts, summarizeAccounts, ACCOUNT_STATUSES, saveFinancialReadiness, listFinancialReadinessHistory, TERMINAL_STATUSES };
+module.exports = { serialize, serializeAccount, listBankAccounts, replaceBankAccounts, summarizeAccounts, sweepMaturity, ACCOUNT_STATUSES, saveFinancialReadiness, listFinancialReadinessHistory, TERMINAL_STATUSES };

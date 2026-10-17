@@ -6,6 +6,7 @@ import RealGlobe from "./RealGlobe";
 import "./LandingPage.css";
 
 type Destination = { id: string; name: string; universityCount?: number; photoUrl?: string };
+type PartnerLogo = { id: string; name: string; logoUrl: string };
 
 // Shown only if the server can't deliver the real list (offline / empty) — never while it's still loading, since
 // that flashed four fake country cards before the real ones replaced them.
@@ -16,15 +17,18 @@ const PLACEHOLDER_DESTINATIONS: Destination[] = [
   { id: "usa", name: "USA" },
 ];
 
-/** Study destinations from the server's public landing endpoint (no login needed). `null` = still loading. */
-function useDestinations() {
+/** Study destinations (and partner-university logos) from the server's public landing endpoint (no login needed).
+ * `destinations` is `null` while still loading. */
+function useLanding() {
   const [destinations, setDestinations] = useState<Destination[] | null>(null);
+  const [logos, setLogos] = useState<PartnerLogo[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
     fetch(`${BACKEND_BASE}/api/public/landing`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
-      .then((data: { countries?: Destination[] }) => {
+      .then((data: { countries?: Destination[]; universities?: PartnerLogo[] }) => {
+        setLogos(Array.isArray(data.universities) ? data.universities.filter((u) => u.logoUrl) : []);
         setDestinations(Array.isArray(data.countries) && data.countries.length > 0 ? data.countries.slice(0, 4) : PLACEHOLDER_DESTINATIONS);
       })
       .catch((err) => {
@@ -34,7 +38,7 @@ function useDestinations() {
     return () => controller.abort();
   }, []);
 
-  return destinations;
+  return { destinations, logos };
 }
 
 /** Photo URLs from the server are root-relative (/uploads/…, /api/public/photo/…); prefix the API host when it differs. */
@@ -70,13 +74,38 @@ function Header() {
   );
 }
 
+/** Partner universities' logos drifting sideways in an endless loop. The row is rendered twice and slid by exactly
+ * half its width, so the loop has no visible jump; it pauses on hover and stays still for reduced-motion users. */
+function LogoMarquee({ logos }: { logos: PartnerLogo[] }) {
+  // Too few logos would leave gaps in the loop — repeat the set until a half is comfortably wider than a screen.
+  const repeats = Math.max(1, Math.ceil(14 / logos.length));
+  const half = Array.from({ length: repeats }, () => logos).flat();
+  const seconds = Math.max(24, half.length * 3.2);
+  return (
+    <section className="logo-marquee" aria-label="Partner universities">
+      <p className="logo-marquee-title">Trusted by leading universities</p>
+      <div className="logo-marquee-viewport">
+        <ul className="logo-marquee-track" style={{ animationDuration: `${seconds}s` }}>
+          {[0, 1].flatMap((copy) =>
+            half.map((u, i) => (
+              <li key={`${copy}-${i}`} aria-hidden={copy === 1 || undefined}>
+                <img src={photoSrc(u.logoUrl)} alt={copy === 0 ? u.name : ""} title={u.name} loading="lazy" draggable={false} />
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const goToLogin = (event: FormEvent) => {
     event.preventDefault();
     navigate("/login");
   };
-  const destinations = useDestinations();
+  const { destinations, logos } = useLanding();
 
   return (
     <main className="ai-landing" aria-label="UnifinderAi landing page">
@@ -136,6 +165,8 @@ export default function LandingPage() {
           );
         })}
       </section>
+
+      {logos.length > 0 && <LogoMarquee logos={logos} />}
 
       <section className="guidance-section" aria-label="AI guidance">
         <div className="guidance-copy">

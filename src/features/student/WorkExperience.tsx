@@ -185,8 +185,8 @@ export default function WorkExperience() {
       <MobileHeader title="Work Experience" />
 
       <div className="px-5">
-        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-          <p className="mb-2 text-[13px] font-medium text-slate-700">Do you have any work experience?</p>
+        <div className="mb-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
+          <p className="mb-2 text-[13px] font-medium text-neutral-700">Do you have any work experience?</p>
           <div className="flex flex-wrap gap-2">
             {[{ value: true, label: "Yes" }, { value: false, label: "No" }].map((o) => (
               <button
@@ -195,7 +195,7 @@ export default function WorkExperience() {
                 className={`rounded-full border px-3.5 py-1.5 text-[12px] font-medium ${
                   hasExperience === o.value
                     ? "border-transparent bg-[image:var(--sd-gradient)] text-white"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
                 }`}
               >
                 {o.label}
@@ -205,7 +205,7 @@ export default function WorkExperience() {
         </div>
 
         {hasExperience === true && (
-        <p className="mb-4 text-[13px] text-slate-500">
+        <p className="mb-4 text-[13px] text-neutral-500">
           Add your work history. Upload an offer or experience letter and we'll fill in the rest.
         </p>
         )}
@@ -236,27 +236,27 @@ export default function WorkExperience() {
           ))}
 
           {addMenuOpen ? (
-            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
-              <p className="mb-2 text-[12px] font-medium text-slate-500">Choose an employment type</p>
+            <div className="rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
+              <p className="mb-2 text-[12px] font-medium text-neutral-500">Choose an employment type</p>
               <div className="flex flex-wrap gap-2">
                 {EMPLOYMENT_TYPES.map((t) => (
                   <button
                     key={t}
                     onClick={() => addEntry(t)}
-                    className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-full border border-neutral-200 px-3 py-1.5 text-[12px] font-medium text-neutral-600 hover:bg-neutral-50"
                   >
                     {t}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-slate-400">
+              <button onClick={() => setAddMenuOpen(false)} className="mt-2.5 text-[12px] text-neutral-400">
                 Cancel
               </button>
             </div>
           ) : (
             <button
               onClick={() => setAddMenuOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 py-3.5 text-[13px] font-medium text-[var(--sd-ink)]"
             >
               <Plus size={16} /> Add Work Experience
             </button>
@@ -267,9 +267,9 @@ export default function WorkExperience() {
 
       <div className="sticky bottom-0 mt-auto bg-[var(--sd-bg)] px-5 pb-2 pt-4">
         {errors.length > 0 && (
-          <div className="mb-2 rounded-xl bg-[#FCEAE8] p-3">
+          <div className="mb-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
             {errors.map((e) => (
-              <p key={e} className="text-[12px] font-medium text-[#B8382C]">{e}</p>
+              <p key={e} className="text-[12px] font-medium text-neutral-800">{e}</p>
             ))}
           </div>
         )}
@@ -300,10 +300,10 @@ function WorkCard({
   onRemoveFile: () => void;
 }) {
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
       <div className="flex items-center justify-between">
         <Pill tone="navy">{entry.type}</Pill>
-        <button onClick={onRemove} aria-label="Remove experience" className="text-slate-300 hover:text-slate-500">
+        <button onClick={onRemove} aria-label="Remove experience" className="text-neutral-300 hover:text-neutral-500">
           <X size={16} />
         </button>
       </div>
@@ -342,7 +342,7 @@ function WorkCard({
           <input type="date" value={entry.startDate} onChange={(e) => onUpdate("startDate", e.target.value)} className={inputClass} />
         </FieldShell>
 
-        <label className="flex items-center gap-2 text-[12px] text-slate-600">
+        <label className="flex items-center gap-2 text-[12px] text-neutral-600">
           <input
             type="checkbox"
             checked={entry.currentlyWorking}

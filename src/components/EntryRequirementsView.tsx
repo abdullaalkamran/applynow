@@ -38,13 +38,13 @@ export function EntryRequirementsView({
 
   return (
     <div>
-      <div className="mb-3 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+      <div className="mb-3 inline-flex rounded-lg border border-neutral-200 bg-neutral-50 p-1">
         {LEVELS.map((l) => (
           <button
             key={l}
             onClick={() => setLevel(l)}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-              level === l ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+              level === l ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
             }`}
           >
             {l}
@@ -54,42 +54,42 @@ export function EntryRequirementsView({
 
       <div className="space-y-4">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Academic Requirements</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">Academic Requirements</p>
           <div className="space-y-2">
             {!!minGPA && (
-              <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                <span className="text-slate-600">Minimum GPA</span>
-                <span className="font-semibold text-slate-800">{minGPA.toFixed(1)} / 4.0</span>
+              <div className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 text-xs">
+                <span className="text-neutral-600">Minimum GPA</span>
+                <span className="font-semibold text-neutral-800">{minGPA.toFixed(1)} / 4.0</span>
               </div>
             )}
             {academic.map((r) => (
-              <div key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                <CheckCircle2 size={14} className="shrink-0 text-emerald-500" /> {r}
+              <div key={r} className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
+                <CheckCircle2 size={14} className="shrink-0 text-neutral-700" /> {r}
               </div>
             ))}
-            {academic.length === 0 && <p className="text-xs text-slate-400">No {level.toLowerCase()} academic requirements added yet.</p>}
+            {academic.length === 0 && <p className="text-xs text-neutral-400">No {level.toLowerCase()} academic requirements added yet.</p>}
           </div>
         </div>
 
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">English Requirements</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">English Requirements</p>
           {english.length === 0 ? (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-neutral-400">
               {minIELTS ? `Minimum IELTS ${minIELTS} overall — no other tests listed.` : `No ${level.toLowerCase()} English requirements added yet.`}
             </p>
           ) : (
             <div className="space-y-1.5">
               {english.map((e, i) => (
-                <div key={i} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                <div key={i} className="rounded-lg bg-neutral-50 px-3 py-2 text-xs">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-slate-700">{e.testName}</p>
-                    {e.minScore && <span className="font-semibold text-slate-800">{e.minScore}</span>}
+                    <p className="font-medium text-neutral-700">{e.testName}</p>
+                    {e.minScore && <span className="font-semibold text-neutral-800">{e.minScore}</span>}
                   </div>
                   {(e.skillScores ?? []).length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {e.skillScores!.map((s, si) => (
-                        <span key={si} className="rounded-md bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">
-                          {s.skill} <span className="font-semibold text-slate-700">{s.score}</span>
+                        <span key={si} className="rounded-md bg-white px-2 py-0.5 text-xs text-neutral-500 ring-1 ring-neutral-200">
+                          {s.skill} <span className="font-semibold text-neutral-700">{s.score}</span>
                         </span>
                       ))}
                     </div>
@@ -99,7 +99,7 @@ export function EntryRequirementsView({
             </div>
           )}
           {internalEnglishTestOffered && (
-            <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            <div className="mt-2 flex items-center gap-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-xs text-neutral-800">
               <GraduationCap size={14} className="shrink-0" />
               This university offers its own English test —{" "}
               <span className="font-semibold">
@@ -108,10 +108,10 @@ export function EntryRequirementsView({
             </div>
           )}
           {level === "Postgraduate" && moiAccepted && (
-            <div className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            <div className="mt-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-xs text-neutral-800">
               <p className="flex items-center gap-2 font-semibold"><GraduationCap size={14} className="shrink-0" /> Accepts MOI (Medium of Instruction)</p>
               {(moiAcceptedUniversities ?? []).length > 0 && (
-                <p className="mt-1 text-emerald-700">From: {moiAcceptedUniversities!.join(", ")}</p>
+                <p className="mt-1 text-neutral-700">From: {moiAcceptedUniversities!.join(", ")}</p>
               )}
             </div>
           )}

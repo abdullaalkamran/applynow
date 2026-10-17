@@ -14,10 +14,10 @@ const ICON_BY_TYPE: Record<NotificationItem["type"], typeof Bell> = {
 };
 
 const TONE_BY_TYPE: Record<NotificationItem["type"], string> = {
-  message: "bg-[#F1EAFB] text-[#6D3FBF]",
-  document: "bg-[#FDF0DC] text-[#B8791C]",
-  application: "bg-[#E7EEFC] text-[#2955C4]",
-  comment: "bg-[#E7EEFC] text-[#2955C4]",
+  message: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  document: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-800",
+  application: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900",
+  comment: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900",
 };
 
 export default function Notifications() {
@@ -48,7 +48,7 @@ export default function Notifications() {
           title="Notifications"
           right={
             unreadCount > 0 ? (
-              <button onClick={markAllRead} className="whitespace-nowrap text-[12px] font-medium text-[#2955C4]">
+              <button onClick={markAllRead} className="whitespace-nowrap text-[12px] font-medium text-neutral-900">
                 Mark all read
               </button>
             ) : undefined
@@ -59,11 +59,11 @@ export default function Notifications() {
       <div className="px-5 lg:mx-auto lg:w-full lg:max-w-2xl lg:px-10">
         {items.length === 0 && (
           <div className="mt-10 flex flex-col items-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-300 shadow-[0_0_10px_rgba(0,0,0,0.11)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-300 shadow-neu">
               <Bell size={22} />
             </div>
-            <p className="mt-3 text-sm font-medium text-slate-700">You're all caught up</p>
-            <p className="mt-1 text-xs text-slate-400">No notifications right now.</p>
+            <p className="mt-3 text-sm font-medium text-neutral-700">You're all caught up</p>
+            <p className="mt-1 text-xs text-neutral-400">No notifications right now.</p>
           </div>
         )}
 
@@ -74,8 +74,8 @@ export default function Notifications() {
               <button
                 key={n.id}
                 onClick={() => open(n)}
-                className={`flex w-full items-start gap-3 rounded-2xl p-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.11)] ${
-                  n.read ? "bg-[var(--sd-card)]" : "bg-[var(--sd-card)] ring-1 ring-[#2955C4]/20"
+                className={`flex w-full items-start gap-3 rounded-2xl p-3.5 text-left shadow-neu ${
+                  n.read ? "bg-[var(--sd-card)]" : "bg-[var(--sd-card)] ring-1 ring-neutral-900"
                 }`}
               >
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONE_BY_TYPE[n.type]}`}>
@@ -83,12 +83,12 @@ export default function Notifications() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`truncate text-[13px] ${n.read ? "font-medium text-slate-700" : "font-semibold text-slate-900"}`}>{n.title}</p>
-                    {n.time && <span className="shrink-0 text-[11px] text-slate-400">{n.time}</span>}
+                    <p className={`truncate text-[13px] ${n.read ? "font-medium text-neutral-700" : "font-semibold text-neutral-900"}`}>{n.title}</p>
+                    {n.time && <span className="shrink-0 text-[11px] text-neutral-400">{n.time}</span>}
                   </div>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{n.detail}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{n.detail}</p>
                 </div>
-                {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#2955C4]" />}
+                {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-neutral-900" />}
               </button>
             );
           })}

@@ -1,3 +1,4 @@
+import { loadBankAccounts, HOLDING_ACCOUNT_STATUSES } from "../data/bankAccountsCache";
 import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs, loadCustomDocRequests } from "../data/applicationDocsStore";
@@ -43,11 +44,21 @@ export function academicDocTypesFor(studentId: string = CURRENT_STUDENT_ID): str
   return Array.from(new Set(levels.map((l) => l.level))).flatMap((level) => [`${level} — Transcript`, `${level} — Certificate`]);
 }
 
+/** Two proof documents per bank the student holds funds in: as soon as an account is set to Maintaining (by the student or
+ * the counsellor) its Bank Statement and Solvency Certificate become required — they show on the Documents page's Required
+ * list and as Next Steps, like every other required document. Set back to Preparing/Not Opened and they go away. */
+export function bankDocTypesFor(studentId: string = CURRENT_STUDENT_ID): string[] {
+  const banks = Array.from(new Set(
+    loadBankAccounts(studentId).filter((a) => HOLDING_ACCOUNT_STATUSES.has(a.status)).map((a) => a.bankName.trim()).filter(Boolean)
+  ));
+  return banks.flatMap((bank) => [`Bank Statement — ${bank}`, `Solvency Certificate — ${bank}`]);
+}
+
 // The mandatory "upload once" set every application needs, independent of country or university —
 // kept entirely separate from the per-application checklist below so the student is never asked to
 // re-upload the same passport or transcript for every school they apply to.
 export function coreDocTypes(studentId: string = CURRENT_STUDENT_ID): string[] {
-  const types = ["Passport", ...academicDocTypesFor(studentId), "English Proficiency", "CV / Resume"];
+  const types = ["Passport", ...academicDocTypesFor(studentId), "English Proficiency", "CV / Resume", ...bankDocTypesFor(studentId)];
   // An employment reference is only relevant if the student's profile actually shows work
   // experience — no point asking every applicant, including recent graduates, for one.
   if (isStepComplete("work-experience", studentId)) types.push("Employment Reference Letter");
@@ -88,6 +99,15 @@ export function universityDocTypesFor(university: University, studentId: string 
 export function docMatchesType(docName: string, docType: string): boolean {
   const pattern = DOC_TYPE_PATTERNS.find((rule) => rule.docType === docType)?.match;
   if (pattern) return pattern.test(docName);
+
+  // Per-bank proof documents: "Bank Statement — <bank>" / "Solvency Certificate — <bank>" — a file counts when its name says
+  // which document it is and names the bank (uploads from the checklist are named exactly after the row's type).
+  const bankMatch = /^(Bank Statement|Solvency Certificate) — (.+)$/.exec(docType);
+  if (bankMatch) {
+    const [, kind, bank] = bankMatch;
+    const lower = docName.toLowerCase();
+    return lower.includes(kind.toLowerCase().split(" ")[kind.startsWith("Bank") ? 1 : 0]) && lower.includes(bank.toLowerCase());
+  }
 
   // Dynamic per-level academic types, e.g. "Bachelor's — Transcript": match on the document kind
   // (certificate/transcript) plus a keyword for that specific education level, since a filename
