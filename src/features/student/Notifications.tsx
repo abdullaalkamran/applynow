@@ -22,20 +22,23 @@ const TONE_BY_TYPE: Record<NotificationItem["type"], string> = {
 
 export default function Notifications() {
   const navigate = useNavigate();
-  const [items, setItems] = useState<NotificationItem[]>(() => getNotifications());
+  // Built from live data on every render (messages and comments arrive from the server after the page opens), with a
+  // local overlay for items opened/cleared during this visit.
+  const [readNow, setReadNow] = useState<Set<string>>(() => new Set());
+  const items = getNotifications().map((n) => (readNow.has(n.id) ? { ...n, read: true } : n));
   const unreadCount = items.filter((n) => !n.read).length;
 
   function open(item: NotificationItem) {
     if (item.type === "comment") markInboxItemRead(item.id);
     else markNotificationRead(item.id);
-    setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
+    setReadNow((prev) => new Set(prev).add(item.id));
     navigate(item.path, item.state ? { state: item.state } : undefined);
   }
 
   function markAllRead() {
     markAllNotificationsRead(items.filter((n) => n.type !== "comment").map((n) => n.id));
     markAllInboxRead();
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    setReadNow(new Set(items.map((n) => n.id)));
   }
 
   return (

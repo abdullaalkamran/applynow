@@ -3,7 +3,7 @@ import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
-import { MESSAGE_THREADS } from "../data/messageThreads";
+import { getThreadsList } from "../data/messagesStore";
 import { loadReadIds } from "../data/notificationsStore";
 import { getInboxItems } from "../data/inboxStore";
 
@@ -53,17 +53,21 @@ export function getNotifications(): NotificationItem[] {
       });
     });
 
-  MESSAGE_THREADS.forEach((t) => {
-    items.push({
-      id: `msg-${t.id}`,
-      type: "message",
-      title: t.name,
-      detail: t.last,
-      time: t.time,
-      read: !t.unread || readIds.has(`msg-${t.id}`),
-      path: t.ai ? "/student/counsellor" : "/student/messages",
+  // The student's own conversations, from the server — one item per thread with something unread. (This used to
+  // read a fixed list of demo threads, so every student's bell showed the same fake unread messages.)
+  getThreadsList()
+    .filter((t) => t.unread > 0)
+    .forEach((t) => {
+      items.push({
+        id: `msg-${t.threadId}`,
+        type: "message",
+        title: t.counterpart.name,
+        detail: t.lastMessage.text,
+        time: relativeTime(t.lastMessage.createdAt),
+        read: false,
+        path: "/student/messages",
+      });
     });
-  });
 
   const applications = getAllApplications().filter(
     (a) => a.studentId === CURRENT_STUDENT_ID && !["Withdrawn", "Rejected", "Deferred"].includes(a.status)
