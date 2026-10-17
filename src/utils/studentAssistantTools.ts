@@ -327,8 +327,9 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
           : base;
       },
     },
-    // Same catalog tools every role gets (shared file), kept behind the student's own profile-complete gate.
-    ...catalogTools(() => requireCompleteProfile(studentId)),
+    // Same catalog tools every role gets (shared file). Information is open to every student at any time — only
+    // create_application (below) needs a complete profile.
+    ...catalogTools(),
     {
       spec: {
         name: "list_my_applications",

@@ -2,6 +2,7 @@ const express = require("express");
 const { getConfig } = require("../config");
 const { getProvider } = require("../providers");
 const requireAuth = require("../middleware/requireAuth");
+const { withIdentity } = require("../assistantIdentity");
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (totalChars > MAX_TOTAL_CHARS) return res.status(400).json({ error: "Conversation is too long — start a new chat." });
 
     const provider = getProvider(getConfig().provider);
-    const reply = await provider.send({ systemPrompt, messages, tools: tools || [] });
+    const reply = await provider.send({ systemPrompt: withIdentity(systemPrompt), messages, tools: tools || [] });
     res.json(reply);
   } catch (err) {
     next(err);

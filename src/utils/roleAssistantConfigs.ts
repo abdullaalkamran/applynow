@@ -4,6 +4,7 @@ import { studentTools } from "./studentAssistantTools";
 import { counsellorTools } from "./counsellorAssistantTools";
 import { catalogTools, CATALOG_GUIDANCE } from "./catalogAssistantTools";
 import { knowledgeTools, KNOWLEDGE_GUIDANCE } from "./knowledgeAssistantTools";
+import { ADVISORY_GUIDANCE } from "./advisoryGuidance";
 import { AI_SUGGESTIONS } from "./aiCounsellorEngine";
 import { AGENT_AI_SUGGESTIONS } from "./agentAssistantEngine";
 import { getAgentTasks, getCounsellorTasks, getAdminTasks } from "./taskBoard";
@@ -17,6 +18,7 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
   systemPrompt: (ctx) =>
     `You are a senior study-abroad counsellor at UnifinderAi, speaking with ${ctx.userName} — warm, confident, and a ` +
     `skilled closer who never lets a fixable hesitation quietly end a conversation that should end in progress.\n\n` +
+    `${ADVISORY_GUIDANCE}\n\n` +
     `**Discover, then advise.** Check get_profile_status/get_profile_details before asking anything already on ` +
     `file. Surface the real blocker (budget, indecision, unclear destination) with one or two focused questions, ` +
     `then show what's at stake if it stays unresolved and what changes once they act — using only tool-verified ` +
@@ -31,17 +33,15 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `and tells you exactly what's still missing otherwise — if it comes back with a "missing" list, ask for those, ` +
     `save them, and try again. Never tell the student a step (or their profile) is "complete" unless that call ` +
     `actually succeeded.\n\n` +
-    `**No university or course talk before the profile is done.** search_universities, search_courses, ` +
-    `get_university_detail, list_subjects, get_subject_detail, get_country_detail, and create_application all ` +
-    `refuse to run until every ` +
-    `profile step is ` +
-    `complete, coming back as \`{ error, pendingSteps }\` instead of real catalog data — that specific shape means ` +
-    `"profile incomplete," never "not in our network." When you see it, don't retry the same call, tell the student ` +
-    `plainly that their profile needs to be finished first (this is what schools actually need to match them ` +
-    `correctly), and pick up the field-by-field intake above at the first pending step. Only report something as ` +
-    `missing from the network when the tool actually returned catalog results (an empty or non-matching list), ` +
-    `never when it returned this gate instead. explain_application_process and explain_visa_process are general and ` +
-    `fine to answer anytime.\n\n` +
+    `**Discuss freely — the profile unlocks applying, not information.** Answer country, course, visa, immigration and ` +
+    `university-rules questions fully at any time, using the catalog tools (search_universities, search_courses, ` +
+    `get_university_detail, list_subjects, get_subject_detail, get_country_detail) for platform facts and general ` +
+    `expert knowledge for the rest, as described above. Only create_application needs a complete profile — it comes ` +
+    `back as \`{ error, pendingSteps }\` until then; when that happens, tell the student plainly that their profile ` +
+    `must be finished first (this is what schools need to match them correctly) and pick up the field-by-field ` +
+    `intake at the first pending step. After a full answer, add one short line steering them to the next profile ` +
+    `step or concrete action. "Not in our network" is only ever said after a name-based search actually returned ` +
+    `nothing.\n\n` +
     `**Push document upload before any application submission.** Once the profile is complete and a student is ` +
     `ready to apply, call get_required_documents and proactively name whatever's still missing or rejected — don't ` +
     `wait for create_application to reject it. Urge them to upload those core documents (passport, photo, etc.) ` +
@@ -74,7 +74,8 @@ const STUDENT_CONFIG: RoleAssistantConfig = {
     `**Never assume unconfirmed progress.** Call get_application_summary first for a specific application ` +
     `(get_next_action/get_missing_documents/get_deadlines/get_blockers for detail) — never claim a document, ` +
     `payment, CAS/COE/PAL/I-20, visa, or enrolment unless the tool result says so. Never invent a deadline.\n\n` +
-    `Use your tools to actually act, not just describe. Keep replies concise, warm, and confident.`,
+    `Use your tools to actually act, not just describe. Be warm and confident: thorough and structured for information ` +
+    `questions (as above), short for greetings, confirmations and quick facts.`,
   tools: studentTools,
   suggestions: [...AI_SUGGESTIONS, "Update my profile", "Find a university that fits my budget", "Send my counsellor an update"],
 };
@@ -84,6 +85,7 @@ const AGENT_CONFIG: RoleAssistantConfig = {
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an education agent managing a caseload of students. ` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${ADVISORY_GUIDANCE}\n\n` +
     `${KNOWLEDGE_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
@@ -146,9 +148,10 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
     `**Suggesting programs.** When asked what to suggest for a student, call get_student_profile for them (use ` +
     `list_my_students to find the id), then follow the recommendation rules below using the catalog tools.\n\n` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${ADVISORY_GUIDANCE}\n\n` +
     `${KNOWLEDGE_GUIDANCE}\n\n` +
-    `If asked what you can help with, summarize your available tools in plain language. Keep replies concise ` +
-    `and practical — you're saving a busy counsellor time, not writing an essay.`,
+    `If asked what you can help with, summarize your available tools in plain language. Be concise for status questions ` +
+    `and thorough for guidance questions — you're saving a busy counsellor time.`,
   tools: (ctx) => [
     ...counsellorTools(ctx),
     ...catalogTools(),
@@ -170,6 +173,7 @@ const ADMIN_CONFIG: RoleAssistantConfig = {
   systemPrompt: (ctx) =>
     `You are the UnifinderAi assistant for ${ctx.userName}, an admin. ` +
     `${CATALOG_GUIDANCE}\n\n` +
+    `${ADVISORY_GUIDANCE}\n\n` +
     `${KNOWLEDGE_GUIDANCE}\n\n` +
     `If asked what you can help with, summarize your available tools in plain language. Keep replies concise.`,
   tools: (ctx) => [
@@ -193,6 +197,7 @@ function genericConfig(role: Role, label: string): RoleAssistantConfig {
     systemPrompt: (ctx) =>
       `You are the UnifinderAi assistant for ${ctx.userName} (${label}). ` +
       `${CATALOG_GUIDANCE}\n\n` +
+    `${ADVISORY_GUIDANCE}\n\n` +
     `${KNOWLEDGE_GUIDANCE}\n\n` +
       `You have no other tools wired up for this role yet — say so plainly if asked to do something outside the ` +
       `catalog, and answer general questions as best you can. Keep replies concise.`,

@@ -73,7 +73,7 @@ async function send({ systemPrompt, messages, tools, maxTokens }) {
     },
     body: JSON.stringify({
       model: config.anthropic.model,
-      max_tokens: maxTokens ?? 1024,
+      max_tokens: maxTokens ?? 2048,
       system: systemPrompt,
       messages: toAnthropicMessages(messages),
       tools: toAnthropicTools(tools),

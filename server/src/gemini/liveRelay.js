@@ -1,4 +1,5 @@
 const WebSocket = require("ws");
+const { withIdentity } = require("../assistantIdentity");
 const { getConfig } = require("../config");
 const { resolveAuthUser } = require("../middleware/resolveAuthUser");
 const { toGeminiTools, toGeminiFunctionResponse } = require("../providers/geminiProvider");
@@ -108,7 +109,7 @@ function attachGeminiLiveRelay(wss) {
               // response latency in a live voice conversation — thinkingBudget: 0 disables that
               // for the fastest turnaround (see thinkingConfig docs for gemini-2.5-* models).
               generationConfig: { responseModalities: ["AUDIO"], thinkingConfig: { thinkingBudget: 0 } },
-              systemInstruction: { parts: [{ text: init.systemPrompt || "" }] },
+              systemInstruction: { parts: [{ text: withIdentity(init.systemPrompt) }] },
               tools: toGeminiTools(init.tools || []),
               outputAudioTranscription: {},
               // Lets us see exactly what Gemini heard the user say — essential for telling apart

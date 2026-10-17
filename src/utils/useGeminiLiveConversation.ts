@@ -4,6 +4,7 @@ import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_ASSISTANT_CONFIGS } from "./roleAssistantConfigs";
 import type { VoiceConversationState } from "./useVoiceConversation";
+import { VOICE_STYLE_GUIDANCE } from "./advisoryGuidance";
 
 // Sent as a synthetic user turn the moment the session is ready, so Gemini opens with a spoken
 // greeting instead of silently waiting for the caller to speak first.
@@ -183,7 +184,7 @@ export function useGeminiLiveConversation(onExchange?: (userText: string, aiText
     socketRef.current = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: "init", token, systemPrompt: config.systemPrompt(ctx), tools: tools.map((t) => t.spec) }));
+      socket.send(JSON.stringify({ type: "init", token, systemPrompt: `${config.systemPrompt(ctx)}\n\n${VOICE_STYLE_GUIDANCE}`, tools: tools.map((t) => t.spec) }));
     };
 
     socket.onmessage = async (event) => {
