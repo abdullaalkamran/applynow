@@ -160,12 +160,12 @@ export function ApplyModal({
                 </div>
 
                 {missingCoreDocs.length > 0 && (
-                  <div className="mt-4 rounded-xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
+                  <div className="mt-4 rounded-xl border border-red-200/70 bg-red-50/70 shadow-neu-inset-sm p-3">
                     <div className="flex items-start gap-2">
-                      <AlertCircle size={15} className="mt-0.5 shrink-0 text-neutral-700" />
+                      <AlertCircle size={15} className="mt-0.5 shrink-0 text-red-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[12.5px] font-semibold text-neutral-800">Core documents required before submitting</p>
-                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-neutral-800">
+                        <p className="text-[12.5px] font-semibold text-red-400">Core documents required before submitting</p>
+                        <p className="mt-0.5 text-[11.5px] leading-relaxed text-red-400">
                           Upload {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
                           {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}.
                         </p>
@@ -173,7 +173,7 @@ export function ApplyModal({
                     </div>
                     <button
                       onClick={() => navigate("/student/documents")}
-                      className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-neutral-800"
+                      className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-red-400"
                     >
                       Go to Documents <ChevronRight size={13} />
                     </button>

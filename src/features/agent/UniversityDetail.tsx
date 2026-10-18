@@ -15,6 +15,7 @@ import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
+import { CourseEntryCards } from "../../components/CourseEntryCards";
 import { EntryRequirementsView } from "../../components/EntryRequirementsView";
 import { PaymentRequirementsBlock } from "../../components/PaymentRequirementsBlock";
 import { AdmissionProcedureBlock } from "../../components/AdmissionProcedureBlock";
@@ -159,18 +160,7 @@ export default function AgentUniversityDetail() {
                   ))}
                 </ul>
               )}
-              {courseTab === "Entry Requirements" && (
-                <>
-                  <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
-                  <ul className="space-y-2">
-                    {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-                      <li key={r} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                        <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> {r}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+              {courseTab === "Entry Requirements" && <CourseEntryCards university={university} course={course} variant="plain" />}
               {courseTab === "Careers" && (
                 <ul className="space-y-2">
                   {curriculumForCourse(course).careers.map((c) => (

@@ -14,6 +14,7 @@ import { getCountryByName } from "../../data/countryRegistry";
 import { CostCalculator } from "../../components/CostCalculator";
 import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
+import { CourseEntryCards } from "../../components/CourseEntryCards";
 import { EntryRequirementsView } from "../../components/EntryRequirementsView";
 import { PaymentRequirementsBlock } from "../../components/PaymentRequirementsBlock";
 import { AdmissionProcedureBlock } from "../../components/AdmissionProcedureBlock";
@@ -249,17 +250,7 @@ function CourseView({
           <RestrictedRegionsNotice university={university} className="mt-4" />
         </div>
 
-        <CourseSectionCard icon={<ListChecks size={15} />} title="Entry Requirements">
-          <EnglishTestNotices university={university} showMoi={course.level !== "Undergraduate"} className="mb-3" />
-          <ul className="space-y-2">
-            {(course.level === "Undergraduate" ? university.requirements.undergraduate : university.requirements.postgraduate).map((r) => (
-              <li key={r} className="flex items-start gap-2 text-[13px] text-neutral-600">
-                <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[var(--sd-teal)]" />
-                {r}
-              </li>
-            ))}
-          </ul>
-        </CourseSectionCard>
+        <CourseEntryCards university={university} course={course} />
 
         <CourseSectionCard icon={<Landmark size={15} />} title="Deposit & Payment">
           <PaymentRequirementsBlock university={university} />

@@ -20,7 +20,7 @@ export function EnglishTestNotices({
   return (
     <div className={`space-y-2 ${className}`}>
       {hasInternalTest && (
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2.5 text-xs text-neutral-800">
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50/70 text-emerald-800 px-3 py-2.5 text-xs">
           <GraduationCap size={14} className="shrink-0" />
           Offers its own English test (Undergraduate & Postgraduate) —{" "}
           <span className="font-semibold">
@@ -31,12 +31,12 @@ export function EnglishTestNotices({
         </div>
       )}
       {hasMoi && (
-        <div className="rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2.5 text-xs text-neutral-800">
+        <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/70 text-emerald-800 px-3 py-2.5 text-xs">
           <p className="flex items-center gap-2 font-semibold">
             <GraduationCap size={14} className="shrink-0" /> Accepts MOI (Medium of Instruction) — Postgraduate only
           </p>
           {(university.moiAcceptedUniversities ?? []).length > 0 && (
-            <p className="mt-1 text-neutral-700">From: {university.moiAcceptedUniversities!.join(", ")}</p>
+            <p className="mt-1 text-emerald-700">From: {university.moiAcceptedUniversities!.join(", ")}</p>
           )}
         </div>
       )}

@@ -99,7 +99,7 @@ export function EntryRequirementsView({
             </div>
           )}
           {internalEnglishTestOffered && (
-            <div className="mt-2 flex items-center gap-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-xs text-neutral-800">
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/70 bg-emerald-50/70 text-emerald-800 px-3 py-2 text-xs">
               <GraduationCap size={14} className="shrink-0" />
               This university offers its own English test —{" "}
               <span className="font-semibold">
@@ -108,10 +108,10 @@ export function EntryRequirementsView({
             </div>
           )}
           {level === "Postgraduate" && moiAccepted && (
-            <div className="mt-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-xs text-neutral-800">
+            <div className="mt-2 rounded-lg border border-emerald-200/70 bg-emerald-50/70 text-emerald-800 px-3 py-2 text-xs">
               <p className="flex items-center gap-2 font-semibold"><GraduationCap size={14} className="shrink-0" /> Accepts MOI (Medium of Instruction)</p>
               {(moiAcceptedUniversities ?? []).length > 0 && (
-                <p className="mt-1 text-neutral-700">From: {moiAcceptedUniversities!.join(", ")}</p>
+                <p className="mt-1 text-emerald-700">From: {moiAcceptedUniversities!.join(", ")}</p>
               )}
             </div>
           )}
