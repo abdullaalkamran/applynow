@@ -94,21 +94,20 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-6 py-10">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
-            <GraduationCap size={18} />
+    // Same soft black-and-white language as the student app: one raised card on the grey page, recessed fields, a solid
+    // black button. `neu-theme` brings the student app's field styling with it.
+    <div className="neu-theme flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-5 py-10">
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--sd-card)] p-6 shadow-neu-lg sm:p-8">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
+            <GraduationCap size={26} />
           </div>
-          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
+          <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">UnifinderAi</h1>
         </div>
 
-        <h1 className="mt-8 text-2xl font-bold text-slate-900">Welcome back</h1>
-        <p className="mt-1 text-sm text-slate-500">Sign in to continue to your dashboard.</p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
+        <form onSubmit={handleSubmit} className="mt-7 space-y-3.5">
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Email</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Email</label>
             <input
               type="email"
               required
@@ -116,58 +115,58 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+              className="w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Password</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Password</label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+              className="w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none"
             />
           </div>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</p>}
+          {error && <p className="rounded-xl bg-[#f4e4e4] px-3 py-2 text-[12.5px] font-medium text-red-700">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-neutral-900 py-3 text-[13px] font-semibold text-white shadow-neu-dark transition active:scale-[0.99] disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
         <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-100" />
-          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">or</span>
-          <div className="h-px flex-1 bg-slate-100" />
+          <div className="h-px flex-1 bg-neutral-300/70" />
+          <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">or</span>
+          <div className="h-px flex-1 bg-neutral-300/70" />
         </div>
 
         <GoogleSignInButton onCredential={handleGoogle} onError={() => setError("Google sign-in failed.")} />
 
         <button
           onClick={() => navigate("/signup")}
-          className="mt-4 flex w-full items-center justify-center text-[12.5px] font-medium text-slate-400"
+          className="mt-4 flex w-full items-center justify-center text-[12.5px] font-medium text-neutral-500"
         >
-          New here? <span className="ml-1 text-[var(--sd-ink)]">Create an account</span>
+          New here? <span className="ml-1 font-semibold text-neutral-900">Create an account</span>
         </button>
 
         {SHOW_DEMO_ACCOUNTS && (
         <button
           onClick={() => setShowDemo((v) => !v)}
-          className="mt-6 flex w-full items-center justify-center gap-1 text-[12px] font-medium text-slate-400"
+          className="mt-6 flex w-full items-center justify-center gap-1 text-[12px] font-medium text-neutral-500"
         >
           Demo accounts {showDemo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
         )}
 
         {SHOW_DEMO_ACCOUNTS && showDemo && (
-          <div className="mt-2 space-y-1 rounded-xl bg-[var(--sd-card)] p-3 text-[12px] text-slate-500">
+          <div className="mt-2 space-y-1 rounded-2xl bg-[var(--sd-card)] p-3 text-[12px] text-neutral-500 shadow-neu-inset-sm">
             <p className="mb-1.5 text-slate-400">Password for every account: <span className="font-mono text-slate-600">password123</span></p>
             {DEMO_ACCOUNTS.map((a) => (
               <button
@@ -186,14 +185,14 @@ export default function Login() {
         {needsAdminSetup && !showBootstrap && (
           <button
             onClick={() => setShowBootstrap(true)}
-            className="mt-6 w-full rounded-xl border border-dashed border-slate-200 px-3.5 py-2.5 text-center text-[12.5px] font-medium text-slate-500"
+            className="mt-6 w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-2.5 text-center text-[12.5px] font-medium text-neutral-600 shadow-neu-sm"
           >
             No admin account yet? Set one up
           </button>
         )}
 
         {needsAdminSetup && showBootstrap && (
-          <form onSubmit={handleBootstrap} className="mt-6 space-y-3 rounded-xl border border-slate-200 p-4">
+          <form onSubmit={handleBootstrap} className="mt-6 space-y-3 rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu-inset-sm">
             <p className="text-[12.5px] font-medium text-slate-700">Set up the first admin account</p>
             <p className="text-[11.5px] text-slate-400">
               This option only appears because no admin account exists on this deployment yet — it disappears for good once one is created.
@@ -204,7 +203,7 @@ export default function Login() {
               value={bootstrapName}
               onChange={(e) => setBootstrapName(e.target.value)}
               placeholder="Full name"
-              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+              className="w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none"
             />
             <input
               type="email"
@@ -212,7 +211,7 @@ export default function Login() {
               value={bootstrapEmail}
               onChange={(e) => setBootstrapEmail(e.target.value)}
               placeholder="Email"
-              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+              className="w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none"
             />
             <input
               type="password"
@@ -220,15 +219,15 @@ export default function Login() {
               value={bootstrapPassword}
               onChange={(e) => setBootstrapPassword(e.target.value)}
               placeholder="Password (min. 8 characters)"
-              className="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+              className="w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none"
             />
 
-            {bootstrapError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{bootstrapError}</p>}
+            {bootstrapError && <p className="rounded-xl bg-[#f4e4e4] px-3 py-2 text-[12.5px] font-medium text-red-700">{bootstrapError}</p>}
 
             <button
               type="submit"
               disabled={bootstrapping}
-              className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="w-full rounded-xl bg-neutral-900 py-3 text-[13px] font-semibold text-white shadow-neu-dark transition active:scale-[0.99] disabled:opacity-60"
             >
               {bootstrapping ? "Creating…" : "Create admin account"}
             </button>

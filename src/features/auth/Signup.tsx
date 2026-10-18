@@ -8,7 +8,8 @@ import { GoogleSignInButton } from "../../components/GoogleSignInButton";
 
 interface ReferralAgent { id: string; name: string; organization?: string }
 
-const INPUT_CLASS = "w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]";
+// Same recessed field as the login page / student app.
+const INPUT_CLASS = "w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none";
 
 export default function Signup() {
   const { signup, loginWithGoogle } = useAuth();
@@ -78,29 +79,28 @@ export default function Signup() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-6 py-10">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
-            <GraduationCap size={18} />
+    // Same layout as the login page: one raised card, the brand centred at the top, recessed fields, a solid black button.
+    <div className="neu-theme flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-5 py-10">
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--sd-card)] p-6 shadow-neu-lg sm:p-8">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
+            <GraduationCap size={26} />
           </div>
-          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
+          <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">UnifinderAi</h1>
+          <p className="mt-1 text-[13px] text-neutral-500">Create your account</p>
         </div>
 
-        <h1 className="mt-8 text-2xl font-bold text-slate-900">Create your account</h1>
-        <p className="mt-1 text-sm text-slate-500">Set up your student account to start your application journey.</p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
+        <form onSubmit={handleSubmit} className="mt-7 space-y-3.5">
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Full name</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Full name</label>
             <input required autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={INPUT_CLASS} />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Email</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Email</label>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={INPUT_CLASS} />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Password</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Password</label>
             <input
               type="password"
               required
@@ -112,12 +112,12 @@ export default function Signup() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Country</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Country</label>
             <input required value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Bangladesh" className={INPUT_CLASS} />
           </div>
 
           <div>
-            <label className="mb-1 block text-[12px] font-medium text-slate-500">Referral code (optional)</label>
+            <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Referral code (optional)</label>
             <input
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
@@ -126,39 +126,39 @@ export default function Signup() {
             />
             {referralCode.trim() && referralChecked && (
               referralAgent ? (
-                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
+                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-green-700">
                   <CheckCircle2 size={13} /> You'll be connected with {referralAgent.name}
                   {referralAgent.organization ? ` (${referralAgent.organization})` : ""}
                 </p>
               ) : (
-                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
+                <p className="mt-1.5 flex items-center gap-1.5 text-[12px] font-medium text-amber-700">
                   <AlertCircle size={13} /> Code not recognized — you can still sign up without it
                 </p>
               )
             )}
           </div>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{error}</p>}
+          {error && <p className="rounded-xl bg-[#f4e4e4] px-3 py-2 text-[12.5px] font-medium text-red-700">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="w-full rounded-xl bg-neutral-900 py-3 text-[13px] font-semibold text-white shadow-neu-dark transition active:scale-[0.99] disabled:opacity-60"
           >
             {loading ? "Creating account…" : "Create account"}
           </button>
         </form>
 
         <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-100" />
-          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">or</span>
-          <div className="h-px flex-1 bg-slate-100" />
+          <div className="h-px flex-1 bg-neutral-300/70" />
+          <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">or</span>
+          <div className="h-px flex-1 bg-neutral-300/70" />
         </div>
 
         <GoogleSignInButton onCredential={handleGoogle} onError={() => setError("Google sign-in failed.")} />
 
-        <button onClick={() => navigate("/login")} className="mt-4 flex w-full items-center justify-center text-[12.5px] font-medium text-slate-400">
-          Already have an account? <span className="ml-1 text-[var(--sd-ink)]">Sign in</span>
+        <button onClick={() => navigate("/login")} className="mt-4 flex w-full items-center justify-center text-[12.5px] font-medium text-neutral-500">
+          Already have an account? <span className="ml-1 font-semibold text-neutral-900">Sign in</span>
         </button>
       </div>
     </div>

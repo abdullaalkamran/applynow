@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { Globe2, ListChecks, ShieldCheck } from "lucide-react";
-import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, inputClass } from "../../components/ui/mobile";
+import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, SuggestInput, inputClass } from "../../components/ui/mobile";
 import {
   TEST_NAME_OPTIONS, locationOptions, facetOptions,
   STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
@@ -107,10 +107,14 @@ export default function UniversityFilters() {
               </NeuSelect>
 
               <SubLabel className="mt-3.5">Course</SubLabel>
-              <NeuSelect searchable value={filters.courseQuery} onChange={(e) => update("courseQuery", e.target.value)} className={inputClass}>
-                <option value="">Select Course</option>
-                {withSelected(options.course, filters.courseQuery).map((c) => <option key={c} value={c}>{c}</option>)}
-              </NeuSelect>
+              {/* A real text box: whatever is typed is matched against course names (any part of the name, any case) and the
+                  results update as you type. Suggestions from the linked course list are offered, but never required. */}
+              <SuggestInput
+                value={filters.courseQuery}
+                onChange={(v) => update("courseQuery", v)}
+                options={options.course}
+                placeholder="Type a course name, e.g. Data Science, MBA"
+              />
 
               <SubLabel className="mt-3.5">Discipline Area</SubLabel>
               <NeuSelect searchable value={filters.disciplineArea} onChange={(e) => update("disciplineArea", e.target.value)} className={inputClass}>
