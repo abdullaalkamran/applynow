@@ -8,7 +8,7 @@ import {
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
+import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor, courseIntakeLabel } from "../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
@@ -119,7 +119,7 @@ export default function AgentUniversityDetail() {
                   <RestrictedRegionsNotice university={university} />
                   <div className="grid grid-cols-3 gap-3">
                     <StatTile icon={<Wallet size={14} />} label="Fee / year" value={courseFeeText(university, course).text} />
-                    <StatTile icon={<CalendarDays size={14} />} label="Intake" value={university.openIntake} />
+                    <StatTile icon={<CalendarDays size={14} />} label="Intake" value={courseIntakeLabel(university, course)} />
                     <StatTile icon={<GraduationCap size={14} />} label="Scholarship" value={scholarshipLabel(university) ?? "—"} />
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

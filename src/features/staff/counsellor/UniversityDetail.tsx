@@ -25,7 +25,7 @@ import { ExpandableSection } from "../../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
 import { CourseAccreditations } from "../../../components/CourseAccreditations";
-import { depositLabel, campusLabelFor } from "../../../utils/universityFilter";
+import { depositLabel, campusLabelFor, courseIntakeLabel } from "../../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 import { courseFeeText } from "../../../utils/courseFee";
 
@@ -112,7 +112,7 @@ export default function CounsellorUniversityDetail() {
                   <RestrictedRegionsNotice university={university} />
                   <div className="grid grid-cols-3 gap-3">
                     <StatTile icon={<Wallet size={14} />} label="Fee / year" value={courseFeeText(university, course).text} />
-                    <StatTile icon={<CalendarDays size={14} />} label="Intake" value={university.openIntake} />
+                    <StatTile icon={<CalendarDays size={14} />} label="Intake" value={courseIntakeLabel(university, course)} />
                     <StatTile icon={<GraduationCap size={14} />} label="Level" value={course.level} />
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -251,13 +251,18 @@ export function campusesFor(u: University, course: { feeUSD: number; feeStatus?:
   ];
 }
 
-/** Short label for a course's campus(es) — for the "Campus" fact tile on course pages. */
+/** Every campus a course runs at, by name — for the "Campus" fact tile on course pages. */
 export function campusLabelFor(u: University, course: { feeUSD: number; feeStatus?: "amount" | "free" | "unknown"; campusIds?: string[] }): string {
-  const list = campusesFor(u, course);
-  if (list.length === 0) return "Main Campus";
-  if (list.length === 1) return list[0].name;
-  if (!(course.campusIds ?? []).length) return `All ${list.length} campuses`;
-  return `${list[0].name} +${list.length - 1}`;
+  const names = [...new Set(campusesFor(u, course).map((c) => c.name))];
+  return names.length ? names.join(", ") : "Main Campus";
+}
+
+/** The intakes a course is open for — its own months when it sets any, else the university's — as one line for the
+ * "Intake" fact tile. Falls back to the university's single open intake when none are marked open. */
+export function courseIntakeLabel(u: University, course: { intakes?: string[] }): string {
+  const months = course.intakes && course.intakes.length > 0 ? course.intakes : u.intakes;
+  const open = months.filter((m) => !!u.intakeStatus?.[m]);
+  return open.length > 0 ? open.join(", ") : u.openIntake || "—";
 }
 
 export interface SubjectStat {
@@ -323,9 +328,10 @@ function universityLocations(u: University): string[] {
 }
 
 /** Every city/state a course is taught in, narrowed to the chosen country. */
-export function locationOptions(destination = ""): string[] {
+export function locationOptions(destination: string | Iterable<string> = ""): string[] {
+  const want = typeof destination === "string" ? (destination ? [destination] : []) : [...destination];
   const seen = new Map<string, string>();
-  getAllUniversities().filter((u) => !destination || u.country === destination).forEach((u) => {
+  getAllUniversities().filter((u) => want.length === 0 || want.includes(u.country)).forEach((u) => {
     universityLocations(u).forEach((l) => { const k = normalizeText(l.trim()); if (k && !seen.has(k)) seen.set(k, l.trim()); });
   });
   return [...seen.values()].sort((x, y) => x.localeCompare(y));
@@ -339,15 +345,15 @@ function fullCountryName(country: string): string {
 
 export interface UniversityFilterState {
   residenceCountry: string; // countries.ts iso2, "" = not set — doubles as "Student's Nationality" in Advanced Search
-  destination: string; // "" = any — "Country" in Advanced Search
-  location: string; // "" = any — a city (from the course's campuses) or the university's state/province
+  destination: Set<string>; // empty = any — "Country" in Advanced Search (several allowed)
+  location: Set<string>; // empty = any — cities (from the course's campuses) or the university's state/province
   studentState: string; // "" = not set — the student's own home state, matched against restrictedRegions
-  universityQuery: string;
-  courseQuery: string;
-  duration: string; // "" = any
-  level: string; // "" = any
+  universities: Set<string>; // empty = any
+  courseQuery: string; // free text, matched against course names
+  duration: Set<string>; // empty = any
+  level: Set<string>; // empty = any
   year: string; // "" = any
-  disciplineArea: string; // "" = any
+  disciplineArea: Set<string>; // empty = any
   intakes: Set<string>;
   standardizedTests: Set<string>;
   acceptedEnglishTests: Set<string>;
@@ -374,15 +380,15 @@ export interface UniversityFilterState {
 export function emptyFilters(residenceCountry = ""): UniversityFilterState {
   return {
     residenceCountry,
-    destination: "",
-    location: "",
+    destination: new Set(),
+    location: new Set(),
     studentState: "",
-    universityQuery: "",
+    universities: new Set(),
     courseQuery: "",
-    duration: "",
-    level: "",
+    duration: new Set(),
+    level: new Set(),
     year: "",
-    disciplineArea: "",
+    disciplineArea: new Set(),
     intakes: new Set(),
     standardizedTests: new Set(),
     acceptedEnglishTests: new Set(),
@@ -409,15 +415,15 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
 
 export function countActiveFilters(f: UniversityFilterState): number {
   let n = 0;
-  if (f.destination) n++;
-  if (f.location) n++;
+  if (f.destination.size > 0) n++;
+  if (f.location.size > 0) n++;
   if (f.studentState) n++;
-  if (f.universityQuery.trim()) n++;
+  if (f.universities.size > 0) n++;
   if (f.courseQuery.trim()) n++;
-  if (f.duration) n++;
-  if (f.level) n++;
+  if (f.duration.size > 0) n++;
+  if (f.level.size > 0) n++;
   if (f.year) n++;
-  if (f.disciplineArea) n++;
+  if (f.disciplineArea.size > 0) n++;
   if (f.intakes.size > 0) n++;
   if (f.standardizedTests.size > 0) n++;
   if (f.acceptedEnglishTests.size > 0) n++;
@@ -477,7 +483,7 @@ export function feeRangeActive(f: UniversityFilterState): boolean {
 
 /** The currency the fee range is in: the one picked, else the destination's first (country-configured, then most used). */
 export function activeFeeCurrency(f: UniversityFilterState): string {
-  return f.feeCurrency || feeCurrenciesFor(f.destination)[0] || "";
+  return f.feeCurrency || feeCurrenciesFor([...f.destination])[0] || "";
 }
 
 /** The university-wide (non-course) part of the filters, as a predicate built once per filter state. */
@@ -486,12 +492,11 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
   const englishScore = f.englishScore ? Number(f.englishScore) : null;
   const ieltsEquivalent = englishScore !== null ? toIELTSEquivalent(f.englishTestName, englishScore) : null;
   const gpa = f.minGPA ? Number(f.minGPA) : null;
-  const universityQuery = normalizeText(f.universityQuery.trim());
   return (u) => {
     if (residenceName && fullCountryName(u.country) === residenceName) return false;
-    if (f.destination && u.country !== f.destination) return false;
+    if (f.destination.size > 0 && !f.destination.has(u.country)) return false;
     if (f.studentState && (u.restrictedRegions ?? []).some((r) => r.toLowerCase() === f.studentState.toLowerCase())) return false;
-    if (universityQuery && !normalizeText(u.name).includes(universityQuery)) return false;
+    if (f.universities.size > 0 && !f.universities.has(u.name)) return false;
     if (f.year && !universityYears(u).has(f.year)) return false;
     if (f.acceptedEnglishTests.size > 0) {
       const accepted = universityAcceptedEnglishTests(u);
@@ -508,10 +513,16 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
   };
 }
 
+// A place passes when it is any one of the selected cities | states.
+function wantsLocation(f: UniversityFilterState, place: string): boolean {
+  const key = normalizeText(place.trim());
+  return [...f.location].some((w) => normalizeText(w.trim()) === key);
+}
+
 // Whether any filter can only be satisfied by a course (so a university with no courses entered yet can't pass).
 function courseConditionsActive(f: UniversityFilterState): boolean {
   return (
-    !!(f.courseQuery.trim() || f.disciplineArea || f.duration || f.level) ||
+    !!f.courseQuery.trim() || f.disciplineArea.size > 0 || f.duration.size > 0 || f.level.size > 0 ||
     f.standardizedTests.size > 0 || f.withoutGRE || f.withoutGMAT || f.withoutMaths || f.stemOnly ||
     f.accepts15YearsOnly || f.openProgramsOnly || f.intakes.size > 0 || feeRangeActive(f)
   );
@@ -519,7 +530,7 @@ function courseConditionsActive(f: UniversityFilterState): boolean {
 
 // A university with no courses entered can still be found by its own details (name, place, tags, subjects).
 function courselessUniversityPasses(u: University, f: UniversityFilterState, tokens: string[]): boolean {
-  if (f.location && !universityLocations(u).some((l) => normalizeText(l.trim()) === normalizeText(f.location.trim()))) return false;
+  if (f.location.size > 0 && !universityLocations(u).some((l) => wantsLocation(f, l))) return false;
   if (courseConditionsActive(f)) return false;
   return tokens.length === 0 || tokensMatch(`${universitySearchText(u)} | ${normalizeText((u.subjects ?? []).join(" | "))}`, tokens);
 }
@@ -548,13 +559,13 @@ export type FacetKey = "destination" | "location" | "university" | "course" | "d
 export function facetOptions(f: UniversityFilterState, facet: FacetKey): string[] {
   const g: UniversityFilterState = { ...f };
   switch (facet) {
-    case "destination": g.destination = ""; break;
-    case "location": g.location = ""; break;
-    case "university": g.universityQuery = ""; break;
+    case "destination": g.destination = new Set(); break;
+    case "location": g.location = new Set(); break;
+    case "university": g.universities = new Set(); break;
     case "course": g.courseQuery = ""; break;
-    case "discipline": g.disciplineArea = ""; break;
-    case "level": g.level = ""; break;
-    case "duration": g.duration = ""; break;
+    case "discipline": g.disciplineArea = new Set(); break;
+    case "level": g.level = new Set(); break;
+    case "duration": g.duration = new Set(); break;
     case "intake": g.intakes = new Set(); break;
   }
   const gate = makeUniversityGate(g);
@@ -614,13 +625,10 @@ export function courseMatchesFilters(u: University, c: University["courses"][num
       if (fee < min || fee > max) return false;
     }
   }
-  if (f.location) {
-    const want = normalizeText(f.location.trim());
-    if (!courseLocations(u, c).some((l) => normalizeText(l.trim()) === want)) return false;
-  }
-  if (f.disciplineArea && getSubjectRecord(c.subject)?.disciplineArea !== f.disciplineArea) return false;
-  if (f.duration && c.duration !== f.duration) return false;
-  if (f.level && c.level !== f.level && !(c.programLevel ?? []).includes(f.level)) return false;
+  if (f.location.size > 0 && !courseLocations(u, c).some((l) => wantsLocation(f, l))) return false;
+  if (f.disciplineArea.size > 0 && !f.disciplineArea.has(getSubjectRecord(c.subject)?.disciplineArea ?? "")) return false;
+  if (f.duration.size > 0 && !f.duration.has(c.duration)) return false;
+  if (f.level.size > 0 && !f.level.has(c.level) && !(c.programLevel ?? []).some((l) => f.level.has(l))) return false;
   if (f.standardizedTests.size > 0 && !(c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t))) return false;
   if (f.withoutGRE && (c.standardizedTests ?? []).includes("GRE")) return false;
   if (f.withoutGMAT && (c.standardizedTests ?? []).includes("GMAT")) return false;

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } from "../../utils/universityFilter";
+import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor, courseIntakeLabel } from "../../utils/universityFilter";
 import { campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
@@ -237,7 +237,7 @@ function CourseView({
         <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
           <div className="-mt-3 grid grid-cols-3">
             <InfoCell icon={<Wallet size={18} />} value={courseFeeText(university, course).text} label={courseFeeText(university, course).isAmount ? "per year" : "tuition fee"} className="border-b border-r" />
-            <InfoCell icon={<CalendarDays size={18} />} value={university.openIntake} label="intake" className="border-b border-r" />
+            <InfoCell icon={<CalendarDays size={18} />} value={courseIntakeLabel(university, course)} label="intake" className="border-b border-r" />
             <InfoCell icon={<GraduationCap size={18} />} value={scholarship ?? "—"} label="scholarship" className="border-b" />
             <InfoCell icon={<Building2 size={18} />} value={campusLabelFor(university, course)} label="campus" onClick={openCampuses} className="border-r" />
             <InfoCell icon={<Clock size={18} />} value={course.duration} label="duration" className="border-r" />
@@ -470,7 +470,7 @@ function UniversityView({
                 </div>
               ))}
               <button
-                onClick={() => navigate("/student/cost-planner")}
+                onClick={() => navigate("/student/cost-planner", { state: { universityId: university.id } })}
                 className="mt-3 w-full rounded-xl bg-neutral-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
               >
                 Open full Cost Planner

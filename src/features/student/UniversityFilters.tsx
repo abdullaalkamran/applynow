@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { Globe2, ListChecks, ShieldCheck } from "lucide-react";
-import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, SuggestInput, inputClass } from "../../components/ui/mobile";
+import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, inputClass } from "../../components/ui/mobile";
 import {
   TEST_NAME_OPTIONS, locationOptions, facetOptions,
   STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
@@ -16,7 +16,9 @@ import { NeuSelect } from "../../components/ui/NeuSelect";
 export default function UniversityFilters() {
   const navigate = useNavigate();
   const { filters, setFilters, resultCount } = useOutletContext<FiltersOutletContext>();
-  const [intakeOpen, setIntakeOpen] = useState(false);
+  // Which multi-select list is expanded (one at a time).
+  const [openList, setOpenList] = useState<string | null>(null);
+  const toggleOpen = (key: string) => setOpenList((cur) => (cur === key ? null : key));
 
   // Always update from the previous state, never the `filters` snapshot in this closure — a
   // handler that needs to set two fields at once (e.g. destination + resetting city) would
@@ -25,7 +27,7 @@ export default function UniversityFilters() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
 
-  function toggleSetValue<K extends "intakes" | "standardizedTests" | "acceptedEnglishTests">(key: K, value: string) {
+  function toggleSetValue<K extends "intakes" | "standardizedTests" | "acceptedEnglishTests" | "level" | "location" | "universities" | "disciplineArea" | "duration">(key: K, value: string) {
     setFilters((prev) => {
       const next = new Set(prev[key]);
       if (next.has(value)) next.delete(value);
@@ -47,12 +49,24 @@ export default function UniversityFilters() {
   }), [filters]);
   // The fee range speaks one currency at a time: the destination's own (country-configured first), with chips when its
   // courses use several. Amounts are never converted — see utils/courseFee.ts.
-  const feeCurrencies = useMemo(() => feeCurrenciesFor(filters.destination), [filters.destination]);
+  const feeCurrencies = useMemo(() => feeCurrenciesFor([...filters.destination]), [filters.destination]);
   const feeCurrency = activeFeeCurrency(filters);
   const feeStats = useMemo(() => feeFilterStats(filters), [filters]);
-  // A value picked earlier stays visible even if a later choice made it unavailable, so the conflict is
-  // obvious (and one tap away from fixing) rather than the box silently going blank.
-  const withSelected = (list: string[], value: string) => (value && !list.includes(value) ? [value, ...list] : list);
+  // A value picked earlier stays in its list even if a later choice made it unavailable, so the conflict is
+  // obvious (and one tap away from fixing) rather than the chip silently vanishing.
+  const withSelected = (list: string[], picked: Set<string>) => [...new Set([...picked, ...list])];
+
+  function toggleCountry(value: string) {
+    setFilters((prev) => {
+      const destination = new Set(prev.destination);
+      if (destination.has(value)) destination.delete(value); else destination.add(value);
+      // Keep only the picked cities that still exist in the chosen countries.
+      const valid = destination.size === 0 ? null : new Set(locationOptions(destination));
+      const location = valid ? new Set([...prev.location].filter((l) => valid.has(l))) : prev.location;
+      // Amounts in one currency mean nothing in another, so the fee range starts over for the new destination.
+      return { ...prev, destination, location, feeCurrency: "", minFee: String(FEE_MIN), maxFee: String(FEE_MAX) };
+    });
+  }
 
   return (
     <div className="flex min-h-full flex-col pb-6">
@@ -64,69 +78,65 @@ export default function UniversityFilters() {
         <div className="space-y-3 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
           <div className="lg:col-start-1 lg:row-start-1">
             <Section icon={<ListChecks size={15} />} title="Level">
-              <NeuSelect searchable value={filters.level} onChange={(e) => update("level", e.target.value)} className={inputClass}>
-                <option value="">Select Level</option>
-                {withSelected(options.level, filters.level).map((l) => <option key={l} value={l}>{l}</option>)}
-              </NeuSelect>
+              <DropdownChips
+                label="Level" placeholder="Select Level"
+                options={withSelected(options.level, filters.level)} selected={filters.level}
+                onToggle={(v) => toggleSetValue("level", v)} open={openList === "level"} onToggleOpen={() => toggleOpen("level")}
+              />
             </Section>
           </div>
 
           <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <Section icon={<Globe2 size={15} />} title="Course & Location">
-              <SubLabel>Country</SubLabel>
-              <NeuSelect searchable
-                value={filters.destination}
-                onChange={(e) => {
-                  const destination = e.target.value;
-                  setFilters((prev) => ({
-                    ...prev,
-                    destination,
-                    location: !destination || locationOptions(destination).includes(prev.location) ? prev.location : "",
-                    // Amounts in one currency mean nothing in another, so the fee range starts over for the new destination.
-                    feeCurrency: "",
-                    minFee: String(FEE_MIN),
-                    maxFee: String(FEE_MAX),
-                  }));
-                }}
-                className={inputClass}
-              >
-                <option value="">Select Country</option>
-                {withSelected(options.destination, filters.destination).map((d) => <option key={d} value={d}>{d}</option>)}
-              </NeuSelect>
-
-              <SubLabel className="mt-3.5">City | State</SubLabel>
-              <NeuSelect searchable value={filters.location} onChange={(e) => update("location", e.target.value)} className={inputClass}>
-                <option value="">Select City | State</option>
-                {withSelected(options.location, filters.location).map((p) => <option key={p} value={p}>{p}</option>)}
-              </NeuSelect>
-
-              <SubLabel className="mt-3.5">University</SubLabel>
-              <NeuSelect searchable value={filters.universityQuery} onChange={(e) => update("universityQuery", e.target.value)} className={inputClass}>
-                <option value="">Select University</option>
-                {withSelected(options.university, filters.universityQuery).map((u) => <option key={u} value={u}>{u}</option>)}
-              </NeuSelect>
-
-              <SubLabel className="mt-3.5">Course</SubLabel>
-              {/* A real text box: whatever is typed is matched against course names (any part of the name, any case) and the
-                  results update as you type. Suggestions from the linked course list are offered, but never required. */}
-              <SuggestInput
-                value={filters.courseQuery}
-                onChange={(v) => update("courseQuery", v)}
-                options={options.course}
-                placeholder="Type a course name, e.g. Data Science, MBA"
+              <DropdownChips
+                label="Country" placeholder="Select Country"
+                options={withSelected(options.destination, filters.destination)} selected={filters.destination}
+                onToggle={toggleCountry} open={openList === "country"} onToggleOpen={() => toggleOpen("country")}
               />
 
-              <SubLabel className="mt-3.5">Discipline Area</SubLabel>
-              <NeuSelect searchable value={filters.disciplineArea} onChange={(e) => update("disciplineArea", e.target.value)} className={inputClass}>
-                <option value="">Select Discipline Area</option>
-                {withSelected(options.discipline, filters.disciplineArea).map((d) => <option key={d} value={d}>{d}</option>)}
-              </NeuSelect>
+              <div className="mt-3.5">
+                <DropdownChips
+                  label="City | State" placeholder="Select City | State"
+                  options={withSelected(options.location, filters.location)} selected={filters.location}
+                  onToggle={(v) => toggleSetValue("location", v)} open={openList === "location"} onToggleOpen={() => toggleOpen("location")}
+                />
+              </div>
 
-              <SubLabel className="mt-3.5">Duration</SubLabel>
-              <NeuSelect searchable value={filters.duration} onChange={(e) => update("duration", e.target.value)} className={inputClass}>
-                <option value="">Select Duration</option>
-                {withSelected(options.duration, filters.duration).map((d) => <option key={d} value={d}>{d}</option>)}
-              </NeuSelect>
+              <div className="mt-3.5">
+                <DropdownChips
+                  label="University" placeholder="Select University"
+                  options={withSelected(options.university, filters.universities)} selected={filters.universities}
+                  onToggle={(v) => toggleSetValue("universities", v)} open={openList === "university"} onToggleOpen={() => toggleOpen("university")}
+                />
+              </div>
+
+              <SubLabel className="mt-3.5">Course</SubLabel>
+              {/* A plain text box: whatever is typed is matched against course names (any part of the name, any case)
+                  and the results update as you type. */}
+              <input
+                type="text"
+                value={filters.courseQuery}
+                onChange={(e) => update("courseQuery", e.target.value)}
+                placeholder="Type a course name, e.g. Data Science, MBA"
+                autoComplete="off"
+                className={inputClass}
+              />
+
+              <div className="mt-3.5">
+                <DropdownChips
+                  label="Discipline Area" placeholder="Select Discipline Area"
+                  options={withSelected(options.discipline, filters.disciplineArea)} selected={filters.disciplineArea}
+                  onToggle={(v) => toggleSetValue("disciplineArea", v)} open={openList === "discipline"} onToggleOpen={() => toggleOpen("discipline")}
+                />
+              </div>
+
+              <div className="mt-3.5">
+                <DropdownChips
+                  label="Duration" placeholder="Select Duration"
+                  options={withSelected(options.duration, filters.duration)} selected={filters.duration}
+                  onToggle={(v) => toggleSetValue("duration", v)} open={openList === "duration"} onToggleOpen={() => toggleOpen("duration")}
+                />
+              </div>
 
               <div className="mt-3.5">
                 <DropdownChips
@@ -134,8 +144,8 @@ export default function UniversityFilters() {
                   options={[...new Set([...options.intake, ...filters.intakes])]}
                   selected={filters.intakes}
                   onToggle={(v) => toggleSetValue("intakes", v)}
-                  open={intakeOpen}
-                  onToggleOpen={() => setIntakeOpen((v) => !v)}
+                  open={openList === "intake"}
+                  onToggleOpen={() => toggleOpen("intake")}
                 />
               </div>
 

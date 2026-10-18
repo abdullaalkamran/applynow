@@ -5,6 +5,7 @@ import {
   ChevronRight, Check, Calendar, MapPin, AlertCircle, Wallet, ClipboardCheck,
   BookOpen, Plane, Landmark, Laptop, Wrench, HeartPulse, Palette, Scale, FlaskConical, GraduationCap,
   BarChart3, Clock3, ListChecks,
+  Calculator,
 } from "lucide-react";
 import { CountryBadge } from "../../components/ui/CountryBadge";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
@@ -50,6 +51,7 @@ const QUICK_ACTIONS = [
   { icon: MessageCircle, tone: "green" as const, title: "Ask AI Counsellor", subtitle: "Get personalized advice", path: "/student/counsellor" },
   { icon: Briefcase, tone: "violet" as const, title: "Manage Documents", subtitle: "Keep everything ready", path: "/student/documents" },
   { icon: ListChecks, tone: "slate" as const, title: "Tasks", subtitle: "Everything left to do", path: "/student/tasks" },
+  { icon: Calculator, tone: "slate" as const, title: "Cost Calculator", subtitle: "Plan tuition and visa costs", path: "/student/cost-planner" },
   { icon: ClipboardCheck, tone: "green" as const, title: "Interview Prep", subtitle: "Practice with AI feedback", path: "/student/interview-prep" },
 ];
 
@@ -532,8 +534,8 @@ export default function Dashboard() {
             )}
 
             <h2 className="mt-8 text-[15px] font-bold text-neutral-900">Quick Actions</h2>
-            {/* Six actions: a 3 × 2 grid on phones, one row from tablet width up. */}
-            <div className="mt-4 grid grid-cols-3 gap-x-2 gap-y-4 pb-2 sm:grid-cols-6 sm:gap-x-3">
+            {/* Seven actions: a 4 + 3 grid on phones, one row from tablet width up. */}
+            <div className="mt-4 grid grid-cols-4 gap-x-2 gap-y-4 pb-2 sm:grid-cols-7 sm:gap-x-3">
               {QUICK_ACTIONS.map((a) => (
                 <button key={a.title} onClick={() => navigate(a.path)} className="group flex min-w-0 flex-col items-center gap-2">
                   <span className="neu-hover flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-[var(--sd-card)] text-neutral-900 shadow-neu sm:h-16 sm:w-16">

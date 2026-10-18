@@ -76,12 +76,13 @@ export function currenciesOf(pairs: { u: University; c: Course }[]): string[] {
 /** The currencies a destination's fees are quoted in: the country's own configured symbols first (the existing Country
  * Management list), then any other currency its courses actually use. With no destination, every currency in the
  * catalogue. Nothing here converts or assumes one currency per country. */
-export function feeCurrenciesFor(destination: string): string[] {
+export function feeCurrenciesFor(destination: string | string[]): string[] {
+  const dests = (Array.isArray(destination) ? destination : [destination]).filter(Boolean);
   const pairs = getAllUniversities()
-    .filter((u) => !destination || u.country === destination)
+    .filter((u) => dests.length === 0 || dests.includes(u.country))
     .flatMap((u) => u.courses.map((c) => ({ u, c })));
   const used = currenciesOf(pairs);
-  const configured = destination ? (getCountryByName(destination)?.currencySymbols ?? []) : [];
+  const configured = dests.flatMap((d) => getCountryByName(d)?.currencySymbols ?? []);
   const out: string[] = [];
   for (const sym of [...configured, ...used]) if (sym.trim() && !out.some((o) => sameCurrency(o, sym))) out.push(sym);
   return out;

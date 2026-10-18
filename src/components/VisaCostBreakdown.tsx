@@ -31,8 +31,8 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
   const local = config.localCurrencyName;
   const rate = config.foreignToLocalRate;
 
-  // The selected course's own yearly fee when it has one, else the university's generic tuition line.
-  const tuition = course && courseFeeKind(course) === "amount" ? course.feeUSD : (university.fees.find((f) => f.label.toLowerCase().includes("tuition"))?.amount ?? 0);
+  // The selected course's own yearly fee — never the university's average tuition line.
+  const tuition = course && courseFeeKind(course) === "amount" ? course.feeUSD : 0;
   const uk = isUkCountry(university.country);
   const ukRule = uk ? ukIhs(course?.duration, config.healthSurchargePerYear) : null;
   const years = ukRule ? ukRule.years : Math.ceil(durationYears(course?.duration));

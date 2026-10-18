@@ -36,15 +36,11 @@ export function CostCalculator({
   const yearlyTuition = course && tuitionKind === "amount" ? course.feeUSD : 0;
   const tuition = Math.round(yearlyTuition * years);
 
-  // The university's own fee list may carry a generic "Tuition" line — the selected course's fee replaces it.
-  // Other lines are in the university's currency, so they're only added when that matches the course's.
-  const sameCur = sameCurrency(currency, university.currencySymbol);
-  const otherFees = university.fees.filter((f) => !/tuition/i.test(f.label)).map((f) => ({ ...f, amount: Math.round(f.amount * years) }));
-  const addedFees = sameCur ? otherFees : [];
+  // Everything here comes from the selected course: the university's own average fee list is never used.
   // UK only: IHS is paid for the whole visa up front (course + UKVI extra time), whichever duration view is shown.
   const uk = isUkCountry(university.country) && !!course && sameCurrency(currency, "£");
   const ihs = uk ? ukIhs(course?.duration, ihsPerYear || UK_IHS_PER_YEAR) : null;
-  const total = tuition + addedFees.reduce((sum, f) => sum + f.amount, 0) + (ihs?.amount ?? 0);
+  const total = tuition + (ihs?.amount ?? 0);
   const gap = Math.max(0, total - availableFunds);
 
   // Deposit secures the place after an offer and is normally credited against tuition, so it's shown as
@@ -67,7 +63,7 @@ export function CostCalculator({
             onChange={(e) => onCourseChange?.(e.target.value)}
             className="mt-1 w-full rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-[13px] text-neutral-800"
           >
-            {university.courses.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.level})</option>)}
+            {university.courses.map((c) => <option key={c.name} value={c.name}>{c.level ? `${c.name} (${c.level})` : c.name}</option>)}
           </select>
         </label>
       )}
@@ -95,12 +91,6 @@ export function CostCalculator({
             </span>
           </div>
         )}
-        {addedFees.map((f) => (
-          <div key={f.label} className="flex items-center justify-between py-1.5 text-[13px]">
-            <span className="text-neutral-500">{f.label}</span>
-            <span className="font-medium text-neutral-800">{currency}{f.amount.toLocaleString()}</span>
-          </div>
-        ))}
         {ihs && (
           <div className="py-1.5 text-[13px]">
             <div className="flex items-center justify-between">
@@ -113,11 +103,6 @@ export function CostCalculator({
                 : `${ihs.courseMonths}-month course + extra visa time = ${ihs.visaMonths} months → ${ihs.years} × ${currency}${(ihsPerYear || UK_IHS_PER_YEAR).toLocaleString()}. Paid for the whole visa up front.`}
             </p>
           </div>
-        )}
-        {!sameCur && otherFees.length > 0 && (
-          <p className="py-1.5 text-[11.5px] text-neutral-400">
-            Other university fees are in {university.currencySymbol.trim()} and aren't added to a {currency.trim()} course total.
-          </p>
         )}
         <div className="mt-1 flex items-center justify-between border-t border-transparent pt-2.5">
           <span className="text-[13.5px] font-semibold text-neutral-900">Estimated Total</span>
