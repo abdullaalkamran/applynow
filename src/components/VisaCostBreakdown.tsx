@@ -65,14 +65,14 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
         <Row label="Tuition fees (average)" note={`${config.casPaymentPercent}% CAS Payment`} foreign={casDeposit} currency={currency} localCurrency={local} />
         <Row label="IHS Fees" note={ukRule ? `${ukRule.visaMonths}-month visa → ${years} × rate` : `${years} year${years === 1 ? "" : "s"}`} foreign={ihsTotal} currency={currency} localCurrency={local} />
         <Row label="Visa Application Fee" note="1" foreign={visaFee} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-neutral-50 py-2 text-[12.5px] font-semibold text-neutral-900">
+        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
           <span>Total</span>
           <span className="text-right">{currency}{preVisaTotalForeign.toLocaleString()}</span>
           <span className="text-right">{local} {preVisaTotalLocal.toLocaleString()}</span>
         </div>
         <Row label="TB Test (Medical)" local={config.tbTestCostLocal} currency={currency} localCurrency={local} />
         <Row label="Air-ticket" local={config.airTicketCostLocal} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-neutral-50 py-2 text-[12.5px] font-semibold text-neutral-900">
+        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
           <span>Sub Total</span>
           <span />
           <span className="text-right">{local} {preVisaSubtotalLocal.toLocaleString()}</span>
@@ -84,7 +84,7 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
         {headerRow}
         <Row label="Tuition fees (average)" note="Due" foreign={tuitionDue} currency={currency} localCurrency={local} />
         <Row label="Living cost" note={`${config.livingCostMonths} month${config.livingCostMonths === 1 ? "" : "s"}`} foreign={livingCostTotal} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-neutral-50 py-2 text-[12.5px] font-semibold text-neutral-900">
+        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
           <span>Show in FDR/Savings account for 28 days</span>
           <span className="text-right">{currency}{bankTotalForeign.toLocaleString()}</span>
           <span className="text-right">{local} {bankTotalLocal.toLocaleString()}</span>

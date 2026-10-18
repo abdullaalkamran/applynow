@@ -2,9 +2,12 @@
 // CostPlanner.tsx mock's hardcoded numbers with live computation off the university's actual
 // `fees` array. `recommendedFundsUSD` (country-level, see countryRegistry.ts) seeds the starting
 // "Available Funds" figure since visa financial-proof norms genuinely differ by destination.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
 import type { University } from "../types";
+import { NeuSelect } from "./ui/NeuSelect";
+import { NeuTabs } from "./ui/NeuTabs";
+import { SubLabel, inputClass } from "./ui/mobile";
 import { courseCurrencySymbol, courseFeeKind, sameCurrency } from "../utils/courseFee";
 import { FEES_CAN_CHANGE_WARNING, UK_IHS_PER_YEAR, durationMonths, isLondon, isUkCountry, ukIhs, ukMaintenance } from "../utils/ukvi";
 
@@ -29,6 +32,10 @@ export function CostCalculator({
   // Starts at 0 on purpose: the country's "recommended funds" figure is in US dollars, so it is shown as a labelled
   // hint below and never dropped into this field in £/€/etc.
   const [availableFunds, setAvailableFunds] = useState(0);
+  // Subject narrows the course list; "" = every subject.
+  const [subject, setSubject] = useState("");
+  const subjects = useMemo(() => [...new Set(university.courses.map((c) => c.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [university.courses]);
+  const coursesInSubject = useMemo(() => (subject ? university.courses.filter((c) => c.subject === subject) : university.courses), [university.courses, subject]);
 
   const years = durationMode === "Full Duration" ? durationYears(course?.duration) : 1;
   const currency = course ? courseCurrencySymbol(university, course) : university.currencySymbol;
@@ -56,31 +63,37 @@ export function CostCalculator({
       <p className="text-[13px] font-semibold text-neutral-800">Cost Calculator</p>
 
       {university.courses.length > 0 && (
-        <label className="mt-3 block text-[11.5px] font-medium text-neutral-500">
-          Course
-          <select
-            value={course?.name ?? ""}
-            onChange={(e) => onCourseChange?.(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-[13px] text-neutral-800"
-          >
-            {university.courses.map((c) => <option key={c.name} value={c.name}>{c.level ? `${c.name} (${c.level})` : c.name}</option>)}
-          </select>
-        </label>
+        <div className="mt-3 space-y-3">
+          <div>
+            <SubLabel>Subject</SubLabel>
+            <NeuSelect
+              searchable
+              value={subject}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSubject(next);
+                // Keep the selected course when it belongs to the new subject; otherwise move to that subject's first one.
+                if (next && course?.subject !== next) {
+                  const first = university.courses.find((c) => c.subject === next);
+                  if (first) onCourseChange?.(first.name);
+                }
+              }}
+              className={inputClass}
+            >
+              <option value="">All subjects</option>
+              {subjects.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+            </NeuSelect>
+          </div>
+          <div>
+            <SubLabel>Course</SubLabel>
+            <NeuSelect searchable value={course?.name ?? ""} onChange={(e) => onCourseChange?.(e.target.value)} className={inputClass}>
+              {coursesInSubject.map((c) => <option key={c.name} value={c.name}>{c.level ? `${c.name} (${c.level})` : c.name}</option>)}
+            </NeuSelect>
+          </div>
+        </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 rounded-xl bg-neutral-50 p-1">
-        {(["1st Year", "Full Duration"] as const).map((d) => (
-          <button
-            key={d}
-            onClick={() => setDurationMode(d)}
-            className={`flex-1 rounded-lg py-2 text-[12.5px] font-medium transition ${
-              durationMode === d ? "bg-[image:var(--sd-gradient)] text-white" : "text-neutral-500"
-            }`}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
+      <NeuTabs className="mt-2" ariaLabel="Duration" tabs={["1st Year", "Full Duration"] as const} value={durationMode} onChange={setDurationMode} />
 
       <div className="mt-3">
         {course && (
@@ -110,19 +123,19 @@ export function CostCalculator({
         </div>
       </div>
 
-      <label className="mt-3 block text-[11.5px] font-medium text-neutral-500">
-        Available Funds ({currency})
+      <div className="mt-3">
+        <SubLabel>Available Funds ({currency})</SubLabel>
         <input
           type="number"
           min={0}
           value={availableFunds}
           onChange={(e) => setAvailableFunds(Math.max(0, Number(e.target.value) || 0))}
-          className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-[13px] text-neutral-800"
+          className={inputClass}
         />
-      </label>
+      </div>
 
       {deposit != null && (
-        <div className="mt-3 rounded-xl bg-neutral-50 p-3">
+        <div className="mt-3 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
           <div className="flex items-center justify-between">
             <span className="text-[12.5px] font-medium text-neutral-900">Deposit to secure your place</span>
             <span className="text-[12.5px] font-semibold text-neutral-800">{currency}{deposit.toLocaleString()}</span>
@@ -135,7 +148,7 @@ export function CostCalculator({
         </div>
       )}
 
-      <div className="mt-3 rounded-xl bg-neutral-50 p-3">
+      <div className="mt-3 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--sd-teal)]">
             <CheckCircle2 size={14} /> Available Funds
@@ -153,7 +166,7 @@ export function CostCalculator({
         const london = isLondon(university.city);
         const need = ukMaintenance(months, london);
         return (
-          <div className="mt-3 rounded-xl bg-neutral-50 p-3 text-[12px] text-neutral-700">
+          <div className="mt-3 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3 text-[12px] text-neutral-700">
             <p className="font-medium text-neutral-900">UK visa maintenance funds</p>
             <p className="mt-1 leading-relaxed">
               {london ? "London" : "Outside London"}: up to {Math.min(9, months)} months of living costs = <span className="font-semibold">{currency}{need.toLocaleString()}</span>, on top of any unpaid first-year tuition, held for 28 days before you apply.

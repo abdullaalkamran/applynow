@@ -17,7 +17,7 @@ import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters,
   allPrograms, courseMatchesFilters, scholarshipLabel, depositLabel, courseHasOpenIntake,
-  countryStats, intakeOptions, yearOptions, type UniversityFilterState,
+  countryStats, intakeOptions, yearOptions, facetOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
@@ -80,6 +80,7 @@ export default function UniversitySearch() {
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [intakeDropdownOpen, setIntakeDropdownOpen] = useState(false);
+  const [levelDropdownOpen, setLevelDropdownOpen] = useState(false);
   // On mobile the full filter grid (Intake/Year/Nationality/State) takes up too much vertical
   // space above the results — collapsed by default there, tap to expand; always shown on lg:+
   // where there's room for the whole row at once (see the "contents" wrapper below).
@@ -189,6 +190,16 @@ export default function UniversitySearch() {
     });
   }
 
+  // Same Level selection as Advanced Search's — one shared filter, so picking it here narrows every tab.
+  function toggleFilterLevel(level: string) {
+    setFilters((f) => {
+      const next = new Set(f.level);
+      if (next.has(level)) next.delete(level); else next.add(level);
+      return { ...f, level: next };
+    });
+  }
+  const levelOptions = useMemo(() => [...new Set([...filters.level, ...facetOptions(filters, "level")])], [filters]);
+
   function openProgram(universityId: string, courseName: string, subject: string) {
     navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
   }
@@ -214,7 +225,7 @@ export default function UniversitySearch() {
         </div>
 
         <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
             <div className="lg:col-span-1">
               <SubLabel>Search Programs</SubLabel>
               <div className="flex items-center gap-2">
@@ -242,12 +253,25 @@ export default function UniversitySearch() {
             <div className={filtersExpanded ? "contents" : "hidden sm:contents"}>
               <div>
                 <DropdownChips
+                  label="Level"
+                  floating
+                  options={levelOptions}
+                  selected={filters.level}
+                  onToggle={toggleFilterLevel}
+                  open={levelDropdownOpen}
+                  onToggleOpen={() => { setLevelDropdownOpen((v) => !v); setIntakeDropdownOpen(false); }}
+                  placeholder="All levels"
+                />
+              </div>
+              <div>
+                <DropdownChips
                   label="Intake"
+                  floating
                   options={intakeOptions()}
                   selected={filters.intakes}
                   onToggle={toggleFilterIntake}
                   open={intakeDropdownOpen}
-                  onToggleOpen={() => setIntakeDropdownOpen((v) => !v)}
+                  onToggleOpen={() => { setIntakeDropdownOpen((v) => !v); setLevelDropdownOpen(false); }}
                   placeholder="All intakes"
                 />
               </div>

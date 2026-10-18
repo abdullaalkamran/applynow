@@ -278,13 +278,13 @@ export function CheckboxList({
 }
 
 /**
- * Collapsed dropdown-style trigger for a multi-select Chip list — shows a summary
- * ("Any" / one value / "N selected") and only reveals the chip options when tapped.
+ * Collapsed dropdown-style trigger for a multi-select list — shows a summary
+ * ("Any" / one value / "N selected") and only reveals the tick-box options when tapped.
  * `open`/`onToggleOpen` are controlled by the caller so only one such dropdown is
  * expanded at a time on a page with several of these.
  */
 export function DropdownChips({
-  label, options, selected, onToggle, open, onToggleOpen, placeholder = "Any",
+  label, options, selected, onToggle, open, onToggleOpen, placeholder = "Any", floating = false,
 }: {
   label: string;
   options: string[];
@@ -293,12 +293,14 @@ export function DropdownChips({
   open: boolean;
   onToggleOpen: () => void;
   placeholder?: string;
+  /** Open the list as a popover over the page instead of pushing the content below it down. */
+  floating?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const shown = search.trim() ? options.filter((o) => o.toLowerCase().includes(search.trim().toLowerCase())) : options;
   const summary = selected.size === 0 ? placeholder : selected.size === 1 ? [...selected][0] : `${selected.size} selected`;
   return (
-    <div>
+    <div className={floating ? "relative" : undefined}>
       <SubLabel>{label}</SubLabel>
       <button
         type="button"
@@ -310,7 +312,7 @@ export function DropdownChips({
         <ChevronDown size={14} className={`shrink-0 text-neutral-900 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="mt-2 rounded-xl bg-[var(--sd-card)] p-2.5 shadow-neu-inset-sm">
+        <div className={`mt-2 rounded-xl bg-[var(--sd-card)] p-2.5 ${floating ? "absolute left-0 right-0 top-full z-30 min-w-[14rem] shadow-neu" : "shadow-neu-inset-sm"}`}>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -318,11 +320,19 @@ export function DropdownChips({
             aria-label={`Search ${label}`}
             className="mb-2 w-full rounded-lg bg-[var(--sd-card)] px-3 py-2 text-[12.5px] text-neutral-800 shadow-neu-inset-sm focus:outline-none"
           />
-          <div className="flex flex-wrap gap-1.5">
+          <div className="max-h-60 overflow-y-auto pr-1" role="listbox" aria-multiselectable="true" aria-label={label}>
             {shown.map((o) => (
-              <Chip key={o} label={o} selected={selected.has(o)} onClick={() => onToggle(o)} />
+              <label key={o} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] text-neutral-700 hover:bg-neutral-200/40">
+                <input
+                  type="checkbox"
+                  checked={selected.has(o)}
+                  onChange={() => onToggle(o)}
+                  className="h-4 w-4 shrink-0 rounded border-neutral-300 text-[var(--sd-ink)] focus:ring-[var(--sd-ink)]"
+                />
+                <span className="min-w-0 flex-1 break-words">{o}</span>
+              </label>
             ))}
-            {shown.length === 0 && <span className="px-1 text-[12px] text-neutral-500">No matches</span>}
+            {shown.length === 0 && <span className="px-2 text-[12px] text-neutral-500">No matches</span>}
           </div>
         </div>
       )}
