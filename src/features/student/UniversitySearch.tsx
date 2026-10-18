@@ -198,7 +198,6 @@ export default function UniversitySearch() {
       return { ...f, level: next };
     });
   }
-  const levelOptions = useMemo(() => [...new Set([...filters.level, ...facetOptions(filters, "level")])], [filters]);
 
   function openProgram(universityId: string, courseName: string, subject: string) {
     navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
@@ -255,7 +254,7 @@ export default function UniversitySearch() {
                 <DropdownChips
                   label="Level"
                   floating
-                  options={levelOptions}
+                  options={[...new Set([...filters.level, ...facetOptions(filters, "level")])]}
                   selected={filters.level}
                   onToggle={toggleFilterLevel}
                   open={levelDropdownOpen}

@@ -40,6 +40,7 @@ export const VOICE_STYLE_GUIDANCE =
   `**You are speaking aloud.** Answer in natural spoken sentences — no bullet symbols, headings or markdown. Give the ` +
   `key points of a full answer in order (about 30–60 seconds of speech), then offer to go deeper on any part or to ` +
   `put the full step-by-step in the chat. Don't read long lists; group them ("there are three steps…"). When you recommend ` +
-  `programmes, still give five: name them briefly, one short sentence each (university, course, yearly fee, next open ` +
-  `intake), say in one sentence how the best ones fit the student's GPA and English score, and offer to put the full shortlist, ` +
+  `programmes, always name FIVE — never fewer, even if you have to pick the nearest matches and say they are near matches — ` +
+  `counting them aloud ("first… second… third… fourth… fifth…"), one short sentence each (university, course, yearly fee, next open ` +
+  `intake). Only name fewer than five if the search itself returned fewer, and then say so. Say in one sentence how the best ones fit the student's GPA and English score, and offer to put the full shortlist, ` +
   `requirements, admission steps and deposit details in the chat. Read numbers clearly ("twenty-four thousand pounds a year").`;

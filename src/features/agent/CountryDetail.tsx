@@ -6,7 +6,8 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Plus, Share2, Wallet } from "lucide-react";
-import { LogoBadge } from "../../components/ui/mobile";
+import { LogoBadge, Pagination } from "../../components/ui/mobile";
+import { usePagedList } from "../../utils/usePagedList";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
@@ -55,6 +56,8 @@ export default function AgentCountryDetail() {
   })();
 
   const courseOfferings = universities.flatMap((u) => u.courses.map((c) => ({ university: u, course: c })));
+  // 30 courses per page — a country can hold thousands, too many to render at once.
+  const { page: coursePage, setPage: setCoursePage, totalPages: courseTotalPages, pageItems: pagedCourses } = usePagedList(courseOfferings, 30, country);
 
   function openSubject(subjectName: string) {
     navigate(`/agent/subjects/${encodeURIComponent(subjectName)}`, { state: { destination: country } });
@@ -120,7 +123,7 @@ export default function AgentCountryDetail() {
         </div>
       ) : tab === "Courses" ? (
         <div className="mt-4 space-y-2.5">
-          {courseOfferings.map(({ university: u, course: c }) => (
+          {pagedCourses.map(({ university: u, course: c }) => (
             <button
               key={`${u.id}::${c.name}`}
               onClick={() => openCourse(u.id, c.name)}
@@ -142,6 +145,7 @@ export default function AgentCountryDetail() {
               <p className="text-xs text-slate-400">No courses listed in {country} yet.</p>
             </div>
           )}
+          <Pagination page={coursePage} totalPages={courseTotalPages} onChange={setCoursePage} />
         </div>
       ) : tab === "Subjects" ? (
         <div className="mt-4 space-y-2.5">
