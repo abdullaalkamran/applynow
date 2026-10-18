@@ -17,6 +17,7 @@ function serializeCourse(c) {
     duration: c.duration,
     subject: c.subject,
     feeUSD: c.feeUSD,
+    feeStatus: c.feeStatus,
     intakes: c.intakes.length ? c.intakes : undefined,
     applicationDeadline: c.applicationDeadline || undefined,
     requirements: c.requirements.length ? c.requirements : undefined,
@@ -156,13 +157,43 @@ function universityWriteData(body, courses) {
   };
 }
 
+const FEE_STATUSES = ["amount", "free", "unknown"];
+
+function badRequest(message) {
+  const err = new Error(message);
+  err.status = 400;
+  return err;
+}
+
+const FEE_REQUIRED = "Annual fee is required: enter an amount, or mark the course Free or Not provided.";
+
+/** Turns whatever fee fields a client sent into the two stored columns, or throws a 400 the data manager can act on.
+ *   feeStatus "free" / "unknown" → feeUSD is stored as 0 (never displayed or compared).
+ *   a number above 0            → a real fee ("amount").
+ *   0 with no status            → "unknown": a bare 0 has always been what unknown fees were saved as, so it is
+ *                                 never silently read as free. Free exists only when explicitly chosen.
+ *   "amount" with 0             → the legacy shape every existing row has; passed through untouched so re-saving an
+ *                                 old course (e.g. the replace-all university save) does not change it.
+ * Missing, null, non-numeric or negative amounts are rejected here instead of reaching Prisma as `undefined`/`null`. */
+function resolveFee(c) {
+  const status = c.feeStatus;
+  if (status !== undefined && status !== null && !FEE_STATUSES.includes(status)) throw badRequest("feeStatus must be amount, free or unknown.");
+  if (status === "free" || status === "unknown") return { feeUSD: 0, feeStatus: status };
+  const raw = c.feeUSD;
+  const amount = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() !== "" ? Number(raw) : NaN;
+  if (!Number.isFinite(amount)) throw badRequest(FEE_REQUIRED);
+  if (amount < 0) throw badRequest("Annual fee can't be negative.");
+  if (amount > 0) return { feeUSD: amount, feeStatus: "amount" };
+  return { feeUSD: 0, feeStatus: status === "amount" ? "amount" : "unknown" };
+}
+
 function courseWriteData(c) {
   return {
     name: c.name,
     level: c.level,
     duration: c.duration,
     subject: c.subject,
-    feeUSD: c.feeUSD,
+    ...resolveFee(c),
     intakes: c.intakes ?? [],
     applicationDeadline: c.applicationDeadline || null,
     requirements: c.requirements ?? [],
@@ -297,8 +328,22 @@ router.patch("/:id/courses/:courseId", requireAuth, requireDataRole, async (req,
     // updateCourse(id, Partial<Course>) on the frontend — happened to leave out.
     const existing = await prisma.course.findUnique({ where: { id: req.params.courseId } });
     if (!existing) return res.status(404).json({ error: "Course not found." });
-    const full = courseWriteData(req.body || {});
-    const data = Object.fromEntries(Object.entries(full).filter(([key]) => key in (req.body || {})));
+    const body = req.body || {};
+    const sentFee = "feeUSD" in body || "feeStatus" in body;
+    // Fee fields are resolved against the stored row, and only when the caller actually sent one of them: a patch that
+    // doesn't mention the fee must never touch it (and must not be rejected for "missing" a fee it never owned).
+    let feeData = {};
+    if (sentFee) {
+      // Typing a new amount (no explicit status) replaces whatever status the row had; a bare 0 only keeps an
+      // explicit Free — it never turns an amount or an unknown fee into Free.
+      const status = "feeStatus" in body ? body.feeStatus : Number(body.feeUSD) === 0 && existing.feeStatus === "free" ? "free" : undefined;
+      const merged = { feeUSD: "feeUSD" in body ? body.feeUSD : existing.feeUSD, feeStatus: status };
+      // An old client re-saving a legacy "0" it was shown: leave the stored fee exactly as it is.
+      const untouchedLegacyZero = !("feeStatus" in body) && Number(body.feeUSD) === 0 && existing.feeUSD === 0 && existing.feeStatus !== "free";
+      if (!untouchedLegacyZero) feeData = resolveFee(merged);
+    }
+    const { feeUSD: _f, feeStatus: _s, ...rest } = courseWriteData({ ...body, feeUSD: existing.feeUSD, feeStatus: existing.feeStatus });
+    const data = { ...Object.fromEntries(Object.entries(rest).filter(([key]) => key in body)), ...feeData };
     const course = await prisma.course.update({ where: { id: req.params.courseId }, data });
     const university = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
     if (university) {

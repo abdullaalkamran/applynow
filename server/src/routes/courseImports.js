@@ -207,17 +207,20 @@ router.post("/:itemId/approve", requireAuth, requireDataRole, async (req, res, n
     const name = String(draft.name || "").trim();
     const duration = String(draft.duration || "").trim();
     const subject = String(draft.subject || "").trim();
-    const feeUSD = Number(draft.feeUSD);
+    // A page with no readable fee is approved as "not provided" (never invented, never free); the reviewer can also
+    // type an amount or explicitly mark the course Free.
+    const feeStatus = draft.feeStatus === "free" || draft.feeStatus === "unknown" ? draft.feeStatus : undefined;
+    const feeUSD = feeStatus ? 0 : Number(draft.feeUSD);
     if (!name) return res.status(400).json({ error: "Course name is required." });
     if (!duration) return res.status(400).json({ error: "Duration is required." });
     if (!subject) return res.status(400).json({ error: "Pick a subject before approving." });
     const allowedSubjects = university.subjects.length ? university.subjects : (await prisma.subject.findMany({ select: { name: true } })).map((s) => s.name);
     if (!allowedSubjects.includes(subject)) return res.status(400).json({ error: `"${subject}" isn't one of ${university.name}'s subjects.` });
-    if (!Number.isFinite(feeUSD) || feeUSD < 0) return res.status(400).json({ error: "Annual fee must be a number." });
+    if (!Number.isFinite(feeUSD) || feeUSD < 0) return res.status(400).json({ error: "Annual fee must be a number, or mark the course Free or Not provided." });
 
     const id = (req.body && req.body.id) || `crs-import-${Date.now().toString(36)}-${item.id.slice(-4)}`;
     // The page this course was imported from is its course link unless the reviewer set another.
-    const courseData = courseWriteData({ courseUrl: item.sourceUrl, ...draft, name, duration, subject, feeUSD });
+    const courseData = courseWriteData({ courseUrl: item.sourceUrl, ...draft, name, duration, subject, feeUSD, feeStatus });
     const { course, updatedItem } = await prisma.$transaction(async (tx) => {
       const created = await tx.course.create({ data: { id, universityId: university.id, ...courseData } });
       await tx.university.update({
@@ -226,7 +229,7 @@ router.post("/:itemId/approve", requireAuth, requireDataRole, async (req, res, n
       });
       const flipped = await tx.courseImportItem.update({
         where: { id: item.id },
-        data: { status: "approved", approvedCourseId: id, extracted: { ...(item.extracted || {}), course: { ...draft, name, duration, subject, feeUSD } } },
+        data: { status: "approved", approvedCourseId: id, extracted: { ...(item.extracted || {}), course: { ...draft, name, duration, subject, feeUSD, feeStatus: feeStatus ?? (feeUSD > 0 ? "amount" : "unknown") } } },
       });
       return { course: created, updatedItem: flipped };
     });

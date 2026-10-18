@@ -13,6 +13,7 @@ import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { CreateApplicationModal } from "./CreateApplicationModal";
+import { courseFeeText } from "../../utils/courseFee";
 
 const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
@@ -130,7 +131,7 @@ export default function AgentCountryDetail() {
                 <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
                 <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
                 <p className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-slate-700">
-                  <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                  <Wallet size={11} className="text-slate-400" /> {courseFeeText(u, c).perYear}
                 </p>
               </div>
               <ChevronRight size={16} className="shrink-0 text-slate-300" />

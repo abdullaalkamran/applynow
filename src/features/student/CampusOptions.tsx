@@ -3,6 +3,7 @@ import { BookOpen, Wallet, CalendarDays, GraduationCap, ChevronRight } from "luc
 import { MobileHeader, SkylineArt, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, campusesFor } from "../../utils/universityFilter";
+import { courseFeeText } from "../../utils/courseFee";
 
 export default function CampusOptions() {
   const { id } = useParams();
@@ -68,8 +69,7 @@ export default function CampusOptions() {
                     <p className="mt-0.5 text-xs text-neutral-400">{c.city}, {university.country}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-500">
                       <span className="inline-flex items-center gap-1">
-                        <Wallet size={11} className="text-neutral-400" /> {university.currencySymbol}
-                        {Math.round(c.feeUSD).toLocaleString()}
+                        <Wallet size={11} className="text-neutral-400" /> {courseFeeText(university, { feeUSD: c.feeUSD, feeStatus: c.feeStatus, currencySymbol: course.currencySymbol }).text}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <CalendarDays size={11} className="text-neutral-400" /> {university.openIntake}

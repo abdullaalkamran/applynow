@@ -19,6 +19,7 @@ import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } f
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
 import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
 import { NeuTabs } from "../../components/ui/NeuTabs";
+import { courseFeeText } from "../../utils/courseFee";
 
 const TABS = ["Overview", "Documents", "Updates", "Comments"] as const;
 
@@ -380,7 +381,7 @@ export default function ApplicationDetail() {
                     </button>
                     {programInfoOpen && (
                       <div className="px-4 pb-4">
-                        <InfoRow icon={<Landmark size={15} />} label="Tuition Fee" value={`${university.currencySymbol}${course.feeUSD.toLocaleString()} per year`} />
+                        <InfoRow icon={<Landmark size={15} />} label="Tuition Fee" value={courseFeeText(university, course).isAmount ? `${courseFeeText(university, course).text} per year` : courseFeeText(university, course).text} />
                         <InfoRow icon={<Calendar size={15} />} label="Intake" value={application.intake} />
                         <InfoRow icon={<MapPin size={15} />} label="Campus" value={application.campus ?? "Main Campus"} />
                         <InfoRow icon={<GraduationCap size={15} />} label="Scholarship" value={scholarship ?? "Not available"} last />

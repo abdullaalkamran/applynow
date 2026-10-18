@@ -6,6 +6,8 @@ import { getAllUniversities, getUniversityById } from "../data/universityCatalog
 import { getCountryByName } from "../data/countryRegistry";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
 import { scholarshipLabel } from "./universityFilter";
+import { courseFeeText, courseFeeIn, courseCurrencySymbol, feeCurrenciesFor } from "./courseFee";
+import type { University } from "../types";
 import type { ToolDefinition } from "./assistantEngine";
 
 // Our catalog stores abbreviated/short country names ("UK", "United States") but a person speaking naturally
@@ -17,6 +19,22 @@ const COUNTRY_ALIASES: Record<string, string[]> = {
   uk: ["united kingdom", "britain", "great britain", "england"],
   usa: ["united states", "america", "us"],
   uae: ["united arab emirates"],
+};
+
+// A budget only means something in ONE currency. The assistant may name it (a symbol like £ or a code like GBP); otherwise it is
+// the country's own configured currency, else the most common one. Courses priced in another currency, or with no fee listed,
+// are never measured against the budget — and the reply says so, so the model can relay it instead of guessing.
+const CURRENCY_CODES: Record<string, string> = { USD: "$", GBP: "£", EUR: "€", CAD: "C$", AUD: "A$", AED: "AED", NZD: "NZ$", SGD: "S$", MYR: "RM" };
+function budgetCurrency(requested: unknown, country: string | undefined): string {
+  const asked = typeof requested === "string" ? requested.trim() : "";
+  if (asked) return CURRENCY_CODES[asked.toUpperCase()] ?? asked;
+  const names = country ? getAllUniversities().filter((u) => countryMatches(u.country, country)).map((u) => u.country) : [];
+  return feeCurrenciesFor(names[0] ?? "")[0] ?? "$";
+}
+type Course = University["courses"][number];
+const feeFields = (u: University, c: Course) => {
+  const t = courseFeeText(u, c);
+  return { fee: t.perYear, feeAmount: t.isAmount ? c.feeUSD : undefined, currency: t.isAmount ? courseCurrencySymbol(u, c).trim() : undefined };
 };
 
 export function countryMatches(storedCountry: string, query: string): boolean {
@@ -74,7 +92,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
     {
       spec: {
         name: "search_universities",
-        description: "Search the university catalog by name and/or destination country, subject, study level, maximum budget in USD, or scholarship availability. Always pass `name` (a partial match is fine) whenever a specific university is named directly — never conclude a university isn't in the network from a country/subject-only search that just didn't happen to include it. Returns up to 15 matches with a few matching courses each, plus totalMatches so you know if more exist than are shown.",
+        description: "Search the university catalog by name and/or destination country, subject, study level, maximum yearly budget (in `budgetCurrency`, default the country's own currency), or scholarship availability. Always pass `name` (a partial match is fine) whenever a specific university is named directly — never conclude a university isn't in the network from a country/subject-only search that just didn't happen to include it. Returns up to 15 matches with a few matching courses each, plus totalMatches so you know if more exist than are shown.",
         parameters: {
           type: "object",
           properties: {
@@ -83,6 +101,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
             subject: { type: "string" },
             studyLevel: { type: "string" },
             maxBudget: { type: "number" },
+            budgetCurrency: { type: "string", description: "Currency symbol or code the budget is in, e.g. £ or GBP. Defaults to the country's own currency." },
             scholarshipOnly: { type: "boolean" },
           },
         },
@@ -96,6 +115,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
         const subject = args.subject as string | undefined;
         const studyLevel = args.studyLevel as string | undefined;
         const maxBudget = args.maxBudget as number | undefined;
+        const currency = budgetCurrency(args.budgetCurrency, country);
         const scholarshipOnly = args.scholarshipOnly as boolean | undefined;
 
         const results = getAllUniversities()
@@ -113,13 +133,14 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
             // an unrelated cheap course covering budget, while no course actually matched both.
             matchingCourses: u.courses
               .filter((c) => !studyLevel || c.level.toLowerCase().includes(studyLevel.toLowerCase()))
-              .filter((c) => !maxBudget || c.feeUSD <= maxBudget),
+              .filter((c) => !maxBudget || (courseFeeIn(u, c, currency) ?? Infinity) <= maxBudget),
           }))
           // Only require a real matching course when level/budget were actually specified.
           .filter(({ matchingCourses }) => !(studyLevel || maxBudget) || matchingCourses.length > 0);
 
         return {
           totalMatches: results.length,
+          ...(maxBudget ? { budgetCurrency: currency, note: `Budget compared only with fees listed in ${currency.trim()}; courses with no fee listed or priced in another currency are not included.` } : {}),
           universities: results.slice(0, 15).map(({ u, matchingCourses }) => ({
             id: u.id,
             name: u.name,
@@ -128,7 +149,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
             employability: u.employability,
             scholarshipsAvailable: u.scholarshipsAvailable,
             courseCount: u.courses.length,
-            matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, feeUSD: c.feeUSD })),
+            matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, ...feeFields(u, c) })),
           })),
         };
       },
@@ -136,7 +157,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
     {
       spec: {
         name: "search_courses",
-        description: "Search every course across all partner universities. Filter by any of: course name keyword, university name, country, subject, study level (e.g. Bachelor/Master), maximum yearly fee in USD, or intake month. Use this for questions about specific courses ('MSc Data Science in the UK', 'cheapest MBA', 'what does X university offer in engineering') — it returns the course itself with its university, fee, level, duration, intakes and deadline. Returns up to 20 courses plus totalMatches.",
+        description: "Search every course across all partner universities. Filter by any of: course name keyword, university name, country, subject, study level (e.g. Bachelor/Master), maximum yearly fee (in `feeCurrency`, default the country's own currency), or intake month. Use this for questions about specific courses ('MSc Data Science in the UK', 'cheapest MBA', 'what does X university offer in engineering') — it returns the course itself with its university, fee, level, duration, intakes and deadline. Returns up to 20 courses plus totalMatches.",
         parameters: {
           type: "object",
           properties: {
@@ -145,7 +166,8 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
             country: { type: "string" },
             subject: { type: "string" },
             studyLevel: { type: "string" },
-            maxFeeUSD: { type: "number" },
+            maxFee: { type: "number" },
+            feeCurrency: { type: "string", description: "Currency symbol or code maxFee is in, e.g. £ or GBP. Defaults to the country's own currency." },
             intake: { type: "string" },
           },
         },
@@ -159,31 +181,34 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
         const country = args.country as string | undefined;
         const subject = (args.subject as string | undefined)?.toLowerCase();
         const studyLevel = (args.studyLevel as string | undefined)?.toLowerCase();
-        const maxFeeUSD = args.maxFeeUSD as number | undefined;
+        const maxFee = args.maxFee as number | undefined;
+        const currency = budgetCurrency(args.feeCurrency, args.country as string | undefined);
         const intake = (args.intake as string | undefined)?.toLowerCase();
 
         const matches = getAllUniversities()
           .filter((u) => (!university || u.name.toLowerCase().includes(university)) && (!country || countryMatches(u.country, country)))
           .flatMap((u) => u.courses.map((c) => ({ u, c })))
-          .filter(({ c }) => {
+          .filter(({ u, c }) => {
             if (course && !c.name.toLowerCase().includes(course)) return false;
             if (subject && !c.subject.toLowerCase().includes(subject)) return false;
             if (studyLevel && !c.level.toLowerCase().includes(studyLevel)) return false;
-            if (maxFeeUSD && c.feeUSD > maxFeeUSD) return false;
+            if (maxFee && (courseFeeIn(u, c, currency) ?? Infinity) > maxFee) return false;
             if (intake && !(c.intakes ?? []).some((i) => i.toLowerCase().includes(intake))) return false;
             return true;
           })
-          .sort((a, b) => a.c.feeUSD - b.c.feeUSD);
+          // Cheapest first within the requested currency; fees that can't be compared (other currency / not provided) go last.
+          .sort((a, b) => (courseFeeIn(a.u, a.c, currency) ?? Infinity) - (courseFeeIn(b.u, b.c, currency) ?? Infinity));
 
         return {
           totalMatches: matches.length,
+          ...(maxFee ? { feeCurrency: currency, note: `maxFee compared only with fees listed in ${currency.trim()}; courses with no fee listed or priced in another currency are not included.` } : {}),
           courses: matches.slice(0, 20).map(({ u, c }) => ({
             courseId: c.id,
             course: c.name,
             level: c.level,
             subject: c.subject,
             duration: c.duration,
-            feeUSD: c.feeUSD,
+            ...feeFields(u, c),
             intakes: c.intakes,
             applicationDeadline: c.applicationDeadline,
             universityId: u.id,

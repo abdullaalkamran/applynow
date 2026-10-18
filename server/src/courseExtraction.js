@@ -453,7 +453,7 @@ function normalizeExtraction(raw, { university, allowedSubjects, existingCourses
   // Fee + currency
   const feeNumber = Number(String(r.fee ?? "").replace(/[^0-9.]/g, ""));
   const feeUSD = Number.isFinite(feeNumber) && feeNumber > 0 ? feeNumber : 0;
-  if (!feeUSD) warnings.push("No international tuition fee was found on the page — enter it by hand.");
+  if (!feeUSD) warnings.push("No international tuition fee was found on the page — enter it by hand, or leave the course as \"Fee not provided\" (it is never treated as free).");
   const feeCode = asString(r.feeCurrency, 5).toUpperCase();
   let currencySymbol = university.currencySymbol;
   if (feeCode && CURRENCY_BY_CODE[feeCode]) currencySymbol = CURRENCY_BY_CODE[feeCode];
@@ -532,7 +532,7 @@ function normalizeExtraction(raw, { university, allowedSubjects, existingCourses
 
   const course = {
     name, level, duration, subject,
-    feeUSD, currencySymbol,
+    feeUSD, feeStatus: feeUSD ? "amount" : "unknown", currencySymbol,
     intakes, applicationDeadline,
     requirements, englishRequirements,
     campusIds: [], description, studyMode, modules, careers, accreditations: [],

@@ -669,6 +669,12 @@ model University {
   courseImports                 CourseImportItem[]
 }
 
+enum CourseFeeStatus {
+  amount
+  free
+  unknown
+}
+
 model Course {
   id                      String     @id
   universityId            String
@@ -677,7 +683,15 @@ model Course {
   level                   String
   duration                String
   subject                 String
+  // The annual fee AMOUNT, in the course's own currency (`currencySymbol` below, else the university's) — despite
+  // the legacy name it is NOT US dollars. Required, and kept as a plain number everywhere: `feeStatus` says
+  // whether that number means anything. "unknown"/"free" always store 0 here and it is never displayed or compared.
   feeUSD                  Float
+  // amount  — `feeUSD` is the real annual fee. (Every row that existed before this column was added has this;
+  //           a legacy `amount` row with feeUSD = 0 is shown as "Fee not provided", never as free.)
+  // free    — explicitly marked free by Data Management (the only way a course shows as "Free").
+  // unknown — the fee hasn't been provided / couldn't be found.
+  feeStatus               CourseFeeStatus @default(amount)
   intakes                 Json
   applicationDeadline     String?
   requirements            Json

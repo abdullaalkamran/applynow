@@ -4,6 +4,7 @@ import { LogoBadge } from "../../components/ui/mobile";
 import { scholarshipLabel, courseHasOpenIntake } from "../../utils/universityFilter";
 import { ShortlistButton } from "./ShortlistButton";
 import type { Student, University } from "../../types";
+import { courseFeeText } from "../../utils/courseFee";
 
 type Course = University["courses"][number];
 
@@ -34,7 +35,7 @@ export function ProgramRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-        <span className="flex items-center gap-1"><Wallet size={11} /> {course.currencySymbol ?? university.currencySymbol}{course.feeUSD.toLocaleString()}/yr</span>
+        <span className="flex items-center gap-1"><Wallet size={11} /> {courseFeeText(university, course).perYear}</span>
         <span className="flex items-center gap-1"><CalendarDays size={11} /> {university.openIntake}</span>
         {scholarship !== null && (
           <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> {scholarship}</span>

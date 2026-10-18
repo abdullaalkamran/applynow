@@ -4,6 +4,7 @@ import { getAllCountries } from "../data/countryRegistry";
 import { countryByIso2 } from "../data/countries";
 import { getSubjectCatalog, getSubjectRecord } from "../data/subjectCatalogStore";
 import type { University } from "../types";
+import { courseFeeKind, courseFeeIn, courseCurrencySymbol as courseCurrencyOf, feeCurrenciesFor, sameCurrency } from "./courseFee";
 
 // These were once module-load-time constants derived from a static array. They're now functions
 // so a university or course added through Data Management shows up immediately — a plain const
@@ -101,14 +102,25 @@ export const STANDARDIZED_TEST_OPTIONS = ["SAT", "ACT", "GRE", "GMAT"] as const;
 // Requirements column — the full dropdown+score-threshold filter below still covers every test.
 export const ACCEPTED_ENGLISH_TEST_CHECKBOXES = ["PTE Academic", "TOEFL iBT", "IELTS", "Duolingo English Test"] as const;
 
-export const FEE_MIN_USD = 0;
-export const FEE_MAX_USD = 100000;
-export const FEE_STEP_USD = 1000;
+// The fee filter works in whatever currency is selected (see utils/courseFee.ts) — these are plain amounts of THAT
+// currency, never converted dollars.
+export const FEE_MIN = 0;
+export const FEE_MAX = 100000;
+export const FEE_STEP = 1000;
 
-// Coarse fee bands used by the compact pill filters (Subject listing, Explore's flat program list).
-export const FEE_BANDS = ["Under $25,000", "Under $50,000", "Under $75,000"];
+// Coarse fee bands used by the compact pill filters (Subject listing, Explore's flat program list). Limits are amounts in
+// the band currency chosen next to them; the label carries that currency's symbol.
+export const FEE_BAND_LIMITS = [25000, 50000, 75000] as const;
+export const feeBandLabel = (symbol: string, limit: number) => `Under ${symbol.trim()}${limit.toLocaleString()}`;
+/** The limit a band label stands for (the digits in it). */
 export function feeBandMax(band: string): number {
   return Number(band.replace(/[^0-9]/g, "")) || Infinity;
+}
+/** True when the course's fee is comparable in `currency` and falls within the band. Free counts as 0; a fee that is not
+ * provided, or is in another currency, can't be said to be within any band. */
+export function courseWithinFeeBand(u: University, c: University["courses"][number], currency: string, limit: number): boolean {
+  const fee = courseFeeIn(u, c, currency);
+  return fee !== null && fee <= limit;
 }
 
 export interface ProgramOffering {
@@ -158,34 +170,6 @@ export function toIELTSEquivalent(testName: string, score: number): number {
   return Math.max(0, Math.min(9, pct * 9));
 }
 
-// Approximate FX rates to USD, used only to make the fee filter comparable across currencies.
-const FX_TO_USD: Record<string, number> = { "£": 1.27, "$": 1.0, "C$": 0.74, "A$": 0.66, "€": 1.09, "AED ": 0.27 };
-
-export interface FilterCurrency {
-  symbol: string; // as shown to the student, e.g. "£"
-  usdPerUnit: number; // one unit of this currency in USD
-}
-
-/** The currency the fee filter should speak in for a chosen destination: whatever the universities in
- * that country are priced in (the most common currencySymbol Data Management entered), USD when no
- * country is chosen or nothing there has a known rate. Filter values themselves stay in USD. */
-export function currencyForDestination(destination: string): FilterCurrency {
-  const usd: FilterCurrency = { symbol: "$", usdPerUnit: 1 };
-  if (!destination) return usd;
-  const counts = new Map<string, number>();
-  getAllUniversities().filter((u) => u.country === destination && u.currencySymbol).forEach((u) => {
-    counts.set(u.currencySymbol, (counts.get(u.currencySymbol) ?? 0) + 1);
-  });
-  const top = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
-  if (!top || FX_TO_USD[top] === undefined) return usd;
-  return { symbol: top.trim(), usdPerUnit: FX_TO_USD[top] };
-}
-
-export function tuitionInUSD(u: University): number {
-  const tuition = u.fees.find((f) => f.label === "Tuition Fee")?.amount ?? 0;
-  return tuition * (FX_TO_USD[u.currencySymbol] ?? 1);
-}
-
 // Finds the course that best matches the given subject/course search text. A course whose
 // *subject* matches wins over one that merely has a matching substring in its name (e.g.
 // searching "Engineering" should prefer a course tagged Engineering over one just named
@@ -197,13 +181,6 @@ export function matchingCourse(u: University, subjectOrCourseText: string): Univ
     u.courses.find((c) => c.subject.toLowerCase().includes(q)) ??
     u.courses.find((c) => c.name.toLowerCase().includes(q))
   );
-}
-
-// Annual fee for whichever of the university's own courses best matches the given subject/course
-// text — falls back to the university's general tuition figure when nothing matches (e.g. no
-// subject filter is active, or the university simply doesn't offer that subject).
-export function courseFeeForSubject(u: University, subjectOrCourseText: string): number {
-  return matchingCourse(u, subjectOrCourseText)?.feeUSD ?? tuitionInUSD(u);
 }
 
 // A real scholarship figure to show alongside a course/fee — the university's own first named
@@ -242,7 +219,9 @@ export function courseHasOpenIntake(u: University, course: University["courses"]
 export interface Campus {
   name: string;
   city: string;
+  /** Same meaning as the course's fee fields: an amount in the course's currency, with `feeStatus` saying whether it means anything. */
   feeUSD: number;
+  feeStatus: "amount" | "free" | "unknown";
 }
 
 // Prefers the university's own real campus records when Data Management has entered any — falls
@@ -253,22 +232,27 @@ export interface Campus {
  * Data Management ticked on the course (`campusIds`) when it set any — a course that runs at only
  * some campuses shouldn't offer the others. Falls back to a synthetic pair for universities that
  * haven't entered campuses yet. */
-export function campusesFor(u: University, course: { feeUSD: number; campusIds?: string[] }): Campus[] {
-  const feeUSD = course.feeUSD;
+export function campusesFor(u: University, course: { feeUSD: number; feeStatus?: "amount" | "free" | "unknown"; campusIds?: string[] }): Campus[] {
+  // A campus with its own fee uses it; otherwise it inherits the course's fee exactly as it is — including "free" and
+  // "not provided", which are never turned into an amount.
+  const inherited = { feeUSD: courseFeeKind(course) === "amount" ? course.feeUSD : 0, feeStatus: courseFeeKind(course) };
   if (u.campuses && u.campuses.length > 0) {
     const ids = course.campusIds ?? [];
     const own = ids.length ? u.campuses.filter((c) => ids.includes(c.id)) : [];
     const list = own.length ? own : u.campuses;
-    return list.map((c) => ({ name: c.name, city: c.city, feeUSD: c.feeUSD ?? feeUSD }));
+    return list.map((c) => (typeof c.feeUSD === "number" && c.feeUSD > 0
+      ? { name: c.name, city: c.city, feeUSD: c.feeUSD, feeStatus: "amount" as const }
+      : { name: c.name, city: c.city, ...inherited }));
   }
+  const cityFee = inherited.feeStatus === "amount" ? { ...inherited, feeUSD: Math.round((inherited.feeUSD * 0.98) / 100) * 100 } : inherited;
   return [
-    { name: "Main Campus", city: u.city, feeUSD },
-    { name: `${u.city} City Campus`, city: u.city, feeUSD: Math.round((feeUSD * 0.98) / 100) * 100 },
+    { name: "Main Campus", city: u.city, ...inherited },
+    { name: `${u.city} City Campus`, city: u.city, ...cityFee },
   ];
 }
 
 /** Short label for a course's campus(es) — for the "Campus" fact tile on course pages. */
-export function campusLabelFor(u: University, course: { feeUSD: number; campusIds?: string[] }): string {
+export function campusLabelFor(u: University, course: { feeUSD: number; feeStatus?: "amount" | "free" | "unknown"; campusIds?: string[] }): string {
   const list = campusesFor(u, course);
   if (list.length === 0) return "Main Campus";
   if (list.length === 1) return list[0].name;
@@ -279,23 +263,15 @@ export function campusLabelFor(u: University, course: { feeUSD: number; campusId
 export interface SubjectStat {
   name: string;
   universityCount: number;
-  minFeeUSD: number;
-  maxFeeUSD: number;
 }
 
 // One row per field of study, used to render the "Subjects" tab on Explore — counts how many
-// universities offer it and the USD fee range across their matching courses.
+// universities offer it.
 export function subjectStats(): SubjectStat[] {
   const universities = getAllUniversities();
   return getAllSubjects().map((subject) => {
     const offeringUniversities = universities.filter((u) => u.subjects.includes(subject));
-    const fees = universities.flatMap((u) => u.courses.filter((c) => c.subject === subject).map((c) => c.feeUSD));
-    return {
-      name: subject,
-      universityCount: offeringUniversities.length,
-      minFeeUSD: fees.length ? Math.min(...fees) : 0,
-      maxFeeUSD: fees.length ? Math.max(...fees) : 0,
-    };
+    return { name: subject, universityCount: offeringUniversities.length };
   }).filter((s) => s.universityCount > 0);
 }
 
@@ -375,8 +351,10 @@ export interface UniversityFilterState {
   intakes: Set<string>;
   standardizedTests: Set<string>;
   acceptedEnglishTests: Set<string>;
-  minFeeUSD: string;
-  maxFeeUSD: string;
+  minFee: string; // amounts in `feeCurrency`, "" = no limit
+  maxFee: string;
+  feeCurrency: string; // symbol the fee range is in; "" = the destination's first currency
+  includeUnknownFee: boolean; // also keep courses whose fee isn't provided while a fee range is set
   englishTestName: string;
   englishScore: string; // "" = not provided
   accreditedOnly: boolean;
@@ -408,8 +386,10 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
     intakes: new Set(),
     standardizedTests: new Set(),
     acceptedEnglishTests: new Set(),
-    minFeeUSD: String(FEE_MIN_USD),
-    maxFeeUSD: String(FEE_MAX_USD),
+    minFee: String(FEE_MIN),
+    maxFee: String(FEE_MAX),
+    feeCurrency: "",
+    includeUnknownFee: false,
     englishTestName: "IELTS",
     englishScore: "",
     accreditedOnly: false,
@@ -441,7 +421,7 @@ export function countActiveFilters(f: UniversityFilterState): number {
   if (f.intakes.size > 0) n++;
   if (f.standardizedTests.size > 0) n++;
   if (f.acceptedEnglishTests.size > 0) n++;
-  { const r = feeRange(f); if (r.min > FEE_MIN_USD || r.max < FEE_MAX_USD) n++; }
+  if (feeRangeActive(f)) n++;
   if (f.englishScore) n++;
   if (f.accreditedOnly) n++;
   if (f.scholarshipOnly) n++;
@@ -485,15 +465,19 @@ function tokensMatch(text: string, tokens: string[]): boolean {
   return tokens.every((t) => text.includes(t));
 }
 
-// 0 is a legitimate slider position (max fee "$0"), so test for a real number rather than truthiness.
+// 0 is a legitimate slider position (max fee 0 = free courses only), so test for a real number rather than truthiness.
 function feeRange(f: UniversityFilterState): { min: number; max: number } {
-  const min = Number(f.minFeeUSD), max = Number(f.maxFeeUSD);
-  return { min: f.minFeeUSD !== "" && Number.isFinite(min) ? min : FEE_MIN_USD, max: f.maxFeeUSD !== "" && Number.isFinite(max) ? max : FEE_MAX_USD };
+  const min = Number(f.minFee), max = Number(f.maxFee);
+  return { min: f.minFee !== "" && Number.isFinite(min) ? min : FEE_MIN, max: f.maxFee !== "" && Number.isFinite(max) ? max : FEE_MAX };
+}
+export function feeRangeActive(f: UniversityFilterState): boolean {
+  const { min, max } = feeRange(f);
+  return min > FEE_MIN || max < FEE_MAX;
 }
 
-// Fee actually charged for a course (USD): the course's own fee, else the university's tuition row.
-function courseFeeUSD(u: University, c: University["courses"][number]): number {
-  return c.feeUSD > 0 ? c.feeUSD : tuitionInUSD(u);
+/** The currency the fee range is in: the one picked, else the destination's first (country-configured, then most used). */
+export function activeFeeCurrency(f: UniversityFilterState): string {
+  return f.feeCurrency || feeCurrenciesFor(f.destination)[0] || "";
 }
 
 /** The university-wide (non-course) part of the filters, as a predicate built once per filter state. */
@@ -526,11 +510,10 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
 
 // Whether any filter can only be satisfied by a course (so a university with no courses entered yet can't pass).
 function courseConditionsActive(f: UniversityFilterState): boolean {
-  const { min, max } = feeRange(f);
   return (
     !!(f.courseQuery.trim() || f.disciplineArea || f.duration || f.level) ||
     f.standardizedTests.size > 0 || f.withoutGRE || f.withoutGMAT || f.withoutMaths || f.stemOnly ||
-    f.accepts15YearsOnly || f.openProgramsOnly || f.intakes.size > 0 || min > FEE_MIN_USD || max < FEE_MAX_USD
+    f.accepts15YearsOnly || f.openProgramsOnly || f.intakes.size > 0 || feeRangeActive(f)
   );
 }
 
@@ -620,10 +603,16 @@ export function courseMatchesFilters(u: University, c: University["courses"][num
   if (tokens.length > 0 && !tokensMatch(`${universitySearchText(u)} | ${courseSearchText(u, c)}`, tokens)) return false;
   const courseQuery = normalizeText(f.courseQuery.trim());
   if (courseQuery && !normalizeText(c.name).includes(courseQuery)) return false;
-  const { min: minFee, max: maxFee } = feeRange(f);
-  if (minFee > FEE_MIN_USD || maxFee < FEE_MAX_USD) {
-    const fee = courseFeeUSD(u, c);
-    if (fee < minFee || fee > maxFee) return false;
+  if (feeRangeActive(f)) {
+    // Only fees in the selected currency are ever compared (never converted). A fee that isn't provided is kept only
+    // when the student asked to include those; a fee in another currency is simply not comparable, so it's left out.
+    const fee = courseFeeIn(u, c, activeFeeCurrency(f));
+    if (fee === null) {
+      if (!(f.includeUnknownFee && courseFeeKind(c) === "unknown")) return false;
+    } else {
+      const { min, max } = feeRange(f);
+      if (fee < min || fee > max) return false;
+    }
   }
   if (f.location) {
     const want = normalizeText(f.location.trim());
@@ -644,4 +633,24 @@ export function courseMatchesFilters(u: University, c: University["courses"][num
   }
   if (f.openProgramsOnly && !courseHasOpenIntake(u, c)) return false;
   return true;
+}
+
+// ---- What the fee range leaves out ----------------------------------------------------------------------
+/** Among the courses that pass every OTHER filter, how many the fee range can't judge: fee not provided, or priced in a
+ * different currency. Backs the notes under the fee range so nothing disappears silently. */
+export function feeFilterStats(f: UniversityFilterState): { unknown: number; otherCurrency: number } {
+  const currency = activeFeeCurrency(f);
+  const g: UniversityFilterState = { ...f, minFee: String(FEE_MIN), maxFee: String(FEE_MAX) };
+  const gate = makeUniversityGate(g);
+  let unknown = 0;
+  let otherCurrency = 0;
+  getAllUniversities().forEach((u) => {
+    if (!gate(u)) return;
+    u.courses.forEach((c) => {
+      if (!courseMatchesFilters(u, c, g)) return;
+      if (courseFeeKind(c) === "unknown") unknown++;
+      else if (!sameCurrency(courseCurrencyOf(u, c), currency)) otherCurrency++;
+    });
+  });
+  return { unknown, otherCurrency };
 }

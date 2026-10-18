@@ -27,6 +27,7 @@ import { EnglishTestNotices } from "../../components/EnglishTestNotices";
 import { CourseAccreditations } from "../../components/CourseAccreditations";
 import { ShortlistButton } from "./ShortlistButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
+import { courseFeeText } from "../../utils/courseFee";
 
 const UNI_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 const COURSE_TABS = ["Overview", "Modules", "Entry Requirements", "Careers"] as const;
@@ -117,7 +118,7 @@ export default function AgentUniversityDetail() {
                 <div className="space-y-4">
                   <RestrictedRegionsNotice university={university} />
                   <div className="grid grid-cols-3 gap-3">
-                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={`${university.currencySymbol}${course.feeUSD.toLocaleString()}`} />
+                    <StatTile icon={<Wallet size={14} />} label="Fee / year" value={courseFeeText(university, course).text} />
                     <StatTile icon={<CalendarDays size={14} />} label="Intake" value={university.openIntake} />
                     <StatTile icon={<GraduationCap size={14} />} label="Scholarship" value={scholarshipLabel(university) ?? "—"} />
                   </div>
@@ -236,7 +237,7 @@ export default function AgentUniversityDetail() {
                                 <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
                               </div>
                               <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
-                                {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                                {courseFeeText(university, c).perYear} <ChevronRight size={14} className="text-slate-300" />
                               </div>
                             </button>
                           ))}
@@ -299,7 +300,7 @@ export default function AgentUniversityDetail() {
                         <p className="truncate text-[11px] text-slate-400">{c.level} · {c.duration}</p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-[11px] text-slate-500">
-                        {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr <ChevronRight size={14} className="text-slate-300" />
+                        {courseFeeText(university, c).perYear} <ChevronRight size={14} className="text-slate-300" />
                       </div>
                     </button>
                   ))}

@@ -4,10 +4,12 @@ import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Buildin
 import { LogoBadge, PillSelect, Pagination } from "../../components/ui/mobile";
 import { usePagedList } from "../../utils/usePagedList";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { matchingCourse, scholarshipLabel, depositLabel, courseHasOpenIntake, FEE_BANDS, feeBandMax } from "../../utils/universityFilter";
+import { matchingCourse, scholarshipLabel, depositLabel, courseHasOpenIntake } from "../../utils/universityFilter";
+import { useFeeBand } from "../../utils/useFeeBand";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted as isProgramShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
+import { courseFeeText } from "../../utils/courseFee";
 
 export default function SubjectDetail() {
   const { subject: subjectParam } = useParams();
@@ -18,7 +20,6 @@ export default function SubjectDetail() {
 
   const [destination, setDestination] = useState(navState?.destination ?? "");
   const [intake, setIntake] = useState("");
-  const [feeBand, setFeeBand] = useState("");
   const [scholarship, setScholarship] = useState("");
   const [, setShortlistTick] = useState(0);
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
@@ -36,24 +37,26 @@ export default function SubjectDetail() {
     [subject]
   );
 
+  // The "Under X" fee bands are amounts in one chosen currency — a course in another currency, or with no fee listed, is never measured against them.
+  const band = useFeeBand(allOfferings);
   const destinationOptions = useMemo(() => Array.from(new Set(allOfferings.map((o) => o.university.country))).sort(), [allOfferings]);
   const intakeOptions = useMemo(() => Array.from(new Set(allOfferings.map((o) => o.university.openIntake))).sort(), [allOfferings]);
 
   const offerings = allOfferings.filter(({ university: u, course: c }) => {
     if (destination && u.country !== destination) return false;
     if (intake && u.openIntake !== intake) return false;
-    if (feeBand && c.feeUSD > feeBandMax(feeBand)) return false;
+    if (!band.matches(u, c)) return false;
     if (scholarship === "Available" && !u.scholarshipsAvailable) return false;
     return true;
   });
 
-  const filtersActive = !!(destination || intake || feeBand || scholarship);
-  const { page, setPage, totalPages, pageItems: pagedOfferings } = usePagedList(offerings, 30, `${destination}:${intake}:${feeBand}:${scholarship}`);
+  const filtersActive = !!(destination || intake || band.active || scholarship);
+  const { page, setPage, totalPages, pageItems: pagedOfferings } = usePagedList(offerings, 30, `${destination}:${intake}:${band.bandValue}:${scholarship}`);
 
   function resetFilters() {
     setDestination("");
     setIntake("");
-    setFeeBand("");
+    band.reset();
     setScholarship("");
   }
 
@@ -93,7 +96,8 @@ export default function SubjectDetail() {
           <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
             <PillSelect label="Destination" value={destination} options={destinationOptions} onChange={setDestination} placeholder="All destinations" />
             <PillSelect label="Intake" value={intake} options={intakeOptions} onChange={setIntake} placeholder="Any intake" />
-            <PillSelect label="Fees" value={feeBand} options={FEE_BANDS} onChange={setFeeBand} placeholder="Any fee" />
+            <PillSelect label="Fees" value={band.bandValue} options={band.bandOptions} onChange={band.onBandChange} placeholder="Any fee" />
+            {band.showCurrency && <PillSelect label="Currency" value={band.currencyValue} options={band.currencyOptions} onChange={band.onCurrencyChange} />}
             <PillSelect label="Scholarship" value={scholarship} options={["Available"]} onChange={setScholarship} placeholder="Any" />
           </div>
         </div>
@@ -132,8 +136,7 @@ export default function SubjectDetail() {
                   </div>
                   <div className="mt-1 flex items-center gap-x-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-[10.5px] text-neutral-500">
                     <span className="inline-flex shrink-0 items-center gap-1">
-                      <Wallet size={11} className="text-neutral-400" /> {u.currencySymbol}
-                      {Math.round(c.feeUSD).toLocaleString()}
+                      <Wallet size={11} className="text-neutral-400" /> {courseFeeText(u, c).text}
                     </span>
                     {scholarshipText && (
                       <span className="inline-flex shrink-0 items-center gap-1">

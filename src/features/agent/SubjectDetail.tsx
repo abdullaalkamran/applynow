@@ -5,7 +5,8 @@ import { PillSelect, Pagination } from "../../components/ui/mobile";
 import { usePagedList } from "../../utils/usePagedList";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
-import { destinationOptions, intakeOptions, FEE_BANDS, feeBandMax, matchingCourse } from "../../utils/universityFilter";
+import { destinationOptions, intakeOptions, matchingCourse } from "../../utils/universityFilter";
+import { useFeeBand } from "../../utils/useFeeBand";
 import { ProgramRow } from "./ProgramRow";
 import { CreateApplicationModal } from "./CreateApplicationModal";
 import type { University } from "../../types";
@@ -20,22 +21,24 @@ export default function AgentSubjectDetail() {
   const students = loadAgentStudents();
   const [destination, setDestination] = useState(navState?.destination ?? "");
   const [intake, setIntake] = useState("");
-  const [feeBand, setFeeBand] = useState("");
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: Course } | null>(null);
 
   const subjectName = subject ?? "";
-  const programs = getAllUniversities().filter((u) => u.subjects.includes(subjectName))
+  const allPrograms = getAllUniversities().filter((u) => u.subjects.includes(subjectName))
     .map((university) => ({ university, course: matchingCourse(university, subjectName) }))
-    .filter((p): p is { university: University; course: Course } => !!p.course)
+    .filter((p): p is { university: University; course: Course } => !!p.course);
+  // Fee bands are amounts in one chosen currency — never compared across currencies.
+  const band = useFeeBand(allPrograms);
+  const programs = allPrograms
     .filter(({ university, course }) => {
       if (destination && university.country !== destination) return false;
       if (intake && !university.intakes.includes(intake)) return false;
-      if (feeBand && course.feeUSD > feeBandMax(feeBand)) return false;
+      if (!band.matches(university, course)) return false;
       return true;
     });
 
-  const hasFilters = !!(destination || intake || feeBand);
-  const { page, setPage, totalPages, pageItems: pagedPrograms } = usePagedList(programs, 30, `${destination}:${intake}:${feeBand}`);
+  const hasFilters = !!(destination || intake || band.active);
+  const { page, setPage, totalPages, pageItems: pagedPrograms } = usePagedList(programs, 30, `${destination}:${intake}:${band.bandValue}`);
 
   return (
     <div>
@@ -49,9 +52,10 @@ export default function AgentSubjectDetail() {
       <div className="my-4 -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <PillSelect label="Destination" value={destination} onChange={setDestination} options={destinationOptions()} />
         <PillSelect label="Intake" value={intake} onChange={setIntake} options={intakeOptions()} />
-        <PillSelect label="Fees" value={feeBand} onChange={setFeeBand} options={[...FEE_BANDS]} />
+        <PillSelect label="Fees" value={band.bandValue} options={band.bandOptions} onChange={band.onBandChange} />
+        {band.showCurrency && <PillSelect label="Currency" value={band.currencyValue} options={band.currencyOptions} onChange={band.onCurrencyChange} />}
         {hasFilters && (
-          <button onClick={() => { setDestination(""); setIntake(""); setFeeBand(""); }} className="shrink-0 text-[11px] font-medium text-blue-600">
+          <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="shrink-0 text-[11px] font-medium text-blue-600">
             Clear
           </button>
         )}
@@ -72,7 +76,7 @@ export default function AgentSubjectDetail() {
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
           <p className="text-xs text-slate-400">No programs match this view.</p>
           {hasFilters && (
-            <button onClick={() => { setDestination(""); setIntake(""); setFeeBand(""); }} className="mt-2 text-[11px] font-medium text-blue-600">
+            <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="mt-2 text-[11px] font-medium text-blue-600">
               Reset filters
             </button>
           )}

@@ -12,6 +12,7 @@ import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
 import { NeuTabs } from "../../components/ui/NeuTabs";
+import { courseFeeText } from "../../utils/courseFee";
 
 const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
@@ -115,7 +116,7 @@ export default function CountryDetail() {
                   <p className="truncate text-sm font-semibold text-neutral-900">{c.name}</p>
                   <p className="truncate text-xs text-neutral-400">{u.name} · {c.level} · {c.duration}</p>
                   <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold text-neutral-700">
-                    <Wallet size={11} className="text-neutral-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                    <Wallet size={11} className="text-neutral-400" /> {courseFeeText(u, c).perYear}
                   </p>
                 </div>
                 <ChevronRight size={16} className="shrink-0 text-neutral-300" />

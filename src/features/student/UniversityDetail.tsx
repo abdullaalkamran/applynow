@@ -27,6 +27,7 @@ import { CourseAccreditations } from "../../components/CourseAccreditations";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 import { NeuTabs } from "../../components/ui/NeuTabs";
+import { courseFeeText } from "../../utils/courseFee";
 
 const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country Guide"] as const;
 
@@ -235,7 +236,7 @@ function CourseView({
         {/* The key facts and the overview text share one card, separated by thin lines. */}
         <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
           <div className="-mt-3 grid grid-cols-3">
-            <InfoCell icon={<Wallet size={18} />} value={`${university.currencySymbol}${Math.round(course.feeUSD).toLocaleString()}`} label="per year" className="border-b border-r" />
+            <InfoCell icon={<Wallet size={18} />} value={courseFeeText(university, course).text} label={courseFeeText(university, course).isAmount ? "per year" : "tuition fee"} className="border-b border-r" />
             <InfoCell icon={<CalendarDays size={18} />} value={university.openIntake} label="intake" className="border-b border-r" />
             <InfoCell icon={<GraduationCap size={18} />} value={scholarship ?? "—"} label="scholarship" className="border-b" />
             <InfoCell icon={<Building2 size={18} />} value={campusLabelFor(university, course)} label="campus" onClick={openCampuses} className="border-r" />
@@ -353,7 +354,7 @@ function CoursesTab({ university, onSelectCourse }: { university: University; on
           >
             <span className="min-w-0 break-words text-[13px] font-semibold leading-snug text-neutral-900">{c.name}</span>
             <span className="shrink-0 text-[12.5px] font-semibold text-neutral-700">
-              {c.currencySymbol ?? university.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+              {courseFeeText(university, c).perYear}
             </span>
           </button>
         ))}

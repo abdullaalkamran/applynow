@@ -23,6 +23,7 @@ import { ApplyModal } from "./ApplyModal";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
 import { NeuSelect } from "../../components/ui/NeuSelect";
+import { courseFeeText } from "../../utils/courseFee";
 
 type Tab = "universities" | "subjects" | "countries";
 
@@ -431,7 +432,7 @@ export default function UniversitySearch() {
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-1 text-[9.5px] text-neutral-400 sm:mt-1.5 sm:text-[10.5px]">
                         <span className="inline-flex shrink-0 items-center gap-1">
-                          <Wallet size={11} /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}
+                          <Wallet size={11} /> {courseFeeText(u, c).text}
                         </span>
                         {depositLabel(u) && (
                           <>

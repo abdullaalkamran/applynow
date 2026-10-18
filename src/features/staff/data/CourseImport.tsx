@@ -1,5 +1,6 @@
 // Data Management → University → "Import from URLs": the course flavour of ImportQueue.tsx.
 // Rows belong to one university; review happens in CourseForm (`?importId=`).
+import { courseFeeKind } from "../../../utils/courseFee";
 import { AlertTriangle, ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getUniversityById } from "../../../data/universityCatalogStore";
@@ -57,7 +58,7 @@ export default function DataCourseImport() {
         detail: (
           <>
             {c.subject || <span className="text-amber-700">subject not matched</span>} · {c.level} · {c.duration || "duration ?"}
-            {c.feeUSD ? ` · ${c.currencySymbol ?? ""}${c.feeUSD.toLocaleString()}/yr` : " · fee ?"}
+            {courseFeeKind(c) === "amount" ? ` · ${c.currencySymbol ?? ""}${c.feeUSD.toLocaleString()}/yr` : c.feeStatus === "free" ? " · Free" : " · fee ?"}
           </>
         ),
       };

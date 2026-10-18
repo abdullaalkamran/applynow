@@ -18,6 +18,7 @@ import { EnglishTestNotices } from "../../../components/EnglishTestNotices";
 import { depositLabel } from "../../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../../utils/universityPreviews";
 import { getUniversityById, deleteUniversity } from "../../../data/universityCatalogStore";
+import { courseFeeText } from "../../../utils/courseFee";
 
 const TABS = ["Overview", "Campuses", "Courses", "Requirements", "Fees"] as const;
 
@@ -164,7 +165,7 @@ export default function DataUniversityDetail() {
                             <p className="truncate text-xs text-slate-400">{c.subject} · {c.level} · {c.duration}</p>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            <span className="text-xs font-semibold text-slate-700">{c.currencySymbol ?? university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
+                            <span className="text-xs font-semibold text-slate-700">{courseFeeText(university, c).perYear}</span>
                             <ChevronRight size={14} className="text-slate-300" />
                           </div>
                         </button>
@@ -244,7 +245,7 @@ export default function DataUniversityDetail() {
                       <p className="truncate text-xs text-slate-400">{c.city}</p>
                     </div>
                   </div>
-                  {c.feeUSD !== undefined && <span className="shrink-0 text-xs font-semibold text-slate-700">{university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>}
+                  {typeof c.feeUSD === "number" && c.feeUSD > 0 && <span className="shrink-0 text-xs font-semibold text-slate-700">{courseFeeText(university, { feeUSD: c.feeUSD, feeStatus: "amount" }).perYear}</span>}
                 </div>
               ))}
               {(university.campuses ?? []).length === 0 && (
@@ -307,7 +308,7 @@ export default function DataUniversityDetail() {
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-700">{c.currencySymbol ?? university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
+                      <span className="text-xs font-semibold text-slate-700">{courseFeeText(university, c).perYear}</span>
                       <ChevronRight size={15} className="text-slate-300" />
                     </div>
                   </button>

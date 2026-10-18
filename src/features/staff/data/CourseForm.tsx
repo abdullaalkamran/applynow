@@ -11,9 +11,13 @@ import {
 import { useHoldCacheSync } from "../../../utils/syncCache";
 import { ChipListEditor } from "./ChipListEditor";
 import { TEST_NAME_OPTIONS, PROGRAM_LEVEL_OPTIONS, STANDARDIZED_TEST_OPTIONS } from "../../../utils/universityFilter";
+import { courseFeeKind, type CourseFeeKind } from "../../../utils/courseFee";
+import { getCountryByName } from "../../../data/countryRegistry";
 import type { University, CourseAccreditation } from "../../../types";
 
-const CURRENCY_OPTIONS = ["$", "£", "€", "C$", "A$", "AED "];
+// The symbols the form offers: the usual set plus the ones the AI import can produce from a page's currency code
+// (NZD, SGD, MYR), so an imported course's own currency is always a real option instead of silently showing "$".
+const CURRENCY_OPTIONS = ["$", "£", "€", "C$", "A$", "AED ", "NZ$", "S$", "RM "];
 const STUDY_MODE_OPTIONS = ["Full-time", "Part-time", "Online", "Blended"];
 const COMMON_SKILLS = ["Listening", "Reading", "Writing", "Speaking"];
 type EnglishReq = NonNullable<University["courses"][number]["englishRequirements"]>[number];
@@ -143,8 +147,20 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
   const [durationAmount, setDurationAmount] = useState(importItem && !base?.duration ? "" : parseDuration(base?.duration).amount);
   const [durationUnit, setDurationUnit] = useState<DurationUnit>(parseDuration(base?.duration).unit);
   const duration = formatDuration(durationAmount, durationUnit);
-  const [feeUSD, setFeeUSD] = useState(String(base?.feeUSD ?? 20000));
+  // Fee: a real amount, explicitly Free, or Not provided. A NEW course starts with no amount typed (never a made-up
+  // default). An existing course that was saved as a bare 0 opens as "Not provided" — it is never read as Free — and its
+  // stored fee is left alone unless this form's fee controls are touched.
+  const initialFeeMode: CourseFeeKind = base ? courseFeeKind(base) : "amount";
+  const [feeMode, setFeeMode] = useState<CourseFeeKind>(initialFeeMode);
+  const [feeUSD, setFeeUSD] = useState(base && courseFeeKind(base) === "amount" ? String(base.feeUSD) : "");
+  const [feeTouched, setFeeTouched] = useState(false);
+  const feeAmount = Number(feeUSD);
+  const feeInvalid = feeMode === "amount" && !(feeUSD.trim() !== "" && Number.isFinite(feeAmount) && feeAmount > 0);
+  const legacyZero = !!existing && existing.feeStatus !== "free" && existing.feeStatus !== "unknown" && !(existing.feeUSD > 0);
   const [currencySymbol, setCurrencySymbol] = useState(base?.currencySymbol ?? university.currencySymbol ?? "$");
+  // The form's usual symbols, plus the ones the existing Country Management and University settings already carry, plus
+  // whatever this course is already using — so a configured or imported currency is always selectable.
+  const currencyOptions = [...new Set([...CURRENCY_OPTIONS, ...(getCountryByName(university.country)?.currencySymbols ?? []), university.currencySymbol, currencySymbol].filter(Boolean))];
   const [campusIds, setCampusIds] = useState<Set<string>>(new Set(base?.campusIds ?? []));
   const [description, setDescription] = useState(base?.description ?? "");
   const [studyMode, setStudyMode] = useState(base?.studyMode ?? "Full-time");
@@ -225,7 +241,7 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
       subject,
       level,
       duration: duration.trim(),
-      feeUSD: Number(feeUSD) || 0,
+      ...(feeMode === "amount" ? { feeUSD: feeAmount, feeStatus: "amount" as const } : { feeUSD: 0, feeStatus: feeMode }),
       currencySymbol,
       campusIds: [...campusIds],
       description: description.trim() || undefined,
@@ -252,6 +268,7 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
       isStemProgram,
       accepts15YearsEducation,
     };
+    if (feeInvalid) { setSaveError("Enter the annual fee, or choose Free or Not provided."); return; }
     if (importItem) {
       setSaving(true);
       setSaveError("");
@@ -266,7 +283,12 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
         });
       return;
     }
-    if (existing) updateCourse(university.id, existing.id, data);
+    // Editing an existing course: the fee is only sent when this form's fee controls were touched, so saving other edits
+    // can never rewrite a stored fee (notably an old course saved as 0).
+    if (existing) {
+      const { feeUSD: _fee, feeStatus: _status, ...rest } = data;
+      updateCourse(university.id, existing.id, feeTouched ? data : rest);
+    }
     else addCourse(university.id, data);
     navigate(backTarget, { state: { tab: "Courses" } });
   }
@@ -340,16 +362,38 @@ function CourseEditor({ university, existing, importItem }: { university: Univer
               </div>
               {duration && <p className="mt-1 text-[11px] text-slate-400">Shown as "{duration}"</p>}
             </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Currency">
-                <select value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} className={INPUT_CLASS}>
-                  {CURRENCY_OPTIONS.map((c) => <option key={c} value={c}>{c.trim()}</option>)}
+            <FieldGroup label="Annual fee" attention={flag("feeUSD")}>
+              <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs font-medium" role="group" aria-label="Fee type">
+                {([["amount", "Amount"], ["free", "Free"], ["unknown", "Not provided"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode} type="button" aria-pressed={feeMode === mode}
+                    onClick={() => { setFeeMode(mode); setFeeTouched(true); }}
+                    className={`flex-1 px-2 py-2 ${feeMode === mode ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-1.5 grid grid-cols-2 gap-2">
+                <select value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} aria-label="Currency" className={INPUT_CLASS}>
+                  {currencyOptions.map((c) => <option key={c} value={c}>{c.trim()}</option>)}
                 </select>
-              </Field>
-              <Field label="Annual fee" attention={flag("feeUSD")}>
-                <input type="number" value={feeUSD} onChange={(e) => setFeeUSD(e.target.value)} className={INPUT_CLASS} />
-              </Field>
-            </div>
+                {feeMode === "amount" ? (
+                  <input
+                    type="number" min="0" placeholder="Annual fee" value={feeUSD}
+                    onChange={(e) => { setFeeUSD(e.target.value); setFeeTouched(true); }}
+                    className={INPUT_CLASS}
+                  />
+                ) : <div />}
+              </div>
+            </FieldGroup>
+            {feeMode === "amount" && feeInvalid && <p className="text-[11px] text-amber-700">Enter the annual fee, or choose Free or Not provided.</p>}
+            {feeMode === "free" && <p className="text-[11px] text-slate-500">Students will see "Free". Use this only when the course really has no tuition fee.</p>}
+            {feeMode === "unknown" && (
+              <p className="text-[11px] text-slate-500">
+                Students will see "Fee not provided".{legacyZero && !feeTouched ? " This course was saved earlier with a fee of 0 — choose Free if it really is free, or enter the fee." : ""}
+              </p>
+            )}
             <Field label="Study mode" attention={flag("studyMode")}>
               <select value={studyMode} onChange={(e) => setStudyMode(e.target.value)} className={INPUT_CLASS}>
                 {STUDY_MODE_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -634,6 +678,17 @@ const INPUT_CLASS = "w-full rounded-lg border border-slate-200 px-3 py-2 text-xs
 
 /** `attention` (import mode only) marks a field the reviewer must verify against the source page,
  * with the page's own words underneath when the extractor captured them. */
+/** Same look as Field, but a plain <div role="group">: a Field is a <label>, and a label wrapping several buttons turns a click on its text into a click on the first button. */
+function FieldGroup({ label, children, attention }: { label: string; children: React.ReactNode; attention?: { evidence?: string } }) {
+  return (
+    <div role="group" aria-label={label} className="block text-xs font-medium text-slate-500">
+      <span className="flex items-center gap-2">{label} {attention && <CheckPill />}</span>
+      <div className="mt-1">{children}</div>
+      {attention?.evidence && <Evidence text={attention.evidence} />}
+    </div>
+  );
+}
+
 function Field({ label, children, attention }: { label: string; children: React.ReactNode; attention?: { evidence?: string } }) {
   return (
     <label className="block text-xs font-medium text-slate-500">

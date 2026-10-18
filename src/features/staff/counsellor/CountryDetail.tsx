@@ -14,6 +14,7 @@ import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getCountryByName } from "../../../data/countryRegistry";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
+import { courseFeeText } from "../../../utils/courseFee";
 
 const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
@@ -131,7 +132,7 @@ export default function CounsellorCountryDetail() {
                 <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
                 <p className="truncate text-xs text-slate-400">{u.name} · {c.level} · {c.duration}</p>
                 <p className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold text-slate-700">
-                  <Wallet size={11} className="text-slate-400" /> {u.currencySymbol}{Math.round(c.feeUSD).toLocaleString()}/yr
+                  <Wallet size={11} className="text-slate-400" /> {courseFeeText(u, c).perYear}
                 </p>
               </div>
               <ChevronRight size={16} className="shrink-0 text-slate-300" />

@@ -208,7 +208,12 @@ export interface University {
     level: string;
     duration: string;
     subject: string;
+    // The annual fee AMOUNT in this course's own currency (`currencySymbol`, else the university's) — a legacy name, it is
+    // not US dollars. `feeStatus` says whether that number means anything: "free" is the only way a course is Free, and a
+    // 0 with any other status (every row saved before the field existed) means the fee isn't provided. Read it through
+    // utils/courseFee.ts, never directly.
     feeUSD: number;
+    feeStatus?: "amount" | "free" | "unknown";
     // Course-specific intake months and application deadline — a subset of the university's own
     // `intakes`, since a course needn't run every session the university offers. Falls back to the
     // university's own intake data on display when absent (older courses, or ones on the general schedule).

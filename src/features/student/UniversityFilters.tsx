@@ -5,10 +5,11 @@ import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, i
 import {
   TEST_NAME_OPTIONS, locationOptions, facetOptions,
   STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
-  FEE_MIN_USD, FEE_MAX_USD, FEE_STEP_USD, currencyForDestination,
+  FEE_MIN, FEE_MAX, FEE_STEP, activeFeeCurrency, feeRangeActive, feeFilterStats,
   emptyFilters, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import type { FiltersOutletContext } from "./UniversitySearch";
+import { feeCurrenciesFor } from "../../utils/courseFee";
 import { FeeRangeFilter } from "../../components/ui/FeeRangeFilter";
 import { NeuSelect } from "../../components/ui/NeuSelect";
 
@@ -44,6 +45,11 @@ export default function UniversityFilters() {
     duration: facetOptions(filters, "duration"),
     intake: facetOptions(filters, "intake"),
   }), [filters]);
+  // The fee range speaks one currency at a time: the destination's own (country-configured first), with chips when its
+  // courses use several. Amounts are never converted — see utils/courseFee.ts.
+  const feeCurrencies = useMemo(() => feeCurrenciesFor(filters.destination), [filters.destination]);
+  const feeCurrency = activeFeeCurrency(filters);
+  const feeStats = useMemo(() => feeFilterStats(filters), [filters]);
   // A value picked earlier stays visible even if a later choice made it unavailable, so the conflict is
   // obvious (and one tap away from fixing) rather than the box silently going blank.
   const withSelected = (list: string[], value: string) => (value && !list.includes(value) ? [value, ...list] : list);
@@ -76,6 +82,10 @@ export default function UniversityFilters() {
                     ...prev,
                     destination,
                     location: !destination || locationOptions(destination).includes(prev.location) ? prev.location : "",
+                    // Amounts in one currency mean nothing in another, so the fee range starts over for the new destination.
+                    feeCurrency: "",
+                    minFee: String(FEE_MIN),
+                    maxFee: String(FEE_MAX),
                   }));
                 }}
                 className={inputClass}
@@ -188,13 +198,20 @@ export default function UniversityFilters() {
             <Section icon={<ShieldCheck size={15} />} title="Cost & Score Requirements">
               <SubLabel>Annual Fees</SubLabel>
               <FeeRangeFilter
-                min={filters.minFeeUSD}
-                max={filters.maxFeeUSD}
-                floor={FEE_MIN_USD}
-                ceiling={FEE_MAX_USD}
-                step={FEE_STEP_USD}
-                currency={currencyForDestination(filters.destination)}
-                onChange={(minFeeUSD, maxFeeUSD) => setFilters((prev) => ({ ...prev, minFeeUSD, maxFeeUSD }))}
+                min={filters.minFee}
+                max={filters.maxFee}
+                floor={FEE_MIN}
+                ceiling={FEE_MAX}
+                step={FEE_STEP}
+                currency={feeCurrency}
+                currencies={feeCurrencies}
+                onCurrencyChange={(sym) => setFilters((prev) => ({ ...prev, feeCurrency: sym, minFee: String(FEE_MIN), maxFee: String(FEE_MAX) }))}
+                onChange={(minFee, maxFee) => setFilters((prev) => ({ ...prev, minFee, maxFee }))}
+                rangeActive={feeRangeActive(filters)}
+                unknownCount={feeStats.unknown}
+                otherCurrencyCount={feeStats.otherCurrency}
+                includeUnknown={filters.includeUnknownFee}
+                onIncludeUnknown={(v) => update("includeUnknownFee", v)}
               />
 
               <div className="mt-3.5 grid grid-cols-2 gap-3">

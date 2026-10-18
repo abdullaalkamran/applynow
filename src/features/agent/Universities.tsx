@@ -5,8 +5,9 @@ import { PillSelect, LogoBadge, Pill, Pagination } from "../../components/ui/mob
 import { usePagedList } from "../../utils/usePagedList";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import {
-  allPrograms, destinationOptions, subjectOptions, intakeOptions, FEE_BANDS, feeBandMax, countryStats,
+  allPrograms, destinationOptions, subjectOptions, intakeOptions, countryStats,
 } from "../../utils/universityFilter";
+import { useFeeBand } from "../../utils/useFeeBand";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { ProgramRow } from "./ProgramRow";
 import { CreateApplicationModal } from "./CreateApplicationModal";
@@ -24,7 +25,6 @@ export default function AgentUniversities() {
   const [subject, setSubject] = useState("");
   const [destination, setDestination] = useState("");
   const [intake, setIntake] = useState("");
-  const [feeBand, setFeeBand] = useState("");
 
   // Universities tab — search + country.
   const [query, setQuery] = useState("");
@@ -33,11 +33,14 @@ export default function AgentUniversities() {
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: Course } | null>(null);
 
   const UNIVERSITIES = getAllUniversities();
-  const filteredPrograms = allPrograms().filter(({ university, course }) => {
+  const everyProgram = allPrograms();
+  // Fee bands are amounts in one chosen currency — never compared across currencies.
+  const band = useFeeBand(everyProgram);
+  const filteredPrograms = everyProgram.filter(({ university, course }) => {
     if (subject && course.subject !== subject) return false;
     if (destination && university.country !== destination) return false;
     if (intake && !university.intakes.includes(intake)) return false;
-    if (feeBand && course.feeUSD > feeBandMax(feeBand)) return false;
+    if (!band.matches(university, course)) return false;
     return true;
   });
 
@@ -48,8 +51,8 @@ export default function AgentUniversities() {
     return u.name.toLowerCase().includes(q) || u.city.toLowerCase().includes(q) || u.subjects.some((s) => s.toLowerCase().includes(q));
   });
 
-  const hasProgramFilters = !!(subject || destination || intake || feeBand);
-  const programsPage = usePagedList(filteredPrograms, 30, `${subject}:${destination}:${intake}:${feeBand}`);
+  const hasProgramFilters = !!(subject || destination || intake || band.active);
+  const programsPage = usePagedList(filteredPrograms, 30, `${subject}:${destination}:${intake}:${band.bandValue}`);
   const universitiesPage = usePagedList(filteredUniversities, 30, `${country}:${query}`);
 
   return (
@@ -79,7 +82,7 @@ export default function AgentUniversities() {
             <p className="text-xs text-slate-500">{filteredPrograms.length} program{filteredPrograms.length === 1 ? "" : "s"}</p>
             {hasProgramFilters && (
               <button
-                onClick={() => { setSubject(""); setDestination(""); setIntake(""); setFeeBand(""); }}
+                onClick={() => { setSubject(""); setDestination(""); setIntake(""); band.reset(); }}
                 className="text-[11px] font-medium text-blue-600"
               >
                 Clear filters
@@ -91,7 +94,8 @@ export default function AgentUniversities() {
             <PillSelect label="Subject" value={subject} onChange={setSubject} options={subjectOptions()} />
             <PillSelect label="Destination" value={destination} onChange={setDestination} options={destinationOptions()} />
             <PillSelect label="Intake" value={intake} onChange={setIntake} options={intakeOptions()} />
-            <PillSelect label="Fees" value={feeBand} onChange={setFeeBand} options={[...FEE_BANDS]} />
+            <PillSelect label="Fees" value={band.bandValue} options={band.bandOptions} onChange={band.onBandChange} />
+            {band.showCurrency && <PillSelect label="Currency" value={band.currencyValue} options={band.currencyOptions} onChange={band.onCurrencyChange} />}
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -108,7 +112,7 @@ export default function AgentUniversities() {
           {filteredPrograms.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
               <p className="text-xs text-slate-400">No programs match these filters.</p>
-              <button onClick={() => { setSubject(""); setDestination(""); setIntake(""); setFeeBand(""); }} className="mt-2 text-[11px] font-medium text-blue-600">
+              <button onClick={() => { setSubject(""); setDestination(""); setIntake(""); band.reset(); }} className="mt-2 text-[11px] font-medium text-blue-600">
                 Reset filters
               </button>
             </div>

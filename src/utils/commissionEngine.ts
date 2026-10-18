@@ -5,6 +5,7 @@
 // (agents can see the estimate the whole way through, but can't invoice it until enrolment is
 // confirmed). A university with no rate set yields 0 and `rateSet: false`.
 
+import { courseFeeKind } from "./courseFee";
 import { getAllUniversities } from "../data/universityCatalogStore";
 import { getCommissionRate, hasCommissionRate, EMPTY_RATE, type CommissionMode } from "../data/commissionRatesStore";
 import type { Application } from "../types";
@@ -32,7 +33,9 @@ export function tuitionFeeFor(app: Application): number {
   const university = getAllUniversities().find((u) => u.name === app.university);
   if (!university) return 0;
   const course = university.courses.find((c) => c.name === app.course);
-  if (course) return course.feeUSD;
+  // Only a real amount counts as the tuition base; a course whose fee isn't provided (or is Free) falls through to the
+  // university's own tuition line rather than being treated as a fee of 0 or an invented number.
+  if (course && courseFeeKind(course) === "amount") return course.feeUSD;
   return university.fees.find((f) => f.label === "Tuition Fee")?.amount ?? 0;
 }
 

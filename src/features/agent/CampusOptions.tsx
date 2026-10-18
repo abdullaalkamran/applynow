@@ -3,6 +3,7 @@ import { ArrowLeft, MapPin, Wallet, CalendarDays, GraduationCap } from "lucide-r
 import { SkylineArt, CoverPhoto } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { campusesFor, scholarshipLabel } from "../../utils/universityFilter";
+import { courseFeeText } from "../../utils/courseFee";
 
 export default function AgentCampusOptions() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function AgentCampusOptions() {
                 <p className="text-xs font-semibold text-slate-800">{c.name}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400"><MapPin size={11} /> {c.city}, {university.country}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1"><Wallet size={11} /> {university.currencySymbol}{c.feeUSD.toLocaleString()}/yr</span>
+                  <span className="flex items-center gap-1"><Wallet size={11} /> {courseFeeText(university, { feeUSD: c.feeUSD, feeStatus: c.feeStatus, currencySymbol: course?.currencySymbol }).perYear}</span>
                   <span className="flex items-center gap-1"><CalendarDays size={11} /> {university.openIntake}</span>
                   {scholarship !== null && (
                     <span className="flex items-center gap-1 text-emerald-600"><GraduationCap size={11} /> {scholarship}</span>
