@@ -6,7 +6,10 @@
 // here is a static screenshot of one example.
 import type { University } from "../types";
 import type { VisaCostConfig } from "../data/countryRegistry";
+import { courseFeeKind } from "../utils/courseFee";
+import { FEES_CAN_CHANGE_WARNING, isUkCountry, ukIhs } from "../utils/ukvi";
 import { durationYears } from "./CostCalculator";
+import { AlertTriangle } from "lucide-react";
 
 type Course = University["courses"][number];
 
@@ -28,11 +31,14 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
   const local = config.localCurrencyName;
   const rate = config.foreignToLocalRate;
 
-  const tuition = university.fees.find((f) => f.label.toLowerCase().includes("tuition"))?.amount ?? 0;
-  const years = Math.ceil(durationYears(course?.duration));
+  // The selected course's own yearly fee when it has one, else the university's generic tuition line.
+  const tuition = course && courseFeeKind(course) === "amount" ? course.feeUSD : (university.fees.find((f) => f.label.toLowerCase().includes("tuition"))?.amount ?? 0);
+  const uk = isUkCountry(university.country);
+  const ukRule = uk ? ukIhs(course?.duration, config.healthSurchargePerYear) : null;
+  const years = ukRule ? ukRule.years : Math.ceil(durationYears(course?.duration));
 
   const casDeposit = Math.round((tuition * config.casPaymentPercent) / 100);
-  const ihsTotal = Math.round(config.healthSurchargePerYear * years);
+  const ihsTotal = ukRule ? ukRule.amount : Math.round(config.healthSurchargePerYear * years);
   const visaFee = config.visaApplicationFee;
   const preVisaTotalForeign = casDeposit + ihsTotal + visaFee;
   const preVisaTotalLocal = Math.round(preVisaTotalForeign * rate);
@@ -57,7 +63,7 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
       <div className="mt-2 divide-y divide-slate-50">
         {headerRow}
         <Row label="Tuition fees (average)" note={`${config.casPaymentPercent}% CAS Payment`} foreign={casDeposit} currency={currency} localCurrency={local} />
-        <Row label="IHS Fees" note={`${years} year${years === 1 ? "" : "s"}`} foreign={ihsTotal} currency={currency} localCurrency={local} />
+        <Row label="IHS Fees" note={ukRule ? `${ukRule.visaMonths}-month visa → ${years} × rate` : `${years} year${years === 1 ? "" : "s"}`} foreign={ihsTotal} currency={currency} localCurrency={local} />
         <Row label="Visa Application Fee" note="1" foreign={visaFee} currency={currency} localCurrency={local} />
         <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-neutral-50 py-2 text-[12.5px] font-semibold text-neutral-900">
           <span>Total</span>
@@ -83,6 +89,10 @@ export function VisaCostBreakdown({ university, course, config }: { university: 
           <span className="text-right">{currency}{bankTotalForeign.toLocaleString()}</span>
           <span className="text-right">{local} {bankTotalLocal.toLocaleString()}</span>
         </div>
+      </div>
+      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 p-3">
+        <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-500" />
+        <p className="text-[12px] leading-relaxed text-amber-700">{FEES_CAN_CHANGE_WARNING}</p>
       </div>
     </div>
   );

@@ -6,13 +6,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, GraduationCap, BookOpen, ChevronRight, Wallet } from "lucide-react";
-import { LogoBadge } from "../../components/ui/mobile";
+import { LogoBadge, Pagination } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
 import { NeuTabs } from "../../components/ui/NeuTabs";
 import { courseFeeText } from "../../utils/courseFee";
+import { usePagedList } from "../../utils/usePagedList";
 
 const TABS = ["Overview", "Universities", "Courses", "Subjects"] as const;
 
@@ -37,6 +38,8 @@ export default function CountryDetail() {
     () => universities.flatMap((u) => u.courses.map((c) => ({ university: u, course: c }))),
     [universities]
   );
+  // 30 courses per page — a country can hold thousands, too many to render at once.
+  const { page: coursePage, setPage: setCoursePage, totalPages: courseTotalPages, pageItems: pagedCourses } = usePagedList(courseOfferings, 30, country);
 
   function openUniversityProfile(universityId: string) {
     navigate(`/student/universities/${universityId}`);
@@ -105,7 +108,7 @@ export default function CountryDetail() {
 
         {tab === "Courses" && (
           <div className="mt-4 space-y-2.5 px-5">
-            {courseOfferings.map(({ university: u, course: c }) => (
+            {pagedCourses.map(({ university: u, course: c }) => (
               <button
                 key={`${u.id}::${c.name}`}
                 onClick={() => openCourse(u.id, c.name)}
@@ -127,6 +130,7 @@ export default function CountryDetail() {
                 <p className="text-sm font-medium text-neutral-700">No courses listed in {country} yet</p>
               </div>
             )}
+            <Pagination page={coursePage} totalPages={courseTotalPages} onChange={setCoursePage} />
           </div>
         )}
 

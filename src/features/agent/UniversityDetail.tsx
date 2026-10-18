@@ -12,8 +12,7 @@ import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } f
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
-import { CostCalculator } from "../../components/CostCalculator";
-import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
+import { FeesPlanner } from "../../components/FeesPlanner";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
 import { CourseEntryCards } from "../../components/CourseEntryCards";
 import { EntryRequirementsView } from "../../components/EntryRequirementsView";
@@ -312,8 +311,7 @@ export default function AgentUniversityDetail() {
               )}
               {uniTab === "Fees" && (
                 <div className="space-y-3">
-                  <CostCalculator university={university} recommendedFundsUSD={country?.recommendedFundsUSD} />
-                  {country?.visaCostConfig && <VisaCostBreakdown university={university} config={country.visaCostConfig} />}
+                  <FeesPlanner university={university} course={course ?? undefined} country={country} />
                   <div className="space-y-2">
                     {university.fees.map((f) => (
                       <div key={f.label} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">

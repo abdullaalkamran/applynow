@@ -11,8 +11,7 @@ import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor } f
 import { campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
 import { getCountryByName } from "../../data/countryRegistry";
-import { CostCalculator } from "../../components/CostCalculator";
-import { VisaCostBreakdown } from "../../components/VisaCostBreakdown";
+import { FeesPlanner } from "../../components/FeesPlanner";
 import { CountryGuideSection } from "../../components/CountryGuideSection";
 import { CourseEntryCards } from "../../components/CourseEntryCards";
 import { EntryRequirementsView } from "../../components/EntryRequirementsView";
@@ -462,8 +461,7 @@ function UniversityView({
 
         {tab === "Fees" && (
           <div className="space-y-3">
-            <CostCalculator university={university} recommendedFundsUSD={country?.recommendedFundsUSD} />
-            {country?.visaCostConfig && <VisaCostBreakdown university={university} config={country.visaCostConfig} />}
+            <FeesPlanner university={university} country={country} />
             <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
               {university.fees.map((f) => (
                 <div key={f.label} className="flex items-center justify-between border-b border-neutral-50 py-2.5 last:border-0">
