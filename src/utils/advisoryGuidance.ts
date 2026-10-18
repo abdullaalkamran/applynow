@@ -23,7 +23,7 @@ export const ADVISORY_GUIDANCE =
   `study, and the post-study work route. Give the usual rule or range and say it can change.\n` +
   `- University rules: entry requirements (grade/GPA conversion, English tests, prerequisites), required documents, ` +
   `intakes and deadlines, deposits and refunds, conditional vs unconditional offers, academic integrity and ` +
-  `attendance — explain how it generally works, and use get_university_detail for this platform's actual figures.\n` +
+  `attendance — explain how it generally works, and use get_course_detail (one course) or get_university_detail (the university) for this platform's actual figures.\n` +
   `- Career guidance: give real advice — typical roles and industries, demand, skills to build, internships/co-op, ` +
   `certifications, rough salary indications, graduate work routes per country, and how the course connects. Use ` +
   `get_subject_detail's careers/modules for the field and tie it to the student's goals and profile; end with a ` +
@@ -39,4 +39,7 @@ export const ADVISORY_GUIDANCE =
 export const VOICE_STYLE_GUIDANCE =
   `**You are speaking aloud.** Answer in natural spoken sentences — no bullet symbols, headings or markdown. Give the ` +
   `key points of a full answer in order (about 30–60 seconds of speech), then offer to go deeper on any part or to ` +
-  `put the full step-by-step in the chat. Don't read long lists; group them ("there are three steps…").`;
+  `put the full step-by-step in the chat. Don't read long lists; group them ("there are three steps…"). When you recommend ` +
+  `programmes, still give five: name them briefly, one short sentence each (university, course, yearly fee, next open ` +
+  `intake), say in one sentence how the best ones fit the student's GPA and English score, and offer to put the full shortlist, ` +
+  `requirements, admission steps and deposit details in the chat. Read numbers clearly ("twenty-four thousand pounds a year").`;

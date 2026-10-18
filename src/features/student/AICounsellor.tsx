@@ -1,3 +1,4 @@
+import { ChatMarkdown } from "../../components/ChatMarkdown";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Send, Sparkles, Mic, Volume2, VolumeX } from "lucide-react";
@@ -126,7 +127,7 @@ export default function AICounsellor() {
                     m.from === "me" ? "rounded-tr-sm bg-[image:var(--sd-gradient)] text-white" : "rounded-tl-sm bg-[var(--sd-card)] text-neutral-700 shadow-neu"
                   }`}
                 >
-                  {m.text}
+                  {m.from === "me" ? <span className="whitespace-pre-wrap">{m.text}</span> : <ChatMarkdown text={m.text} />}
                 </div>
               </div>
             ))}

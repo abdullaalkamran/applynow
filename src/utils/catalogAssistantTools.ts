@@ -2,70 +2,85 @@
 // every role's assistant. Students get it behind a "profile complete" gate (their own flow requires it — see
 // studentAssistantTools.ts); staff roles (agent, counsellor, admin, admission, compliance, data, finance) get
 // it ungated, since they need to answer questions about what's in the network without a student profile.
+//
+// The matching, eligibility checks (GPA / English score / budget) and detail assembly live in catalogSearch.ts; this file only
+// describes the tools to the model and hands the live catalog to those functions.
 import { getAllUniversities, getUniversityById } from "../data/universityCatalogStore";
 import { getCountryByName } from "../data/countryRegistry";
 import { SUBJECT_CURRICULUM } from "../data/subjectCurriculum";
-import { scholarshipLabel } from "./universityFilter";
-import { courseFeeText, courseFeeIn, courseCurrencySymbol, feeCurrenciesFor } from "./courseFee";
-import type { University } from "../types";
+import { findPrograms, courseDetail, universitySummary, countryMatches, normalizeText, searchTokens, type ProgramQuery, type ProgramRow } from "./catalogSearch";
 import type { ToolDefinition } from "./assistantEngine";
 
-// Our catalog stores abbreviated/short country names ("UK", "United States") but a person speaking naturally
-// (and the model relaying it) says the full name — a plain one-directional substring check meant "united
-// kingdom" could never match stored "UK", making a real partner university look nonexistent. Checking both
-// directions, plus a couple of common aliases our short forms don't cover on their own, fixes that without
-// needing a full country database.
-const COUNTRY_ALIASES: Record<string, string[]> = {
-  uk: ["united kingdom", "britain", "great britain", "england"],
-  usa: ["united states", "america", "us"],
-  uae: ["united arab emirates"],
-};
+export { countryMatches };
 
-// A budget only means something in ONE currency. The assistant may name it (a symbol like £ or a code like GBP); otherwise it is
-// the country's own configured currency, else the most common one. Courses priced in another currency, or with no fee listed,
-// are never measured against the budget — and the reply says so, so the model can relay it instead of guessing.
+// Currency symbols the model may name for a budget (codes people actually say).
 const CURRENCY_CODES: Record<string, string> = { USD: "$", GBP: "£", EUR: "€", CAD: "C$", AUD: "A$", AED: "AED", NZD: "NZ$", SGD: "S$", MYR: "RM" };
-function budgetCurrency(requested: unknown, country: string | undefined): string {
-  const asked = typeof requested === "string" ? requested.trim() : "";
-  if (asked) return CURRENCY_CODES[asked.toUpperCase()] ?? asked;
-  const names = country ? getAllUniversities().filter((u) => countryMatches(u.country, country)).map((u) => u.country) : [];
-  return feeCurrenciesFor(names[0] ?? "")[0] ?? "$";
-}
-type Course = University["courses"][number];
-const feeFields = (u: University, c: Course) => {
-  const t = courseFeeText(u, c);
-  return { fee: t.perYear, feeAmount: t.isAmount ? c.feeUSD : undefined, currency: t.isAmount ? courseCurrencySymbol(u, c).trim() : undefined };
+const currencyOf = (v: unknown): string | undefined => {
+  const asked = typeof v === "string" ? v.trim() : "";
+  return asked ? (CURRENCY_CODES[asked.toUpperCase()] ?? asked) : undefined;
 };
-
-export function countryMatches(storedCountry: string, query: string): boolean {
-  const stored = storedCountry.toLowerCase();
-  const q = query.toLowerCase();
-  if (stored.includes(q) || q.includes(stored)) return true;
-  return (COUNTRY_ALIASES[stored] ?? []).some((alias) => alias.includes(q) || q.includes(alias));
-}
+const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+const num = (v: unknown): number | undefined => {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(/[^0-9.]/g, "")) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
 
 /** Shown to every role's model so it uses the tools instead of claiming it has no access to the catalog. */
 export const CATALOG_GUIDANCE =
-  `**You DO have access to the platform's real university and course catalog** — through search_universities, ` +
-  `search_courses, get_university_detail, list_subjects, get_subject_detail, search_scholarships and get_country_detail. Never say you ` +
-  `lack access to universities, courses, fees or requirements: call the tool. When someone names a specific ` +
-  `university, call search_universities with that exact name in the \`name\` field before ruling anything out; for ` +
-  `courses (by name, level, subject, country, fee, or university) use search_courses; for the full picture of one ` +
-  `university (every course, fee, requirement) use get_university_detail with the id from a search. Only say ` +
-  `something isn't in the network after a search by name actually came back empty. Report only what tools ` +
-  `returned — never invent a university, course, fee or deadline. If totalMatches exceeds what's listed, say so ` +
-  `and offer to narrow it down.\n\n` +
-  `**Recommending courses, universities and scholarships.** When asked to suggest or shortlist for a student, ` +
-  `build it only from catalog tool results (what the data team entered), never from general knowledge: first ` +
-  `gather the student's real constraints — from their profile if a tool gives it, otherwise ask for the missing ` +
-  `ones (study level, subject, destination, yearly budget, GPA, English score, intake). Then call search_courses ` +
-  `(and search_universities / search_scholarships) with those filters, compare each course's minIELTS/minGPA ` +
-  `against the student's scores, and present 3–5 options. For each give university, course, country, yearly fee, ` +
-  `intake/deadline, scholarship (name and amount if one exists), and one line on why it fits plus any gap ` +
-  `(e.g. IELTS below minimum, over budget). Say plainly when nothing fits and which constraint to relax. ` +
-  `Scholarships: only name ones search_scholarships returned and quote their real eligibility — never promise an award.`;
+  `**You DO have access to the platform's real catalog of thousands of courses and all their details** — through find_programs, ` +
+  `search_courses, search_universities, get_course_detail, get_university_detail, search_scholarships, list_subjects, ` +
+  `get_subject_detail and get_country_detail. Never say you lack access to universities, courses, fees, intakes, requirements, ` +
+  `admission steps or deposits: call a tool. Report only what tools returned — never invent a university, course, fee, deadline or rule.\n\n` +
+  `**When a student asks where they can study / which universities or courses they can apply to** (any wording: "I want to study ` +
+  `X in Y, my CGPA is …, IELTS …"): call find_programs ONCE with everything they said — country, subject or course words, ` +
+  `level (master's / bachelor's / PhD), CGPA and its scale (4, 5, 10 or 100), English test and score, yearly budget and its ` +
+  `currency, intake — as separate arguments. Do not ask for details before searching; search with what you have, then ask only ` +
+  `for what would sharpen the result. Pass the student's own words (e.g. "business management", "master") — the tool understands ` +
+  `synonyms, "&" vs "and", and level wording.\n\n` +
+  `**Reading the result.** \`programs\` are courses the student can apply to (they meet the stated minimums, or the data doesn't state one — ` +
+  `say which). \`nearMisses\` are slightly below a minimum: present them as "possible if you retake/improve …" with the exact gap. ` +
+  `\`alsoConsider\` are extra options that needed one filter loosened (each names it, e.g. "study level", "budget", "intake month") — ` +
+  `present them honestly as "also worth considering, but note …". **Always give the student at least FIVE options** by combining ` +
+  `programs, then nearMisses, then alsoConsider (up to about eight); only give fewer when the tool's notes say fewer exist, and then ` +
+  `say how many there are. ` +
+  `If \`relaxed\` is not empty the search was loosened (e.g. intake, budget, level) — tell the student exactly what you loosened. ` +
+  `Never say "nothing found in the database" unless find_programs returned no programs AND you tell them which filters you tried ` +
+  `(and, if it helps, ask whether they'd accept another country or level). A course whose fee shows "Fee not provided" has no ` +
+  `fee entered yet — say so; do not guess a price.\n\n` +
+  `**Present at least 5 options**, each with: university, course, city/country, level, yearly fee, duration, intakes (and whether open) ` +
+  `with the nearest application deadline, scholarship if any, why it fits, and any gap. Then offer to go deeper on any of them.\n\n` +
+  `**Detail questions** (intakes, entry requirements, English requirements, admission procedure, deposit/payment, scholarships, ` +
+  `campuses, modules, careers): call get_course_detail with the courseId from the results (or get_university_detail with the ` +
+  `university id for the university as a whole). Answer from those fields exactly; if a field is empty, say the data team hasn't ` +
+  `entered it yet. Visa, proof-of-funds and immigration process questions: get_country_detail. Scholarships: search_scholarships.`;
 
 type Gate = () => unknown | null;
+
+/** Rows kept short for the model: everything it needs to talk about a programme, nothing it would have to wade through. */
+const slim = (r: ProgramRow) => ({
+  courseId: r.courseId, course: r.course, level: r.level, subject: r.subject, duration: r.duration,
+  universityId: r.universityId, university: r.university, city: r.city, country: r.country, worldRank: r.worldRank,
+  fee: r.fee, budget: r.budget, intakes: r.intakes, intakeOpen: r.intakeOpen, nearestDeadline: r.nearestDeadline,
+  scholarship: r.scholarship, gpaCheck: `${r.gpa.status} (needs ${r.gpa.required})`, englishCheck: `${r.english.status} (needs ${r.english.required})`, fit: r.fit,
+});
+
+function queryFromArgs(args: Record<string, unknown>): ProgramQuery {
+  return {
+    country: str(args.country),
+    university: str(args.university),
+    subject: [str(args.subject), str(args.course)].filter(Boolean).join(" ") || undefined,
+    level: str(args.level) ?? str(args.studyLevel),
+    intake: str(args.intake),
+    cgpa: num(args.cgpa),
+    gpaScale: num(args.gpaScale),
+    englishTest: str(args.englishTest),
+    englishScore: num(args.englishScore),
+    budget: num(args.budget) ?? num(args.maxBudget) ?? num(args.maxFee),
+    currency: currencyOf(args.currency) ?? currencyOf(args.budgetCurrency) ?? currencyOf(args.feeCurrency),
+    scholarshipOnly: args.scholarshipOnly === true,
+    limit: num(args.limit),
+  };
+}
 
 /**
  * @param gate  Optional pre-check run before every catalog tool. Return a non-null object to refuse the call
@@ -77,6 +92,46 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
   return [
     {
       spec: {
+        name: "find_programs",
+        description: "THE main tool for 'where can I study / which universities and courses can I apply to'. Searches the whole catalog and checks each course against the student's own scores. Pass everything the student said: country, subject (their words, e.g. 'business management'), level ('master', 'bachelor', 'phd'), cgpa + gpaScale (4, 5, 10 or 100), englishTest ('IELTS', 'TOEFL iBT', 'PTE Academic', 'Duolingo English Test') + englishScore, budget (yearly) + currency, intake month, scholarshipOnly. Returns `programs` (can apply), `nearMisses` (just below a minimum, with the gap), `alsoConsider` (extra programmes that needed one filter loosened, each saying which — they bring the total to at least five), `relaxed` (filters that were loosened because nothing matched exactly — tell the student), and the filters applied. Every row has courseId and universityId for follow-up detail calls.",
+        parameters: {
+          type: "object",
+          properties: {
+            country: { type: "string", description: "Destination country, any common name (UK, United Kingdom, USA, Canada…)." },
+            subject: { type: "string", description: "Field of study or course words, in the student's own words." },
+            level: { type: "string", description: "master / bachelor / postgraduate / undergraduate / phd / diploma." },
+            university: { type: "string", description: "Only if a specific university was named." },
+            cgpa: { type: "number", description: "The student's CGPA/GPA number." },
+            gpaScale: { type: "number", description: "What the CGPA is out of: 4, 5, 10 or 100. Default 4." },
+            englishTest: { type: "string", description: "IELTS, TOEFL iBT, PTE Academic, Duolingo English Test…" },
+            englishScore: { type: "number" },
+            budget: { type: "number", description: "Maximum yearly tuition the student can pay." },
+            currency: { type: "string", description: "Currency of the budget, symbol or code (£, GBP, $, C$ …). Defaults to the destination's own currency." },
+            intake: { type: "string", description: "Month, e.g. September." },
+            scholarshipOnly: { type: "boolean" },
+            limit: { type: "number", description: "How many to return (default 10, max 25)." },
+          },
+        },
+      },
+      execute: (args) => {
+        const refusal = blocked();
+        if (refusal) return refusal;
+        const r = findPrograms(getAllUniversities(), queryFromArgs(args));
+        return {
+          totalMatches: r.totalMatches,
+          programs: r.programs.map(slim),
+          nearMisses: r.nearMisses.map(slim),
+          alsoConsider: r.alsoConsider.map((x) => ({ ...slim(x), loosened: x.loosened })),
+          relaxed: r.relaxed,
+          filtersApplied: r.filtersApplied,
+          ...(r.currencyForBudget ? { budgetCurrency: r.currencyForBudget } : {}),
+          notes: r.notes,
+          ...(r.programs.length === 0 && r.nearMisses.length === 0 && r.alsoConsider.length === 0 ? { nothingFound: "No course matched even after loosening the filters that can be loosened (country and subject words are never dropped). Tell the student exactly which filters you tried, and offer a different country, level or subject." } : {}),
+        };
+      },
+    },
+    {
+      spec: {
         name: "get_country_detail",
         description: "Get the real Country Guide for a destination country — why study there, the visa cost/proof-of-funds breakdown, required documents, application and visa procedure, and key facts (popular intakes, cost of living, post-study work visa, part-time work rules, processing time). Use this whenever a country is asked about generally, before or alongside naming a specific university there.",
         parameters: { type: "object", properties: { country: { type: "string" } }, required: ["country"] },
@@ -85,23 +140,19 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
         const refusal = blocked();
         if (refusal) return refusal;
         const record = getCountryByName(String(args.country));
-        if (!record) return { error: `"${args.country}" doesn't match a country we have a guide for yet — call search_universities with a country filter to see what's actually in the network.` };
+        if (!record) return { error: `"${args.country}" doesn't match a country we have a guide for yet — call find_programs with that country to see what's actually in the network.` };
         return record;
       },
     },
     {
       spec: {
         name: "search_universities",
-        description: "Search the university catalog by name and/or destination country, subject, study level, maximum yearly budget (in `budgetCurrency`, default the country's own currency), or scholarship availability. Always pass `name` (a partial match is fine) whenever a specific university is named directly — never conclude a university isn't in the network from a country/subject-only search that just didn't happen to include it. Returns up to 15 matches with a few matching courses each, plus totalMatches so you know if more exist than are shown.",
+        description: "List universities (not individual courses) matching a country, name, subject, level, budget or scholarship filter — each with its best matching courses. Pass `name` (partial is fine) whenever a specific university is named. For 'where can I apply' questions with the student's scores, use find_programs instead. Returns up to 15 universities plus totalMatches.",
         parameters: {
           type: "object",
           properties: {
-            name: { type: "string" },
-            country: { type: "string" },
-            subject: { type: "string" },
-            studyLevel: { type: "string" },
-            maxBudget: { type: "number" },
-            budgetCurrency: { type: "string", description: "Currency symbol or code the budget is in, e.g. £ or GBP. Defaults to the country's own currency." },
+            name: { type: "string" }, country: { type: "string" }, subject: { type: "string" }, studyLevel: { type: "string" },
+            maxBudget: { type: "number" }, budgetCurrency: { type: "string", description: "Currency symbol or code the budget is in. Defaults to the country's own currency." },
             scholarshipOnly: { type: "boolean" },
           },
         },
@@ -109,116 +160,58 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
       execute: (args) => {
         const refusal = blocked();
         if (refusal) return refusal;
-
-        const name = args.name as string | undefined;
-        const country = args.country as string | undefined;
-        const subject = args.subject as string | undefined;
-        const studyLevel = args.studyLevel as string | undefined;
-        const maxBudget = args.maxBudget as number | undefined;
-        const currency = budgetCurrency(args.budgetCurrency, country);
-        const scholarshipOnly = args.scholarshipOnly as boolean | undefined;
-
-        const results = getAllUniversities()
-          .filter((u) => {
-            if (name && !u.name.toLowerCase().includes(name.toLowerCase())) return false;
-            if (country && !countryMatches(u.country, country)) return false;
-            if (scholarshipOnly && !u.scholarshipsAvailable) return false;
-            if (subject && !u.subjects.some((s) => s.toLowerCase().includes(subject.toLowerCase()))) return false;
-            return true;
-          })
-          .map((u) => ({
-            u,
-            // A single course must satisfy BOTH level and budget together — checking them as two
-            // independent `some()` calls let a university pass with an expensive course covering level and
-            // an unrelated cheap course covering budget, while no course actually matched both.
-            matchingCourses: u.courses
-              .filter((c) => !studyLevel || c.level.toLowerCase().includes(studyLevel.toLowerCase()))
-              .filter((c) => !maxBudget || (courseFeeIn(u, c, currency) ?? Infinity) <= maxBudget),
-          }))
-          // Only require a real matching course when level/budget were actually specified.
-          .filter(({ matchingCourses }) => !(studyLevel || maxBudget) || matchingCourses.length > 0);
-
-        return {
-          totalMatches: results.length,
-          ...(maxBudget ? { budgetCurrency: currency, note: `Budget compared only with fees listed in ${currency.trim()}; courses with no fee listed or priced in another currency are not included.` } : {}),
-          universities: results.slice(0, 15).map(({ u, matchingCourses }) => ({
-            id: u.id,
-            name: u.name,
-            country: u.country,
-            worldRank: u.worldRank,
-            employability: u.employability,
-            scholarshipsAvailable: u.scholarshipsAvailable,
-            courseCount: u.courses.length,
-            matchingCourses: matchingCourses.slice(0, 3).map((c) => ({ id: c.id, name: c.name, level: c.level, ...feeFields(u, c) })),
-          })),
-        };
+        const unis = getAllUniversities();
+        const q = queryFromArgs({ ...args, university: args.name, limit: 25 });
+        // A bare name search should list the university even if it has no courses entered.
+        if (q.university && !q.subject && !q.level && !q.budget && !q.country) {
+          const toks = searchTokens(q.university);
+          const hits = unis.filter((u) => toks.every((t) => normalizeText(u.name).includes(t)));
+          return { totalMatches: hits.length, universities: hits.slice(0, 15).map((u) => ({ id: u.id, name: u.name, city: u.city, country: u.country, worldRank: u.worldRank, scholarshipsAvailable: u.scholarshipsAvailable, courseCount: u.courses.length })) };
+        }
+        const r = findPrograms(unis, { ...q, limit: 25 });
+        const by = new Map<string, { id: string; name: string; city: string; country: string; worldRank: string; matchingCourses: ReturnType<typeof slim>[] }>();
+        for (const row of [...r.programs, ...r.nearMisses]) {
+          const g = by.get(row.universityId) ?? { id: row.universityId, name: row.university, city: row.city, country: row.country, worldRank: row.worldRank, matchingCourses: [] };
+          if (g.matchingCourses.length < 3) g.matchingCourses.push(slim(row));
+          by.set(row.universityId, g);
+        }
+        return { totalMatches: by.size, universities: [...by.values()].slice(0, 15), relaxed: r.relaxed, notes: r.notes };
       },
     },
     {
       spec: {
         name: "search_courses",
-        description: "Search every course across all partner universities. Filter by any of: course name keyword, university name, country, subject, study level (e.g. Bachelor/Master), maximum yearly fee (in `feeCurrency`, default the country's own currency), or intake month. Use this for questions about specific courses ('MSc Data Science in the UK', 'cheapest MBA', 'what does X university offer in engineering') — it returns the course itself with its university, fee, level, duration, intakes and deadline. Returns up to 20 courses plus totalMatches.",
+        description: "Search courses across all partner universities by course name or subject words, university, country, level (master/bachelor/phd), maximum yearly fee (in `feeCurrency`, default the country's own) and intake month. Use for specific lookups ('MSc Data Science in the UK', 'cheapest MBA'). For 'which can I apply to' with the student's GPA/English, use find_programs. Returns up to 20 courses plus totalMatches; each has courseId for get_course_detail.",
         parameters: {
           type: "object",
           properties: {
-            course: { type: "string" },
-            university: { type: "string" },
-            country: { type: "string" },
-            subject: { type: "string" },
-            studyLevel: { type: "string" },
-            maxFee: { type: "number" },
-            feeCurrency: { type: "string", description: "Currency symbol or code maxFee is in, e.g. £ or GBP. Defaults to the country's own currency." },
-            intake: { type: "string" },
+            course: { type: "string" }, subject: { type: "string" }, university: { type: "string" }, country: { type: "string" }, studyLevel: { type: "string" },
+            maxFee: { type: "number" }, feeCurrency: { type: "string", description: "Currency symbol or code maxFee is in." }, intake: { type: "string" },
           },
         },
       },
       execute: (args) => {
         const refusal = blocked();
         if (refusal) return refusal;
-
-        const course = (args.course as string | undefined)?.toLowerCase();
-        const university = (args.university as string | undefined)?.toLowerCase();
-        const country = args.country as string | undefined;
-        const subject = (args.subject as string | undefined)?.toLowerCase();
-        const studyLevel = (args.studyLevel as string | undefined)?.toLowerCase();
-        const maxFee = args.maxFee as number | undefined;
-        const currency = budgetCurrency(args.feeCurrency, args.country as string | undefined);
-        const intake = (args.intake as string | undefined)?.toLowerCase();
-
-        const matches = getAllUniversities()
-          .filter((u) => (!university || u.name.toLowerCase().includes(university)) && (!country || countryMatches(u.country, country)))
-          .flatMap((u) => u.courses.map((c) => ({ u, c })))
-          .filter(({ u, c }) => {
-            if (course && !c.name.toLowerCase().includes(course)) return false;
-            if (subject && !c.subject.toLowerCase().includes(subject)) return false;
-            if (studyLevel && !c.level.toLowerCase().includes(studyLevel)) return false;
-            if (maxFee && (courseFeeIn(u, c, currency) ?? Infinity) > maxFee) return false;
-            if (intake && !(c.intakes ?? []).some((i) => i.toLowerCase().includes(intake))) return false;
-            return true;
-          })
-          // Cheapest first within the requested currency; fees that can't be compared (other currency / not provided) go last.
-          .sort((a, b) => (courseFeeIn(a.u, a.c, currency) ?? Infinity) - (courseFeeIn(b.u, b.c, currency) ?? Infinity));
-
+        const r = findPrograms(getAllUniversities(), { ...queryFromArgs(args), limit: 20 });
         return {
-          totalMatches: matches.length,
-          ...(maxFee ? { feeCurrency: currency, note: `maxFee compared only with fees listed in ${currency.trim()}; courses with no fee listed or priced in another currency are not included.` } : {}),
-          courses: matches.slice(0, 20).map(({ u, c }) => ({
-            courseId: c.id,
-            course: c.name,
-            level: c.level,
-            subject: c.subject,
-            duration: c.duration,
-            ...feeFields(u, c),
-            intakes: c.intakes,
-            applicationDeadline: c.applicationDeadline,
-            universityId: u.id,
-            university: u.name,
-            country: u.country,
-            scholarship: scholarshipLabel(u) ?? undefined,
-            minIELTS: u.minIELTS,
-            minGPA: u.minGPA,
-          })),
+          totalMatches: r.totalMatches,
+          courses: r.programs.map(slim),
+          relaxed: r.relaxed,
+          notes: r.notes,
         };
+      },
+    },
+    {
+      spec: {
+        name: "get_course_detail",
+        description: "EVERYTHING recorded about one course and its university: fee, duration, study mode, intakes with open/closed status and application deadlines, academic entry requirements, English requirements, admission procedure (step by step), deposit and payment deadline, scholarships, campuses, modules, careers, course page link. Use the courseId from find_programs / search_courses. Use this for any question about intakes, entry requirements, admission process, deposit or deadlines for a specific course.",
+        parameters: { type: "object", properties: { courseId: { type: "string" } }, required: ["courseId"] },
+      },
+      execute: (args) => {
+        const refusal = blocked();
+        if (refusal) return refusal;
+        return courseDetail(getAllUniversities(), String(args.courseId)) ?? { error: "No course found with that id — get ids from find_programs or search_courses." };
       },
     },
     {
@@ -230,13 +223,13 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
       execute: (args) => {
         const refusal = blocked();
         if (refusal) return refusal;
-        const country = args.country as string | undefined;
-        const university = (args.university as string | undefined)?.toLowerCase();
-        const subject = (args.subject as string | undefined)?.toLowerCase();
+        const country = str(args.country);
+        const uniToks = searchTokens(str(args.university));
+        const subjToks = searchTokens(str(args.subject));
         const unis = getAllUniversities().filter((u) =>
           (!country || countryMatches(u.country, country)) &&
-          (!university || u.name.toLowerCase().includes(university)) &&
-          (!subject || u.subjects.some((s) => s.toLowerCase().includes(subject))));
+          (!uniToks.length || uniToks.every((t) => normalizeText(u.name).includes(t))) &&
+          (!subjToks.length || subjToks.every((t) => u.subjects.some((s) => normalizeText(s).includes(t)))));
         return {
           scholarships: unis.flatMap((u) => (u.scholarships ?? []).map((sc) => ({
             university: u.name, universityId: u.id, country: u.country, scholarship: sc.name, amount: sc.amount, eligibility: sc.description,
@@ -248,7 +241,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
     {
       spec: {
         name: "get_university_detail",
-        description: "Get full detail for one university by id (requirements, fees, English test requirements, scholarships, and every course).",
+        description: "The full picture of one university by id: ranking, description, intakes (open/closed, deadlines), entry and English requirements, admission procedure, deposit and payment terms, scholarships, application-fee waiver, campuses, restricted regions, subjects, and its first 40 courses (with ids — use search_courses or find_programs to look through the rest, get_course_detail for one course).",
         parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
       },
       execute: (args) => {
@@ -256,7 +249,7 @@ export function catalogTools(gate?: Gate): ToolDefinition[] {
         if (refusal) return refusal;
         const uni = getUniversityById(String(args.id));
         if (!uni) return { error: "No university found with that id." };
-        return uni;
+        return universitySummary(uni, 40);
       },
     },
     {

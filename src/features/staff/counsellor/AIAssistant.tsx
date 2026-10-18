@@ -1,6 +1,7 @@
 // The counsellor's typed AI agent chat — same assistant and tools as the floating orb (useAssistant), plus a
 // paperclip to attach a student's documents (passport, transcripts, English test, CV…) so the agent can read
 // them and build a profile. Risky actions pop an approval card (see AssistantContext) before they run.
+import { ChatMarkdown } from "../../../components/ChatMarkdown";
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, Sparkles, X } from "lucide-react";
 import { PageHeader } from "../../../components/ui";
@@ -64,7 +65,7 @@ export default function CounsellorAIAssistant() {
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.from === "me" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm ${m.from === "me" ? "bg-[var(--brand-600)] text-white" : "bg-slate-100 text-slate-800"}`}>{m.text}</div>
+            <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm ${m.from === "me" ? "bg-[var(--brand-600)] text-white" : "bg-slate-100 text-slate-800"}`}>{m.from === "me" ? m.text : <ChatMarkdown text={m.text} />}</div>
           </div>
         ))}
         {thinking && <p className="text-xs text-slate-400">Working on it…</p>}

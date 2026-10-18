@@ -364,11 +364,11 @@ export function studentTools(ctx: AssistantUserContext): ToolDefinition[] {
         if (blocked) return blocked;
         const university = getUniversityById(String(args.universityId));
         if (!university) {
-          return { error: `No university with id "${args.universityId}" exists in our partner network. Call search_universities first and use a real id from the results — never a name the student mentioned on its own.` };
+          return { error: `No university with id "${args.universityId}" exists in our partner network. Call find_programs or search_universities first and use a real id from the results — never a name the student mentioned on its own.` };
         }
         const course = university.courses.find((c) => c.id === String(args.courseId));
         if (!course) {
-          return { error: `No course with id "${args.courseId}" exists at ${university.name}. Call get_university_detail("${university.id}") to see its real courses and use a real course id.` };
+          return { error: `No course with id "${args.courseId}" exists at ${university.name}. Call search_courses (with university set to its name) or find_programs to see its real courses and use a real course id.` };
         }
         const missingCoreDocs = buildCoreChecklist(studentId).filter((row) => !row.own);
         if (missingCoreDocs.length > 0) {
