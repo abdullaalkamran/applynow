@@ -102,19 +102,19 @@ export default function SubjectDetail() {
           </div>
         </div>
 
-        <div className="mt-4">
-          {pagedOfferings.map(({ university: u, course: c }, i) => {
+        <div className="mt-4 space-y-3 px-5">
+          {pagedOfferings.map(({ university: u, course: c }) => {
             const scholarshipText = scholarshipLabel(u);
             const key = `${u.id}::${c.name}`;
             const isShortlisted = isProgramShortlisted(key);
             return (
               <div
-                key={u.id}
+                key={key}
                 onClick={() => openCourse(u.id, c.name)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") openCourse(u.id, c.name); }}
-                className={`relative flex w-full cursor-pointer items-center gap-3 px-5 py-3.5 text-left ${i !== pagedOfferings.length - 1 ? "border-b border-transparent" : ""}`}
+                className="relative flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu"
               >
                 <span
                   onClick={(e) => { e.stopPropagation(); toggleShortlist(key); }}
@@ -154,17 +154,17 @@ export default function SubjectDetail() {
                       </span>
                     )}
                     {(u.restrictedRegions ?? []).length > 0 && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-red-400">
                         <AlertTriangle size={11} /> Restricted regions
                       </span>
                     )}
                     {u.internalEnglishTestOffered && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-emerald-600">
                         <GraduationCap size={11} /> Own English test
                       </span>
                     )}
                     {c.level !== "Undergraduate" && u.moiAccepted && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-neutral-700">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-emerald-600">
                         <GraduationCap size={11} /> MOI accepted
                       </span>
                     )}
@@ -185,7 +185,7 @@ export default function SubjectDetail() {
           })}
 
           {offerings.length === 0 && (
-            <div className="mx-5 rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
+            <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu">
               <p className="text-sm font-medium text-neutral-700">No programs match these filters</p>
               {filtersActive && (
                 <button onClick={resetFilters} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">
