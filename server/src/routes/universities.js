@@ -7,6 +7,9 @@ const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
 const { requireDataRole } = require("../middleware/access");
 
+const zlib = require("zlib");
+const { getCatalog, invalidateCatalog } = require("../catalogCache");
+
 const router = express.Router();
 
 function serializeCourse(c) {
@@ -214,10 +217,18 @@ function courseWriteData(c) {
   };
 }
 
+// The catalog is big (every university with every course) — see catalogCache.js for how it is built and cached so that a
+// page load neither exhausts the server's memory nor repeats the work. Same JSON as before, served gzipped.
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const universities = await prisma.university.findMany({ include: { courses: true }, orderBy: { createdAt: "asc" } });
-    res.json(universities.map(serializeUniversity));
+    const catalog = await getCatalog(serializeUniversity);
+    res.set({ ETag: catalog.etag, "Cache-Control": "private, no-cache", Vary: "Accept-Encoding", "Content-Type": "application/json; charset=utf-8" });
+    if (req.fresh) return res.status(304).end(); // the browser already holds this exact catalog
+    if (req.acceptsEncodings("gzip")) {
+      res.set({ "Content-Encoding": "gzip", "Content-Length": String(catalog.gzip.length) });
+      return res.end(catalog.gzip);
+    }
+    zlib.gunzip(catalog.gzip, (err, plain) => (err ? next(err) : res.end(plain)));
   } catch (err) {
     next(err);
   }
@@ -252,6 +263,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
       },
       include: { courses: true },
     });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.status(201).json(serializeUniversity(university));
   } catch (err) {
     if (err.code === "P2002") return res.status(409).json({ error: "A university with that id already exists." });
@@ -289,6 +301,7 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
         include: { courses: true },
       });
     });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.json(serializeUniversity(university));
   } catch (err) {
     next(err);
@@ -298,6 +311,7 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
 router.delete("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     await prisma.university.delete({ where: { id: req.params.id } });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.status(204).end();
   } catch (err) {
     if (err.code === "P2025") return res.status(404).json({ error: "University not found." });
@@ -315,6 +329,7 @@ router.post("/:id/courses", requireAuth, requireDataRole, async (req, res, next)
       where: { id: req.params.id },
       data: { subjects: mergedSubjects(university.subjects, [...university.courses, course]) },
     });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.status(201).json(serializeCourse(course));
   } catch (err) {
     next(err);
@@ -349,6 +364,7 @@ router.patch("/:id/courses/:courseId", requireAuth, requireDataRole, async (req,
     if (university) {
       await prisma.university.update({ where: { id: req.params.id }, data: { subjects: mergedSubjects(university.subjects, university.courses) } });
     }
+    invalidateCatalog(); // the cached catalog is now out of date
     res.json(serializeCourse(course));
   } catch (err) {
     if (err.code === "P2025") return res.status(404).json({ error: "Course not found." });
@@ -359,6 +375,7 @@ router.patch("/:id/courses/:courseId", requireAuth, requireDataRole, async (req,
 router.delete("/:id/courses/:courseId", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     await prisma.course.delete({ where: { id: req.params.courseId } });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.status(204).end();
   } catch (err) {
     if (err.code === "P2025") return res.status(404).json({ error: "Course not found." });

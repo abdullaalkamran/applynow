@@ -10,6 +10,7 @@ const { universityWriteData, serializeUniversity } = require("./universities");
 const { assertFetchableUrl, obtainPageText, assertUsefulText, fetchPage, htmlToText, detectBlockedPage, FetchError, MAX_PAGE_CHARS } = require("../courseExtraction");
 const { extractUniversity } = require("../universityExtraction");
 
+const { invalidateCatalog } = require("../catalogCache");
 const router = express.Router();
 
 const MAX_URLS_PER_BATCH = 50;
@@ -197,6 +198,7 @@ router.post("/:itemId/approve", requireAuth, requireDataRole, async (req, res, n
       });
       return { university: created, updatedItem: flipped };
     });
+    invalidateCatalog(); // the cached catalog is now out of date
     res.status(201).json({ item: serializeImportItem(updatedItem), university: serializeUniversity(university) });
   } catch (err) {
     next(err);
