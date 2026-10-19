@@ -3,7 +3,7 @@
 // per-browser localStorage, which meant a student's own upload was invisible to their counsellor
 // and agent (different login, different browser) — the whole point of the core vault ("upload
 // once, every application and every role sees it") only holds if it's actually shared, not local.
-import { apiGet, apiPost, apiPostForm, apiPatch } from "../utils/apiClient";
+import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { BACKEND_BASE } from "../utils/backendBase";
 
@@ -132,6 +132,13 @@ export function requestCoreDocType(studentId: string, type: string): void {
     });
 }
 
+/** The per-application Statement of Purpose slot's name: "Statement of Purpose — University of Leeds — MSc Data Science".
+ * Each university wants its own SOP, so the slot says which one it is for. Still contains "Statement of Purpose", so the
+ * checklist's keyword matching treats it as the SOP requirement. */
+export function statementOfPurposeType(university: string, course: string): string {
+  return ["Statement of Purpose", university.trim(), course.trim()].filter(Boolean).join(" — ").slice(0, 180);
+}
+
 /** Guarantees a core-doc slot of this type exists for the student, without ever duplicating or
  * regressing one that's already there (uploaded, verified, rejected, or already requested) — used
  * to auto-require a document the moment some event (e.g. a fresh application submission) first
@@ -139,6 +146,20 @@ export function requestCoreDocType(studentId: string, type: string): void {
 export function ensureCoreDocRequested(studentId: string, type: string): void {
   if (loadCoreDocs(studentId).some((d) => d.type === type)) return;
   requestCoreDocType(studentId, type);
+}
+
+/** Deletes a core document that hasn't been verified yet (the student's own pending-review upload). Optimistic, rolled back
+ * if the server refuses. */
+export function deleteCoreDoc(id: string): void {
+  const prev = cache;
+  cache = cache.filter((d) => d.id !== id);
+  notifyCacheChange();
+  apiDelete(`/api/documents/${id}`).catch((err) => {
+    if ((err as Error)?.name === "StaleSessionError") return;
+    cache = prev;
+    notifyCacheChange();
+    console.warn("Failed to delete core document:", err);
+  });
 }
 
 /** Counsellor-only — approves an uploaded core document. */

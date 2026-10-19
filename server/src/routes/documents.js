@@ -235,20 +235,24 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-// Withdraws a counsellor's ad-hoc request before anything's been uploaded against it (the
-// "remove request" affordance in ApplicationChecklistCard.tsx). Scoped to "requested" rows only —
-// a real upload is evidence a student/agent supplied and a counsellor already reviewed; deleting
-// it is not this endpoint's job.
+// Removes a document nobody has verified yet: a counsellor's unfulfilled request (the "remove request" affordance in
+// ApplicationChecklistCard.tsx), or a file a student/agent uploaded that is still waiting for review (or was rejected) —
+// "Delete" on the student's My Documents page. A VERIFIED document is evidence a counsellor already signed off on, so it
+// is never removed here. Access is the same as for reading the document: its own student, their agent, or internal staff.
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
     if (!doc || (!isInternal(req.authUser) && !(await accessibleStudent(req.authUser, doc.studentId)))) {
       return res.status(404).json({ error: "Document not found." });
     }
-    if (doc.status !== "requested") {
-      return res.status(400).json({ error: "Only an unfulfilled request can be removed this way." });
+    if (doc.status === "verified") {
+      return res.status(400).json({ error: "A verified document can't be deleted." });
     }
     await prisma.document.delete({ where: { id: req.params.id } });
+    // The stored file goes with it (only ever our own upload folder — never trust the path beyond its basename).
+    if (doc.fileUrl && doc.fileUrl.startsWith("/uploads/documents/")) {
+      await fs.promises.unlink(path.join(UPLOAD_DIR, path.basename(doc.fileUrl))).catch(() => {});
+    }
     res.status(204).end();
   } catch (err) {
     next(err);

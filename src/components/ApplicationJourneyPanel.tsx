@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useHoldCacheSync } from "../utils/syncCache";
 import { Check, Circle, Lock, AlertTriangle, CalendarClock } from "lucide-react";
 import { STAGE_ORDER, STAGE_LABEL, type StageType, type ApplicationJourney } from "../types/journey";
 import { FinancialReadinessHistory } from "./FinancialReadinessHistory";
@@ -277,6 +278,10 @@ export function ApplicationCommentsCard({ applicationId }: { applicationId: stri
   const { role, currentUser } = useRole();
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
+  // The page remounts whenever any cached data changes (see syncCache.ts), which wiped whatever was being typed here every
+  // few seconds — it looked like the comment box "timed out". Hold that remount while there is an unsent draft; changes that
+  // arrived meanwhile show up the moment the draft is posted or cleared.
+  useHoldCacheSync(draft.length > 0);
   const comments = loadActivityDescending(applicationId).filter((e) => e.action === "comment_added");
 
   function post() {

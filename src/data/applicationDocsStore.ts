@@ -214,6 +214,20 @@ export function addCustomDocRequest(applicationId: string, type: string, note?: 
     });
 }
 
+/** Deletes an application document that hasn't been verified yet (the student's own pending-review upload). Optimistic,
+ * rolled back if the server refuses. */
+export function deleteAppDoc(id: string): void {
+  const prev = cache;
+  cache = cache.filter((d) => d.id !== id);
+  notifyCacheChange();
+  apiDelete(`/api/documents/${id}`).catch((err) => {
+    if ((err as Error)?.name === "StaleSessionError") return;
+    cache = prev;
+    notifyCacheChange();
+    console.warn("Failed to delete document:", err);
+  });
+}
+
 /** Withdraws a request before anything's been uploaded against it. */
 export function removeCustomDocRequest(applicationId: string, type: string): void {
   const match = cache.find((d) => d.applicationId === applicationId && d.custom && d.status === "requested" && d.type === type);

@@ -1,98 +1,106 @@
-// Real visa/immigration financial-planning breakdown — modeled directly on a UK Student visa cost
-// sheet (CAS deposit, Immigration Health Surcharge, visa fee, TB test, air-ticket, then the
-// separate bank-statement/proof-of-funds requirement), configured per country via
-// countryRegistry.ts's VisaCostConfig and shown alongside CostCalculator on the Fees tab. Every
-// figure is computed live off the actual university's tuition fee and course duration — nothing
-// here is a static screenshot of one example.
-import type { University } from "../types";
-import type { VisaCostConfig } from "../data/countryRegistry";
-import { courseFeeKind } from "../utils/courseFee";
-import { FEES_CAN_CHANGE_WARNING, isUkCountry, ukIhs } from "../utils/ukvi";
-import { durationYears } from "./CostCalculator";
-import { AlertTriangle } from "lucide-react";
+// "Cost Before Visa" and "Bank Statement" tables for a country that has visa costs configured (see countryRegistry.ts
+// VisaCostConfig, modeled on the UK Student visa). Every row shows the amount in the course's currency and in the student's home
+// currency, and every figure comes from costModel.ts so these tables always match the Estimated Total below them.
+import type { ReactNode } from "react";
+import type { CostModel } from "../utils/costModel";
 
-type Course = University["courses"][number];
+const fmt = (n: number) => Math.round(n).toLocaleString();
 
-function Row({ label, note, foreign, local, currency, localCurrency }: { label: string; note?: string; foreign?: number; local?: number; currency: string; localCurrency: string }) {
+interface Cols { currency: string; local?: string; rate?: number }
+
+function Head({ cols }: { cols: Cols }) {
   return (
-    <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 py-1.5 text-[12.5px]">
-      <span className="text-neutral-600">
-        {label}
-        {note && <span className="ml-1 text-[11px] text-neutral-400">({note})</span>}
-      </span>
-      <span className="text-right font-medium text-neutral-800">{foreign != null ? `${currency}${foreign.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</span>
-      <span className="text-right font-medium text-neutral-800">{local != null ? `${localCurrency} ${local.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</span>
+    <div className={`grid items-end gap-2 border-b border-neutral-300/50 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-neutral-400 ${cols.local ? "grid-cols-[minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"}`}>
+      <span>Item</span>
+      <span className="text-right">{cols.currency.trim()}</span>
+      {cols.local && <span className="text-right">{cols.local}</span>}
     </div>
   );
 }
 
-export function VisaCostBreakdown({ university, course, config }: { university: University; course?: Course; config: VisaCostConfig }) {
-  const currency = university.currencySymbol;
-  const local = config.localCurrencyName;
-  const rate = config.foreignToLocalRate;
+function GroupLabel({ children }: { children: ReactNode }) {
+  return <p className="pt-3 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-neutral-400">{children}</p>;
+}
 
-  // The selected course's own yearly fee — never the university's average tuition line.
-  const tuition = course && courseFeeKind(course) === "amount" ? course.feeUSD : 0;
-  const uk = isUkCountry(university.country);
-  const ukRule = uk ? ukIhs(course?.duration, config.healthSurchargePerYear) : null;
-  const years = ukRule ? ukRule.years : Math.ceil(durationYears(course?.duration));
-
-  const casDeposit = Math.round((tuition * config.casPaymentPercent) / 100);
-  const ihsTotal = ukRule ? ukRule.amount : Math.round(config.healthSurchargePerYear * years);
-  const visaFee = config.visaApplicationFee;
-  const preVisaTotalForeign = casDeposit + ihsTotal + visaFee;
-  const preVisaTotalLocal = Math.round(preVisaTotalForeign * rate);
-  const preVisaSubtotalLocal = preVisaTotalLocal + config.tbTestCostLocal + config.airTicketCostLocal;
-
-  const tuitionDue = Math.round((tuition * config.tuitionDuePercent) / 100);
-  const livingCostTotal = Math.round(config.livingCostPerMonth * config.livingCostMonths);
-  const bankTotalForeign = tuitionDue + livingCostTotal;
-  const bankTotalLocal = Math.round(bankTotalForeign * rate);
-
-  const headerRow = (
-    <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-      <span />
-      <span className="text-right">Amount in {currency}</span>
-      <span className="text-right">Amount in {local}</span>
+function Row({ label, note, foreign, local, cols }: { label: string; note?: string; foreign: number | null; local?: number | null; cols: Cols }) {
+  const localValue = local ?? (foreign !== null && cols.rate ? foreign * cols.rate : null);
+  return (
+    <div className={`grid items-start gap-2 border-b border-neutral-200/60 py-2 text-[12.5px] last:border-b-0 ${cols.local ? "grid-cols-[minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"}`}>
+      <span className="min-w-0">
+        <span className="block font-medium leading-snug text-neutral-800">{label}</span>
+        {note && <span className="mt-0.5 block text-[10.5px] leading-snug text-neutral-400">{note}</span>}
+      </span>
+      <span className="text-right font-medium tabular-nums text-neutral-800">{foreign !== null ? `${cols.currency}${fmt(foreign)}` : "—"}</span>
+      {cols.local && <span className="text-right font-medium tabular-nums text-neutral-800">{localValue !== null ? fmt(localValue) : "—"}</span>}
     </div>
   );
+}
+
+function Total({ label, note, foreign, cols }: { label: string; note?: string; foreign: number | null; cols: Cols }) {
+  return (
+    <div className={`mt-2 grid items-center gap-2 rounded-xl bg-[var(--sd-card)] px-3 py-2.5 shadow-neu-inset-sm ${cols.local ? "grid-cols-[minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"}`}>
+      <span className="min-w-0">
+        <span className="block text-[12.5px] font-semibold leading-snug text-neutral-900">{label}</span>
+        {note && <span className="mt-0.5 block text-[10.5px] font-normal leading-snug text-neutral-500">{note}</span>}
+      </span>
+      <span className="text-right text-[12.5px] font-bold tabular-nums text-neutral-900">{foreign !== null ? `${cols.currency}${fmt(foreign)}` : "—"}</span>
+      {cols.local && <span className="text-right text-[12.5px] font-bold tabular-nums text-neutral-900">{foreign !== null && cols.rate ? fmt(foreign * cols.rate) : "—"}</span>}
+    </div>
+  );
+}
+
+export function VisaCostBreakdown({ model, depositInput, onDepositChange }: { model: CostModel; depositInput: string; onDepositChange: (value: string) => void }) {
+  const typed = depositInput.trim() === "" ? null : Number(depositInput);
+  const tooLow = typed !== null && Number.isFinite(typed) && typed < model.requiredDeposit;
+  const cols: Cols = { currency: model.currency, local: model.localName && model.rate ? model.localName : undefined, rate: model.rate };
 
   return (
-    <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
-      <p className="text-[13px] font-semibold text-neutral-800">Cost Before Visa</p>
-      <div className="mt-2 divide-y divide-slate-50">
-        {headerRow}
-        <Row label="Tuition fees (average)" note={`${config.casPaymentPercent}% CAS Payment`} foreign={casDeposit} currency={currency} localCurrency={local} />
-        <Row label="IHS Fees" note={ukRule ? `${ukRule.visaMonths}-month visa → ${years} × rate` : `${years} year${years === 1 ? "" : "s"}`} foreign={ihsTotal} currency={currency} localCurrency={local} />
-        <Row label="Visa Application Fee" note="1" foreign={visaFee} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
-          <span>Total</span>
-          <span className="text-right">{currency}{preVisaTotalForeign.toLocaleString()}</span>
-          <span className="text-right">{local} {preVisaTotalLocal.toLocaleString()}</span>
-        </div>
-        <Row label="TB Test (Medical)" local={config.tbTestCostLocal} currency={currency} localCurrency={local} />
-        <Row label="Air-ticket" local={config.airTicketCostLocal} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
-          <span>Sub Total</span>
-          <span />
-          <span className="text-right">{local} {preVisaSubtotalLocal.toLocaleString()}</span>
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
+        <p className="text-[13.5px] font-semibold text-neutral-900">Cost Before Visa</p>
+        <p className="mb-2 mt-0.5 text-[11px] text-neutral-500">What you pay before your visa is granted.</p>
+        <Head cols={cols} />
+
+        <GroupLabel>Paid to the university and the visa authority</GroupLabel>
+        <Row label="Tuition deposit" note={`Required by the university: ${model.currency}${fmt(model.requiredDeposit)} (${model.depositRule})`} foreign={model.casDeposit} cols={cols} />
+        {model.ihs && <Row label="Immigration Health Surcharge (IHS)" note={model.ihs.note} foreign={model.ihs.amount} cols={cols} />}
+        <Row label="Visa application fee" foreign={model.visaFee} cols={cols} />
+
+        {(model.medical || model.airTicket) && <GroupLabel>Paid at home</GroupLabel>}
+        {model.medical && <Row label="Medical test (TB)" note="Required for the visa" foreign={model.medical.foreign} local={model.medical.local} cols={cols} />}
+        {model.airTicket && <Row label="Air ticket" note="One way, estimate" foreign={model.airTicket.foreign} local={model.airTicket.local} cols={cols} />}
+
+        <Total label="Total before visa" foreign={model.beforeVisaForeign} cols={cols} />
+
+        <div className="mt-3">
+          <label className="block text-[11.5px] font-medium text-neutral-500" htmlFor="deposit-input">Your deposit (optional)</label>
+          <input
+            id="deposit-input"
+            type="number"
+            min={model.requiredDeposit}
+            inputMode="decimal"
+            value={depositInput}
+            onChange={(e) => onDepositChange(e.target.value)}
+            onBlur={() => { if (tooLow) onDepositChange(""); }}
+            placeholder={`${model.currency}${fmt(model.requiredDeposit)} (required minimum)`}
+            aria-invalid={tooLow}
+            className={`mt-1 w-full rounded-xl bg-[var(--sd-card)] px-3.5 py-3 text-[13px] text-neutral-800 shadow-neu-inset focus:outline-none ${tooLow ? "ring-1 ring-red-300" : ""}`}
+          />
+          <p className={`mt-1 text-[10.5px] leading-snug ${tooLow ? "text-red-500" : "text-neutral-400"}`}>
+            {tooLow
+              ? `The deposit can't be less than the university's required ${model.currency}${fmt(model.requiredDeposit)} — the required amount is being used.`
+              : "Want to pay more than the minimum? Enter your amount. It can't be less than the required deposit."}
+          </p>
         </div>
       </div>
 
-      <p className="mt-5 text-[13px] font-semibold text-neutral-800">Bank Statement</p>
-      <div className="mt-2 divide-y divide-slate-50">
-        {headerRow}
-        <Row label="Tuition fees (average)" note="Due" foreign={tuitionDue} currency={currency} localCurrency={local} />
-        <Row label="Living cost" note={`${config.livingCostMonths} month${config.livingCostMonths === 1 ? "" : "s"}`} foreign={livingCostTotal} currency={currency} localCurrency={local} />
-        <div className="grid grid-cols-[1.4fr_1fr_1fr] items-center gap-2 bg-[var(--sd-card)] shadow-neu-inset-sm rounded-lg px-2 py-2 text-[12.5px] font-semibold text-neutral-900">
-          <span>Show in FDR/Savings account for 28 days</span>
-          <span className="text-right">{currency}{bankTotalForeign.toLocaleString()}</span>
-          <span className="text-right">{local} {bankTotalLocal.toLocaleString()}</span>
-        </div>
-      </div>
-      <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 p-3">
-        <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-500" />
-        <p className="text-[12px] leading-relaxed text-amber-700">{FEES_CAN_CHANGE_WARNING}</p>
+      <div className="rounded-2xl bg-[var(--sd-card)] p-4 shadow-neu">
+        <p className="text-[13.5px] font-semibold text-neutral-900">Bank Statement</p>
+        <p className="mb-2 mt-0.5 text-[11px] text-neutral-500">The money you must show for your visa application.</p>
+        <Head cols={cols} />
+        <Row label="Tuition fee still to pay" note="First-year tuition less the deposit" foreign={model.tuitionDue} cols={cols} />
+        {model.living && <Row label="Living costs" note={model.living.note} foreign={model.living.amount} cols={cols} />}
+        <Total label="Show in your account" note="Held for 28 days in a row" foreign={model.bankForeign} cols={cols} />
       </div>
     </div>
   );

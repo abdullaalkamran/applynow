@@ -1,3 +1,4 @@
+import { useAttentionShake } from "../../utils/useAttentionShake";
 import { useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
@@ -7,7 +8,7 @@ import {
 import { LogoBadge, DocChecklistRow, SupportRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import {
   DOCUMENTS, CURRENT_STUDENT_ID,
-  COUNSELLORS, AGENTS, ADMISSION_OFFICERS, COMPLIANCE_OFFICERS,
+  COUNSELLORS, AGENTS, ADMISSION_OFFICERS,
 } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
@@ -49,6 +50,8 @@ export default function ApplicationDetail() {
   const currentIdx = pipelineIndex(application?.status ?? "Draft");
   const missingCoreDocs = buildCoreChecklist(application?.studentId ?? "").filter((row) => !row.own);
   const coreDocsBlocked = missingCoreDocs.length > 0;
+  // Required-document cards shake every 10 seconds to draw the eye (not for reduced-motion users).
+  const shakeCard = useAttentionShake(true, 10000);
   const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
   const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
   // Posting a comment (ApplicationCommentsCard, below) or any other store write on this page calls
@@ -153,11 +156,12 @@ export default function ApplicationDetail() {
   const scholarship = course ? scholarshipLabel(university!) : null;
 
   const student = getAllStudents().find((s) => s.id === application.studentId);
+  // Only people actually assigned to this student/application — never a default admission or compliance officer. Compliance is
+  // an internal review the student never deals with, and an admission officer shows only once one is assigned to this application.
   const reviewTeam = [
     student && COUNSELLORS.find((c) => c.id === student.counsellorId),
     student && AGENTS.find((a) => a.id === student.agentId),
-    ADMISSION_OFFICERS[0],
-    COMPLIANCE_OFFICERS[0],
+    application.responsibleAdmissionOfficerId ? ADMISSION_OFFICERS.find((o) => o.id === application.responsibleAdmissionOfficerId) : undefined,
   ].filter((c): c is NonNullable<typeof c> => !!c);
 
   return (
@@ -276,40 +280,40 @@ export default function ApplicationDetail() {
                 {coreDocsBlocked && (
                   <button
                     onClick={() => navigate("/student/documents")}
-                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-4 text-left"
+                    className={`neu-card-red mb-5 flex w-full items-center gap-3 rounded-2xl p-4 text-left ${shakeCard ? "shake-attn" : ""}`}
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-700">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full neu-icon-red text-red-600">
                       <AlertCircle size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold text-neutral-800">Upload core documents</p>
-                      <p className="truncate text-[11.5px] text-neutral-800">
+                      <p className="text-[13px] font-semibold text-red-700">Upload core documents</p>
+                      <p className="truncate text-[11.5px] text-red-600">
                         Missing {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
                         {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}
                       </p>
                     </div>
-                    <ChevronRight size={16} className="shrink-0 text-neutral-700" />
+                    <ChevronRight size={16} className="shrink-0 text-red-400" />
                   </button>
                 )}
 
                 {missingAppDocs.length > 0 && (
                   <button
                     onClick={() => selectTab("Documents")}
-                    className="mb-5 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-4 text-left"
+                    className={`neu-card-red mb-5 flex w-full items-center gap-3 rounded-2xl p-4 text-left ${shakeCard ? "shake-attn" : ""}`}
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full neu-icon-red text-red-600">
                       <AlertCircle size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold text-neutral-900">
+                      <p className="text-[13px] font-semibold text-red-700">
                         {missingAppDocs.length} document{missingAppDocs.length === 1 ? "" : "s"} required for this application
                       </p>
-                      <p className="truncate text-[11.5px] text-neutral-900">
+                      <p className="truncate text-[11.5px] text-red-600">
                         {missingAppDocs.slice(0, 2).map((row) => row.type).join(", ")}
                         {missingAppDocs.length > 2 ? ` and ${missingAppDocs.length - 2} more` : ""}
                       </p>
                     </div>
-                    <ChevronRight size={16} className="shrink-0 text-neutral-900" />
+                    <ChevronRight size={16} className="shrink-0 text-red-400" />
                   </button>
                 )}
 
@@ -396,13 +400,19 @@ export default function ApplicationDetail() {
               <div className="space-y-2.5">
                 <button
                   onClick={() => navigate("/student/documents")}
-                  className="flex w-full items-center justify-between gap-2 rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm p-3.5 text-left"
+                  className={`flex w-full items-center justify-between gap-2 rounded-2xl border p-3.5 text-left ${coreDocsBlocked ? `neu-card-red border-transparent ${shakeCard ? "shake-attn" : ""}` : "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-semibold text-neutral-900">Core documents</p>
-                    <p className="text-[11px] text-neutral-600">Passport, transcript, CV, English & more — uploaded once, shared across every application</p>
+                    <p className={`text-[12.5px] font-semibold ${coreDocsBlocked ? "text-red-700" : "text-neutral-900"}`}>
+                      Core documents{coreDocsBlocked ? ` — ${missingCoreDocs.length} required` : ""}
+                    </p>
+                    <p className={`text-[11px] ${coreDocsBlocked ? "text-red-600" : "text-neutral-600"}`}>
+                      {coreDocsBlocked
+                        ? `Missing ${missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}${missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}`
+                        : "Passport, transcript, CV, English & more — uploaded once, shared across every application"}
+                    </p>
                   </div>
-                  <ChevronRight size={15} className="shrink-0 text-neutral-600" />
+                  <ChevronRight size={15} className={`shrink-0 ${coreDocsBlocked ? "text-red-400" : "text-neutral-600"}`} />
                 </button>
 
                 <div>

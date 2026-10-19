@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
-  Sparkles, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Copy, AlertCircle,
+  Sparkles, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Copy, AlertCircle, Trash2,
 } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import type { SupportContact } from "../../types";
@@ -196,10 +196,10 @@ export function Toggle({
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-[var(--sd-teal)]" : "bg-neutral-200"}`}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-[#a8d9b6] shadow-[inset_2px_2px_5px_#8fbf9d,inset_-2px_-2px_5px_#c9efd4]" : "bg-neutral-200"}`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-[var(--sd-card)] shadow-neu-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
+          className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-[var(--sd-card)] shadow-neu-sm transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`}
         />
       </button>
     </div>
@@ -713,7 +713,7 @@ const docStatusLabel: Record<string, string> = { uploaded: "Pending review" };
  * Shared between the Application Detail page and the My Documents overview so both stay in sync.
  */
 export function DocChecklistRow({
-  type, own, reused, rejected, requested, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload,
+  type, own, reused, rejected, requested, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload, onDelete,
 }: {
   type: string;
   own?: { name: string; status: string };
@@ -733,7 +733,10 @@ export function DocChecklistRow({
   scanStatus: ScanStatus;
   onStartUpload: () => void;
   onCancelUpload: () => void;
+  /** When set, an uploaded-but-unverified document gets a Delete button (with an inline "are you sure"). */
+  onDelete?: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   if (own) {
     return (
       <div className={`flex items-center gap-3 rounded-2xl border p-3 min-[400px]:p-3.5 ${own.status === "verified" ? "neu-card-green border-transparent" : highlighted ? "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm" : "border-transparent bg-[var(--sd-card)] shadow-neu"}`}>
@@ -744,9 +747,37 @@ export function DocChecklistRow({
           <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">{type}</p>
           <p className="truncate text-[11px] text-neutral-500">{own.name}</p>
         </div>
-        <span className={`shrink-0 text-[11px] font-semibold capitalize ${docStatusTone[own.status] ?? "text-neutral-400"}`}>
-          {docStatusLabel[own.status] ?? own.status}
-        </span>
+        {confirmingDelete ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setConfirmingDelete(false); onDelete?.(); }}
+              className="rounded-lg bg-red-600 px-2.5 py-1.5 text-[11px] font-semibold text-white"
+            >
+              Delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} className="rounded-lg px-2 py-1.5 text-[11px] font-medium text-neutral-500">
+              Keep
+            </button>
+          </div>
+        ) : (
+          <>
+            <span className={`shrink-0 text-[11px] font-semibold capitalize ${docStatusTone[own.status] ?? "text-neutral-400"}`}>
+              {docStatusLabel[own.status] ?? own.status}
+            </span>
+            {onDelete && own.status !== "verified" && (
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                aria-label={`Delete ${type}`}
+                title="Delete this upload"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-red-500 shadow-neu-sm"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </>
+        )}
       </div>
     );
   }

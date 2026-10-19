@@ -132,6 +132,17 @@ body {
   background: #f4e4e4;
   box-shadow: inset 3px 3px 6px #d9c4c4, inset -3px -3px 6px #ffffff;
 }
+/* Required-action cards shake briefly (see useAttentionShake) — a small left/right wobble, never for reduced motion. */
+@keyframes attn-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-0.6deg); }
+  30% { transform: translateX(5px) rotate(0.5deg); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+}
+.shake-attn { animation: attn-shake 0.7s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .shake-attn { animation: none; } }
 /* Verified documents: a soft green gradient raised card with a recessed icon tile. */
 .neu-card-green {
   background: linear-gradient(145deg, #eef7f0, #d8ecdd);
@@ -161,6 +172,18 @@ button:active > .neu-btn-red {
 }
 @media (hover: hover) {
   .neu-btn-red:hover { box-shadow: 7px 7px 14px rgba(190, 40, 40, 0.42), -5px -5px 12px #ffffff; }
+}
+
+/* Apply buttons while the intake is open: a soft green raised key (same family as the verified-document green). */
+.neu-btn-green {
+  background: linear-gradient(145deg, #c9ecd4, #a6d9b5);
+  color: #1f5a36;
+  box-shadow: 4px 4px 9px rgba(120, 165, 135, 0.45), -4px -4px 9px #ffffff;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.neu-btn-green:active { box-shadow: inset 3px 3px 7px rgba(80, 130, 100, 0.4), inset -2px -2px 5px rgba(255, 255, 255, 0.5); }
+@media (hover: hover) {
+  .neu-btn-green:hover { box-shadow: 6px 6px 12px rgba(120, 165, 135, 0.5), -5px -5px 11px #ffffff; }
 }
 
 /* ---- Neumorphic theme (student app) ---------------------------------------------------------------------

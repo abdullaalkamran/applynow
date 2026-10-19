@@ -143,8 +143,13 @@ export function CoreDocumentCard({
  * exactly which level's transcript/certificate (or other type) they actually need. Creates a
  * "requested" placeholder that shows up as a normal missing row until something's uploaded to it. */
 export function AddCoreDocumentButton({
-  studentId, existingTypes, onAdded,
-}: { studentId: string; existingTypes: string[]; onAdded: () => void }) {
+  studentId, existingTypes, onAdded, variant = "inline",
+}: {
+  studentId: string; existingTypes: string[]; onAdded: () => void;
+  /** "header" = a raised pill for a page's top-right corner, with the list opening as a soft raised panel (student app style). */
+  variant?: "inline" | "header";
+}) {
+  const header = variant === "header";
   const [open, setOpen] = useState(false);
   const [customType, setCustomType] = useState("");
   const options = coreDocTypeOptions().filter((t) => !existingTypes.includes(t));
@@ -159,23 +164,36 @@ export function AddCoreDocumentButton({
 
   return (
     <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-[clamp(11px,3.1vw,13.5px)] font-semibold text-[var(--sd-ink)]"
-      >
-        <Plus size={13} /> Add a document type
-      </button>
+      {header ? (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Add a document type"
+          aria-expanded={open}
+          className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] px-3 text-[12px] font-semibold text-[var(--sd-ink)] shadow-neu-sm"
+        >
+          <Plus size={14} /> <span className="hidden min-[380px]:inline">Add type</span>
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1 text-[clamp(11px,3.1vw,13.5px)] font-semibold text-[var(--sd-ink)]"
+        >
+          <Plus size={13} /> Add a document type
+        </button>
+      )}
       {open && (
         <>
           <button aria-hidden className="fixed inset-0 z-10" onClick={() => setOpen(false)} tabIndex={-1} />
-          <div className="absolute left-0 z-20 mt-1.5 w-64 rounded-xl border border-neutral-200 bg-white p-2 shadow-[0_4px_24px_rgba(0,0,0,0.12)]">
+          <div className={header
+            ? "absolute right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl bg-[var(--sd-card)] p-3 shadow-neu"
+            : "absolute left-0 z-20 mt-1.5 w-64 rounded-xl border border-neutral-200 bg-white p-2 shadow-[0_4px_24px_rgba(0,0,0,0.12)]"}>
             <p className="px-1 pb-1.5 text-[10.5px] text-neutral-400">Not sure which one applies? Pick the closest match.</p>
             <div className="max-h-52 space-y-0.5 overflow-y-auto">
               {options.map((t) => (
                 <button
                   key={t}
                   onClick={() => pick(t)}
-                  className="block w-full rounded-lg px-2 py-1.5 text-left text-[12px] text-neutral-700 hover:bg-neutral-50"
+                  className={`block w-full rounded-lg px-2 py-1.5 text-left text-[12px] text-neutral-700 ${header ? "hover:bg-neutral-200/40" : "hover:bg-neutral-50"}`}
                 >
                   {t}
                 </button>
@@ -187,12 +205,12 @@ export function AddCoreDocumentButton({
                 value={customType}
                 onChange={(e) => setCustomType(e.target.value)}
                 placeholder="Other (type your own)"
-                className="min-w-0 flex-1 rounded-lg border border-neutral-200 px-2 py-1 text-[12px] placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-300"
+                className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-[12px] placeholder:text-neutral-400 focus:outline-none ${header ? "bg-[var(--sd-card)] shadow-neu-inset-sm" : "border border-neutral-200 focus:ring-1 focus:ring-neutral-300"}`}
               />
               <button
                 disabled={!customType.trim()}
                 onClick={() => pick(customType)}
-                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+                className="shrink-0 rounded-lg bg-[var(--sd-ink)] px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40"
               >
                 Add
               </button>

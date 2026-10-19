@@ -10,7 +10,7 @@
 // creates in the same request.
 import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
-import { ensureCoreDocRequested } from "./coreDocsStore";
+import { ensureCoreDocRequested, statementOfPurposeType } from "./coreDocsStore";
 import type { Application, AppStatus, Role } from "../types";
 
 type Actor = { id: string; role: Role; name: string };
@@ -160,8 +160,9 @@ export async function createApplication(input: NewApplicationInput): Promise<App
   notifyCacheChange();
   // A submitted application always needs a Statement of Purpose — require it in the student's core
   // vault the moment it's first relevant, rather than waiting for a counsellor to notice and add it
-  // manually via the ad-hoc "Add a document type" picker.
-  ensureCoreDocRequested(input.studentId, "Statement of Purpose");
+  // manually via the ad-hoc "Add a document type" picker. One per application, named with the university and course
+  // it is for ("Statement of Purpose — University of Leeds — MSc Data Science"), since each school wants its own.
+  ensureCoreDocRequested(input.studentId, statementOfPurposeType(input.university, input.course));
   return application;
 }
 

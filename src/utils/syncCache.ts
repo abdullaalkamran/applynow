@@ -136,10 +136,13 @@ export function useCacheSync(): number {
     // reading a store directly must still pick up data that arrived after its last render"
     // guarantee this hook exists for, without remounting once per store on every warm-up.
     function scheduleBump() {
-      lastSeenVersion.current = version;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
+        // Only now is the change "seen": marking it earlier meant React StrictMode's dev-only effect re-run (cleanup clears
+        // this timer, then the effect runs again) found nothing to catch up on, and a page rendered before the cache
+        // filled stayed empty until something else changed.
+        lastSeenVersion.current = version;
         setTick((t) => t + 1);
       }, 150);
     }

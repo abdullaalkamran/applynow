@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { RouteErrorBoundary } from "./components/ErrorBoundary";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -145,6 +146,7 @@ export default function App() {
     <MaybeGoogleOAuthProvider>
     <AuthProvider>
       <BrowserRouter>
+        <RouteErrorBoundary>
         <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -287,6 +289,7 @@ export default function App() {
           </Route>
         </Routes>
         </Suspense>
+        </RouteErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
     </MaybeGoogleOAuthProvider>

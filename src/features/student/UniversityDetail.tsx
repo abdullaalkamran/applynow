@@ -103,7 +103,7 @@ export default function UniversityDetail() {
       <button
         onClick={() => setApplying(true)}
         disabled={!courseHasOpenIntake(university, course)}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[image:var(--sd-gradient)] py-3 text-[13px] font-semibold text-white disabled:opacity-40"
+        className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13px] font-semibold ${courseHasOpenIntake(university, course) ? "neu-btn-green" : "bg-[var(--sd-card)] text-neutral-400 shadow-neu-inset-sm"}`}
       >
         {courseHasOpenIntake(university, course) ? (
           <>Apply Now <ArrowLeft size={14} className="rotate-180" /></>

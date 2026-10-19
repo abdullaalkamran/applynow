@@ -4,7 +4,7 @@ import {
   Search, Bell, FileText, CheckCircle2, MessageCircle, Briefcase, ShieldCheck,
   ChevronRight, Check, Calendar, MapPin, AlertCircle, Wallet, ClipboardCheck,
   BookOpen, Plane, Landmark, Laptop, Wrench, HeartPulse, Palette, Scale, FlaskConical, GraduationCap,
-  BarChart3, Clock3, ListChecks,
+  Clock3, ListChecks,
   Calculator,
 } from "lucide-react";
 import { CountryBadge } from "../../components/ui/CountryBadge";
@@ -12,6 +12,7 @@ import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mob
 import { DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
+import { RecommendedCarousel } from "./RecommendedCarousel";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs } from "../../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
@@ -72,8 +73,8 @@ const iconBg: Record<string, string> = {
   slate: "bg-[var(--sd-card)] text-neutral-500 shadow-neu-sm",
 };
 
-function rankNumber(rank: string) {
-  return parseInt(rank.replace(/\D/g, ""), 10) || Infinity;
+function rankNumber(rank: string | undefined | null) {
+  return parseInt((rank ?? "").replace(/\D/g, ""), 10) || Infinity;
 }
 
 // Same deterministic name→tone hash CountryOverview.tsx's CountryHero uses for its own SkylineArt
@@ -201,10 +202,12 @@ export default function Dashboard() {
   // A real, unapplied-to university with a scholarship on offer, best-ranked first — not a
   // fabricated example.
   const appliedTo = new Set(myApplications.map((a) => a.university));
-  const recommended = [...universities]
-    .filter((u) => u.scholarshipsAvailable && !appliedTo.has(u.name))
-    .sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank))[0];
-  const recommendedCourse = recommended?.courses[0];
+  // Up to six courses to slide through: universities the student hasn't applied to, ones with a scholarship first, then by rank.
+  const recommendedItems = [...universities]
+    .filter((u) => !appliedTo.has(u.name) && u.courses.length > 0)
+    .sort((a, b) => Number(b.scholarshipsAvailable) - Number(a.scholarshipsAvailable) || rankNumber(a.worldRank) - rankNumber(b.worldRank))
+    .slice(0, 6)
+    .map((u) => ({ university: u, course: u.courses[0] }));
 
   // Real destinations to spotlight, ranked by real university count (countryStats(), same helper
   // Explore's "Countries" tab uses) — the student's own saved Preferences sort first since that's
@@ -291,11 +294,11 @@ export default function Dashboard() {
             <button
               onClick={() => navigate("/student/notifications")}
               aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : "Notifications"}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
+              className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm ${unreadNotifications > 0 ? "text-red-600" : "text-neutral-600"}`}
             >
               <Bell size={16} />
               {unreadNotifications > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-neutral-900 px-1 text-[11px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[10.5px] font-semibold leading-none text-white shadow-[0_2px_6px_rgba(200,31,31,0.45)]">
                   {unreadNotifications > 9 ? "9+" : unreadNotifications}
                 </span>
               )}
@@ -458,13 +461,15 @@ export default function Dashboard() {
                           {coreDocsBlocked && (
                             <button
                               onClick={() => navigate("/student/documents")}
-                              className="mt-3 flex w-full items-center gap-2 rounded-xl border border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm px-3 py-2 text-left"
+                              className="neu-card-red mt-3 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left"
                             >
-                              <AlertCircle size={14} className="shrink-0 text-neutral-700" />
-                              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-neutral-800">
+                              <span className="neu-icon-red flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-red-600">
+                                <AlertCircle size={14} />
+                              </span>
+                              <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-red-700">
                                 Upload core documents before this application can move forward
                               </span>
-                              <ChevronRight size={13} className="shrink-0 text-neutral-700" />
+                              <ChevronRight size={13} className="shrink-0 text-red-400" />
                             </button>
                           )}
 
@@ -548,7 +553,7 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {recommended && recommendedCourse && (
+            {recommendedItems.length > 0 && (
               <>
                 <div className="mt-6 flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold text-neutral-900">Recommended</h2>
@@ -556,30 +561,10 @@ export default function Dashboard() {
                     See all <ChevronRight size={14} />
                   </button>
                 </div>
-                <button
-                  onClick={() => navigate(`/student/universities/${recommended.id}`, { state: { selectedCourseName: recommendedCourse.name } })}
-                  className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 text-left shadow-neu"
-                >
-                  <LogoBadge name={recommended.name} tone={recommended.tone} logoUrl={recommended.logoUrl} className="h-14 w-14 shrink-0 text-sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold text-neutral-900">{recommendedCourse.name}</p>
-                    <p className="truncate text-xs text-neutral-400">{recommended.name}</p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-neutral-500">
-                      <span className="inline-flex items-center gap-1">
-                        <BarChart3 size={11} className="text-neutral-400" /> {recommended.worldRank}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar size={11} className="text-neutral-400" /> {recommended.openIntake}
-                      </span>
-                      {recommended.scholarshipsAvailable && (
-                        <span className="inline-flex items-center gap-1 text-neutral-800">
-                          <ShieldCheck size={12} />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <RoundIconButton icon={<ChevronRight size={16} />} />
-                </button>
+                <RecommendedCarousel
+                  items={recommendedItems}
+                  onOpen={({ university: u, course: c }) => navigate(`/student/universities/${u.id}`, { state: { selectedCourseName: c.name } })}
+                />
               </>
             )}
 

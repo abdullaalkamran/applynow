@@ -449,7 +449,7 @@ export default function UniversitySearch() {
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13.5px] font-semibold leading-snug text-neutral-900 sm:text-xl">{c.name}</p>
+                      <p className="line-clamp-2 break-words text-[11.5px] font-semibold leading-snug text-neutral-900 sm:text-lg">{c.name}</p>
                       <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
                         <Building2 size={12} className="shrink-0" /> <span className="truncate">{u.name}</span>
                       </p>
@@ -488,7 +488,7 @@ export default function UniversitySearch() {
                       disabled={!open}
                       aria-label={open ? "Apply Now" : "Intake closed"}
                       title={open ? "Apply Now" : "Intake closed"}
-                      className="flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-neutral-200 disabled:text-neutral-400"
+                      className={`flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full ${open ? "neu-btn-green" : "bg-neutral-200 text-neutral-400"}`}
                     >
                       <Send size={14} />
                     </button>

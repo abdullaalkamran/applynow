@@ -175,7 +175,7 @@ export default function SubjectDetail() {
                   disabled={!courseHasOpenIntake(u, c)}
                   aria-label={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
                   title={courseHasOpenIntake(u, c) ? "Apply Now" : "Intake closed"}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[image:var(--sd-gradient)] text-white disabled:bg-none disabled:bg-neutral-200 disabled:text-neutral-400"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${courseHasOpenIntake(u, c) ? "neu-btn-green" : "bg-neutral-200 text-neutral-400"}`}
                 >
                   <Send size={13} />
                 </button>

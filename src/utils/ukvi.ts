@@ -9,6 +9,8 @@
 //   - Maintenance money (https://www.gov.uk/student-visa/money): £1,529/month in London, £1,171/month elsewhere,
 //     for up to 9 months, held for 28 days.
 export const UK_IHS_PER_YEAR = 776;
+// Student visa application fee from outside the UK (https://www.gov.uk/student-visa/how-much-it-costs, checked 2026-10-19).
+export const UK_VISA_FEE = 558;
 export const UK_MAINTENANCE_LONDON = 1529;
 export const UK_MAINTENANCE_OUTSIDE = 1171;
 export const UK_MAINTENANCE_MAX_MONTHS = 9;

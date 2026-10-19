@@ -5,8 +5,8 @@ import { MobileHeader, DocChecklistRow, type ScanStatus, type UploadedDoc } from
 import { DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
-import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
-import { addCoreDoc } from "../../data/coreDocsStore";
+import { loadUploadedDocs, addUploadedDoc, deleteAppDoc } from "../../data/applicationDocsStore";
+import { addCoreDoc, deleteCoreDoc } from "../../data/coreDocsStore";
 import {
   buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
 } from "../../utils/documentChecklist";
@@ -100,6 +100,8 @@ export default function Documents() {
         scanStatus={scanStatus}
         onStartUpload={() => startUpload(row.scope, row.type)}
         onCancelUpload={() => { setUploadKey(null); setUploadingFile(null); setScanStatus("idle"); }}
+        // A pending-review upload (anything not yet verified) can be deleted — real server rows only (they have an id).
+        onDelete={row.own?.id && row.own.status !== "verified" ? () => (row.scope === CORE_KEY ? deleteCoreDoc(row.own!.id!) : deleteAppDoc(row.own!.id!)) : undefined}
       />
     );
   }
@@ -107,14 +109,13 @@ export default function Documents() {
   return (
     <div className="flex min-h-full flex-col">
       <div className="lg:mx-auto lg:w-full lg:max-w-4xl">
-        <MobileHeader title="My Documents" />
+        <MobileHeader
+          title="My Documents"
+          right={<AddCoreDocumentButton variant="header" studentId={CURRENT_STUDENT_ID} existingTypes={coreRows.map((r) => r.type)} onAdded={() => {}} />}
+        />
       </div>
 
       <div className="px-5 pb-6 lg:mx-auto lg:w-full lg:max-w-4xl lg:px-10">
-        <p className="mb-3 text-[clamp(11px,3.1vw,13.5px)] leading-relaxed text-neutral-500">
-          Every document you need across your core vault and every application, grouped by what's
-          left to do — upload whatever's still required, and everything else takes care of itself.
-        </p>
 
         {applications.length === 0 && coreRows.length === 0 && (
           <div className="rounded-2xl border border-transparent bg-[var(--sd-card)] p-6 text-center shadow-neu">
@@ -150,11 +151,6 @@ export default function Documents() {
                 </p>
               )}
               {requiredRows.map(renderRow)}
-              <AddCoreDocumentButton
-                studentId={CURRENT_STUDENT_ID}
-                existingTypes={coreRows.map((r) => r.type)}
-                onAdded={() => {}}
-              />
             </div>
           </section>
 
