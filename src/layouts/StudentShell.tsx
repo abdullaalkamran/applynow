@@ -35,7 +35,9 @@ export default function StudentShell() {
   const showTabs =
     TAB_ROOTS.has(location.pathname) ||
     location.pathname.startsWith("/student/subjects/") ||
-    location.pathname.startsWith("/student/countries/");
+    location.pathname.startsWith("/student/countries/") ||
+    // Every profile page (personal information, academic details, English, work experience, preferences, security) too.
+    location.pathname.startsWith("/student/profile/");
   const raiseFab = showTabs || hasStickyActionBar(location.pathname);
 
   return (

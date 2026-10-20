@@ -58,8 +58,8 @@ export default function ApplicationDetail() {
   const thisSop = application ? statementOfPurposeType(application.university, application.course) : "";
   const missingExtraDocs = buildSupportingChecklist(application?.studentId ?? "")
     .filter((row) => !row.own && !row.reused && (!/^Statement of Purpose/i.test(row.type) || row.type === thisSop));
-  // Required-document cards shake every 10 seconds to draw the eye (not for reduced-motion users).
-  const shakeCard = useAttentionShake(true, 10000);
+  // Required-document cards shake every 5 seconds to draw the eye (not for reduced-motion users).
+  const shakeCard = useAttentionShake(true, 5000);
   const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
   // Kept across a cache-driven rebuild of the page (see syncCache.ts), so the open tab never snaps back to Overview.
   const [tab, setTab] = usePreservedState<(typeof TABS)[number]>(`application:${application?.id ?? id}:tab`, navState?.tab ?? "Overview");
@@ -299,6 +299,25 @@ export default function ApplicationDetail() {
                       <p className="truncate text-[11.5px] text-red-600">
                         Missing {missingCoreDocs.slice(0, 2).map((row) => row.type).join(", ")}
                         {missingCoreDocs.length > 2 ? ` and ${missingCoreDocs.length - 2} more` : ""}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="shrink-0 text-red-400" />
+                  </button>
+                )}
+
+                {missingExtraDocs.length > 0 && (
+                  <button
+                    onClick={() => selectTab("Documents")}
+                    className={`neu-card-red mb-5 flex w-full items-center gap-3 rounded-2xl p-4 text-left ${shakeCard ? "shake-attn" : ""}`}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full neu-icon-red text-red-600">
+                      <AlertCircle size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold text-red-700">Additional documents — {missingExtraDocs.length} to upload</p>
+                      <p className="truncate text-[11.5px] text-red-600">
+                        {missingExtraDocs.slice(0, 2).map((row) => row.type).join(", ")}
+                        {missingExtraDocs.length > 2 ? ` and ${missingExtraDocs.length - 2} more` : ""}
                       </p>
                     </div>
                     <ChevronRight size={16} className="shrink-0 text-red-400" />
