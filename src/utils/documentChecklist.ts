@@ -3,7 +3,7 @@ import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs, loadCustomDocRequests } from "../data/applicationDocsStore";
 import { loadCoreDocs } from "../data/coreDocsStore";
-import { loadEnglishTests } from "../data/studentProfileDetailsStore";
+import { loadEnglishTests, loadWorkExperience } from "../data/studentProfileDetailsStore";
 import { loadAcademicLevels } from "../data/academicProfileStore";
 import type { University } from "../types";
 
@@ -68,7 +68,25 @@ export function coreDocTypes(studentId: string = CURRENT_STUDENT_ID): string[] {
 const SUPPORTING_TYPE = /statement of purpose|english|\bmoi\b|medium of instruction|employment|recommendation|reference letter|bank statement|solvency|financial statement/i;
 export const isSupportingType = (type: string) => SUPPORTING_TYPE.test(type);
 
-export const EMPLOYMENT_OR_RECOMMENDATION = "Employment Certificate / 2 Recommendation Letters";
+export const EMPLOYMENT_CERTIFICATE = "Employment Certificate";
+
+const EDUCATION_ORDER = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Bachelor's", "Master's", "PhD"];
+
+/** The most recent institution on the student's academic profile — the highest education level that has an institution
+ * entered — which is where recommendation letters should come from. Null until the profile has one. */
+export function lastInstitutionFor(studentId: string): string | null {
+  const entries = loadAcademicLevels(studentId).filter((e) => (e.institution ?? "").trim());
+  if (entries.length === 0) return null;
+  const rank = (level: string) => { const i = EDUCATION_ORDER.indexOf(level); return i < 0 ? -1 : i; };
+  return [...entries].sort((a, b) => rank(b.level) - rank(a.level))[0].institution.trim();
+}
+
+/** Two recommendation letters from teachers of the last institution on the profile, e.g.
+ * "Recommendation Letter 1 — University of Dhaka". Separate from an employment certificate. */
+export function recommendationLetterTypesFor(studentId: string): string[] {
+  const where = lastInstitutionFor(studentId);
+  return [1, 2].map((n) => (where ? `Recommendation Letter ${n} — ${where}` : `Recommendation Letter ${n} (last institution)`));
+}
 
 /** "English test certificate — IELTS": one per test the student has chosen in their English proficiency profile (an MOI letter
  * for MOI), or a single generic one when no test is recorded yet. */
@@ -79,13 +97,15 @@ export function englishCertificateTypesFor(studentId: string): string[] {
 }
 
 /** Documents that support an application but aren't needed to submit it: the English test certificate for the selected test,
- * an employment certificate or two recommendation letters from the last institution's teachers, bank documents for the
+ * two recommendation letters from the last institution's teachers, an employment certificate (when the profile has work experience), bank documents for the
  * banks the student holds funds in, and a Statement of Purpose slot per application. */
 export function supportingDocTypes(studentId: string = CURRENT_STUDENT_ID): string[] {
   const requestedSupporting = loadCoreDocs(studentId).filter((d) => d.custom && isSupportingType(d.type)).map((d) => d.type);
   return Array.from(new Set([
     ...englishCertificateTypesFor(studentId),
-    EMPLOYMENT_OR_RECOMMENDATION,
+    ...recommendationLetterTypesFor(studentId),
+    // Only for students whose profile shows work experience.
+    ...(loadWorkExperience(studentId).length > 0 ? [EMPLOYMENT_CERTIFICATE] : []),
     ...bankDocTypesFor(studentId),
     ...requestedSupporting,
   ]));
@@ -128,7 +148,7 @@ export function docMatchesType(docName: string, docType: string): boolean {
     const test = / — (.+)$/.exec(docType)?.[1]?.toLowerCase();
     return /ielts|toefl|pte|duolingo|cambridge|english|proficiency|\bmoi\b|medium of instruction/i.test(docName) || (!!test && docName.toLowerCase().includes(test));
   }
-  if (docType === EMPLOYMENT_OR_RECOMMENDATION) return /employment|experience|recommendation|reference|referee/i.test(docName);
+  if (docType === EMPLOYMENT_CERTIFICATE) return /employment|experience/i.test(docName);
   const pattern = DOC_TYPE_PATTERNS.find((rule) => rule.docType === docType)?.match;
   if (pattern) return pattern.test(docName);
 
@@ -270,7 +290,7 @@ const MANUAL_ACADEMIC_LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Ba
 export function coreDocTypeOptions(): string[] {
   return [
     ...MANUAL_ACADEMIC_LEVELS.flatMap((level) => [`${level} — Transcript`, `${level} — Certificate`]),
-    "English test certificate", "CV / Resume", EMPLOYMENT_OR_RECOMMENDATION, "Passport", "Financial Statement",
+    "English test certificate", "CV / Resume", EMPLOYMENT_CERTIFICATE, "Recommendation Letter 1", "Recommendation Letter 2", "Passport", "Financial Statement",
   ];
 }
 

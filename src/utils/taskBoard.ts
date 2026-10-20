@@ -5,7 +5,7 @@
 
 import { loadTasks, toggleTaskDone, removeTask, type Task, type TaskPerson } from "../data/tasksStore";
 import { loadNextSteps, toggleNextStepDone, dueDateTone as nextStepTone } from "../data/applicationNextStepsStore";
-import { buildCoreChecklist, buildChecklist } from "./documentChecklist";
+import { buildCoreChecklist, buildSupportingChecklist, buildChecklist } from "./documentChecklist";
 import { loadDocDueDate, dueDateTone as docTone } from "../data/documentDueDatesStore";
 import { loadFinancialReadiness } from "../data/studentFinancialReadinessStore";
 import { loadBankAccounts } from "../data/bankAccountsCache";
@@ -105,6 +105,22 @@ function documentTasksFor(student: Student, apps: Application[]): DisplayTask[] 
         id: `doc-core-${student.id}-${row.type}`,
         title: row.rejected ? `Re-upload ${row.type} — rejected` : `Upload ${row.type}`,
         subtitle: row.rejected ? `${student.name} · ${row.rejected.reason || "Core document rejected"}` : `${student.name} · Core document`,
+        done: false,
+        source: "document",
+        tone: row.rejected ? "overdue" : "none",
+        studentId: student.id,
+      });
+    });
+
+  // Additional documents (English test certificate, recommendation letters, bank documents, a Statement of Purpose per application)
+  // are not needed to submit an application, but they are still things to upload — so they show in Next Steps too.
+  buildSupportingChecklist(student.id)
+    .filter((row) => !row.own && !row.reused)
+    .forEach((row) => {
+      tasks.push({
+        id: `doc-extra-${student.id}-${row.type}`,
+        title: row.rejected ? `Re-upload ${row.type} — rejected` : `Upload ${row.type}`,
+        subtitle: row.rejected ? `${student.name} · ${row.rejected.reason || "Document rejected"}` : `${student.name} · Additional document`,
         done: false,
         source: "document",
         tone: row.rejected ? "overdue" : "none",

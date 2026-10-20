@@ -16,7 +16,8 @@ import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs, addUploadedDoc as addUploadedDocToStore } from "../../data/applicationDocsStore";
 import { scholarshipLabel } from "../../utils/universityFilter";
-import { docMatchesType, buildChecklist, buildCoreChecklist, coreDocTypes } from "../../utils/documentChecklist";
+import { docMatchesType, buildChecklist, buildCoreChecklist, buildSupportingChecklist, coreDocTypes } from "../../utils/documentChecklist";
+import { statementOfPurposeType } from "../../data/coreDocsStore";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
 import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
@@ -51,6 +52,12 @@ export default function ApplicationDetail() {
   const currentIdx = pipelineIndex(application?.status ?? "Draft");
   const missingCoreDocs = buildCoreChecklist(application?.studentId ?? "").filter((row) => !row.own);
   const coreDocsBlocked = missingCoreDocs.length > 0;
+  // Additional documents still to upload for this application: English test certificate, recommendation letters, bank documents
+  // and THIS application's Statement of Purpose (other applications' SOP slots aren't this page's business). Not needed to submit,
+  // but still an upload the student owes, so they get a red card on the Documents tab.
+  const thisSop = application ? statementOfPurposeType(application.university, application.course) : "";
+  const missingExtraDocs = buildSupportingChecklist(application?.studentId ?? "")
+    .filter((row) => !row.own && !row.reused && (!/^Statement of Purpose/i.test(row.type) || row.type === thisSop));
   // Required-document cards shake every 10 seconds to draw the eye (not for reduced-motion users).
   const shakeCard = useAttentionShake(true, 10000);
   const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
@@ -416,6 +423,23 @@ export default function ApplicationDetail() {
                   </div>
                   <ChevronRight size={15} className={`shrink-0 ${coreDocsBlocked ? "text-red-400" : "text-neutral-600"}`} />
                 </button>
+
+                {missingExtraDocs.length > 0 && (
+                  <button
+                    onClick={() => navigate("/student/documents")}
+                    className={`neu-card-red flex w-full items-center justify-between gap-2 rounded-2xl p-3.5 text-left ${shakeCard ? "shake-attn" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] font-semibold text-red-700">Additional documents — {missingExtraDocs.length} to upload</p>
+                      <p className="text-[11px] text-red-600">
+                        {missingExtraDocs.slice(0, 2).map((row) => row.type).join(", ")}
+                        {missingExtraDocs.length > 2 ? ` and ${missingExtraDocs.length - 2} more` : ""}
+                      </p>
+                      <p className="mt-0.5 text-[10.5px] text-red-500/80">Not needed to submit, but upload them to keep this application moving.</p>
+                    </div>
+                    <ChevronRight size={15} className="shrink-0 text-red-400" />
+                  </button>
+                )}
 
                 <div>
                   <p className="text-[13px] font-semibold text-neutral-900">University-Specific Checklist</p>

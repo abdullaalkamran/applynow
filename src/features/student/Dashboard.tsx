@@ -15,7 +15,7 @@ import { getAllApplications } from "../../data/applicationsStore";
 import { RecommendedCarousel } from "./RecommendedCarousel";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs } from "../../data/applicationDocsStore";
-import { buildChecklist, buildCoreChecklist } from "../../utils/documentChecklist";
+import { buildChecklist, buildCoreChecklist, buildSupportingChecklist } from "../../utils/documentChecklist";
 import { shortlistedCount } from "../../data/shortlistStore";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import { loadPreferences } from "../../data/studentProfileDetailsStore";
@@ -155,7 +155,10 @@ export default function Dashboard() {
   // meant Financial Readiness (tone "none", since it has no due date to be "soon"/"overdue" about)
   // regularly lost out to a pile of small per-document tasks and never actually appeared here even
   // while genuinely incomplete. It's pinned first when present so it's never silently crowded out.
-  const openStudentTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done);
+  // Additional documents (English test certificate, recommendation letters, bank documents, SOPs) get ONE summary row below the
+  // three task rows instead of crowding them out one by one; each is still its own task on the Tasks page.
+  const extraDocsMissing = buildSupportingChecklist(CURRENT_STUDENT_ID).filter((r) => !r.own && !r.reused);
+  const openStudentTasks = getStudentTasks(CURRENT_STUDENT_ID).filter((t) => !t.done && !t.id.startsWith("doc-extra-"));
   const financeTask = openStudentTasks.find((t) => t.source === "finance");
   // Proof documents for a bank that now holds the student's funds (Bank Statement / Solvency Certificate) are the most
   // time-sensitive of the document tasks, so they rank right after Financial Readiness itself.
@@ -349,7 +352,7 @@ export default function Dashboard() {
                   <ChevronRight size={16} className="shrink-0 text-red-400" />
                 </button>
               )}
-              {nextStepTasks.length === 0 && requiredRemaining === 0 && pendingVerification === 0 ? (
+              {nextStepTasks.length === 0 && requiredRemaining === 0 && pendingVerification === 0 && extraDocsMissing.length === 0 ? (
                 <p className="px-4 py-6 text-center text-[13px] text-neutral-500">You're all caught up — no open tasks.</p>
               ) : (
                 nextStepTasks.map((t, i) => {
@@ -395,6 +398,21 @@ export default function Dashboard() {
                     </button>
                   );
                 })
+              )}
+              {extraDocsMissing.length > 0 && (
+                <button
+                  onClick={() => navigate("/student/documents")}
+                  className={`flex w-full items-center gap-3 px-3.5 py-3 text-left min-[400px]:px-4 ${nextStepTasks.length > 0 || requiredRemaining > 0 ? "border-t border-neutral-50" : ""}`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-red-600 min-[400px]:h-10 min-[400px]:w-10">
+                    <FileText size={16} />
+                  </div>
+                  <p className="min-w-0 flex-1 text-[13px] leading-snug text-red-700">
+                    <span className="font-medium">Upload {extraDocsMissing.length} additional document{extraDocsMissing.length > 1 ? "s" : ""}</span>
+                    <span className="text-[11px] text-red-600/80"> · {extraDocsMissing.slice(0, 2).map((r) => r.type).join(", ")}{extraDocsMissing.length > 2 ? ` +${extraDocsMissing.length - 2} more` : ""}</span>
+                  </p>
+                  <ChevronRight size={16} className="shrink-0 text-red-400" />
+                </button>
               )}
               {pendingVerification > 0 && (
                 <button

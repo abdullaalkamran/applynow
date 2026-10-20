@@ -101,7 +101,6 @@ export default function Documents() {
         reused={row.reused}
         rejected={row.rejected}
         requested={row.requested}
-        optional={row.supporting}
         isUploading={uploadKey === `${row.scope}::${row.type}`}
         uploadingFile={uploadingFile}
         scanStatus={scanStatus}
