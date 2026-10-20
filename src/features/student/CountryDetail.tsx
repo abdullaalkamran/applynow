@@ -3,7 +3,8 @@
 // clean per-university directory — every course/program browse belongs on the "Subjects" tab
 // instead, so this tab isn't showing the same course list twice under two different names), and
 // "Subjects" (every distinct field of study offered here).
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { usePreservedState } from "../../utils/syncCache";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, GraduationCap, BookOpen, ChevronRight, Wallet } from "lucide-react";
 import { LogoBadge, Pagination } from "../../components/ui/mobile";
@@ -22,7 +23,7 @@ export default function CountryDetail() {
   const navigate = useNavigate();
   const country = decodeURIComponent(countryParam ?? "");
 
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [tab, setTab] = usePreservedState<(typeof TABS)[number]>(`country:${country}:tab`, "Overview");
 
   const universities = useMemo(() => getAllUniversities().filter((u) => u.country === country), [country]);
   const countryDetails = useMemo(() => getCountryByName(country), [country]);
@@ -39,7 +40,7 @@ export default function CountryDetail() {
     [universities]
   );
   // 30 courses per page — a country can hold thousands, too many to render at once.
-  const { page: coursePage, setPage: setCoursePage, totalPages: courseTotalPages, pageItems: pagedCourses } = usePagedList(courseOfferings, 30, country);
+  const { page: coursePage, setPage: setCoursePage, totalPages: courseTotalPages, pageItems: pagedCourses } = usePagedList(courseOfferings, 30, country, `country:${country}:coursesPage`);
 
   function openUniversityProfile(universityId: string) {
     navigate(`/student/universities/${universityId}`);

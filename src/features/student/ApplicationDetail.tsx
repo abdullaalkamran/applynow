@@ -1,5 +1,6 @@
 import { useAttentionShake } from "../../utils/useAttentionShake";
 import { useRef, useState } from "react";
+import { usePreservedState } from "../../utils/syncCache";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, MoreVertical, Heart, Calendar, MapPin, Check, FileText,
@@ -53,7 +54,8 @@ export default function ApplicationDetail() {
   // Required-document cards shake every 10 seconds to draw the eye (not for reduced-motion users).
   const shakeCard = useAttentionShake(true, 10000);
   const visibleNextAction = coreDocsBlocked ? "Upload core documents" : application?.nextAction ?? "";
-  const [tab, setTab] = useState<(typeof TABS)[number]>(navState?.tab ?? "Overview");
+  // Kept across a cache-driven rebuild of the page (see syncCache.ts), so the open tab never snaps back to Overview.
+  const [tab, setTab] = usePreservedState<(typeof TABS)[number]>(`application:${application?.id ?? id}:tab`, navState?.tab ?? "Overview");
   // Posting a comment (ApplicationCommentsCard, below) or any other store write on this page calls
   // notifyCacheChange(), which remounts this whole page (see syncCache.ts's useCacheSync — it keys
   // <Outlet> on a version counter). A plain setTab() would then be wiped on that remount, since the

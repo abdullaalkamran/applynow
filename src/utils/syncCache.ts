@@ -12,9 +12,33 @@
 // Postgres instead. The trade-off (documented in the migration plan): a brief empty/stale window
 // right after login before the first fetch resolves, and no cross-tab live sync — acceptable for
 // this app's actual usage pattern, and a much smaller, lower-risk change than a full async rewrite.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const listeners = new Set<() => void>();
+
+// ---- Keeping the student's place across a cache-driven remount ----------------------------------------------------------
+// When cached data changes, the shell remounts the routed page (see useCacheSync below), which used to throw away everything
+// local to it: the typed search, the Explore tab, the page number, the scroll position. That is what made searches and
+// application tabs "jump back to the start" every so often. A remount caused by a cache change opens a short window during
+// which usePreservedState() hands each piece of state back instead of resetting it, and the shell puts the scroll back.
+let remountUntil = 0;
+const preserved = new Map<string, unknown>();
+let scroller: HTMLElement | null = null;
+let savedScroll = 0;
+
+/** The shell's scrolling box — registered so its position can be restored after a remount. */
+export function registerScroller(el: HTMLElement | null) { scroller = el; }
+
+/** Like useState, but when the page is rebuilt because cached data changed (not because the student navigated), the previous
+ * value comes straight back. `key` must be unique to the screen and piece of state, e.g. "explore:query". */
+export function usePreservedState<T>(key: string, initial: T | (() => T)) {
+  const [value, setValue] = useState<T>(() => {
+    if (Date.now() < remountUntil && preserved.has(key)) return preserved.get(key) as T;
+    return typeof initial === "function" ? (initial as () => T)() : initial;
+  });
+  preserved.set(key, value);
+  return [value, setValue] as const;
+}
 
 // Bumped on every cache change — lets a component that mounts (and subscribes) *after* a change
 // already happened catch up, instead of only reacting to changes that happen after it started
@@ -143,6 +167,8 @@ export function useCacheSync(): number {
         // this timer, then the effect runs again) found nothing to catch up on, and a page rendered before the cache
         // filled stayed empty until something else changed.
         lastSeenVersion.current = version;
+        remountUntil = Date.now() + 1500;
+        savedScroll = scroller?.scrollTop ?? 0;
         setTick((t) => t + 1);
       }, 150);
     }
@@ -157,6 +183,11 @@ export function useCacheSync(): number {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  // Runs after the rebuilt page has mounted (children's layout effects run first): put the scroll position back.
+  useLayoutEffect(() => {
+    if (tick > 0 && scroller && Date.now() < remountUntil) scroller.scrollTop = savedScroll;
+  }, [tick]);
 
   return tick;
 }

@@ -16,7 +16,7 @@ import {
   loadUploadedDocs, addUploadedDoc, verifyAppDoc, rejectAppDoc, loadCustomDocRequests, addCustomDocRequest, removeCustomDocRequest,
 } from "../../../data/applicationDocsStore";
 import {
-  buildChecklist, buildCoreChecklist, academicProfileIncomplete, coreDocTypes, docMatchesType, type ChecklistRow,
+  buildChecklist, buildCoreChecklist, buildSupportingChecklist, supportingDocTypes, academicProfileIncomplete, coreDocTypes, docMatchesType, type ChecklistRow,
 } from "../../../utils/documentChecklist";
 import { getStudentTasks } from "../../../utils/taskBoard";
 import { addCoreDoc, verifyCoreDoc, rejectCoreDoc } from "../../../data/coreDocsStore";
@@ -140,8 +140,11 @@ export default function StudentProfile() {
   // from — the same shape student/Documents.tsx builds, so the counsellor's Documents tab can
   // group them into the same three status sections instead of the student's own, separate
   // core-vault-only view this tab used to show.
-  const docCoreTypes = coreDocTypes();
-  const flatCoreDocRows: (ChecklistRow & { scope: string; scopeLabel: string })[] = coreRows.map((r) => ({
+  const docCoreTypes = [...coreDocTypes(), ...supportingDocTypes(student.id)];
+  // Supporting documents (English test certificate, recommendation letters, bank documents, SOP) show once something has been
+  // uploaded for them — a missing one is not "required", so it isn't listed as a to-do here.
+  const supportingShown = buildSupportingChecklist(student.id).filter((r) => r.own || r.rejected);
+  const flatCoreDocRows: (ChecklistRow & { scope: string; scopeLabel: string })[] = [...coreRows, ...supportingShown].map((r) => ({
     ...r, scope: "core", scopeLabel: "Core Documents",
   }));
   const extraDocsAcrossApps: { id: string; name: string; type: string; status: string }[] = [];

@@ -713,7 +713,7 @@ const docStatusLabel: Record<string, string> = { uploaded: "Pending review" };
  * Shared between the Application Detail page and the My Documents overview so both stay in sync.
  */
 export function DocChecklistRow({
-  type, own, reused, rejected, requested, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload, onDelete,
+  type, own, reused, rejected, requested, highlighted, highlightLabel, isUploading, uploadingFile, scanStatus, onStartUpload, onCancelUpload, onDelete, optional,
 }: {
   type: string;
   own?: { name: string; status: string };
@@ -735,6 +735,8 @@ export function DocChecklistRow({
   onCancelUpload: () => void;
   /** When set, an uploaded-but-unverified document gets a Delete button (with an inline "are you sure"). */
   onDelete?: () => void;
+  /** A supporting document that isn't needed to submit: while still missing it reads as a calm neutral card, not a red "required" one. */
+  optional?: boolean;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   if (own) {
@@ -819,13 +821,14 @@ export function DocChecklistRow({
   // blocker) gets its own amber call-out layered on top via the label/icon below, but the card
   // itself stays red so it's consistent with how the same item shows up in the Required section
   // of My Documents.
+  const calm = !!optional && !rejected && !requested;
   return (
     <button
       onClick={onStartUpload}
-      className="neu-card-red flex w-full items-center gap-3 rounded-2xl p-3 min-[400px]:p-3.5 text-left"
+      className={`flex w-full items-center gap-3 rounded-2xl p-3 min-[400px]:p-3.5 text-left ${calm ? "border border-transparent bg-[var(--sd-card)] shadow-neu" : "neu-card-red"}`}
     >
-      <div className="neu-icon-red flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-600">
-        <AlertCircle size={16} />
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${calm ? "bg-[var(--sd-card)] text-neutral-600 shadow-neu-inset-sm" : "neu-icon-red text-red-600"}`}>
+        {calm ? <FileText size={16} /> : <AlertCircle size={16} />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">{type}</p>
@@ -835,7 +838,7 @@ export function DocChecklistRow({
           </p>
         )}
       </div>
-      <span className="neu-btn-red flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold min-[400px]:px-3 min-[400px]:py-2">
+      <span className={`flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] font-semibold min-[400px]:px-3 min-[400px]:py-2 ${calm ? "bg-[var(--sd-card)] text-[var(--sd-ink)] shadow-neu-sm" : "neu-btn-red"}`}>
         <Upload size={12} /> {rejected ? "Re-upload" : "Upload"}
       </span>
     </button>

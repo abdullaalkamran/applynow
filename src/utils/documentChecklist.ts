@@ -3,8 +3,8 @@ import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs, loadCustomDocRequests } from "../data/applicationDocsStore";
 import { loadCoreDocs } from "../data/coreDocsStore";
+import { loadEnglishTests } from "../data/studentProfileDetailsStore";
 import { loadAcademicLevels } from "../data/academicProfileStore";
-import { isStepComplete } from "../data/profileCompletion";
 import type { University } from "../types";
 
 export interface ChecklistDoc { name: string; uploadedAt: string; sourceApplicationId?: string; sourceUniversity?: string }
@@ -54,15 +54,41 @@ export function bankDocTypesFor(studentId: string = CURRENT_STUDENT_ID): string[
   return banks.flatMap((bank) => [`Bank Statement — ${bank}`, `Solvency Certificate — ${bank}`]);
 }
 
-// The mandatory "upload once" set every application needs, independent of country or university —
-// kept entirely separate from the per-application checklist below so the student is never asked to
-// re-upload the same passport or transcript for every school they apply to.
+// The mandatory "upload once" set every application needs, independent of country or university — kept entirely separate from
+// the per-application checklist below so the student is never asked to re-upload the same passport or transcript for every
+// school they apply to. ONLY these gate submitting an application. English test certificates, employment certificates /
+// recommendation letters, bank documents and Statements of Purpose are supporting documents (see supportingDocTypes) — wanted
+// eventually, but not needed to submit.
 export function coreDocTypes(studentId: string = CURRENT_STUDENT_ID): string[] {
-  const types = ["Passport", ...academicDocTypesFor(studentId), "English Proficiency", "CV / Resume", ...bankDocTypesFor(studentId)];
-  // An employment reference is only relevant if the student's profile actually shows work
-  // experience — no point asking every applicant, including recent graduates, for one.
-  if (isStepComplete("work-experience", studentId)) types.push("Employment Reference Letter");
-  return types;
+  return ["Passport", ...academicDocTypesFor(studentId), "CV / Resume"];
+}
+
+/** Types that are supporting documents rather than mandatory core ones — whether they came from the profile, the university's
+ * own text, a counsellor's request or the manual "Add a document type" picker. */
+const SUPPORTING_TYPE = /statement of purpose|english|\bmoi\b|medium of instruction|employment|recommendation|reference letter|bank statement|solvency|financial statement/i;
+export const isSupportingType = (type: string) => SUPPORTING_TYPE.test(type);
+
+export const EMPLOYMENT_OR_RECOMMENDATION = "Employment Certificate / 2 Recommendation Letters";
+
+/** "English test certificate — IELTS": one per test the student has chosen in their English proficiency profile (an MOI letter
+ * for MOI), or a single generic one when no test is recorded yet. */
+export function englishCertificateTypesFor(studentId: string): string[] {
+  const names = Array.from(new Set(loadEnglishTests(studentId).map((t) => (t.testName || "").trim()).filter(Boolean)));
+  if (names.length === 0) return ["English test certificate"];
+  return names.map((n) => (/moi|medium of instruction/i.test(n) ? "MOI letter" : `English test certificate — ${n}`));
+}
+
+/** Documents that support an application but aren't needed to submit it: the English test certificate for the selected test,
+ * an employment certificate or two recommendation letters from the last institution's teachers, bank documents for the
+ * banks the student holds funds in, and a Statement of Purpose slot per application. */
+export function supportingDocTypes(studentId: string = CURRENT_STUDENT_ID): string[] {
+  const requestedSupporting = loadCoreDocs(studentId).filter((d) => d.custom && isSupportingType(d.type)).map((d) => d.type);
+  return Array.from(new Set([
+    ...englishCertificateTypesFor(studentId),
+    EMPLOYMENT_OR_RECOMMENDATION,
+    ...bankDocTypesFor(studentId),
+    ...requestedSupporting,
+  ]));
 }
 
 // Visa financial-proof requirements: a university's own admissions page rarely mentions these (none
@@ -92,11 +118,17 @@ export function universityDocTypesFor(university: University, studentId: string 
   const core = new Set(coreDocTypes(studentId));
   // Never duplicate a core type here even if a university's own text happens to mention it (e.g.
   // "Bachelor's degree" implying a transcript) — that's already covered by the core vault.
-  return Array.from(new Set([...fromCountry, ...fromRequirements])).filter((t) => !core.has(t));
+  return Array.from(new Set([...fromCountry, ...fromRequirements])).filter((t) => !core.has(t) && !isSupportingType(t));
 }
 
 /** True if a document's name/type plausibly satisfies the given checklist doc type. */
 export function docMatchesType(docName: string, docType: string): boolean {
+  // Supporting types whose wording depends on the student's own choices.
+  if (/^english test certificate|^moi letter/i.test(docType)) {
+    const test = / — (.+)$/.exec(docType)?.[1]?.toLowerCase();
+    return /ielts|toefl|pte|duolingo|cambridge|english|proficiency|\bmoi\b|medium of instruction/i.test(docName) || (!!test && docName.toLowerCase().includes(test));
+  }
+  if (docType === EMPLOYMENT_OR_RECOMMENDATION) return /employment|experience|recommendation|reference|referee/i.test(docName);
   const pattern = DOC_TYPE_PATTERNS.find((rule) => rule.docType === docType)?.match;
   if (pattern) return pattern.test(docName);
 
@@ -158,6 +190,9 @@ export interface ChecklistRow {
   // university/core checklist — flagged so the UI can call it out (red) instead of blending in
   // with the rest of the "not uploaded yet" items.
   requested?: boolean;
+  // A supporting document (English test certificate, employment certificate / recommendation letters, bank documents, a
+  // Statement of Purpose) — useful for an application but NOT needed to submit it, so never counted as "required".
+  supporting?: boolean;
 }
 
 /** Rejected items float to the top of a checklist — they're the ones actually blocking the
@@ -235,7 +270,7 @@ const MANUAL_ACADEMIC_LEVELS = ["SSC / O-Level", "HSC / A-Level", "Diploma", "Ba
 export function coreDocTypeOptions(): string[] {
   return [
     ...MANUAL_ACADEMIC_LEVELS.flatMap((level) => [`${level} — Transcript`, `${level} — Certificate`]),
-    "English Proficiency", "CV / Resume", "Employment Reference Letter", "Passport", "Financial Statement",
+    "English test certificate", "CV / Resume", EMPLOYMENT_OR_RECOMMENDATION, "Passport", "Financial Statement",
   ];
 }
 
@@ -247,7 +282,7 @@ export function coreDocTypeOptions(): string[] {
  * "requested" placeholder (added via the manual picker, no file yet) does the same until something
  * is actually filed against it. Anything already on file from before that migration (seed data,
  * older per-application uploads) is still recognised as a plain fallback. */
-export function buildCoreChecklist(studentId: string): ChecklistRow[] {
+function coreRowsFor(studentId: string, types: string[], supporting: boolean): ChecklistRow[] {
   const legacyDocs = DOCUMENTS.filter((d) => d.studentId === studentId);
   const perApplicationUploads = getAllApplications()
     .filter((a) => a.studentId === studentId)
@@ -255,21 +290,34 @@ export function buildCoreChecklist(studentId: string): ChecklistRow[] {
   const legacyOwn: { name: string; status: string; previewUrl?: string }[] = [...legacyDocs, ...perApplicationUploads];
 
   const core = loadCoreDocs(studentId);
-  const adHocTypes = core.filter((d) => d.custom).map((d) => d.type);
-  const types = Array.from(new Set([...coreDocTypes(studentId), ...adHocTypes]));
-
-  const rows = types.map((type) => {
+  const rows = types.map((type): ChecklistRow => {
     const coreMatches = core.filter((d) => docMatchesType(d.name, type)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const latestCore = coreMatches[0];
+    const flag = supporting ? { supporting: true } : {};
 
     if (latestCore && latestCore.status !== "requested") {
       if (latestCore.status === "rejected") {
-        return { type, rejected: { id: latestCore.id, reason: latestCore.rejectionReason, uploadedAt: latestCore.uploadedAt } };
+        return { type, ...flag, rejected: { id: latestCore.id, reason: latestCore.rejectionReason, uploadedAt: latestCore.uploadedAt } };
       }
-      return { type, own: { id: latestCore.id, name: latestCore.name, status: latestCore.status, previewUrl: latestCore.previewUrl } };
+      return { type, ...flag, own: { id: latestCore.id, name: latestCore.name, status: latestCore.status, previewUrl: latestCore.previewUrl } };
     }
 
-    return { type, own: legacyOwn.find((d) => docMatchesType(d.name, type)) };
+    return { type, ...flag, own: legacyOwn.find((d) => docMatchesType(d.name, type)) };
   });
   return sortChecklistRows(rows);
+}
+
+/** The student's MANDATORY core checklist — the documents needed to submit any application. Satisfied automatically if a
+ * matching document already exists anywhere. The server-backed vault is checked first (it has the verify/reject lifecycle): a
+ * rejected upload leaves the item "missing" with the counsellor's reason until a fresh one replaces it, and a "requested"
+ * placeholder does the same until something is filed against it. Supporting documents live in buildSupportingChecklist. */
+export function buildCoreChecklist(studentId: string): ChecklistRow[] {
+  const adHocTypes = loadCoreDocs(studentId).filter((d) => d.custom && !isSupportingType(d.type)).map((d) => d.type);
+  return coreRowsFor(studentId, Array.from(new Set([...coreDocTypes(studentId), ...adHocTypes])), false);
+}
+
+/** English test certificate, employment certificate / recommendation letters, bank documents and Statement of Purpose slots —
+ * shown as "Additional documents", never counted as required and never blocking an application. */
+export function buildSupportingChecklist(studentId: string): ChecklistRow[] {
+  return coreRowsFor(studentId, supportingDocTypes(studentId), true);
 }

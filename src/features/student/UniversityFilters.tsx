@@ -202,7 +202,7 @@ export default function UniversityFilters() {
                 </label>
                 <label className="flex items-center gap-2 text-[12.5px] text-neutral-600">
                   <input type="checkbox" checked={filters.openProgramsOnly} onChange={(e) => update("openProgramsOnly", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-neutral-300" />
-                  Open Programs
+                  Open intake only
                 </label>
               </div>
             </Section>

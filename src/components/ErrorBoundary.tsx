@@ -22,8 +22,13 @@ export function clearReloadGuard() {
   try { sessionStorage.removeItem(RELOAD_FLAG); } catch { /* ignore */ }
 }
 
-class Boundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+class Boundary extends Component<{ children: ReactNode; resetKey: string }, { error: Error | null }> {
   state = { error: null as Error | null };
+  // Moving to another screen clears an earlier crash — WITHOUT remounting the screens (keying the boundary by path remounted
+  // every page, wiping filters and search state, whenever the path changed, e.g. Advanced Search -> results).
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null });
+  }
   static getDerivedStateFromError(error: Error) { return { error }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Screen crashed:", error, info.componentStack);
@@ -52,8 +57,8 @@ class Boundary extends Component<{ children: ReactNode }, { error: Error | null 
   }
 }
 
-/** Keyed by the current path, so moving to another screen clears an earlier crash instead of leaving the error showing. */
+/** Catches a screen crash; moving to another screen clears it (without rebuilding the screens). */
 export function RouteErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  return <Boundary key={pathname}>{children}</Boundary>;
+  return <Boundary resetKey={pathname}>{children}</Boundary>;
 }

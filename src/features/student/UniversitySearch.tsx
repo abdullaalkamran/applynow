@@ -1,5 +1,6 @@
 import { NeuTabs } from "../../components/ui/NeuTabs";
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { usePreservedState } from "../../utils/syncCache";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
@@ -17,20 +18,22 @@ import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters,
   allPrograms, courseMatchesFilters, scholarshipLabel, depositLabel, courseHasOpenIntake,
-  countryStats, intakeOptions, yearOptions, facetOptions, type UniversityFilterState,
+  countryStats, intakeOptions, yearOptions, facetOptions, activeFeeCurrency, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
 import { NeuSelect } from "../../components/ui/NeuSelect";
-import { courseFeeText } from "../../utils/courseFee";
+import { courseFeeText, courseFeeIn, currenciesOf, sameCurrency } from "../../utils/courseFee";
 
 type Tab = "universities" | "subjects" | "countries";
 
-type SortBy = "best" | "rank" | "employability" | "name";
+type SortBy = "best" | "rank" | "feeLow" | "feeHigh" | "employability" | "name";
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "best", label: "Best Match" },
   { value: "rank", label: "World Ranking" },
+  { value: "feeLow", label: "Fees: Low to High" },
+  { value: "feeHigh", label: "Fees: High to Low" },
   { value: "employability", label: "Employability" },
   { value: "name", label: "Name (A–Z)" },
 ];
@@ -62,12 +65,16 @@ function skylineToneFor(name: string): (typeof SKYLINE_TONES)[number] {
   return SKYLINE_TONES[seed % SKYLINE_TONES.length];
 }
 
+// JSON.stringify drops a Set's members ({}), so the multi-select filters would never look "changed" — list them out.
+const filterKey = (f: UniversityFilterState) => JSON.stringify(f, (_k, v) => (v instanceof Set ? [...v] : v));
+
 export default function UniversitySearch() {
   const navigate = useNavigate();
   const location = useLocation();
   const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
   const defaultResidenceCountry = countryByName(student?.country ?? "")?.iso2 ?? "";
-  const [query, setQuery] = useState("");
+  // State that would otherwise reset whenever cached data refreshes and rebuilds this page (see syncCache.ts usePreservedState).
+  const [query, setQuery] = usePreservedState("explore:query", "");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   // Bumped on every bookmark toggle so the memoised program list re-evaluates — matters when the
   // "Shortlisted" chip is on and un-bookmarking a program should drop it from the list immediately.
@@ -84,18 +91,21 @@ export default function UniversitySearch() {
   // On mobile the full filter grid (Intake/Year/Nationality/State) takes up too much vertical
   // space above the results — collapsed by default there, tap to expand; always shown on lg:+
   // where there's room for the whole row at once (see the "contents" wrapper below).
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [sortBy, setSortBy] = useState<SortBy>("best");
-  const [filters, setFilters] = useState<UniversityFilterState>(() => emptyFilters(defaultResidenceCountry));
+  const [filtersExpanded, setFiltersExpanded] = usePreservedState("explore:filtersExpanded", false);
+  const [sortBy, setSortBy] = usePreservedState<SortBy>("explore:sortBy", "best");
+  // Fees are only ever compared within one currency (never converted), so fee sorting needs to know which one: "" = the most
+  // common currency among the current results (or the destination's own when a country is picked).
+  const [sortCurrency, setSortCurrency] = usePreservedState("explore:sortCurrency", "");
+  const [filters, setFilters] = usePreservedState<UniversityFilterState>("explore:filters", () => emptyFilters(defaultResidenceCountry));
   // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
   // Courses tab with only the student's bookmarked programs showing.
   const openOnShortlist = new URLSearchParams(location.search).get("shortlisted") === "1";
-  const [tab, setTab] = useState<Tab>("subjects");
+  const [tab, setTab] = usePreservedState<Tab>("explore:tab", "subjects");
 
   // The flat "all programs" list on the Courses tab also honours the one shared search bar/filter
   // panel above (see advancedFilteredUniversityIds below) — this is only its own quick toggle for
   // narrowing that list down to what's already bookmarked.
-  const [programShortlistedOnly, setProgramShortlistedOnly] = useState(openOnShortlist);
+  const [programShortlistedOnly, setProgramShortlistedOnly] = usePreservedState("explore:shortlistedOnly", openOnShortlist);
 
   const showingFilters = location.pathname === "/student/search/filters";
 
@@ -105,8 +115,24 @@ export default function UniversitySearch() {
     if (sortBy === "rank") sorted.sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank));
     else if (sortBy === "employability") sorted.sort((a, b) => employabilityNumber(b.employability) - employabilityNumber(a.employability));
     else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "feeLow" || sortBy === "feeHigh") {
+      // A university's fee = its cheapest course fee that can be compared (same currency); none comparable → listed last.
+      const cur = sortCurrency || activeFeeCurrency(filters) || currenciesOf(sorted.flatMap((u) => u.courses.map((c) => ({ u, c }))))[0] || "";
+      const cheapest = (u: University) => {
+        const fees = u.courses.map((c) => courseFeeIn(u, c, cur)).filter((f): f is number => f !== null && f > 0);
+        return fees.length ? Math.min(...fees) : null;
+      };
+      const keyed = new Map(sorted.map((u) => [u.id, cheapest(u)]));
+      sorted.sort((a, b) => {
+        const fa = keyed.get(a.id), fb = keyed.get(b.id);
+        if (fa === null && fb === null) return 0;
+        if (fa === null) return 1;
+        if (fb === null) return -1;
+        return sortBy === "feeLow" ? (fa ?? 0) - (fb ?? 0) : (fb ?? 0) - (fa ?? 0);
+      });
+    }
     return sorted;
-  }, [query, filters, sortBy]);
+  }, [query, filters, sortBy, sortCurrency]);
 
   // Universities that pass the shared top search bar + Advanced Search filters — reused to gate the
   // Courses tab's flat program list too, so the one search bar shown on every tab actually filters
@@ -122,7 +148,7 @@ export default function UniversitySearch() {
     return q ? countryStats().filter((c) => c.name.toLowerCase().includes(q)) : countryStats();
   }, [query]);
 
-  const programs = useMemo(
+  const unsortedPrograms = useMemo(
     () =>
       allPrograms().filter(({ university: u, course: c }) => {
         if (!advancedFilteredUniversityIds.has(u.id)) return false;
@@ -133,9 +159,33 @@ export default function UniversitySearch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
     [advancedFilteredUniversityIds, filters, query, programShortlistedOnly, shortlistTick]
   );
+  // Currencies among the courses currently listed — the choices when sorting by fee.
+  const sortCurrencies = useMemo(() => currenciesOf(unsortedPrograms.map(({ university, course }) => ({ u: university, c: course }))).map((c) => c.trim()), [unsortedPrograms]);
+  const programs = useMemo(() => {
+    if (sortBy === "best") return unsortedPrograms;
+    const list = [...unsortedPrograms];
+    if (sortBy === "rank") list.sort((a, b) => rankNumber(a.university.worldRank) - rankNumber(b.university.worldRank));
+    else if (sortBy === "employability") list.sort((a, b) => employabilityNumber(b.university.employability) - employabilityNumber(a.university.employability));
+    else if (sortBy === "name") list.sort((a, b) => a.course.name.localeCompare(b.course.name));
+    else {
+      const cur = sortCurrency || activeFeeCurrency(filters) || sortCurrencies[0] || "";
+      const fee = (p: { university: University; course: University["courses"][number] }) => {
+        const v = courseFeeIn(p.university, p.course, cur);
+        return v !== null && v > 0 ? v : null; // not provided / other currency / free-as-zero all sort last
+      };
+      list.sort((a, b) => {
+        const fa = fee(a), fb = fee(b);
+        if (fa === null && fb === null) return 0;
+        if (fa === null) return 1;
+        if (fb === null) return -1;
+        return sortBy === "feeLow" ? fa - fb : fb - fa;
+      });
+    }
+    return list;
+  }, [unsortedPrograms, sortBy, sortCurrency, sortCurrencies, filters]);
   const programFiltersActive = programShortlistedOnly;
-  const programsPage = usePagedList(programs, 30, `${query}:${JSON.stringify(filters)}:${programShortlistedOnly}`);
-  const resultsPage = usePagedList(results, 30, `${query}:${JSON.stringify(filters)}:${sortBy}`);
+  const programsPage = usePagedList(programs, 30, `${query}:${filterKey(filters)}:${programShortlistedOnly}:${sortBy}:${sortCurrency}`, "explore:programsPage");
+  const resultsPage = usePagedList(results, 30, `${query}:${filterKey(filters)}:${sortBy}:${sortCurrency}`, "explore:resultsPage");
 
   // Explore/apply is gated on having filled in the required parts of the profile — a counsellor or
   // admission officer needs that information to actually process an application, so letting someone
@@ -318,38 +368,71 @@ export default function UniversitySearch() {
           </div>
 
           <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/student/search/filters")}
               className="flex items-center gap-1 text-[13px] font-medium text-neutral-900"
             >
               Advanced Search {activeFilterCount > 0 && `(${activeFilterCount})`}
             </button>
+            <button
+              onClick={() => setFilters((f) => ({ ...f, openProgramsOnly: !f.openProgramsOnly }))}
+              aria-pressed={filters.openProgramsOnly}
+              className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium ${filters.openProgramsOnly ? "neu-btn-green" : "bg-neutral-100 text-neutral-500"}`}
+            >
+              Open intake
+            </button>
+            </div>
             <div className="flex items-center gap-2">
               {activeFilterCount > 0 && (
                 <button onClick={() => setFilters(emptyFilters(defaultResidenceCountry))} className="flex items-center gap-0.5 text-[12px] font-medium text-neutral-900">
                   <X size={11} /> Clear All
                 </button>
               )}
-              {tab === "universities" && (
+              {tab !== "countries" && (
                 <button
                   onClick={() => setSortOpen((v) => !v)}
-                  className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg ${
-                    sortOpen ? "bg-[image:var(--sd-gradient)] text-white" : "bg-neutral-100 text-neutral-500"
+                  className={`flex h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium ${
+                    sortOpen || sortBy !== "best" ? "bg-[image:var(--sd-gradient)] text-white" : "bg-neutral-100 text-neutral-500"
                   }`}
                   aria-label="Sort"
+                  aria-expanded={sortOpen}
                 >
                   <SlidersHorizontal size={14} className="rotate-90" />
+                  {sortBy === "best" ? "Sort" : SORT_OPTIONS.find((o) => o.value === sortBy)?.label}
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {tab === "universities" && sortOpen && (
-          <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-[var(--sd-card)] p-3 shadow-neu lg:w-fit">
-            {SORT_OPTIONS.map((s) => (
-              <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); setSortOpen(false); }} />
-            ))}
+        {tab !== "countries" && sortOpen && (
+          <div className="mt-2 rounded-2xl bg-[var(--sd-card)] p-3 shadow-neu lg:w-fit">
+            <div className="flex flex-wrap gap-2">
+              {SORT_OPTIONS.map((s) => (
+                <Chip key={s.value} label={s.label} selected={sortBy === s.value} onClick={() => { setSortBy(s.value); if (s.value !== "feeLow" && s.value !== "feeHigh") setSortOpen(false); }} />
+              ))}
+            </div>
+            {(sortBy === "feeLow" || sortBy === "feeHigh") && (
+              <div className="mt-3 border-t border-neutral-300/50 pt-2.5">
+                {sortCurrencies.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-neutral-500">Currency:</span>
+                    {sortCurrencies.map((c) => (
+                      <Chip
+                        key={c}
+                        label={c}
+                        selected={sameCurrency(sortCurrency || activeFeeCurrency(filters) || sortCurrencies[0], c)}
+                        onClick={() => setSortCurrency(c)}
+                      />
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1.5 text-[10.5px] leading-snug text-neutral-500">
+                  Fees are only compared within one currency. Courses priced in another currency, or with no fee listed, come last.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

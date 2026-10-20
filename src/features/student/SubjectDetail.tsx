@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePreservedState } from "../../utils/syncCache";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Search, SlidersHorizontal, Wallet, CalendarDays, GraduationCap, Building2, ChevronRight, Bookmark, Landmark, Send, AlertTriangle } from "lucide-react";
 import { LogoBadge, PillSelect, Pagination } from "../../components/ui/mobile";
@@ -18,9 +19,10 @@ export default function SubjectDetail() {
   const navState = location.state as { destination?: string } | null;
   const subject = decodeURIComponent(subjectParam ?? "");
 
-  const [destination, setDestination] = useState(navState?.destination ?? "");
-  const [intake, setIntake] = useState("");
-  const [scholarship, setScholarship] = useState("");
+  // Kept across a cache-driven rebuild of the page (see syncCache.ts) so the filters and page number don't reset.
+  const [destination, setDestination] = usePreservedState(`subject:${subject}:destination`, navState?.destination ?? "");
+  const [intake, setIntake] = usePreservedState(`subject:${subject}:intake`, "");
+  const [scholarship, setScholarship] = usePreservedState(`subject:${subject}:scholarship`, "");
   const [, setShortlistTick] = useState(0);
   const [applyTarget, setApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
 
@@ -51,7 +53,7 @@ export default function SubjectDetail() {
   });
 
   const filtersActive = !!(destination || intake || band.active || scholarship);
-  const { page, setPage, totalPages, pageItems: pagedOfferings } = usePagedList(offerings, 30, `${destination}:${intake}:${band.bandValue}:${scholarship}`);
+  const { page, setPage, totalPages, pageItems: pagedOfferings } = usePagedList(offerings, 30, `${destination}:${intake}:${band.bandValue}:${scholarship}`, `subject:${subject}:page`);
 
   function resetFilters() {
     setDestination("");

@@ -18,7 +18,7 @@ import { loadDocDueDate } from "../../data/documentDueDatesStore";
 import { getAgentTasks, getStudentTasks } from "../../utils/taskBoard";
 import { loadShortlistFor, removeShortlistFor } from "../../data/agentShortlistStore";
 import {
-  buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
+  buildChecklist, buildCoreChecklist, buildSupportingChecklist, supportingDocTypes, coreDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
 } from "../../utils/documentChecklist";
 import { addCoreDoc } from "../../data/coreDocsStore";
 import { AddCoreDocumentButton } from "../../components/CoreDocumentCard";
@@ -133,8 +133,11 @@ export default function AgentStudentProfile() {
   const shortlist = loadShortlistFor(student.id);
 
   const coreRows = buildCoreChecklist(student.id);
-  const coreTypes = coreDocTypes(student.id);
-  const flatCoreRows: FlatDocRow[] = coreRows.map((r) => ({ ...r, scope: CORE_KEY, scopeLabel: "Core Documents" }));
+  const coreTypes = [...coreDocTypes(student.id), ...supportingDocTypes(student.id)];
+  // Supporting documents (English test certificate, recommendation letters, bank documents, SOP) show once something has been
+  // uploaded for them — a missing one is not "required", so it isn't listed as a to-do here.
+  const supportingShown = buildSupportingChecklist(student.id).filter((r) => r.own || r.rejected);
+  const flatCoreRows: FlatDocRow[] = [...coreRows, ...supportingShown].map((r) => ({ ...r, scope: CORE_KEY, scopeLabel: "Core Documents" }));
 
   const extraDocsByApp: { id: string; name: string; type: string; status: string }[] = [];
   const flatAppRows: FlatDocRow[] = activeApps.flatMap((a) => {

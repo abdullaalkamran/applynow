@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Clock3, CheckCircle2 } from "lucide-react";
+import { AlertCircle, Clock3, CheckCircle2, FilePlus2 } from "lucide-react";
 import { MobileHeader, DocChecklistRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllApplications } from "../../data/applicationsStore";
@@ -8,7 +8,7 @@ import { getAllUniversities } from "../../data/universityCatalogStore";
 import { loadUploadedDocs, addUploadedDoc, deleteAppDoc } from "../../data/applicationDocsStore";
 import { addCoreDoc, deleteCoreDoc } from "../../data/coreDocsStore";
 import {
-  buildChecklist, buildCoreChecklist, coreDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
+  buildChecklist, buildCoreChecklist, buildSupportingChecklist, coreDocTypes, supportingDocTypes, docMatchesType, academicProfileIncomplete, type ChecklistRow,
 } from "../../utils/documentChecklist";
 import { AddCoreDocumentButton } from "../../components/CoreDocumentCard";
 
@@ -64,6 +64,11 @@ export default function Documents() {
   const coreRows = buildCoreChecklist(CURRENT_STUDENT_ID);
   const coreTypes = coreDocTypes();
   const flatCoreRows: FlatRow[] = coreRows.map((r) => ({ ...r, scope: CORE_KEY, scopeLabel: "Core Documents" }));
+  // English test certificate, employment certificate / recommendation letters, bank documents and Statements of Purpose: useful
+  // for applications but not needed to submit one, so they get their own "Additional documents" section instead of "Required".
+  const supportingRows = buildSupportingChecklist(CURRENT_STUDENT_ID);
+  const supportingTypes = supportingDocTypes(CURRENT_STUDENT_ID);
+  const flatSupportingRows: FlatRow[] = supportingRows.map((r) => ({ ...r, scope: CORE_KEY, scopeLabel: "Additional Documents" }));
 
   const extraDocsByApp: { id: string; name: string; type: string; status: string }[] = [];
   const flatAppRows: FlatRow[] = applications.flatMap((app) => {
@@ -76,13 +81,14 @@ export default function Documents() {
     const docs = [...linkedDocs, ...uploaded];
     const rows = buildChecklist(university, app.studentId, app.id, docs);
     extraDocsByApp.push(
-      ...docs.filter((d) => !rows.some((r) => docMatchesType(d.name, r.type)) && !coreTypes.some((t) => docMatchesType(d.name, t)))
+      ...docs.filter((d) => !rows.some((r) => docMatchesType(d.name, r.type)) && !coreTypes.some((t) => docMatchesType(d.name, t)) && !supportingTypes.some((t) => docMatchesType(d.name, t)))
     );
     return rows.map((r) => ({ ...r, scope: app.id, scopeLabel: app.university }));
   });
 
-  const allRows = [...flatCoreRows, ...flatAppRows];
-  const requiredRows = allRows.filter((r) => !r.own && !r.reused);
+  const allRows = [...flatCoreRows, ...flatSupportingRows, ...flatAppRows];
+  const requiredRows = allRows.filter((r) => !r.own && !r.reused && !r.supporting);
+  const additionalRows = allRows.filter((r) => r.supporting && !r.own && !r.reused);
   const pendingRows = allRows.filter((r) => r.own && r.own.status !== "verified");
   const verifiedRows = allRows.filter((r) => r.reused || r.own?.status === "verified");
 
@@ -95,6 +101,7 @@ export default function Documents() {
         reused={row.reused}
         rejected={row.rejected}
         requested={row.requested}
+        optional={row.supporting}
         isUploading={uploadKey === `${row.scope}::${row.type}`}
         uploadingFile={uploadingFile}
         scanStatus={scanStatus}
@@ -111,7 +118,7 @@ export default function Documents() {
       <div className="lg:mx-auto lg:w-full lg:max-w-4xl">
         <MobileHeader
           title="My Documents"
-          right={<AddCoreDocumentButton variant="header" studentId={CURRENT_STUDENT_ID} existingTypes={coreRows.map((r) => r.type)} onAdded={() => {}} />}
+          right={<AddCoreDocumentButton variant="header" studentId={CURRENT_STUDENT_ID} existingTypes={[...coreRows, ...supportingRows].map((r) => r.type)} onAdded={() => {}} />}
         />
       </div>
 
@@ -153,6 +160,24 @@ export default function Documents() {
               {requiredRows.map(renderRow)}
             </div>
           </section>
+
+          {additionalRows.length > 0 && (
+            <section>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-600">
+                  <FilePlus2 size={13} />
+                </span>
+                <p className="text-[clamp(11px,3.1vw,13.5px)] font-semibold text-neutral-800">Additional documents</p>
+                <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[clamp(10px,2.8vw,12px)] font-semibold text-neutral-700">
+                  {additionalRows.length}
+                </span>
+              </div>
+              <p className="mb-2 text-[11.5px] leading-snug text-neutral-500">
+                Not needed to submit your application — add them when you have them. A university may ask for them later.
+              </p>
+              <div className="space-y-2">{additionalRows.map(renderRow)}</div>
+            </section>
+          )}
 
           <section>
             <div className="mb-2 flex items-center gap-2">
