@@ -4,7 +4,7 @@ import { usePreservedState } from "../../utils/syncCache";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
-  Wallet, CalendarDays, GraduationCap, Building2, ChevronDown, Bookmark, Landmark, Send, AlertCircle,
+  GraduationCap, ChevronDown, Bookmark, AlertCircle,
 } from "lucide-react";
 import { BackButton, Chip, DropdownChips, SubLabel, Pagination, SkylineArt } from "../../components/ui/mobile";
 import { getCountryByName } from "../../data/countryRegistry";
@@ -17,14 +17,15 @@ import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
   emptyFilters, applyFilters, countActiveFilters,
-  allPrograms, courseMatchesFilters, scholarshipLabel, depositLabel, courseHasOpenIntake,
+  allPrograms, courseMatchesFilters,
   countryStats, intakeOptions, yearOptions, facetOptions, activeFeeCurrency, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
+import { ProgramCard, universityInitials } from "./ProgramCard";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { University } from "../../types";
 import { NeuSelect } from "../../components/ui/NeuSelect";
-import { courseFeeText, courseFeeIn, currenciesOf, sameCurrency } from "../../utils/courseFee";
+import { courseFeeIn, currenciesOf, sameCurrency } from "../../utils/courseFee";
 
 type Tab = "universities" | "subjects" | "countries";
 
@@ -37,13 +38,6 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "employability", label: "Employability" },
   { value: "name", label: "Name (A–Z)" },
 ];
-
-// Matches LogoBadge's own initials logic exactly — this card renders its own flat-color badge
-// (rather than LogoBadge's gradient one) only for this specific design, so the fallback letter(s)
-// shown must still be identical to what LogoBadge would have picked for the same name.
-function universityInitials(name: string) {
-  return name.replace(/^University of /, "").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-}
 
 function rankNumber(rank: string) {
   return parseInt(rank.replace(/\D/g, ""), 10) || Infinity;
@@ -500,82 +494,17 @@ export default function UniversitySearch() {
                 divider, detail row) so both tabs read as one consistent catalog. */}
             <div className="mt-3 grid grid-cols-1 gap-3">
               {programsPage.pageItems.map(({ university: u, course: c }) => {
-                const scholarship = scholarshipLabel(u);
                 const programKey = `${u.id}::${c.name}`;
-                const shortlisted = isShortlisted(programKey);
-                const open = courseHasOpenIntake(u, c);
                 return (
-                  <div
+                  <ProgramCard
                     key={programKey}
-                    onClick={() => openProgram(u.id, c.name, c.subject)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === "Enter") openProgram(u.id, c.name, c.subject); }}
-                    className="relative flex w-full cursor-pointer items-start gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu sm:gap-4 sm:rounded-3xl sm:p-5"
-                  >
-                    <span
-                      onClick={(e) => { e.stopPropagation(); toggleProgramShortlist(programKey); }}
-                      aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
-                      className={`absolute right-3 top-3 shrink-0 sm:right-4 sm:top-4 ${shortlisted ? "text-[var(--sd-ink)]" : "text-neutral-300"}`}
-                    >
-                      <Bookmark size={18} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
-                    </span>
-
-                    {u.logoUrl ? (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-transparent bg-white sm:h-24 sm:w-24 sm:rounded-2xl">
-                        <img src={u.logoUrl} alt={`${u.name} logo`} className="h-full w-full object-contain" />
-                      </div>
-                    ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm text-lg font-semibold text-neutral-500 sm:h-24 sm:w-24 sm:rounded-2xl sm:text-3xl">
-                        {universityInitials(u.name)}
-                      </div>
-                    )}
-
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 break-words text-[11.5px] font-semibold leading-snug text-neutral-900 sm:text-lg">{c.name}</p>
-                      <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-400 sm:mt-1.5 sm:gap-1.5 sm:text-sm">
-                        <Building2 size={12} className="shrink-0" /> <span className="truncate">{u.name}</span>
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1 text-[9.5px] text-neutral-400 sm:mt-1.5 sm:text-[10.5px]">
-                        <span className="inline-flex shrink-0 items-center gap-1">
-                          <Wallet size={11} /> {courseFeeText(u, c).text}
-                        </span>
-                        {depositLabel(u) && (
-                          <>
-                            <span className="shrink-0">·</span>
-                            <span className="inline-flex shrink-0 items-center gap-1">
-                              <Landmark size={11} /> {depositLabel(u)}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-2.5 flex items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
-                        {u.openIntake && (
-                          <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
-                            <CalendarDays size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">Open: {u.openIntake}</span>
-                          </span>
-                        )}
-                        {scholarship && (
-                          <>
-                            <span className="h-3.5 w-px shrink-0 bg-neutral-200 sm:h-4" />
-                            <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
-                              <GraduationCap size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">{scholarship}</span>
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {/* Vertically centred on the card's right edge; the bookmark sits above it. */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); if (open) setApplyTarget({ university: u, course: c }); }}
-                      disabled={!open}
-                      aria-label={open ? "Apply Now" : "Intake closed"}
-                      title={open ? "Apply Now" : "Intake closed"}
-                      className={`flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full ${open ? "neu-btn-green" : "bg-neutral-200 text-neutral-400"}`}
-                    >
-                      <Send size={14} />
-                    </button>
-                  </div>
+                    university={u}
+                    course={c}
+                    shortlisted={isShortlisted(programKey)}
+                    onToggleShortlist={() => toggleProgramShortlist(programKey)}
+                    onOpen={() => openProgram(u.id, c.name, c.subject)}
+                    onApply={() => setApplyTarget({ university: u, course: c })}
+                  />
                 );
               })}
 

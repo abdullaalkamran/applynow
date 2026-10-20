@@ -2,9 +2,10 @@
 // and it waits a few seconds before moving again; it stays still for anyone who prefers reduced motion, and while the
 // pointer is over it.
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Calendar, ChevronRight, ShieldCheck } from "lucide-react";
-import { LogoBadge } from "../../components/ui/mobile";
 import type { University } from "../../types";
+import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
+import { ProgramCard } from "./ProgramCard";
+import { ApplyModal } from "./ApplyModal";
 
 export interface RecommendedItem { university: University; course: University["courses"][number] }
 
@@ -17,6 +18,8 @@ export function RecommendedCarousel({ items, onOpen }: { items: RecommendedItem[
   const pausedUntil = useRef(0);
   const hovering = useRef(false);
   const [active, setActive] = useState(0);
+  const [, setShortlistTick] = useState(0);
+  const [applyTarget, setApplyTarget] = useState<RecommendedItem | null>(null);
 
   // Which card is nearest the left edge, for the dots.
   function syncActive() {
@@ -66,33 +69,23 @@ export function RecommendedCarousel({ items, onOpen }: { items: RecommendedItem[
         aria-roledescription="carousel"
         aria-label="Recommended courses"
       >
-        {items.map(({ university: u, course: c }) => (
-          <button
-            key={`${u.id}::${c.name}`}
-            onClick={() => onOpen({ university: u, course: c })}
-            className="flex w-[86%] shrink-0 snap-start items-center gap-3 rounded-2xl border border-transparent bg-[var(--sd-card)] p-3.5 text-left shadow-neu sm:w-[60%] lg:w-[46%]"
-          >
-            <LogoBadge name={u.name} tone={u.tone} logoUrl={u.logoUrl} className="h-14 w-14 shrink-0 text-sm" />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-neutral-900">{c.name}</p>
-              <p className="truncate text-xs text-neutral-400">{u.name}</p>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-neutral-500">
-                {u.worldRank && (
-                  <span className="inline-flex items-center gap-1"><BarChart3 size={11} className="text-neutral-400" /> {u.worldRank}</span>
-                )}
-                {u.openIntake && (
-                  <span className="inline-flex items-center gap-1"><Calendar size={11} className="text-neutral-400" /> {u.openIntake}</span>
-                )}
-                {u.scholarshipsAvailable && (
-                  <span className="inline-flex items-center gap-1 text-neutral-800"><ShieldCheck size={12} /></span>
-                )}
-              </div>
+        {items.map((item) => {
+          const key = `${item.university.id}::${item.course.name}`;
+          // Same card as Explore → Courses, so the size and the information match; only the width differs (cards sit side by side).
+          return (
+            <div key={key} className="w-full shrink-0 snap-start">
+              <ProgramCard
+                university={item.university}
+                course={item.course}
+                shortlisted={isShortlisted(key)}
+                onToggleShortlist={() => { toggleShortlisted(key); setShortlistTick((t) => t + 1); }}
+                onOpen={() => onOpen(item)}
+                onApply={() => setApplyTarget(item)}
+                className="h-full"
+              />
             </div>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-900 shadow-neu-sm">
-              <ChevronRight size={16} />
-            </span>
-          </button>
-        ))}
+          );
+        })}
       </div>
       {items.length > 1 && (
         <div className="-mt-5 flex justify-center gap-1.5" role="tablist" aria-label="Choose a recommendation">
@@ -108,6 +101,7 @@ export function RecommendedCarousel({ items, onOpen }: { items: RecommendedItem[
           ))}
         </div>
       )}
+      {applyTarget && <ApplyModal university={applyTarget.university} course={applyTarget.course} onClose={() => setApplyTarget(null)} />}
     </div>
   );
 }
