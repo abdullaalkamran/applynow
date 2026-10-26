@@ -158,7 +158,7 @@ export default function CreateStudentProfile() {
     return (
       <div className="mx-auto max-w-xl">
         <div className="rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-600">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-emerald-600">
             <PartyPopper size={22} />
           </div>
           <h1 className="mt-3 text-base font-semibold text-slate-900">Profile created for {createdStudent.name}</h1>
@@ -218,7 +218,7 @@ export default function CreateStudentProfile() {
             key={s.key}
             onClick={() => (i === 0 || canProceedPersonal) && setStepIndex(i)}
             className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition ${
-              i === stepIndex ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : i < stepIndex ? "text-emerald-600" : "text-slate-400"
+              i === stepIndex ? "bg-[var(--sd-card)] shadow-neu-sm text-neutral-900" : i < stepIndex ? "text-emerald-600" : "text-slate-400"
             }`}
           >
             {i < stepIndex ? <Check size={13} /> : <s.icon size={13} />}
@@ -511,7 +511,7 @@ function ChipMultiSelect({
             type="button"
             onClick={() => onChange(active ? selected.filter((s) => s !== o) : [...selected, o])}
             className={`rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition ${
-              active ? "border-neutral-300 bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              active ? "border-neutral-300 bg-[var(--sd-card)] shadow-neu-sm text-neutral-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
             {o}

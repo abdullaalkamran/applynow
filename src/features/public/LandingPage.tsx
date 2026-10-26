@@ -1,3 +1,4 @@
+import { Logo } from "../../components/Logo";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
@@ -51,11 +52,7 @@ function Header() {
   return (
     <header className="landing-header">
       <a className="brand-mark" href="/" aria-label="UnifinderAi home">
-        <span aria-hidden="true">
-          <i />
-          <i />
-        </span>
-        UnifinderAi
+        <Logo className="h-9" />
       </a>
 
       <nav aria-label="Main navigation">

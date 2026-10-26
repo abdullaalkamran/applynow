@@ -1,3 +1,4 @@
+import { Logo as BrandLogo } from "../components/Logo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -111,10 +112,9 @@ function AdminShellInner() {
 
   const brand = (
     <div className="flex items-center gap-2.5 px-5 pb-6 pt-5">
-      <Logo />
       <div>
-        <p className="text-[15px] font-bold leading-tight tracking-tight text-slate-900">UnifinderAi</p>
-        <p className="text-[10px] leading-tight text-slate-400">Global Education Platform</p>
+        <BrandLogo className="h-8" />
+        <p className="mt-1 text-[10px] leading-tight text-slate-400">Global Education Platform</p>
       </div>
     </div>
   );
@@ -347,16 +347,6 @@ function UserAvatar({ name }: { name: string }) {
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2f8f5f] to-[#0b5d3d] text-[12px] font-semibold text-white ring-2 ring-white">
       {initials}
     </div>
-  );
-}
-
-/** Two-tone leaf mark from the design. */
-function Logo() {
-  return (
-    <svg viewBox="0 0 40 40" className="h-10 w-10 shrink-0" aria-hidden>
-      <path d="M20 4C10 8 5 16 5 27c0 5 3 9 8 9 7 0 10-7 7-14 3 4 6 5 9 4 6-2 8-11 4-22C29 6 25 4 20 4z" fill="#4dbb6a" />
-      <path d="M20 4c-3 8-2 16 2 22 3-4 6-5 9-4 3-6 2-12-1-18-3-1-6-1-10 0z" fill="#0b5d3d" />
-    </svg>
   );
 }
 

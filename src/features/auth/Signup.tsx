@@ -1,10 +1,13 @@
+import { Logo } from "../../components/Logo";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { GraduationCap, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { apiGet } from "../../utils/apiClient";
 import { ROLE_HOME } from "../../layouts/nav";
 import { GoogleSignInButton } from "../../components/GoogleSignInButton";
+import { OtpCodeField } from "../../components/OtpCodeField";
+import { requestSignupOtp } from "../../utils/authClient";
 
 interface ReferralAgent { id: string; name: string; organization?: string }
 
@@ -25,6 +28,9 @@ export default function Signup() {
   const [referralChecked, setReferralChecked] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Step 1 collects the details and emails a code; step 2 asks for it. The account is only created once the code checks out.
+  const [codeSent, setCodeSent] = useState(false);
+  const [otp, setOtp] = useState("");
 
   // Debounced lookup so the referring agent's name shows up as confirmation before submitting —
   // whether the code arrived pre-filled from a shared link/QR or was typed in by hand.
@@ -50,12 +56,22 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
+      if (!codeSent) {
+        await requestSignupOtp(email.trim());
+        setCodeSent(true);
+        return;
+      }
+      if (otp.length !== 6) {
+        setError("Enter the 6-digit code from your email.");
+        return;
+      }
       const { user } = await signup({
         name: name.trim(),
         email: email.trim(),
         password,
         country: country.trim(),
         referralCode: referralAgent ? referralCode.trim() : undefined,
+        otp,
       });
       navigate(ROLE_HOME[user.role], { replace: true });
     } catch (err) {
@@ -83,21 +99,19 @@ export default function Signup() {
     <div className="neu-theme flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-5 py-10">
       <div className="w-full max-w-sm rounded-3xl bg-[var(--sd-card)] p-6 shadow-neu-lg sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
-            <GraduationCap size={26} />
-          </div>
-          <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">UnifinderAi</h1>
+          <h1 className="sr-only">UnifinderAi</h1>
+          <Logo className="h-11" />
           <p className="mt-1 text-[13px] text-neutral-500">Create your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-7 space-y-3.5">
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Full name</label>
-            <input required autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={INPUT_CLASS} />
+            <input required autoFocus readOnly={codeSent} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" className={INPUT_CLASS} />
           </div>
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Email</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={INPUT_CLASS} />
+            <input type="email" required readOnly={codeSent} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={INPUT_CLASS} />
           </div>
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Password</label>
@@ -105,6 +119,7 @@ export default function Signup() {
               type="password"
               required
               minLength={8}
+              readOnly={codeSent}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
@@ -113,7 +128,7 @@ export default function Signup() {
           </div>
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Country</label>
-            <input required value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Bangladesh" className={INPUT_CLASS} />
+            <input required readOnly={codeSent} value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Bangladesh" className={INPUT_CLASS} />
           </div>
 
           <div>
@@ -138,6 +153,22 @@ export default function Signup() {
             )}
           </div>
 
+          {codeSent && (
+            <div>
+              <label className="mb-1.5 block text-[12px] font-medium text-neutral-600">Verification code</label>
+              <OtpCodeField
+                value={otp}
+                onChange={setOtp}
+                sentTo={email.trim()}
+                onResend={() => requestSignupOtp(email.trim())}
+                inputClassName={INPUT_CLASS}
+              />
+              <button type="button" onClick={() => { setCodeSent(false); setOtp(""); setError(""); }} className="mt-1.5 text-[12px] font-medium text-neutral-500 underline">
+                Change email or details
+              </button>
+            </div>
+          )}
+
           {error && <p className="rounded-xl bg-[#f4e4e4] px-3 py-2 text-[12.5px] font-medium text-red-700">{error}</p>}
 
           <button
@@ -145,7 +176,7 @@ export default function Signup() {
             disabled={loading}
             className="w-full rounded-xl bg-neutral-900 py-3 text-[13px] font-semibold text-white shadow-neu-dark transition active:scale-[0.99] disabled:opacity-60"
           >
-            {loading ? "Creating account…" : "Create account"}
+            {loading ? (codeSent ? "Creating account…" : "Sending code…") : codeSent ? "Verify & create account" : "Send verification code"}
           </button>
         </form>
 

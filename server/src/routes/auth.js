@@ -6,6 +6,7 @@ const { OAuth2Client } = require("google-auth-library");
 const { getConfig } = require("../config");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { issueOtp, checkOtp, consumeOtp } = require("../emailOtp");
 
 const router = express.Router();
 
@@ -17,6 +18,14 @@ const MAX_PASSWORD_LENGTH = 200; // bcrypt only reads 72 bytes; this just bounds
 // Compared against when the email isn't registered, so a login attempt costs the same time whether
 // or not the account exists — otherwise the skipped bcrypt round trip reveals which emails are real.
 const DUMMY_HASH = bcrypt.hashSync("unused-timing-equalizer", 10);
+
+// Only students and agents verify by email code — staff and admin accounts are created and managed by an admin.
+const OTP_ROLES = new Set(["student", "agent"]);
+
+function maskEmail(email) {
+  const [local, domain] = String(email).split("@");
+  return `${local.slice(0, 2)}${"*".repeat(Math.max(1, local.length - 2))}@${domain}`;
+}
 
 function isValidPassword(password) {
   return typeof password === "string" && password.length >= 8 && password.length <= MAX_PASSWORD_LENGTH;
@@ -78,7 +87,7 @@ router.post("/login", async (req, res, next) => {
 // leaving them unassigned until a counsellor manually links them up later.
 router.post("/register", async (req, res, next) => {
   try {
-    const { name, email, password, country, referralCode } = req.body || {};
+    const { name, email, password, country, referralCode, otp } = req.body || {};
     if (typeof name !== "string" || typeof email !== "string" || typeof country !== "string" || !name.trim() || !email.trim() || !country.trim() || !password) {
       return res.status(400).json({ error: "Name, email, password and country are required." });
     }
@@ -99,6 +108,8 @@ router.post("/register", async (req, res, next) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
+    // The email must be proven to be theirs before an account exists: the code emailed by POST /otp/signup.
+    const otpRow = await checkOtp(normalizedEmail, "signup", otp);
     const passwordHash = await bcrypt.hash(password, 10);
     const studentCount = await prisma.student.count();
     const studentId = newStudentId();
@@ -120,9 +131,41 @@ router.post("/register", async (req, res, next) => {
       });
     });
 
+    await consumeOtp(otpRow);
     res.status(201).json({ token: issueToken(user), user: toPublicUser(user), agentName: agent?.name });
   } catch (err) {
     if (err.code === "P2002") return res.status(409).json({ error: "That email is already registered." });
+    next(err);
+  }
+});
+
+// Sends the 6-digit code that POST /register requires. Public (there is no account yet) — rate limited per IP in
+// app.js and per email in emailOtp.js. Students only ever self-register, so this is the student signup check.
+router.post("/otp/signup", async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
+      return res.status(400).json({ error: "Enter a valid email address." });
+    }
+    const normalized = email.trim().toLowerCase();
+    if (await prisma.user.findUnique({ where: { email: normalized } })) {
+      return res.status(409).json({ error: "That email is already registered." });
+    }
+    res.json(await issueOtp(normalized, "signup"));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Password-change code: only students and agents are asked for one (staff and admin keep the plain flow). Sent to the
+// email on the account itself — never to an address the caller supplies.
+router.post("/otp/password", requireAuth, async (req, res, next) => {
+  try {
+    if (!OTP_ROLES.has(req.authUser.role)) return res.status(400).json({ error: "A code isn't needed for this account." });
+    const user = await prisma.user.findUnique({ where: { id: req.authUser.sub } });
+    if (!user) return res.status(401).json({ error: "Account no longer exists." });
+    res.json({ ...(await issueOtp(user.email, "password_change")), sentTo: maskEmail(user.email) });
+  } catch (err) {
     next(err);
   }
 });
@@ -280,7 +323,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
 // this app yet, so those accounts have no path to add one. Out of scope for now.
 router.post("/change-password", requireAuth, async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body || {};
+    const { currentPassword, newPassword, otp } = req.body || {};
     if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword || currentPassword.length > MAX_PASSWORD_LENGTH) {
       return res.status(400).json({ error: "Current and new password are required." });
     }
@@ -291,8 +334,11 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
     if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
       return res.status(401).json({ error: "Current password is incorrect." });
     }
+    // Students and agents also confirm by the code emailed to them (POST /otp/password); staff/admin do not.
+    const otpRow = OTP_ROLES.has(user.role) ? await checkOtp(user.email, "password_change", otp) : null;
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+    if (otpRow) await consumeOtp(otpRow);
     res.json({ success: true });
   } catch (err) {
     next(err);

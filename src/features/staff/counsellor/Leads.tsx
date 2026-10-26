@@ -1,3 +1,4 @@
+import { NeuSelect } from "../../../components/ui/NeuSelect";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, UserPlus, ArrowUpRight, Briefcase, ChevronDown, ChevronUp, Phone } from "lucide-react";
@@ -113,7 +114,7 @@ export default function Leads() {
                         <a
                           href={`tel:${phone.replace(/[^+\d]/g, "")}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-slate-600 hover:text-[#2955C4]"
+                          className="font-medium text-slate-600 hover:text-neutral-900"
                         >
                           {phone}
                         </a>
@@ -140,28 +141,29 @@ export default function Leads() {
                       href={`tel:${phone.replace(/[^+\d]/g, "")}`}
                       onClick={(e) => e.stopPropagation()}
                       title={`Call ${phone}`}
-                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11.5px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--sd-card)] shadow-neu-sm px-2.5 py-1.5 text-[11.5px] font-semibold text-emerald-700 hover:shadow-neu"
                     >
                       <Phone size={13} /> Call
                     </a>
                   )}
-                  <select
-                    value={status}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11.5px] font-medium text-slate-700 sm:w-auto"
-                  >
-                    {EDITABLE_STATUSES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <div onClick={(e) => e.stopPropagation()} className="w-full sm:w-44">
+                    <NeuSelect
+                      value={status}
+                      onChange={(e) => { setLeadFollowUpStatus(student.id, e.target.value as LeadFollowUpStatus); forceTick((t) => t + 1); }}
+                      className="w-full text-[12px]"
+                    >
+                      {EDITABLE_STATUSES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </NeuSelect>
+                  </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 px-4 py-2.5">
                 <button
                   onClick={(e) => { e.stopPropagation(); navigate(`/staff/counsellor/students/${student.id}`); }}
-                  className="flex items-center gap-1 text-xs font-medium text-[#2955C4]"
+                  className="flex items-center gap-1 text-xs font-medium text-neutral-900"
                 >
                   Full profile <ArrowUpRight size={12} />
                 </button>

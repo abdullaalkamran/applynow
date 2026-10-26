@@ -1,8 +1,9 @@
+import { Logo } from "../Logo";
 import { useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
-  Sparkles, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, GraduationCap, Copy, AlertCircle, Trash2,
+  Sparkles, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, AlertCircle, Trash2,
 } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import type { SupportContact } from "../../types";
@@ -82,14 +83,9 @@ export function Sidebar() {
   const location = useLocation();
   return (
     <aside className="flex h-dvh w-64 shrink-0 flex-col bg-[var(--sd-card)] px-4 py-6 shadow-[10px_0_22px_var(--neu-dark)]">
-      <div className="flex items-center gap-2.5 px-2">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
-          <GraduationCap size={18} />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight text-neutral-900">UnifinderAi</p>
-          <p className="truncate text-[11px] leading-tight text-neutral-500">Student Portal</p>
-        </div>
+      <div className="px-2">
+        <Logo className="h-8" />
+        <p className="mt-1 truncate text-[11px] leading-tight text-neutral-500">Student Portal</p>
       </div>
 
       <nav className="mt-8 flex flex-1 flex-col gap-2">

@@ -1,3 +1,4 @@
+import { Logo } from "../../components/Logo";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Calendar, MapPin, ChevronRight, Plus, ListChecks, AlertCircle } from "lucide-react";
@@ -42,7 +43,7 @@ export default function Applications() {
     <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
       <div className="lg:mx-auto lg:max-w-4xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
+          <h1 className="sr-only">UnifinderAi</h1><Logo className="h-6" />
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/student/search")}

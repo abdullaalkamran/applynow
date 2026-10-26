@@ -1,10 +1,11 @@
+import { NeuSelect } from "../../../components/ui/NeuSelect";
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Check, ChevronDown, ChevronUp, FileCheck2, FileText, Plus, X, History, ListChecks, CalendarDays,
   Sparkles, Layers, CheckCircle2, ShieldCheck, AlertCircle, Clock3, type LucideIcon,
 } from "lucide-react";
-import { Badge, Button, ProgressBar, Modal, SearchableSelect, BackButton } from "../../../components/ui";
+import { Badge, Button, ProgressBar, Modal, BackButton } from "../../../components/ui";
 import { LogoBadge } from "../../../components/ui/mobile";
 import { ProfileStepsPanel, Detail } from "../../../components/ProfileStepsPanel";
 import { ApplicationChecklistCard } from "../../../components/ApplicationChecklistCard";
@@ -259,8 +260,8 @@ export default function StudentProfile() {
               <div className="space-y-1.5">
                 {studentTasks.map((t) => {
                   const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
-                  const tone = t.tone === "overdue" ? "border-rose-200 bg-rose-50/60" : "border-slate-100 bg-slate-50";
-                  const iconTone = t.tone === "overdue" ? "bg-rose-100 text-rose-600" : "bg-[#E7EEFC] text-[#2955C4]";
+                  const tone = t.tone === "overdue" ? "border-rose-200 bg-[var(--sd-card)] shadow-neu-inset-sm/60" : "border-slate-100 bg-slate-50";
+                  const iconTone = t.tone === "overdue" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600" : "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900";
                   return (
                     <div key={t.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${tone}`}>
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
@@ -361,7 +362,7 @@ export default function StudentProfile() {
                           {formatApplicationId(a.id)}
                         </span>
                         {a.source === "student" && !isSeenByCounsellor(a.id) && (
-                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                             <Sparkles size={10} /> New
                           </span>
                         )}
@@ -402,7 +403,7 @@ export default function StudentProfile() {
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-slate-200">
                       {/* Column 1 — Documents */}
                       <div className="space-y-3 lg:pr-4">
-                        <ColumnHeader icon={FileCheck2} label="Documents" tone="bg-blue-500" />
+                        <ColumnHeader icon={FileCheck2} label="Documents" tone="bg-neutral-700" />
                         <div className="space-y-1.5">
                           {checklist.map((r) => (
                             <ApplicationChecklistCard
@@ -468,7 +469,7 @@ export default function StudentProfile() {
 
                       {/* Column 2 — Status (the 9-stage journey + responsible staff) */}
                       <div className="space-y-3 lg:px-4">
-                        <ColumnHeader icon={Layers} label="Status" tone="bg-violet-500" />
+                        <ColumnHeader icon={Layers} label="Status" tone="bg-neutral-700" />
                         <JourneyStepper journey={journey} showStrip={false} />
                         <ResponsibleStaffCard
                           applicationId={a.id}
@@ -660,11 +661,11 @@ export default function StudentProfile() {
               counsellor's own most immediate action item. */}
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-amber-600">
                 <Clock3 size={13} />
               </span>
               <p className="text-sm font-semibold text-slate-800">Pending review</p>
-              <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                 {pendingDocRows.length}
               </span>
             </div>
@@ -679,11 +680,11 @@ export default function StudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-rose-600">
                 <AlertCircle size={13} />
               </span>
               <p className="text-sm font-semibold text-slate-800">Required — not uploaded yet</p>
-              <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-rose-600">
                 {requiredDocRows.length}
               </span>
             </div>
@@ -706,11 +707,11 @@ export default function StudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-emerald-600">
                 <CheckCircle2 size={13} />
               </span>
               <p className="text-sm font-semibold text-slate-800">Uploaded &amp; verified</p>
-              <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                 {verifiedDocRows.length}
               </span>
             </div>
@@ -773,7 +774,7 @@ function NewApplicationModal({
       <div className="space-y-3">
         <label className="block text-xs font-medium text-slate-500">
           Country
-          <select
+          <NeuSelect
             value={country}
             onChange={(e) => {
               const v = e.target.value;
@@ -786,16 +787,16 @@ function NewApplicationModal({
               setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+            className="mt-1 w-full text-[13px]"
           >
             {destinationOptions().map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
-          </select>
+          </NeuSelect>
         </label>
         <label className="block text-xs font-medium text-slate-500">
           University
-          <select
+          <NeuSelect
             value={universityId}
             onChange={(e) => {
               const v = e.target.value;
@@ -806,27 +807,32 @@ function NewApplicationModal({
               setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+            className="mt-1 w-full text-[13px]"
           >
             {universitiesInCountry.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </label>
         {university && (
           <label className="block text-xs font-medium text-slate-500">
             Subject
-            <SearchableSelect
+            <NeuSelect
+              searchable
               value={courseName}
-              onChange={(v) => {
+              onChange={(e) => {
+                const v = e.target.value;
                 setCourseName(v);
                 const c = university.courses.find((x) => x.name === v);
                 setCampus((c ? campusesFor(university, c) : [])[0]?.name ?? "");
                 setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
               }}
-              options={openCourses.map((c) => c.name)}
-              placeholder="Search subjects…"
-            />
+              className="mt-1 w-full text-[13px]"
+            >
+              {openCourses.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </NeuSelect>
             {openCourses.length === 0 && (
               <p className="mt-1 text-[11px] font-normal text-rose-500">No courses at this university currently have an open intake.</p>
             )}
@@ -834,27 +840,27 @@ function NewApplicationModal({
         )}
         <label className="block text-xs font-medium text-slate-500">
           Campus
-          <select
+          <NeuSelect
             value={campus}
             onChange={(e) => setCampus(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+            className="mt-1 w-full text-[13px]"
           >
             {campuses.map((c) => (
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </label>
         <label className="block text-xs font-medium text-slate-500">
           Intake
-          <select
+          <NeuSelect
             value={intake}
             onChange={(e) => setIntake(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+            className="mt-1 w-full text-[13px]"
           >
             {openIntakes.map((i) => (
               <option key={i} value={i}>{i}</option>
             ))}
-          </select>
+          </NeuSelect>
           {openIntakes.length === 0 && <p className="mt-1 text-[11px] font-normal text-rose-500">This course has no open intake right now.</p>}
         </label>
         <Button

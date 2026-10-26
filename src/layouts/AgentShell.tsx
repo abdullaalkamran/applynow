@@ -1,9 +1,10 @@
+import { Logo } from "../components/Logo";
 import { unreadInboxCount } from "../data/inboxStore";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileText, Landmark, Award, ShieldCheck, Wallet, MessageCircle,
-  BarChart3, FolderOpen, Settings, Bell, Compass, Globe2, ArrowRight, X, ListChecks, LogOut, UserCircle, MoreHorizontal,
+  BarChart3, FolderOpen, Settings, Bell, Globe2, ArrowRight, X, ListChecks, LogOut, UserCircle, MoreHorizontal,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
@@ -141,14 +142,9 @@ export default function AgentShell() {
         <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
         <span className="h-3 w-3 rounded-full bg-[#28c840]" />
       </div>
-      <div className="flex items-center gap-2.5 px-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-b from-sky-400 to-blue-600 text-white shadow-sm">
-          <Compass size={17} />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[14px] font-semibold leading-tight text-neutral-900">UnifinderAi</p>
-          <p className="truncate text-[11px] leading-tight text-neutral-500">Agent Portal</p>
-        </div>
+      <div className="px-2.5">
+        <Logo className="h-7" />
+        <p className="mt-1 truncate text-[11px] leading-tight text-neutral-500">Agent Portal</p>
       </div>
     </div>
   );

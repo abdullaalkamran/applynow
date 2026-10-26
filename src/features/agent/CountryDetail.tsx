@@ -156,7 +156,7 @@ export default function AgentCountryDetail() {
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-sm text-neutral-900">
                   <BookOpen size={15} />
                 </div>
                 <div className="min-w-0">

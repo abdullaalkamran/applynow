@@ -1,3 +1,4 @@
+import { NeuSelect } from "../../../components/ui/NeuSelect";
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -5,7 +6,7 @@ import {
   FileCheck2, PlaneTakeoff, CheckCircle2, MoreVertical, Copy, Check, Briefcase,
   ListChecks, AlertCircle, CalendarDays, Upload,
 } from "lucide-react";
-import { StatusBadge, Modal, Button, SearchableSelect, FilterMenu, BackButton } from "../../../components/ui";
+import { StatusBadge, Modal, Button, FilterMenu, BackButton } from "../../../components/ui";
 import { LogoBadge, Pagination } from "../../../components/ui/mobile";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, pipelineBucketFor, daysAgo, type PipelineBucket } from "../../../utils/counsellorData";
@@ -120,12 +121,12 @@ export default function CounsellorApplications() {
   });
 
   const statTiles: { key: PipelineBucket | "Total"; label: string; icon: ReactNode; tone: string }[] = [
-    { key: "Total", label: "Total Applications", icon: <FileText size={14} />, tone: "bg-blue-50 text-blue-600" },
-    { key: "Documents", label: "Documents", icon: <FolderOpen size={14} />, tone: "bg-teal-50 text-teal-600" },
-    { key: "Under Review", label: "Under Review", icon: <Clock size={14} />, tone: "bg-amber-50 text-amber-600" },
-    { key: "Offer Received", label: "Offer Received", icon: <FileCheck2 size={14} />, tone: "bg-violet-50 text-violet-600" },
-    { key: "Visa Process", label: "Visa Process", icon: <PlaneTakeoff size={14} />, tone: "bg-sky-50 text-sky-600" },
-    { key: "Enrolled", label: "Enrolled", icon: <CheckCircle2 size={14} />, tone: "bg-emerald-50 text-emerald-600" },
+    { key: "Total", label: "Total Applications", icon: <FileText size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" },
+    { key: "Documents", label: "Documents", icon: <FolderOpen size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-teal-600" },
+    { key: "Under Review", label: "Under Review", icon: <Clock size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-600" },
+    { key: "Offer Received", label: "Offer Received", icon: <FileCheck2 size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" },
+    { key: "Visa Process", label: "Visa Process", icon: <PlaneTakeoff size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-sky-600" },
+    { key: "Enrolled", label: "Enrolled", icon: <CheckCircle2 size={14} />, tone: "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-600" },
   ];
 
   return (
@@ -153,7 +154,7 @@ export default function CounsellorApplications() {
               }`}
             >
               <div className="flex min-w-0 items-center gap-2.5">
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${s === "Agents" ? "bg-blue-50 text-blue-600" : "bg-sky-50 text-sky-600"}`}>
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${s === "Agents" ? "bg-[var(--sd-card)] shadow-neu-sm text-neutral-900" : "bg-[var(--sd-card)] shadow-neu-sm text-sky-600"}`}>
                   {s === "Agents" ? <Users size={16} /> : <Globe2 size={16} />}
                 </div>
                 <div className="min-w-0">
@@ -189,7 +190,7 @@ export default function CounsellorApplications() {
               {t}
               <span
                 className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
-                  active ? "bg-[var(--sd-ink)]/10 text-[var(--sd-ink)]" : highlight ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                  active ? "bg-[var(--sd-ink)]/10 text-[var(--sd-ink)]" : highlight ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-700" : "bg-slate-100 text-slate-500"
                 }`}
               >
                 {counts[t]}
@@ -265,7 +266,7 @@ export default function CounsellorApplications() {
               key={app.id}
               onClick={openApplication}
               className={`cursor-pointer rounded-2xl border bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)] transition hover:border-slate-200 hover:shadow-[0_2px_14px_rgba(0,0,0,0.08)] ${
-                isNew ? "border-amber-200 bg-amber-50/40" : "border-slate-100"
+                isNew ? "border-amber-200 bg-[var(--sd-card)] shadow-neu-inset-sm/40" : "border-slate-100"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -280,12 +281,12 @@ export default function CounsellorApplications() {
               <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-50 pt-3">
                 <StatusBadge status={app.status} />
                 {isNew && (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-700">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-700">
                     <Sparkles size={9} /> New
                   </span>
                 )}
                 {missingCoreDocs.length > 0 && (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
                     <AlertCircle size={9} /> Core docs missing ({missingCoreDocs.length})
                   </span>
                 )}
@@ -297,7 +298,7 @@ export default function CounsellorApplications() {
                   <span className="shrink-0 font-mono text-[10px] text-slate-400">{formatStudentId(student.id)}</span>
                 </span>
                 {agent ? (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-medium text-neutral-900">
                     <Briefcase size={10} /> {agent.name}
                   </span>
                 ) : (
@@ -333,7 +334,7 @@ export default function CounsellorApplications() {
                     const tone = docDueTone(due);
                     const dueClass = tone === "overdue" ? "text-rose-600" : tone === "soon" ? "text-amber-600" : "text-slate-400";
                     return (
-                      <div key={row.type} className="flex items-center gap-2 rounded-lg bg-amber-50/60 px-2.5 py-1.5 text-xs">
+                      <div key={row.type} className="flex items-center gap-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm/60 px-2.5 py-1.5 text-xs">
                         <AlertCircle size={12} className="shrink-0 text-amber-500" />
                         <span className="min-w-0 flex-1 truncate text-slate-700">{row.type}</span>
                         {due && (
@@ -475,14 +476,14 @@ function CreateApplicationModal({
     <Modal title="Create application" onClose={onClose}>
       <div className="space-y-3">
         <Field label="Student">
-          <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect value={studentId} onChange={(e) => setStudentId(e.target.value)} className="mt-1 w-full text-[13px]">
             {students.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="Country">
-          <select
+          <NeuSelect
             value={country}
             onChange={(e) => {
               const v = e.target.value;
@@ -495,15 +496,15 @@ function CreateApplicationModal({
               setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
-            className={SELECT_CLASS}
+            className="mt-1 w-full text-[13px]"
           >
             {destinationOptions().map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="University">
-          <select
+          <NeuSelect
             value={universityId}
             onChange={(e) => {
               const v = e.target.value;
@@ -514,44 +515,49 @@ function CreateApplicationModal({
               setCampus((u && c ? campusesFor(u, c) : [])[0]?.name ?? "");
               setIntake((u && c ? openIntakesFor(u, c) : [])[0] ?? "");
             }}
-            className={SELECT_CLASS}
+            className="mt-1 w-full text-[13px]"
           >
             {universitiesInCountry.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         {university && (
           <Field label="Subject">
-            <SearchableSelect
+            <NeuSelect
+              searchable
               value={courseName}
-              onChange={(v) => {
+              onChange={(e) => {
+                const v = e.target.value;
                 setCourseName(v);
                 const c = university.courses.find((x) => x.name === v);
                 setCampus((c ? campusesFor(university, c) : [])[0]?.name ?? "");
                 setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
               }}
-              options={openCourses.map((c) => c.name)}
-              placeholder="Search subjects…"
-            />
+              className="mt-1 w-full text-[13px]"
+            >
+              {openCourses.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </NeuSelect>
             {openCourses.length === 0 && (
               <p className="mt-1 text-[11px] text-rose-500">No courses at this university currently have an open intake.</p>
             )}
           </Field>
         )}
         <Field label="Campus">
-          <select value={campus} onChange={(e) => setCampus(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect value={campus} onChange={(e) => setCampus(e.target.value)} className="mt-1 w-full text-[13px]">
             {campuses.map((c) => (
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="Intake">
-          <select value={intake} onChange={(e) => setIntake(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect value={intake} onChange={(e) => setIntake(e.target.value)} className="mt-1 w-full text-[13px]">
             {openIntakes.map((i) => (
               <option key={i} value={i}>{i}</option>
             ))}
-          </select>
+          </NeuSelect>
           {openIntakes.length === 0 && <p className="mt-1 text-[11px] text-rose-500">This course has no open intake right now.</p>}
         </Field>
         <Button
@@ -574,7 +580,6 @@ function CreateApplicationModal({
   );
 }
 
-const SELECT_CLASS = "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

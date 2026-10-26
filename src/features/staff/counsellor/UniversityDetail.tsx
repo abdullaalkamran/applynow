@@ -152,7 +152,7 @@ export default function CounsellorUniversityDetail() {
                 <ul className="space-y-2">
                   {curriculumForCourse(course).careers.map((c) => (
                     <li key={c} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <BriefcaseIcon size={13} className="shrink-0 text-violet-500" /> {c}
+                      <BriefcaseIcon size={13} className="shrink-0 text-neutral-900" /> {c}
                     </li>
                   ))}
                 </ul>

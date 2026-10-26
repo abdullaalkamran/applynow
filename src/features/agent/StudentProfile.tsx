@@ -561,7 +561,7 @@ export default function AgentStudentProfile() {
         <div className="mt-4 space-y-5">
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-rose-600">
                 <AlertCircle size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Required — not uploaded yet</p>
@@ -592,7 +592,7 @@ export default function AgentStudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-amber-600">
                 <Clock3 size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Pending review</p>
@@ -613,7 +613,7 @@ export default function AgentStudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-emerald-600">
                 <CheckCircle2 size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Uploaded &amp; verified</p>

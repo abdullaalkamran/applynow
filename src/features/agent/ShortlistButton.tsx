@@ -29,7 +29,7 @@ export function ShortlistButton({
         onClick={() => setOpen((v) => !v)}
         aria-label="Shortlist for a student"
         className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition ${
-          count > 0 ? "border-neutral-300 bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+          count > 0 ? "border-neutral-300 bg-[var(--sd-card)] shadow-neu-sm text-neutral-900" : "border-slate-200 text-slate-500 hover:bg-slate-50"
         }`}
       >
         <Bookmark size={12} className={count > 0 ? "fill-current" : ""} />

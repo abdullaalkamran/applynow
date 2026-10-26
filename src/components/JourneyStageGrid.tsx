@@ -75,21 +75,21 @@ const ONGOING_STATUSES: Partial<Record<StageType, string[]>> = {
 const TONE_STYLES: Record<Tone, { card: string; iconWrap: string; title: string; status: string; number: string }> = {
   completed: {
     card: "border-transparent neu-card-green",
-    iconWrap: "neu-icon-green text-green-700",
+    iconWrap: "neu-icon-green text-green-800",
     title: "text-neutral-900",
     status: "text-green-800",
     number: "text-neutral-500",
   },
   current: {
     card: "border-transparent neu-card-amber",
-    iconWrap: "neu-icon-amber text-amber-700",
+    iconWrap: "neu-icon-amber text-yellow-700",
     title: "text-neutral-900",
     status: "text-amber-800",
     number: "text-neutral-600",
   },
   ongoing: {
     card: "border-transparent neu-card-amber",
-    iconWrap: "neu-icon-amber text-amber-700",
+    iconWrap: "neu-icon-amber text-yellow-700",
     title: "text-neutral-900",
     status: "text-amber-800",
     number: "text-neutral-500",

@@ -1256,3 +1256,20 @@ model StudentBankAccount {
 
   @@index([studentId])
 }
+
+// One-time email codes (OTP) that gate sensitive actions for students and agents only: creating an account and
+// changing a password. The code itself is never stored — only an HMAC of it — and a row is single-use, expires
+// quickly and locks after a few wrong guesses (see server/src/emailOtp.js).
+model EmailOtp {
+  id         String    @id @default(cuid())
+  email      String
+  // signup | agent_signup | password_change
+  purpose    String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, purpose, createdAt])
+}

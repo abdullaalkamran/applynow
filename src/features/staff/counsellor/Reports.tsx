@@ -102,7 +102,7 @@ export default function CounsellorReports() {
 function ReportStat({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF1F6] text-[var(--sd-ink)]">{icon}</div>
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-sm text-[var(--sd-ink)]">{icon}</div>
       <p className="mt-3 text-xl font-bold text-slate-900">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
     </div>

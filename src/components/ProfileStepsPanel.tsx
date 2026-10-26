@@ -1,3 +1,4 @@
+import { NeuSelect } from "./ui/NeuSelect";
 import { useState } from "react";
 import { Check, User, GraduationCap, Languages, Briefcase, SlidersHorizontal, Pencil, Plus, Trash2, X, Lock } from "lucide-react";
 import { getProfileCompletion, markStepComplete } from "../data/profileCompletion";
@@ -79,9 +80,9 @@ function EditSelect({ label, value, options, onChange }: { label: string; value:
   return (
     <label className="block">
       <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={editInputClass}>
+      <NeuSelect value={value} onChange={(e) => onChange(e.target.value)} className="w-full text-xs">
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      </NeuSelect>
     </label>
   );
 }

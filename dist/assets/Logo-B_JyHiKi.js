@@ -1,0 +1,1 @@
+import{n as e}from"./createLucideIcon-ChhPh1Qd.js";var t=e();function n({className:e=`h-7`}){return(0,t.jsx)(`img`,{src:`/brand/logo.png`,alt:`UnifinderAi`,draggable:!1,className:`w-auto select-none ${e}`})}export{n as t};

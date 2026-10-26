@@ -27,7 +27,7 @@ export default function CounsellorVisaCompliance() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-            <ShieldCheck size={15} className="text-violet-500" />
+            <ShieldCheck size={15} className="text-neutral-900" />
             <p className="text-sm font-semibold text-slate-800">Visa in Process ({visaRows.length})</p>
           </div>
           <div className="divide-y divide-slate-50">

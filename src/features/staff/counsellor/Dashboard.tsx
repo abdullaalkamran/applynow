@@ -1,3 +1,4 @@
+import { NeuSelect } from "../../../components/ui/NeuSelect";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -52,10 +53,10 @@ function dateKey(d: Date): string {
  * Tasks page. */
 function taskRowTone(task: DisplayTask): { card: string; text: string; badge: string } {
   if ((task.source === "document" || task.source === "next-step" || task.source === "finance") && !task.done) {
-    return { card: "bg-rose-50/60", text: "text-rose-700", badge: "bg-rose-100 text-rose-600" };
+    return { card: "bg-[var(--sd-card)] shadow-neu-inset-sm/60", text: "text-rose-700", badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600" };
   }
   if (task.source === "review" && !task.done) {
-    return { card: "bg-amber-50/60", text: "text-amber-800", badge: "bg-amber-100 text-amber-700" };
+    return { card: "bg-[var(--sd-card)] shadow-neu-inset-sm/60", text: "text-amber-800", badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-700" };
   }
   return { card: "", text: "text-slate-800", badge: "bg-slate-100 text-slate-500" };
 }
@@ -72,8 +73,8 @@ function buildDateStrip(): Date[] {
 }
 
 const TONE_CLASS: Record<string, string> = {
-  green: "bg-emerald-50 text-emerald-700",
-  rose: "bg-rose-50 text-rose-600",
+  green: "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-700",
+  rose: "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600",
   slate: "bg-slate-100 text-slate-600",
   neutral: "bg-slate-50 text-slate-400",
 };
@@ -187,10 +188,10 @@ export default function CounsellorDashboard() {
       </div>
 
       <div className="mb-4 grid grid-cols-4 gap-1.5 sm:gap-2.5">
-        <StatCard icon={<Users size={14} className="text-[#2955C4]" />} tone="bg-[#E7EEFC]" value={assigned.length} label="My Students" trend={trends.students} />
-        <StatCard icon={<FileText size={14} className="text-[#0F9D6D]" />} tone="bg-[#E1F5F0]" value={allActiveApps.length} label="Active Applications" trend={trends.applications} />
-        <StatCard icon={<PlaneTakeoff size={14} className="text-[#6D3FBF]" />} tone="bg-[#F1EAFB]" value={visaCount} label="Visa in Process" trend={trends.visa} />
-        <StatCard icon={<AlertCircle size={14} className="text-[#B8791C]" />} tone="bg-[#FDF0DC]" value={pendingCount} label="Pending Actions" trend={trends.pending} />
+        <StatCard icon={<Users size={14} className="text-neutral-900" />} tone="bg-[var(--sd-card)] shadow-neu-inset-sm" value={assigned.length} label="My Students" trend={trends.students} />
+        <StatCard icon={<FileText size={14} className="text-[#0F9D6D]" />} tone="bg-[var(--sd-card)] shadow-neu-inset-sm" value={allActiveApps.length} label="Active Applications" trend={trends.applications} />
+        <StatCard icon={<PlaneTakeoff size={14} className="text-[#6D3FBF]" />} tone="bg-[var(--sd-card)] shadow-neu-inset-sm" value={visaCount} label="Visa in Process" trend={trends.visa} />
+        <StatCard icon={<AlertCircle size={14} className="text-[#B8791C]" />} tone="bg-[var(--sd-card)] shadow-neu-inset-sm" value={pendingCount} label="Pending Actions" trend={trends.pending} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -205,7 +206,7 @@ export default function CounsellorDashboard() {
                 <p className="text-xs text-slate-400">Your scheduled tasks and important follow-ups.</p>
               </div>
             </div>
-            <button onClick={() => navigate("/staff/counsellor/tasks")} className="flex shrink-0 items-center gap-1 text-xs font-medium text-[#2955C4]">
+            <button onClick={() => navigate("/staff/counsellor/tasks")} className="flex shrink-0 items-center gap-1 text-xs font-medium text-neutral-900">
               View All Tasks <ChevronRight size={12} />
             </button>
           </div>
@@ -327,7 +328,7 @@ export default function CounsellorDashboard() {
                 <p className="text-xs text-slate-400">Recent activity from your students.</p>
               </div>
             </div>
-            <button onClick={() => navigate("/staff/counsellor/students")} className="flex shrink-0 items-center gap-1 text-xs font-medium text-[#2955C4]">
+            <button onClick={() => navigate("/staff/counsellor/students")} className="flex shrink-0 items-center gap-1 text-xs font-medium text-neutral-900">
               View All Students <ChevronRight size={12} />
             </button>
           </div>
@@ -604,15 +605,15 @@ function SelectField({
   return (
     <label className="block text-xs font-medium text-slate-500">
       {label}
-      <select
+      <NeuSelect
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+        className="mt-1 w-full text-[13px]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
-      </select>
+      </NeuSelect>
     </label>
   );
 }

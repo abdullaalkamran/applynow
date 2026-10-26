@@ -1,12 +1,12 @@
+import { Logo } from "../components/Logo";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Gem, Lightbulb, ArrowRight, X, LogOut, Sparkles, Globe2, Bell,
+  Lightbulb, ArrowRight, X, LogOut, Sparkles, Globe2, Bell, MoreHorizontal,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
-import { RoleBottomNav } from "./RoleBottomNav";
 import { loadDoneMeetingIds, loadMeetings } from "../data/counsellorMeetingsStore";
 import { loadLeads, loadLeadFollowUpStatus } from "../data/leadsStore";
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
@@ -81,7 +81,7 @@ export default function CounsellorShell() {
 
   function renderNavList(onNavigate?: () => void) {
     return (
-      <nav className="flex-1 space-y-0.5 px-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 py-1">
         {navItems.map((item) =>
           item.path ? (
             <NavLink
@@ -90,18 +90,17 @@ export default function CounsellorShell() {
               end
               onClick={onNavigate}
               className={({ isActive }) =>
-                `relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors ${
-                  isActive ? "bg-[var(--brand-50)] text-[var(--sd-ink)]" : "text-slate-600 hover:bg-slate-50"
+                `flex items-center gap-3 rounded-2xl px-4 py-2.5 text-[13.5px] font-semibold transition-all duration-200 ${
+                  isActive ? "bg-neutral-900 text-white shadow-neu-dark" : "text-neutral-600 hover:text-neutral-900 hover:shadow-neu-inset-sm"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[image:var(--sd-gradient)]" />}
-                  <item.icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <item.icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
                   <span className="flex-1 truncate">{item.label}</span>
                   {!!item.badge && (
-                    <span className={`flex h-4.5 min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${isActive ? "bg-white text-[var(--sd-ink)]" : "bg-rose-500 text-white"}`}>
+                    <span className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${isActive ? "bg-white text-neutral-900" : "bg-neutral-900 text-white"}`}>
                       {item.badge}
                     </span>
                   )}
@@ -109,10 +108,10 @@ export default function CounsellorShell() {
               )}
             </NavLink>
           ) : (
-            <div key={item.label} className="flex cursor-default items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-slate-300">
-              <item.icon size={16} />
+            <div key={item.label} className="flex cursor-default items-center gap-3 rounded-2xl px-4 py-2.5 text-[13.5px] font-semibold text-neutral-300">
+              <item.icon size={17} />
               <span className="flex-1 truncate">{item.label}</span>
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Soon</span>
+              <span className="rounded-full bg-[var(--sd-card)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-400 shadow-neu-inset-sm">Soon</span>
             </div>
           )
         )}
@@ -121,28 +120,23 @@ export default function CounsellorShell() {
   }
 
   return (
-    <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
-            <Gem size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight text-slate-900">UnifinderAi</p>
-            <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
-          </div>
+    <div className="neu-theme flex h-dvh min-w-0 bg-[var(--sd-bg)]">
+      <aside className="hidden h-dvh w-64 shrink-0 flex-col bg-[var(--sd-card)] px-4 py-6 shadow-[10px_0_22px_var(--neu-dark)] md:flex">
+        <div className="px-2 pb-5">
+          <Logo className="h-8" />
+          <p className="mt-1 text-[11px] leading-tight text-neutral-500">Counsellor Portal</p>
         </div>
 
         {renderNavList()}
 
-        <div className="m-3 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 p-4">
+        <div className="mt-3 rounded-2xl bg-neutral-900 p-4 shadow-neu-dark">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-white">
             <Lightbulb size={16} />
           </div>
           <p className="mt-3 text-[14px] font-semibold leading-snug text-white">Students Dream Global. You Make It Happen.</p>
           <button
             onClick={() => setGuideOpen(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-[12.5px] font-semibold text-[#3730a3]"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-[12.5px] font-semibold text-neutral-900"
           >
             See Counselor Guide <ArrowRight size={13} />
           </button>
@@ -152,21 +146,16 @@ export default function CounsellorShell() {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 flex md:hidden">
           <div onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-black/40" />
-          <aside className="relative flex w-72 max-w-[80vw] shrink-0 flex-col overflow-y-auto bg-white pb-4">
-            <div className="flex items-center justify-between gap-2.5 px-5 py-5">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[image:var(--sd-gradient)] text-white">
-                  <Gem size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold leading-tight text-slate-900">UnifinderAi</p>
-                  <p className="text-[11px] leading-tight text-slate-400">Counsellor Portal</p>
-                </div>
+          <aside className="relative flex w-72 max-w-[82vw] shrink-0 flex-col bg-[var(--sd-card)] px-4 py-6 shadow-neu-lg">
+            <div className="flex items-center justify-between gap-2.5 px-2 pb-5">
+              <div>
+                <Logo className="h-8" />
+                <p className="mt-1 text-[11px] leading-tight text-neutral-500">Counsellor Portal</p>
               </div>
               <button
                 onClick={() => setMobileNavOpen(false)}
                 aria-label="Close menu"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-600 shadow-neu-sm"
               >
                 <X size={16} />
               </button>
@@ -178,16 +167,16 @@ export default function CounsellorShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
+        <header className="flex items-center justify-end gap-4 px-4 py-3 sm:px-6">
           <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={() => navigate("/staff/counsellor/notifications")}
               aria-label="Notifications"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-700 shadow-neu-sm"
             >
               <Bell size={16} />
               {unreadAlerts > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-neutral-900 px-1 text-[9px] font-semibold text-white">
                   {unreadAlerts}
                 </span>
               )}
@@ -195,11 +184,11 @@ export default function CounsellorShell() {
             <button
               onClick={() => navigate("/staff/counsellor/messages")}
               aria-label="Messages"
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-700 shadow-neu-sm"
             >
               <Mail size={16} />
               {unreadMessages > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-neutral-900 px-1 text-[9px] font-semibold text-white">
                   {unreadMessages}
                 </span>
               )}
@@ -208,13 +197,13 @@ export default function CounsellorShell() {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-700"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-neutral-900 text-xs font-semibold text-white shadow-neu-dark"
               >
                 {currentUser.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="absolute right-0 z-30 mt-2 w-56 rounded-2xl bg-[var(--sd-card)] p-2 shadow-neu-lg">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium text-slate-800">{currentUser.name}</p>
                     <p className="text-[11px] text-slate-400">Counsellor</p>
@@ -231,17 +220,42 @@ export default function CounsellorShell() {
           </div>
         </header>
 
-        <main ref={scrollRef} className="flex-1 overflow-y-auto p-6">
+        <main ref={scrollRef} className="no-scrollbar flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
           <Outlet key={cacheTick} />
+          <div className="h-16 shrink-0 md:hidden" aria-hidden="true" />
         </main>
 
-        <RoleBottomNav items={navItems} onMore={() => setMobileNavOpen(true)} />
+        <div className="shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-1 md:hidden">
+          <nav aria-label="Main" className="flex items-end justify-between rounded-[30px] bg-[var(--sd-card)] px-2 py-2 shadow-neu-lg">
+            {navItems.filter((i) => !!i.path).slice(0, 4).map((item) => (
+              <NavLink key={item.label} to={item.path!} end className="flex flex-1 flex-col items-center gap-1 py-0.5">
+                {({ isActive }) => (
+                  <>
+                    <span className={`relative flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-200 ${isActive ? "bg-neutral-900 text-white shadow-neu-dark" : "text-neutral-500"}`}>
+                      <item.icon size={21} strokeWidth={isActive ? 2.2 : 1.8} />
+                      {!!item.badge && (
+                        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-neutral-900 px-1 text-[9px] font-semibold text-white ring-2 ring-[var(--sd-card)]">
+                          {item.badge}
+                        </span>
+                      )}
+                    </span>
+                    <span className={`text-[10px] font-semibold ${isActive ? "text-neutral-900" : "text-neutral-500"}`}>{item.label}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+            <button onClick={() => setMobileNavOpen(true)} className="flex flex-1 flex-col items-center gap-1 py-0.5">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl text-neutral-500"><MoreHorizontal size={21} /></span>
+              <span className="text-[10px] font-semibold text-neutral-500">More</span>
+            </button>
+          </nav>
+        </div>
       </div>
 
       {guideOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div onClick={() => setGuideOpen(false)} className="absolute inset-0 bg-black/30" />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <div className="relative w-full max-w-md rounded-2xl bg-[var(--sd-card)] shadow-neu-lg">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <h3 className="text-sm font-semibold text-slate-800">Counselor Guide</h3>
               <button onClick={() => setGuideOpen(false)} aria-label="Close" className="text-slate-400 hover:text-slate-600">
@@ -251,7 +265,7 @@ export default function CounsellorShell() {
             <ul className="space-y-3 px-5 py-4">
               {GUIDE_TIPS.map((tip) => (
                 <li key={tip} className="flex gap-2.5 text-[13px] leading-relaxed text-slate-600">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-900" />
                   {tip}
                 </li>
               ))}

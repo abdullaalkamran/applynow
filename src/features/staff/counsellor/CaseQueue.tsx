@@ -13,8 +13,8 @@ import { loadNextSteps, toggleNextStepDone } from "../../../data/applicationNext
 import { formatStudentId } from "../../../utils/displayId";
 
 const TONE_CLASS: Record<string, string> = {
-  green: "bg-emerald-50 text-emerald-700",
-  rose: "bg-rose-50 text-rose-600",
+  green: "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-700",
+  rose: "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600",
   slate: "bg-slate-100 text-slate-600",
   neutral: "bg-slate-50 text-slate-400",
 };
@@ -92,7 +92,7 @@ export default function CounsellorCaseQueue() {
                     <span className={`h-2 w-2 shrink-0 rounded-full ${s.riskFlag === "high" ? "bg-rose-500" : "bg-amber-500"}`} />
                   )}
                   {missing > 0 && (
-                    <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{missing}</span>
+                    <span className="shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{missing}</span>
                   )}
                   <ChevronRight size={14} className="shrink-0 text-slate-300" />
                 </button>

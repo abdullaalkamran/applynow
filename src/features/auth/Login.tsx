@@ -1,6 +1,7 @@
+import { Logo } from "../../components/Logo";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GraduationCap, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_HOME } from "../../layouts/nav";
 import { GoogleSignInButton } from "../../components/GoogleSignInButton";
@@ -99,10 +100,8 @@ export default function Login() {
     <div className="neu-theme flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-5 py-10">
       <div className="w-full max-w-sm rounded-3xl bg-[var(--sd-card)] p-6 shadow-neu-lg sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-neu-dark">
-            <GraduationCap size={26} />
-          </div>
-          <h1 className="mt-3 text-[22px] font-bold tracking-tight text-neutral-900">UnifinderAi</h1>
+          <h1 className="sr-only">UnifinderAi</h1>
+          <Logo className="h-11" />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-7 space-y-3.5">

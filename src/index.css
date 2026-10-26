@@ -143,22 +143,23 @@ body {
 }
 .shake-attn { animation: attn-shake 0.7s ease-in-out; }
 @media (prefers-reduced-motion: reduce) { .shake-attn { animation: none; } }
-/* Verified documents: a soft green gradient raised card with a recessed icon tile. */
+/* Verified / completed: a clearly green gradient raised card with a recessed icon tile. */
 .neu-card-green {
-  background: linear-gradient(145deg, #eef7f0, #d8ecdd);
-  box-shadow: 6px 6px 14px #c6d8cb, -6px -6px 14px #ffffff;
+  background: linear-gradient(145deg, #e3f7e8, #b7e5c3);
+  box-shadow: 6px 6px 14px #a6cfb2, -6px -6px 14px #ffffff;
 }
 .neu-icon-green {
-  background: linear-gradient(145deg, #dcefe1, #eaf6ed);
-  box-shadow: inset 3px 3px 6px #c3d6c8, inset -3px -3px 6px #ffffff;
+  background: linear-gradient(145deg, #c4ebcf, #e2f6e8);
+  box-shadow: inset 3px 3px 6px #a3cdb0, inset -3px -3px 6px #ffffff;
 }
+/* In progress: a soft, pale yellow (not gold). */
 .neu-card-amber {
-  background: linear-gradient(145deg, #fdf5e4, #f6e5bd);
-  box-shadow: 5px 5px 12px #e3d2a8, -5px -5px 12px #ffffff;
+  background: linear-gradient(145deg, #fffbea, #fbf0bd);
+  box-shadow: 5px 5px 12px #e8dfb0, -5px -5px 12px #ffffff;
 }
 .neu-icon-amber {
-  background: linear-gradient(145deg, #f6e5bd, #fbf1d6);
-  box-shadow: inset 3px 3px 6px #e0cd9f, inset -3px -3px 6px #ffffff;
+  background: linear-gradient(145deg, #fbf0bd, #fffbe6);
+  box-shadow: inset 3px 3px 6px #e6dba8, inset -3px -3px 6px #ffffff;
 }
 .neu-btn-red {
   background: linear-gradient(145deg, #e23a3a, #c81f1f);
@@ -388,7 +389,8 @@ select.neu-select {
   border: 0;
   border-radius: 12px;
   background: var(--neu-surface);
-  box-shadow: inset 3px 3px 6px var(--neu-inset-dark), inset -3px -3px 6px var(--neu-light);
+  /* Raised like a card (not recessed like a text field) — a dropdown is a button. It presses in while its list is open. */
+  box-shadow: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light);
   color: var(--neu-ink);
   font-size: 13px;
   line-height: 1.25;
@@ -396,11 +398,11 @@ select.neu-select {
   cursor: pointer;
   transition: box-shadow 0.2s ease, background-color 0.2s ease;
 }
-.neu-select-trigger:focus-visible,
+.neu-select-trigger:focus-visible { outline: none; box-shadow: 4px 4px 9px var(--neu-dark), -4px -4px 9px var(--neu-light), 0 0 0 2px var(--neu-ink); }
 .neu-select-trigger[aria-expanded="true"] {
   outline: none;
   background: #ebebeb;
-  box-shadow: inset 4px 4px 8px #bcbcbc, inset -4px -4px 8px var(--neu-light);
+  box-shadow: inset 3px 3px 7px #bcbcbc, inset -3px -3px 7px var(--neu-light);
 }
 .neu-select-trigger:disabled { opacity: 0.7; cursor: not-allowed; }
 /* A compact raised chip, for a picker sitting inside another field (e.g. the phone dial code). */

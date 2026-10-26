@@ -28,6 +28,11 @@ export function getAgentInvite(token: string): Promise<AgentInviteSummary> {
 
 /** Public — sets the invitee's own password, creating their real Staff+User rows. Same response
  * shape as authClient.ts's login/register, for AuthContext to reuse directly. */
-export function acceptAgentInvite(token: string, password: string): Promise<{ token: string; user: AuthUser }> {
-  return apiPost<{ token: string; user: AuthUser }>(`/api/agent-invites/${token}/accept`, { password });
+export function acceptAgentInvite(token: string, password: string, otp: string): Promise<{ token: string; user: AuthUser }> {
+  return apiPost<{ token: string; user: AuthUser }>(`/api/agent-invites/${token}/accept`, { password, otp });
+}
+
+/** Public — emails the invited address a 6-digit code that acceptAgentInvite requires. */
+export function requestAgentInviteOtp(token: string): Promise<void> {
+  return apiPost<unknown>(`/api/agent-invites/${token}/otp`, {}).then(() => undefined);
 }

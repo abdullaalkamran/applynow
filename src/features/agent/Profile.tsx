@@ -10,6 +10,7 @@ import { Button } from "../../components/ui";
 import { apiGet, apiPatch } from "../../utils/apiClient";
 import { useAuth } from "../../context/AuthContext";
 import type { StaffMember } from "../../data/staffStore";
+import { PasswordChangeForm } from "../../components/PasswordChangeForm";
 
 const BASE_INPUT_CLASS = "w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 focus:border-slate-300 focus:outline-none";
 
@@ -190,11 +191,21 @@ export default function AgentProfile() {
         )}
       </div>
 
+      <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+        <p className="text-sm font-semibold text-slate-800">Change password</p>
+        <p className="mb-3 mt-0.5 text-xs text-slate-400">We'll email you a 6-digit code to confirm it's you.</p>
+        <PasswordChangeForm
+          inputClass={BASE_INPUT_CLASS + " mt-1"}
+          labelClass="block text-xs font-medium text-slate-500"
+          buttonClass="w-full rounded-xl bg-neutral-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        />
+      </div>
+
       <button
         onClick={handleLogout}
         className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white px-5 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-500">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-sm text-rose-500">
           <LogOut size={16} />
         </div>
         <span className="text-sm font-medium text-rose-500">Log Out</span>

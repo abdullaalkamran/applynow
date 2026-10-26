@@ -1,9 +1,10 @@
+import { Logo } from "../../components/Logo";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { GraduationCap } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { ROLE_HOME } from "../../layouts/nav";
-import { getAgentInvite, acceptAgentInvite, type AgentInviteSummary } from "../../data/agentInvitesStore";
+import { getAgentInvite, acceptAgentInvite, requestAgentInviteOtp, type AgentInviteSummary } from "../../data/agentInvitesStore";
+import { OtpCodeField } from "../../components/OtpCodeField";
 
 type LoadState = "loading" | "ready" | "invalid";
 
@@ -20,6 +21,8 @@ export default function AcceptInvite() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -48,7 +51,16 @@ export default function AcceptInvite() {
     }
     setSubmitting(true);
     try {
-      const { token: newToken, user } = await acceptAgentInvite(token, password);
+      if (!codeSent) {
+        await requestAgentInviteOtp(token);
+        setCodeSent(true);
+        return;
+      }
+      if (otp.length !== 6) {
+        setSubmitError("Enter the 6-digit code from your email.");
+        return;
+      }
+      const { token: newToken, user } = await acceptAgentInvite(token, password, otp);
       completeInviteLogin(newToken, user);
       navigate(ROLE_HOME[user.role], { replace: true });
     } catch (err) {
@@ -61,12 +73,7 @@ export default function AcceptInvite() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[var(--sd-bg)] px-6 py-10">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
-            <GraduationCap size={18} />
-          </div>
-          <span className="text-[17px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
-        </div>
+        <Logo className="h-8" />
 
         {state === "loading" && <p className="mt-8 text-sm text-slate-500">Checking your invite…</p>}
 
@@ -118,6 +125,19 @@ export default function AcceptInvite() {
                 />
               </div>
 
+              {codeSent && (
+                <div>
+                  <label className="mb-1 block text-[12px] font-medium text-slate-500">Verification code</label>
+                  <OtpCodeField
+                    value={otp}
+                    onChange={setOtp}
+                    sentTo={invite.email}
+                    onResend={() => requestAgentInviteOtp(token!)}
+                    inputClassName="w-full rounded-xl border border-slate-200 bg-[var(--sd-card)] px-3.5 py-2.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-[var(--sd-ink)]"
+                  />
+                </div>
+              )}
+
               {submitError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">{submitError}</p>}
 
               <button
@@ -125,7 +145,7 @@ export default function AcceptInvite() {
                 disabled={submitting}
                 className="w-full rounded-xl bg-[image:var(--sd-gradient)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {submitting ? "Setting up…" : "Create account"}
+                {submitting ? "Please wait…" : codeSent ? "Verify & create account" : "Send verification code"}
               </button>
             </form>
           </>

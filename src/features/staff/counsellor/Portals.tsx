@@ -1,3 +1,4 @@
+import { NeuSelect } from "../../../components/ui/NeuSelect";
 // External portals — saved logins for partner university / B2B agent portals the AI agent can submit to and
 // monitor, plus where each submission stands. Passwords are write-only: once saved they are never shown again.
 import { useEffect, useState } from "react";
@@ -102,9 +103,9 @@ export default function CounsellorPortals() {
               <label className="block text-xs font-medium text-slate-500">Name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. University of Leeds agent portal" className={INPUT} /></label>
               <label className="block text-xs font-medium text-slate-500">Login page URL<input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://…" className={INPUT} /></label>
               <label className="block text-xs font-medium text-slate-500">Type
-                <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as "b2b" | "university" })} className={INPUT}>
+                <NeuSelect value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as "b2b" | "university" })} className="mt-1 w-full text-[13px]">
                   <option value="b2b">B2B / agent portal</option><option value="university">University portal</option>
-                </select>
+                </NeuSelect>
               </label>
               <label className="block text-xs font-medium text-slate-500">Username<input autoComplete="off" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className={INPUT} /></label>
               <label className="block text-xs font-medium text-slate-500">Password<input type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={INPUT} /></label>

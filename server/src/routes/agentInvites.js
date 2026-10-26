@@ -7,6 +7,7 @@ const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
 const { requireAdminRole } = require("../middleware/access");
 const { sendDocumentNotification } = require("../notifications/dispatch");
+const { issueOtp, checkOtp, consumeOtp } = require("../emailOtp");
 
 const router = express.Router();
 
@@ -97,11 +98,25 @@ router.get("/:token", async (req, res, next) => {
   }
 });
 
+// Public — emails the invitee a 6-digit code (to the address the invite was sent to) that /accept requires, so an agent
+// account is only ever created by someone who can read that mailbox, not merely anyone holding the link.
+router.post("/:token/otp", async (req, res, next) => {
+  try {
+    const { invite, reason } = await findUsableInvite(req.params.token);
+    if (reason === "not_found") return res.status(404).json({ error: "Invite not found." });
+    if (reason === "accepted") return res.status(410).json({ error: "This invite has already been used." });
+    if (reason === "expired") return res.status(410).json({ error: "This invite has expired." });
+    res.json(await issueOtp(invite.email, "agent_signup"));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Public — the invitee sets their own password here, which creates their real Staff+User rows and
 // logs them straight in (same response shape as POST /api/auth/login, for the frontend to reuse).
 router.post("/:token/accept", async (req, res, next) => {
   try {
-    const { password } = req.body || {};
+    const { password, otp } = req.body || {};
     if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });
     }
@@ -114,6 +129,7 @@ router.post("/:token/accept", async (req, res, next) => {
       return res.status(409).json({ error: "That email is already registered." });
     }
 
+    const otpRow = await checkOtp(invite.email, "agent_signup", otp);
     const count = await prisma.staff.count();
     const staffId = `agent-${Date.now().toString(36)}`;
     const passwordHash = await bcrypt.hash(password, 10);
@@ -137,6 +153,7 @@ router.post("/:token/accept", async (req, res, next) => {
       return created;
     });
 
+    await consumeOtp(otpRow);
     res.json({ token: issueToken(user), user: toPublicUser(user) });
   } catch (err) {
     if (err.code === "P2002") return res.status(409).json({ error: "That email is already registered." });

@@ -1,5 +1,6 @@
+import { Logo } from "../../components/Logo";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, GraduationCap } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SkylineArt } from "../../components/ui/mobile";
 
 export default function Onboarding() {
@@ -8,12 +9,7 @@ export default function Onboarding() {
   return (
     <div className="flex min-h-full flex-col bg-[var(--sd-bg)]">
       <div className="flex items-center justify-between px-6 pt-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
-            <GraduationCap size={15} />
-          </div>
-          <span className="text-[15px] font-semibold text-[var(--sd-ink)]">UnifinderAi</span>
-        </div>
+        <Logo className="h-7" />
         <button onClick={() => navigate("/student")} className="text-sm font-medium text-neutral-400">
           Skip
         </button>

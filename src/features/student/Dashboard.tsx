@@ -1,3 +1,4 @@
+import { Logo } from "../../components/Logo";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -259,7 +260,7 @@ export default function Dashboard() {
     return (
       <div className="px-5 pb-6 pt-6 lg:px-10 lg:pb-10 lg:pt-8">
         <div className="lg:mx-auto lg:max-w-6xl">
-          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
+          <h1 className="sr-only">UnifinderAi</h1><Logo className="h-6" />
           <div className="mt-10 flex flex-col items-center px-4 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
               <AlertCircle size={26} />
@@ -285,7 +286,7 @@ export default function Dashboard() {
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
+            <h1 className="sr-only">UnifinderAi</h1><Logo className="h-6" />
           </div>
           <div className="flex items-center gap-3">
             <button

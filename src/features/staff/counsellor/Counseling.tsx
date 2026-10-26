@@ -9,8 +9,8 @@ import { loadStudentComments } from "../../../data/studentCommentsStore";
 import { BackButton } from "../../../components/ui";
 
 const TONE_CLASS: Record<string, string> = {
-  green: "bg-emerald-50 text-emerald-700",
-  rose: "bg-rose-50 text-rose-600",
+  green: "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-700",
+  rose: "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600",
   slate: "bg-slate-100 text-slate-600",
   neutral: "bg-slate-50 text-slate-400",
 };
@@ -44,7 +44,7 @@ export default function CounsellorCounseling() {
                   </div>
                   <p className="text-sm font-semibold text-slate-800">{s.name}</p>
                 </div>
-                <button onClick={() => navigate(`/staff/counsellor/students/${s.id}`)} className="text-xs font-medium text-[#2955C4]">
+                <button onClick={() => navigate(`/staff/counsellor/students/${s.id}`)} className="text-xs font-medium text-neutral-900">
                   Open case
                 </button>
               </div>

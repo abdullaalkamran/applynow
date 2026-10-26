@@ -76,7 +76,7 @@ export default function CounsellorSettings() {
         onClick={() => navigate("/student/onboarding")}
         className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white px-5 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-sm text-rose-500">
           <LogOut size={16} />
         </div>
         <span className="text-sm font-medium text-rose-500">Log Out</span>

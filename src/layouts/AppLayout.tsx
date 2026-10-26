@@ -1,6 +1,7 @@
+import { Logo } from "../components/Logo";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { GraduationCap, Bell, LogOut } from "lucide-react";
+import { Bell, LogOut } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../data/mockData";
@@ -32,14 +33,9 @@ export default function AppLayout() {
     <div className="flex h-dvh min-w-0 bg-[#f5f7fb]">
       {/* Sidebar (hidden on small screens) */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] text-white">
-            <GraduationCap size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900 leading-tight">UnifinderAi</p>
-            <p className="text-[11px] text-slate-400 leading-tight">{meta.label} Portal</p>
-          </div>
+        <div className="px-5 py-5">
+          <Logo className="h-7" />
+          <p className="mt-1 text-[11px] text-slate-400 leading-tight">{meta.label} Portal</p>
         </div>
 
         <nav className="flex-1 space-y-0.5 px-3">

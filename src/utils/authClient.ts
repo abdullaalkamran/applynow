@@ -54,6 +54,18 @@ export interface RegisterInput {
   password: string;
   country: string;
   referralCode?: string;
+  /** The 6-digit code emailed by requestSignupOtp — required to create an account. */
+  otp: string;
+}
+
+/** Emails a 6-digit code to a would-be student — the first step of signup (see the server's POST /otp/signup). */
+export function requestSignupOtp(email: string): Promise<void> {
+  return apiPost<unknown>("/api/auth/otp/signup", { email }).then(() => undefined);
+}
+
+/** Emails the logged-in student/agent a code to confirm a password change; resolves to the masked address it went to. */
+export function requestPasswordOtp(): Promise<{ sentTo: string }> {
+  return apiPost<{ sentTo: string }>("/api/auth/otp/password", {});
 }
 
 /** Public student self-signup — optionally arriving via an agent's referral link/QR/code, which
@@ -107,8 +119,8 @@ export async function bootstrapAdmin(name: string, email: string, password: stri
 
 /** Self-service password change for the logged-in account (any role) — requires the current
  * password, matching the server's own check (see server/src/routes/auth.js's POST /change-password). */
-export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  return apiPost<{ success: true }>("/api/auth/change-password", { currentPassword, newPassword }).then(() => undefined);
+export function changePassword(currentPassword: string, newPassword: string, otp?: string): Promise<void> {
+  return apiPost<{ success: true }>("/api/auth/change-password", { currentPassword, newPassword, otp }).then(() => undefined);
 }
 
 export async function fetchMe(token: string): Promise<AuthUser> {

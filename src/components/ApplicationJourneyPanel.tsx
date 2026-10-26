@@ -1,3 +1,4 @@
+import { NeuSelect } from "./ui/NeuSelect";
 import { useState } from "react";
 import { useHoldCacheSync } from "../utils/syncCache";
 import { Check, Circle, Lock, AlertTriangle, CalendarClock } from "lucide-react";
@@ -435,9 +436,9 @@ function SelectFieldInline({ label, value, options, optionLabels, onChange, read
   return (
     <label className={fieldRowClass}>
       <span className={fieldLabelClass}>{label}</span>
-      <select className={fieldInputClass} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} disabled={readOnly}>
+      <NeuSelect className="min-w-0 flex-1 text-[12.5px]" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} disabled={readOnly}>
         {options.map((o) => <option key={o} value={o}>{optionLabels?.[o] ?? o}</option>)}
-      </select>
+      </NeuSelect>
     </label>
   );
 }

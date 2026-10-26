@@ -1,3 +1,4 @@
+import { Logo } from "../../components/Logo";
 // Mirrors UniversityDetail.tsx's tabbed layout — country is the fixed dimension, with a persistent
 // hero (CountryHero) above three tabs: "Overview" (the rich country profile), "Universities" (a
 // clean per-university directory — every course/program browse belongs on the "Subjects" tab
@@ -58,7 +59,7 @@ export default function CountryDetail() {
     <div className="pb-6">
       <div className="lg:mx-auto lg:max-w-6xl">
         <div className="flex items-center justify-between px-5 pb-2 pt-5">
-          <h1 className="text-[15px] font-bold text-neutral-900">UnifinderAi</h1>
+          <h1 className="sr-only">UnifinderAi</h1><Logo className="h-6" />
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/student/search")}
