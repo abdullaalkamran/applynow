@@ -1,9 +1,11 @@
+import { userScopedKey } from "../utils/userScope";
+
 const READ_KEY = "sd-notifications-read";
 
 export function loadReadIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = window.localStorage.getItem(READ_KEY);
+    const raw = window.localStorage.getItem(userScopedKey(READ_KEY));
     return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
   } catch {
     return new Set();
@@ -12,7 +14,7 @@ export function loadReadIds(): Set<string> {
 
 function persistReadIds(ids: Set<string>) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
+  window.localStorage.setItem(userScopedKey(READ_KEY), JSON.stringify([...ids]));
 }
 
 export function markNotificationRead(id: string) {

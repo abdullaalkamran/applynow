@@ -6,6 +6,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 let cache: Student[] = [];
 let refreshSeq = 0;
@@ -73,7 +74,7 @@ export function updateStudent(id: string, patch: StudentPatch) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist student change:", err);
+      reportSaveError("Failed to persist student change:", err);
     });
 }
 

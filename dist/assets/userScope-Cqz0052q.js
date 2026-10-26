@@ -1,0 +1,1 @@
+function e(){if(typeof window>`u`)return`anon`;try{let e=window.localStorage.getItem(`sd-auth-user`),t=e?JSON.parse(e):null;return t?.roleUserId?`${t.role??`user`}-${t.roleUserId}`:`anon`}catch{return`anon`}}function t(t){return`${t}:${e()}`}export{t};

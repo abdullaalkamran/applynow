@@ -26,6 +26,7 @@ import {
   type EvisaStageStatus, type EvisaStageData,
   type EnrolmentStageStatus, type EnrolmentStageData,
 } from "../types/journey";
+import { reportSaveError } from "../utils/toast";
 
 const cache: Record<string, ApplicationJourney> = {};
 
@@ -216,7 +217,7 @@ export function updateStage<TData>(
           });
       }
     })
-    .catch((err) => console.warn("Failed to persist journey stage update:", err));
+    .catch((err) => reportSaveError("Failed to persist journey stage update:", err));
 
   return nextJourney;
 }

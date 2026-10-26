@@ -2,7 +2,7 @@
 // relationships (not a global "pick anyone" directory), matching how this app already models
 // who works with whom (Student.agentId / Student.counsellorId).
 
-import { COUNSELLORS, AGENTS, ADMISSION_OFFICERS } from "../data/mockData";
+import { staffContactsByRole } from "./currentStaff";
 import { loadAssignedStudents } from "../data/counsellorStudentsStore";
 import { loadAgentStudents } from "../data/agentStudentsStore";
 import type { TaskPerson, TaskRole } from "../data/tasksStore";
@@ -23,13 +23,13 @@ export function recipientsFor(from: TaskPerson): TaskPerson[] {
     const students = loadAssignedStudents();
     const studentPeople: TaskPerson[] = students.map((s) => ({ id: s.id, role: "student", name: s.name }));
     const agentIds = new Set(students.map((s) => s.agentId).filter((id): id is string => !!id));
-    const agentPeople: TaskPerson[] = AGENTS.filter((a) => agentIds.has(a.id)).map((a) => ({ id: a.id, role: "agent", name: a.name }));
-    const admissionPeople: TaskPerson[] = ADMISSION_OFFICERS.map((o) => ({ id: o.id, role: "admission", name: o.name }));
+    const agentPeople: TaskPerson[] = staffContactsByRole("agent").filter((a) => agentIds.has(a.id)).map((a) => ({ id: a.id, role: "agent", name: a.name }));
+    const admissionPeople: TaskPerson[] = staffContactsByRole("admission").map((o) => ({ id: o.id, role: "admission", name: o.name }));
     return [...studentPeople, ...agentPeople, ...admissionPeople, ADMIN_PERSON];
   }
 
   if (from.role === "admin") {
-    return COUNSELLORS.map((c) => ({ id: c.id, role: "counsellor", name: c.name }));
+    return staffContactsByRole("counsellor").map((c) => ({ id: c.id, role: "counsellor", name: c.name }));
   }
 
   if (from.role === "agent") {

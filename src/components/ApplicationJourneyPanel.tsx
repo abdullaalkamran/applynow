@@ -12,7 +12,7 @@ import { loadJourney, updateStage } from "../data/applicationJourneyStore";
 import { computeCurrentStage, computeBlockers, computeNextAction } from "../utils/applicationJourneyEngine";
 import { getApplicationTasks } from "../utils/taskBoard";
 import { loadActivityDescending, recordActivity } from "../data/applicationActivityStore";
-import { ADMISSION_OFFICERS, COUNSELLORS, AGENTS } from "../data/mockData";
+import { findStaffContact, staffContactsByRole } from "../utils/currentStaff";
 import { getAllStudents } from "../data/allStudentsStore";
 import { getAllApplications, assignCounsellor, assignAdmissionOfficer } from "../data/applicationsStore";
 import { useRole } from "../context/RoleContext";
@@ -59,7 +59,7 @@ export function ApplicationJourneyPanel({ applicationId, mode, actor, token }: P
   const currentStage = computeCurrentStage(journey);
   const application = getAllApplications().find((a) => a.id === applicationId);
   const student = application ? getAllStudents().find((s) => s.id === application.studentId) : undefined;
-  const agent = student?.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
+  const agent = findStaffContact(student?.agentId);
 
   function patch(stageType: StageType, fieldPatch: Record<string, unknown>) {
     if (!actor) return;
@@ -194,6 +194,8 @@ export function ResponsibleStaffCard({
   actor?: Actor;
   onChanged: () => void;
 }) {
+  const counsellors = staffContactsByRole("counsellor");
+  const officers = staffContactsByRole("admission");
   return (
     <div className="rounded-xl border border-transparent bg-white p-3">
       <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Responsible staff</p>
@@ -201,8 +203,8 @@ export function ResponsibleStaffCard({
         <SelectFieldInline
           label="Counsellor"
           value={responsibleCounsellorId ?? ""}
-          options={["", ...COUNSELLORS.map((c) => c.id)]}
-          optionLabels={{ "": "Unassigned", ...Object.fromEntries(COUNSELLORS.map((c) => [c.id, c.name])) }}
+          options={["", ...counsellors.map((c) => c.id)]}
+          optionLabels={{ "": "Unassigned", ...Object.fromEntries(counsellors.map((c) => [c.id, c.name])) }}
           onChange={(v) => {
             if (actor) assignCounsellor(applicationId, v, actor);
             onChanged();
@@ -212,8 +214,8 @@ export function ResponsibleStaffCard({
         <SelectFieldInline
           label="Admission"
           value={responsibleAdmissionOfficerId ?? ""}
-          options={["", ...ADMISSION_OFFICERS.map((o) => o.id)]}
-          optionLabels={{ "": "Unassigned", ...Object.fromEntries(ADMISSION_OFFICERS.map((o) => [o.id, o.name])) }}
+          options={["", ...officers.map((o) => o.id)]}
+          optionLabels={{ "": "Unassigned", ...Object.fromEntries(officers.map((o) => [o.id, o.name])) }}
           onChange={(v) => {
             if (actor) assignAdmissionOfficer(applicationId, v, actor);
             onChanged();

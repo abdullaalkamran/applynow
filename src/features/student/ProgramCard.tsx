@@ -1,5 +1,6 @@
 // The course card shown in Explore → Courses and in Home → Recommended: big logo, course name, university, fee and deposit,
 // the open intake and scholarship, a bookmark and the Apply button. One component so both places always look and read the same.
+import type { ReactNode } from "react";
 import { Bookmark, Building2, CalendarDays, GraduationCap, Landmark, Send, Wallet } from "lucide-react";
 import type { University } from "../../types";
 import { courseFeeText } from "../../utils/courseFee";
@@ -12,14 +13,18 @@ export function universityInitials(name: string) {
 }
 
 export function ProgramCard({
-  university: u, course: c, shortlisted, onToggleShortlist, onOpen, onApply, className = "",
+  university: u, course: c, shortlisted = false, onToggleShortlist, onOpen, onApply, actionSlot, className = "",
 }: {
   university: University;
   course: University["courses"][number];
-  shortlisted: boolean;
-  onToggleShortlist: () => void;
+  shortlisted?: boolean;
+  // Omit to hide the bookmark (e.g. a counsellor browsing, who shortlists for no one in particular).
+  onToggleShortlist?: () => void;
   onOpen: () => void;
-  onApply: () => void;
+  // Omit to hide the Apply button.
+  onApply?: () => void;
+  // Extra controls rendered in the card's footer (an agent's per-student shortlist picker).
+  actionSlot?: ReactNode;
   className?: string;
 }) {
   const scholarship = scholarshipLabel(u);
@@ -32,13 +37,15 @@ export function ProgramCard({
       onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
       className={`relative flex w-full cursor-pointer items-start gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu sm:gap-4 sm:rounded-3xl sm:p-5 ${className}`}
     >
-      <span
-        onClick={(e) => { e.stopPropagation(); onToggleShortlist(); }}
-        aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
-        className={`absolute right-3 top-3 shrink-0 sm:right-4 sm:top-4 ${shortlisted ? "text-[var(--sd-ink)]" : "text-neutral-300"}`}
-      >
-        <Bookmark size={18} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
-      </span>
+      {onToggleShortlist && (
+        <span
+          onClick={(e) => { e.stopPropagation(); onToggleShortlist(); }}
+          aria-label={shortlisted ? "Remove from shortlist" : "Shortlist"}
+          className={`absolute right-3 top-3 shrink-0 sm:right-4 sm:top-4 ${shortlisted ? "text-[var(--sd-ink)]" : "text-neutral-300"}`}
+        >
+          <Bookmark size={18} className={shortlisted ? "fill-[var(--sd-ink)]" : ""} />
+        </span>
+      )}
 
       {u.logoUrl ? (
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-transparent bg-white sm:h-24 sm:w-24 sm:rounded-2xl">
@@ -83,17 +90,22 @@ export function ProgramCard({
             </>
           )}
         </div>
+        {actionSlot && (
+          <div onClick={(e) => e.stopPropagation()} className="mt-2.5 flex flex-wrap items-center gap-2">{actionSlot}</div>
+        )}
       </div>
       {/* Vertically centred on the card's right edge; the bookmark sits above it. */}
-      <button
-        onClick={(e) => { e.stopPropagation(); if (open) onApply(); }}
-        disabled={!open}
-        aria-label={open ? "Apply Now" : "Intake closed"}
-        title={open ? "Apply Now" : "Intake closed"}
-        className={`flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full ${open ? "neu-btn-green" : "bg-neutral-200 text-neutral-400"}`}
-      >
-        <Send size={14} />
-      </button>
+      {onApply && (
+        <button
+          onClick={(e) => { e.stopPropagation(); if (open) onApply(); }}
+          disabled={!open}
+          aria-label={open ? "Apply Now" : "Intake closed"}
+          title={open ? "Apply Now" : "Intake closed"}
+          className={`flex h-8 w-8 shrink-0 self-center items-center justify-center rounded-full ${open ? "neu-btn-green" : "bg-neutral-200 text-neutral-400"}`}
+        >
+          <Send size={14} />
+        </button>
+      )}
     </div>
   );
 }

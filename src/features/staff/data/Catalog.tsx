@@ -1,68 +1,39 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
-import { Table, StatusBadge, Button, PageHeader, StatTile, Card, CardBody, CardHeader } from "../../../components/ui";
-import { CATALOG_RECORDS } from "../../../data/mockData";
+import { useNavigate } from "react-router-dom";
+import { Table, PageHeader, StatTile, EmptyState } from "../../../components/ui";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
 
 export default function DataCatalog() {
-  const [editing, setEditing] = useState<string | null>(null);
-  const record = CATALOG_RECORDS.find((r) => r.id === editing);
-  const stale = CATALOG_RECORDS.filter((r) => r.status === "Stale");
+  const navigate = useNavigate();
+  const universities = getAllUniversities();
+  const courseCount = universities.reduce((sum, u) => sum + u.courses.length, 0);
+  const countries = new Set(universities.map((u) => u.country));
 
   return (
     <div>
-      <PageHeader
-        title="Data Management — Catalog"
-        subtitle="Universities, courses, intakes, requirements and scholarships. Publish requires a second approver."
-        action={<Button><Plus size={15} /> New record</Button>}
-      />
+      <PageHeader title="Data Management — Catalog" subtitle="Everything currently published in the partner catalog." />
       <div className="mb-6 flex gap-4">
-        <StatTile label="Total Records" value={String(CATALOG_RECORDS.length)} />
-        <StatTile label="In Review" value={String(CATALOG_RECORDS.filter((r) => r.status === "In Review").length)} tone="green" />
-        <StatTile label="Stale — Needs Re-verification" value={String(stale.length)} tone="red" />
+        <StatTile label="Universities" value={String(universities.length)} />
+        <StatTile label="Courses" value={String(courseCount)} tone="green" />
+        <StatTile label="Countries" value={String(countries.size)} />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white">
-        <Table head={["Record", "Type", "Source", "Verified", "Status", ""]}>
-          {CATALOG_RECORDS.map((r) => (
-            <tr key={r.id} className="hover:bg-slate-50">
-              <td className="px-5 py-3 font-medium text-slate-800">{r.name}</td>
-              <td className="px-5 py-3 text-slate-600">{r.type}</td>
-              <td className="px-5 py-3 text-slate-500 text-xs">{r.source}</td>
-              <td className="px-5 py-3 text-slate-500 text-xs">{r.verificationDate}</td>
-              <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
-              <td className="px-5 py-3"><button onClick={() => setEditing(r.id)} className="text-xs font-medium text-[var(--brand-600)]">Edit</button></td>
-            </tr>
-          ))}
-        </Table>
-      </div>
-
-      {record && (
-        <Card className="mt-6">
-          <CardHeader title={`Edit — ${record.name}`} subtitle="Draft → Review → Publish. Direct-to-production edits are not permitted." />
-          <CardBody className="grid grid-cols-2 gap-4">
-            <label className="text-xs">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Source</span>
-              <input defaultValue={record.source} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
-            </label>
-            <label className="text-xs">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Effective date</span>
-              <input defaultValue={record.effectiveDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
-            </label>
-            <label className="text-xs">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Verification date</span>
-              <input defaultValue={record.verificationDate} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
-            </label>
-            <label className="text-xs">
-              <span className="mb-1 block text-xs font-medium text-slate-400">Owner</span>
-              <input defaultValue={record.owner} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
-            </label>
-            <div className="col-span-2 flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-              <Button variant="secondary">Save draft</Button>
-              <Button>Submit for review</Button>
-            </div>
-          </CardBody>
-        </Card>
+      {universities.length === 0 ? (
+        <EmptyState title="The catalog is empty" subtitle="Add a university from Data Management to get started." />
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <Table head={["University", "Country", "Courses", ""]}>
+            {universities.slice(0, 200).map((u) => (
+              <tr key={u.id} className="hover:bg-slate-50">
+                <td className="px-5 py-3 font-medium text-slate-800">{u.name}</td>
+                <td className="px-5 py-3 text-slate-600">{u.country}</td>
+                <td className="px-5 py-3 text-slate-600">{u.courses.length}</td>
+                <td className="px-5 py-3">
+                  <button onClick={() => navigate(`/staff/data/universities/${u.id}`)} className="text-xs font-medium text-[var(--brand-600)]">Open</button>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -56,9 +56,72 @@ async function handle<T>(response: Response, generation: number): Promise<T> {
   return data as T;
 }
 
-function request<T>(path: string, init: RequestInit): Promise<T> {
+// A request that never answers (a stalled shared-hosting worker, a dropped connection) used to hang
+// forever: the optimistic UI looked saved, then silently rolled back whenever the browser finally
+// gave up. Bound every call, retry a read once when the server is briefly overloaded, and say
+// plainly what happened instead of leaving the user guessing.
+const REQUEST_TIMEOUT_MS = 45_000;
+const UPLOAD_TIMEOUT_MS = 180_000;
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+// Reads go through a small queue. Signing in (and every poll after it) used to fire ~25 requests at once; on a shared host
+// they all competed for the same few database connections, so a comment or status change made at that moment queued
+// behind a pile of refreshes and timed out. Only GETs wait here — a save is never held up behind a background refresh.
+const MAX_CONCURRENT_READS = 4;
+let activeReads = 0;
+const readQueue: Array<() => void> = [];
+
+function acquireReadSlot(): Promise<void> {
+  if (activeReads < MAX_CONCURRENT_READS) {
+    activeReads++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => readQueue.push(() => { activeReads++; resolve(); }));
+}
+
+function releaseReadSlot() {
+  activeReads--;
+  readQueue.shift()?.();
+}
+
+async function request<T>(path: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+  const isRead = !init.method || init.method === "GET";
+  // Captured now, not when the request finally starts: a read that waited in the queue across a logout/login must still
+  // be recognised as belonging to the old session and discarded.
   const generation = sessionGeneration;
-  return fetch(`${BACKEND_BASE}${path}`, init).then((r) => handle<T>(r, generation));
+  if (!isRead) return runRequest<T>(path, init, timeoutMs, false, generation);
+  await acquireReadSlot();
+  try {
+    return await runRequest<T>(path, init, timeoutMs, true, generation);
+  } finally {
+    releaseReadSlot();
+  }
+}
+
+async function runRequest<T>(path: string, init: RequestInit, timeoutMs: number, isRead: boolean, generation: number): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(`${BACKEND_BASE}${path}`, { ...init, signal: controller.signal });
+      if (isRead && attempt === 0 && RETRYABLE_STATUS.has(response.status)) continue;
+      return await handle<T>(response, generation);
+    } catch (err) {
+      const name = (err as Error)?.name;
+      if (name === "StaleSessionError") throw err;
+      if (name === "AbortError") {
+        if (isRead && attempt === 0) continue;
+        throw new Error("The server took too long to respond — please try again.");
+      }
+      if (err instanceof TypeError) {
+        if (isRead && attempt === 0) continue;
+        throw new Error("Couldn't reach the server — check your connection and try again.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
 }
 
 export function apiGet<T>(path: string): Promise<T> {
@@ -80,7 +143,7 @@ export function apiPostForm<T>(path: string, formData: FormData): Promise<T> {
     method: "POST",
     headers: { ...authHeader() },
     body: formData,
-  });
+  }, UPLOAD_TIMEOUT_MS);
 }
 
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {

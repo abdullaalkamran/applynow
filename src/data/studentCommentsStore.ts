@@ -8,6 +8,7 @@
 import { apiGet, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Role } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 export interface StudentComment {
   id: string;
@@ -51,7 +52,7 @@ export function postStudentComment(studentId: string, notes: string, performedBy
       cache[studentId] = cache[studentId].map((c) => (c.id === optimistic.id ? serverComment : c));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist student comment:", err));
+    .catch((err) => reportSaveError("Failed to persist student comment:", err));
 
   return optimistic;
 }

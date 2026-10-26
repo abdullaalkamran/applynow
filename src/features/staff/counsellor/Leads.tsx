@@ -6,7 +6,7 @@ import { ProfileStepsPanel } from "../../../components/ProfileStepsPanel";
 import { loadLeads, loadLeadFollowUpStatus, setLeadFollowUpStatus } from "../../../data/leadsStore";
 import { loadPreferences, loadPersonalInfo } from "../../../data/studentProfileDetailsStore";
 import { formatStudentId } from "../../../utils/displayId";
-import { AGENTS } from "../../../data/mockData";
+import { findStaffContact } from "../../../utils/currentStaff";
 import type { LeadFollowUpStatus } from "../../../types";
 
 const STATUS_TABS: (LeadFollowUpStatus | "All")[] = ["All", "New", "Contacted", "Nurturing", "Not Interested"];
@@ -24,7 +24,7 @@ export default function Leads() {
     status: loadLeadFollowUpStatus(student.id),
     preferences: loadPreferences(student.id),
     phone: student.phone || loadPersonalInfo(student.id)?.phone || undefined,
-    agent: student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined,
+    agent: findStaffContact(student.agentId),
   }));
 
   const filtered = leads.filter(({ student, status, agent }) => {

@@ -1,10 +1,12 @@
+import { userScopedKey } from "../utils/userScope";
+
 interface Snapshot {
   date: string; // YYYY-MM-DD the snapshot was taken
   values: Record<string, number>;
 }
 
 function keyFor(namespace: string): string {
-  return `staff-stats-snapshot:${namespace}`;
+  return userScopedKey(`staff-stats-snapshot:${namespace}`);
 }
 
 function today(): string {

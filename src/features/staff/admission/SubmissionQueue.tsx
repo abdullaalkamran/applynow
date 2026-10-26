@@ -1,9 +1,16 @@
 import { AlertCircle } from "lucide-react";
-import { Table, StatusBadge, StatTile, PageHeader, Button, Badge } from "../../../components/ui";
-import { STUDENTS, APPLICATIONS } from "../../../data/mockData";
+import { Table, StatusBadge, StatTile, PageHeader, Badge, EmptyState } from "../../../components/ui";
+import { getAllApplications } from "../../../data/applicationsStore";
+import { getAllStudents } from "../../../data/allStudentsStore";
+
+const CLOSED = new Set(["Withdrawn", "Rejected", "Deferred", "Enrolled"]);
 
 export default function AdmissionSubmissionQueue() {
-  const rows = APPLICATIONS.map((a) => ({ app: a, student: STUDENTS.find((s) => s.id === a.studentId)! }));
+  const students = getAllStudents();
+  // Real applications only — nothing is seeded. Closed ones drop out of the working queue.
+  const rows = getAllApplications()
+    .filter((a) => !CLOSED.has(a.status))
+    .map((app) => ({ app, studentName: students.find((s) => s.id === app.studentId)?.name ?? "Unknown student" }));
   const deadlineRisk = rows.filter((r) => r.app.status === "Additional Documents Requested" || r.app.status === "Documents Pending");
 
   return (
@@ -17,29 +24,29 @@ export default function AdmissionSubmissionQueue() {
 
       {deadlineRisk.length > 0 && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertCircle size={16} /> {deadlineRisk.length} application(s) at deadline risk — action required this week.
+          <AlertCircle size={16} /> {deadlineRisk.length} application(s) waiting on documents.
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white">
-        <Table head={["Student", "University", "Intake", "Status", "Action"]}>
-          {rows.map(({ app, student }) => (
-            <tr key={app.id} className="hover:bg-slate-50">
-              <td className="px-5 py-3 font-medium text-slate-800">{student.name}</td>
-              <td className="px-5 py-3 text-slate-600">{app.university} <span className="text-slate-400">· {app.course}</span></td>
-              <td className="px-5 py-3 text-slate-600">{app.intake}</td>
-              <td className="px-5 py-3"><StatusBadge status={app.status} /></td>
-              <td className="px-5 py-3">
-                {app.status === "Compliance Hold" ? (
-                  <Badge tone="red">Locked by Compliance</Badge>
-                ) : (
-                  <Button variant="secondary">Follow up</Button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </Table>
-      </div>
+      {rows.length === 0 ? (
+        <EmptyState title="No applications in the queue" subtitle="Submitted applications will appear here." />
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <Table head={["Student", "University", "Intake", "Status", "Next action"]}>
+            {rows.map(({ app, studentName }) => (
+              <tr key={app.id} className="hover:bg-slate-50">
+                <td className="px-5 py-3 font-medium text-slate-800">{studentName}</td>
+                <td className="px-5 py-3 text-slate-600">{app.university} <span className="text-slate-400">· {app.course}</span></td>
+                <td className="px-5 py-3 text-slate-600">{app.intake}</td>
+                <td className="px-5 py-3"><StatusBadge status={app.status} /></td>
+                <td className="px-5 py-3 text-slate-600">
+                  {app.status === "Compliance Hold" ? <Badge tone="red">Locked by Compliance</Badge> : app.nextAction}
+                </td>
+              </tr>
+            ))}
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

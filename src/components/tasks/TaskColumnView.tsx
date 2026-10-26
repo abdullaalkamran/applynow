@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useRef, type WheelEvent } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Trash2, Plus } from "lucide-react";
 import type { DisplayTask } from "../../utils/taskBoard";
 import type { GetTaskTarget } from "./TaskListSection";
@@ -11,6 +11,9 @@ const SOURCE_LABEL: Record<DisplayTask["source"], string> = {
   review: "Review",
   finance: "Financial",
 };
+
+// Survives the page being rebuilt on a cache refresh (module scope, not component state).
+let savedBoardScroll = 0;
 
 function toKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -126,27 +129,16 @@ export function TaskColumnView({
   const undated = tasks.filter((t) => !t.dueDate);
   const rowRef = useRef<HTMLDivElement>(null);
 
-  // A plain vertical mouse wheel does nothing on an overflow-x container by default (only a
-  // horizontal trackpad swipe or shift+wheel does) — redirect vertical wheel delta into
-  // horizontal scroll so scrolling through the columns works the way people actually try it. But
-  // only when the pointer isn't over a column's own task list still able to scroll vertically —
-  // otherwise this would hijack scrolling through a long list of tasks within one day.
-  function handleWheel(e: WheelEvent<HTMLDivElement>) {
-    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    const innerScroll = (e.target as HTMLElement).closest<HTMLElement>("[data-col-scroll]");
-    if (innerScroll && innerScroll.scrollHeight > innerScroll.clientHeight) {
-      const atTop = innerScroll.scrollTop <= 0;
-      const atBottom = innerScroll.scrollTop + innerScroll.clientHeight >= innerScroll.scrollHeight - 1;
-      if ((e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom)) return;
-    }
-    const el = rowRef.current;
-    if (!el) return;
-    el.scrollLeft += e.deltaY;
-    e.preventDefault();
-  }
+  // The board is rebuilt whenever cached data changes (see syncCache.ts), which used to snap it back to its first column and
+  // — together with a wheel handler that turned every vertical scroll into a sideways one (React's wheel listener is
+  // passive, so the page ALSO scrolled) — made the Tasks page appear to scroll by itself. Keep the sideways position across
+  // rebuilds and leave wheel scrolling to the browser (trackpad swipe / shift+wheel scroll the columns natively).
+  useLayoutEffect(() => {
+    if (rowRef.current) rowRef.current.scrollLeft = savedBoardScroll;
+  }, []);
 
   return (
-    <div ref={rowRef} onWheel={handleWheel} className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+    <div ref={rowRef} onScroll={(e) => { savedBoardScroll = e.currentTarget.scrollLeft; }} className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
       {undated.length > 0 && (
         <div className="flex w-64 shrink-0 flex-col rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/60">
           <div className="border-b border-dashed border-neutral-200 px-3 py-2 text-center">

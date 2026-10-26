@@ -1,24 +1,21 @@
-import { Table, Badge, PageHeader, Button } from "../../components/ui";
-import { WORKFLOW_TEMPLATES } from "../../data/mockData";
+import { Table, PageHeader } from "../../components/ui";
+import { STAGE_ORDER, STAGE_LABEL } from "../../types/journey";
 
+// The journey every application follows is defined in code (types/journey.ts, server/src/journeyLogic.js),
+// so this page shows that real definition rather than a list of made-up templates.
 export default function AdminWorkflowTemplates() {
   return (
     <div>
       <PageHeader
-        title="Workflow Templates"
-        subtitle="Workflow Template → Version → Instance → Stages → Steps → Conditions. Historical versions stay intact."
-        action={<Button>+ New template</Button>}
+        title="Application Journey"
+        subtitle="The stages every application moves through, from application to enrolment."
       />
       <div className="rounded-xl border border-slate-200 bg-white">
-        <Table head={["Template", "Country", "Version", "Stages", "Status", "Updated"]}>
-          {WORKFLOW_TEMPLATES.map((w) => (
-            <tr key={w.id} className="hover:bg-slate-50">
-              <td className="px-5 py-3 font-medium text-slate-800">{w.name}</td>
-              <td className="px-5 py-3 text-slate-600">{w.country}</td>
-              <td className="px-5 py-3 text-slate-600">{w.version}</td>
-              <td className="px-5 py-3 text-slate-600">{w.stages}</td>
-              <td className="px-5 py-3"><Badge tone={w.status === "Active" ? "green" : w.status === "Draft" ? "amber" : "neutral"}>{w.status}</Badge></td>
-              <td className="px-5 py-3 text-xs text-slate-400">{w.lastUpdated}</td>
+        <Table head={["#", "Stage"]}>
+          {STAGE_ORDER.map((stage, i) => (
+            <tr key={stage} className="hover:bg-slate-50">
+              <td className="px-5 py-3 text-slate-400">{i + 1}</td>
+              <td className="px-5 py-3 font-medium text-slate-800">{STAGE_LABEL[stage]}</td>
             </tr>
           ))}
         </Table>

@@ -8,6 +8,7 @@ import { COUNSELLOR_ID } from "../utils/counsellorData";
 import { apiGet, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 let cache: Student[] = [];
 
@@ -59,7 +60,7 @@ export function addStudent(name: string, email: string, country: string): Studen
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist new student:", err);
+      reportSaveError("Failed to persist new student:", err);
     });
   return optimistic;
 }

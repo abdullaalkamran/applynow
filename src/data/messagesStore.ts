@@ -5,6 +5,7 @@
 import type { Role } from "../types";
 import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 export interface MessageParticipant {
   role: Role;
@@ -77,7 +78,7 @@ export function sendMessage(to: MessageParticipant, text: string, from: MessageP
       notifyCacheChange();
       refreshThreadsList();
     })
-    .catch((err) => console.warn("Failed to persist message:", err));
+    .catch((err) => reportSaveError("Failed to persist message:", err));
 
   return optimistic;
 }
@@ -87,7 +88,7 @@ export function markThreadRead(threadId: string) {
   if (!thread || thread.unread === 0) return;
   threads = threads.map((t) => (t.threadId === threadId ? { ...t, unread: 0 } : t));
   notifyCacheChange();
-  apiPatch(`/api/messages/${threadId}/read`, {}).catch((err) => console.warn("Failed to mark thread read:", err));
+  apiPatch(`/api/messages/${threadId}/read`, {}).catch((err) => reportSaveError("Failed to mark thread read:", err));
 }
 
 /** The chat-list side of the messenger — one row per conversation, newest first, with an unread

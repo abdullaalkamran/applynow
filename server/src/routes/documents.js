@@ -8,6 +8,8 @@ const requireAuth = require("../middleware/requireAuth");
 const { sendDocumentNotification } = require("../notifications/dispatch");
 const { applicationWhere, accessibleStudent, accessibleApplication, isInternal } = require("../middleware/access");
 
+const { notifyInBackground } = require("../inboxNotify");
+
 const router = express.Router();
 
 const DOCUMENT_SCOPES = ["core", "application", "stage"];
@@ -79,6 +81,9 @@ function serializeDocument(d) {
     custom: d.custom,
     note: d.note || undefined,
     rejectionReason: d.rejectionReason || undefined,
+    issuedByStaff: d.issuedByStaff || undefined,
+    uploadedByName: d.uploadedByName || undefined,
+    uploadedByRole: d.uploadedByRole || undefined,
     createdAt: d.createdAt.toISOString(),
   };
 }
@@ -162,21 +167,117 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
     // nudge a verify/reject already gets. Scoped to the counsellor's own action (not every
     // "requested" placeholder — e.g. a student adding their own core-doc slot shouldn't notify
     // themselves and their agent that they just asked themselves for something).
-    if (isRequestedPlaceholder && req.authUser.role === "counsellor") {
-      const { student, recipients } = await studentAndAgentRecipients(doc.studentId);
-      if (student && recipients.length > 0) {
-        const message = `Hi ${student.name}, your counsellor has requested a new document: "${doc.type}"${doc.note ? ` — ${doc.note}` : ""}. Please upload it as soon as possible.`;
-        sendDocumentNotification({ subject: "UnifinderAi: New document requested", message, recipients }).catch((err) =>
-          console.warn("Document request notification failed to send:", err)
-        );
-      }
+    res.status(201).json(serializeDocument(doc));
+
+    {
+      const actor = { id: req.authUser.roleUserId, role: req.authUser.role };
+      const appRow = doc.applicationId ? await prisma.application.findUnique({ where: { id: doc.applicationId } }).catch(() => null) : null;
+      const where = appRow ? ` — ${appRow.university}` : "";
+      notifyInBackground({
+        studentId: doc.studentId, application: appRow, actor,
+        type: isRequestedPlaceholder ? "document_requested" : "document_uploaded",
+        title: isRequestedPlaceholder ? `Document requested: ${doc.type}${where}` : `Document uploaded: ${doc.type}${where}`,
+        body: isRequestedPlaceholder ? (doc.note || `${req.authUser.name || "Staff"} asked for "${doc.type}".`) : `${req.authUser.name || "Someone"} uploaded "${doc.type}".`,
+      });
     }
+
+    // After the response, so the counsellor is not left waiting on the recipient lookups (see notifyIssuedDocument).
+    if (isRequestedPlaceholder && req.authUser.role === "counsellor") {
+      studentAndAgentRecipients(doc.studentId)
+        .then(({ student, recipients }) => {
+          if (!student || recipients.length === 0) return undefined;
+          const message = `Hi ${student.name}, your counsellor has requested a new document: "${doc.type}"${doc.note ? ` — ${doc.note}` : ""}. Please upload it as soon as possible.`;
+          return sendDocumentNotification({ subject: "UnifinderAi: New document requested", message, recipients });
+        })
+        .catch((err) => console.warn("Document request notification failed to send:", err));
+    }
+    return;
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A document STAFF attach to an application under a field name they choose — an offer letter, a CAS
+// letter, a visa decision, whatever the application needs — as a PDF or image. It is visible to every
+// party tied to the application (the student, their agent, the counsellor and admission officer) and
+// is never part of the student's required-documents checklist. Everyone concerned is notified.
+// Defined ahead of "/:id" routes; only internal staff may issue.
+router.post("/issued", requireAuth, upload.single("file"), async (req, res, next) => {
+  try {
+    if (!isInternal(req.authUser)) {
+      await discardUpload(req.file);
+      return res.status(403).json({ error: "Only staff can attach documents for an application." });
+    }
+    const { applicationId } = req.body || {};
+    const label = typeof req.body?.label === "string" ? req.body.label.trim().slice(0, 120) : "";
+    if (!applicationId || !label || !req.file) {
+      await discardUpload(req.file);
+      return res.status(400).json({ error: "applicationId, a field name and a PDF or image file are required." });
+    }
+    const app = await prisma.application.findUnique({ where: { id: String(applicationId) } });
+    if (!app) {
+      await discardUpload(req.file);
+      return res.status(404).json({ error: "Application not found." });
+    }
+    let doc;
+    try {
+      doc = await prisma.document.create({
+        data: {
+          studentId: app.studentId, applicationId: app.id, scope: "application",
+          name: label, type: label, status: "verified", custom: true,
+          fileUrl: `/uploads/documents/${req.file.filename}`,
+          issuedByStaff: true,
+          uploadedByName: req.authUser.name || null,
+          uploadedByRole: req.authUser.role,
+        },
+      });
+    } catch (err) {
+      await discardUpload(req.file);
+      throw err;
+    }
+
+    // Fire-and-forget: the document is saved either way, a slow notification must not stall the response.
+    notifyIssuedDocument(app, doc, req.authUser).catch((err) => console.warn("Issued-document notification failed:", err));
 
     res.status(201).json(serializeDocument(doc));
   } catch (err) {
     next(err);
   }
 });
+
+/** In-app inbox entry for everyone tied to the application (except whoever attached it), plus the
+ * usual WhatsApp/email nudge to the student and their agent. */
+async function notifyIssuedDocument(app, doc, actor) {
+  const student = await prisma.student.findUnique({ where: { id: app.studentId } });
+  if (!student) return;
+  const staffIds = [app.responsibleCounsellorId, app.responsibleAdmissionOfficerId, student.counsellorId, student.agentId].filter(Boolean);
+  const staff = staffIds.length ? await prisma.staff.findMany({ where: { id: { in: staffIds } } }) : [];
+  const seen = new Set();
+  const people = [{ id: student.id, role: "student" }, ...staff.map((s) => ({ id: s.id, role: s.role }))].filter((p) => {
+    const key = `${p.role}:${p.id}`;
+    if (seen.has(key) || (p.id === actor.roleUserId && p.role === actor.role)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (people.length > 0) {
+    await prisma.notification.createMany({
+      data: people.map((p) => ({
+        userId: p.id, userRole: p.role, type: "document_added",
+        title: `${doc.type} added — ${app.university}`,
+        body: `${actor.name || "Staff"} uploaded "${doc.type}" for ${app.course}.`,
+        studentId: app.studentId, applicationId: app.id,
+      })),
+    });
+  }
+  const { recipients } = await studentAndAgentRecipients(app.studentId);
+  if (recipients.length > 0) {
+    sendDocumentNotification({
+      subject: `UnifinderAi: ${doc.type} available`,
+      message: `Hi ${student.name}, "${doc.type}" for your ${app.course} application at ${app.university} is now available in your application's Documents tab.`,
+      recipients,
+    }).catch((err) => console.warn("Issued-document message failed to send:", err));
+  }
+}
 
 // Re-labelling a document (name / type) so it lands on the right checklist row — internal staff only
 // (counsellor, admission, compliance, data, finance, admin). Never touches the file, its status, or its owner.
@@ -216,20 +317,28 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
       data: { status, rejectionReason: status === "rejected" ? rejectionReason.trim() : null },
     });
 
-    // WhatsApp/email the student and their agent — a rejection especially needs their attention
+    // Answer first; the WhatsApp/email to the student and their agent follows. A rejection especially needs their attention
     // (it's blocking the application until re-uploaded), but a verification is worth knowing too.
-    const { student, recipients } = await studentAndAgentRecipients(doc.studentId);
-    if (student && recipients.length > 0) {
-      const message =
-        status === "rejected"
-          ? `Hi ${student.name}, your document "${doc.type}" was rejected: ${doc.rejectionReason}. Please re-upload it as soon as possible.`
-          : `Hi ${student.name}, your document "${doc.type}" has been verified.`;
-      sendDocumentNotification({ subject: `UnifinderAi: Document ${status}`, message, recipients }).catch((err) =>
-        console.warn("Document review notification failed to send:", err)
-      );
-    }
-
     res.json(serializeDocument(doc));
+    {
+      const appRow = doc.applicationId ? await prisma.application.findUnique({ where: { id: doc.applicationId } }).catch(() => null) : null;
+      notifyInBackground({
+        studentId: doc.studentId, application: appRow, actor: { id: req.authUser.roleUserId, role: req.authUser.role },
+        type: "document_reviewed",
+        title: `Document ${status}: ${doc.type}${appRow ? ` — ${appRow.university}` : ""}`,
+        body: status === "rejected" ? `Reason: ${doc.rejectionReason}` : undefined,
+      });
+    }
+    studentAndAgentRecipients(doc.studentId)
+      .then(({ student, recipients }) => {
+        if (!student || recipients.length === 0) return undefined;
+        const message =
+          status === "rejected"
+            ? `Hi ${student.name}, your document "${doc.type}" was rejected: ${doc.rejectionReason}. Please re-upload it as soon as possible.`
+            : `Hi ${student.name}, your document "${doc.type}" has been verified.`;
+        return sendDocumentNotification({ subject: `UnifinderAi: Document ${status}`, message, recipients });
+      })
+      .catch((err) => console.warn("Document review notification failed to send:", err));
   } catch (err) {
     next(err);
   }
@@ -245,7 +354,12 @@ router.delete("/:id", requireAuth, async (req, res, next) => {
     if (!doc || (!isInternal(req.authUser) && !(await accessibleStudent(req.authUser, doc.studentId)))) {
       return res.status(404).json({ error: "Document not found." });
     }
-    if (doc.status === "verified") {
+    // A staff-issued document (offer letter, CAS, ...) is not review evidence — internal staff may
+    // remove or replace it; nobody else may delete it.
+    if (doc.issuedByStaff && !isInternal(req.authUser)) {
+      return res.status(403).json({ error: "Only staff can remove this document." });
+    }
+    if (doc.status === "verified" && !doc.issuedByStaff) {
       return res.status(400).json({ error: "A verified document can't be deleted." });
     }
     await prisma.document.delete({ where: { id: req.params.id } });

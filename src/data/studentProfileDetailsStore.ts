@@ -86,87 +86,11 @@ export interface PreferencesDetails {
   contactLanguage: string;
 }
 
-// Sarah's is the only student who has a fully modeled profile elsewhere in the codebase (the
-// passport-scan / test / work / preferences demo defaults in each student-side page) — seeded here
-// field-for-field so a counsellor sees her real submitted details even before she's re-saved a page
-// in this particular browser session.
-const SEED_PERSONAL: Record<string, PersonalInfoDetails> = {
-  s1: {
-    firstName: "Sarah",
-    lastName: "Khan",
-    email: "sarah.khan@email.com",
-    phone: "+880 1711-000000",
-    dob: "2003-04-12",
-    gender: "Female",
-    nationality: "Bangladesh",
-    fatherName: "Abdul Karim",
-    motherName: "Rowshan Ara Begum",
-    maritalStatus: "Single",
-    passportNumber: "BN1234567",
-    personalNumber: "1234567890123",
-    previousPassportNumber: "",
-    placeOfBirth: "Dhaka, Bangladesh",
-    issuingAuthority: "Department of Immigration & Passports, Dhaka",
-    issueDate: "2017-01-20",
-    passportExpiry: "2027-01-20",
-    permanentAddress: "House 12, Road 5, Banani",
-    presentAddress: "House 12, Road 5, Banani",
-    city: "Dhaka",
-    country: "Bangladesh",
-    emergencyContactName: "Rehana Khan",
-    emergencyContactRelationship: "Parent",
-    emergencyContactAddress: "House 12, Road 5, Banani, Dhaka",
-    emergencyContactPhone: "+880 1911-222333",
-    emergencyContactEmail: "rehana.khan@email.com",
-  },
-};
-
-const SEED_ENGLISH: Record<string, EnglishTestDetails[]> = {
-  s1: [{
-    testName: "IELTS", testType: "UKVI Academic", overallScore: "7.5",
-    listening: "8.0", reading: "7.5", writing: "6.5", speaking: "7.5",
-    testDate: "2026-03-14", expiryDate: "2028-03-14", reportNumber: "24GB123456ABCD", issuingInstitution: "",
-  }],
-};
-
-const SEED_WORK: Record<string, WorkExperienceDetails[]> = {
-  s1: [{
-    type: "Full-time", company: "bKash Limited", title: "Business Analyst", industry: "Fintech",
-    startDate: "2025-09-01", endDate: "", currentlyWorking: true,
-    description: "Supporting product teams with requirements analysis and process documentation for digital payment features.",
-  }],
-};
-
-const SEED_PREFERENCES: Record<string, PreferencesDetails> = {
-  s1: {
-    destinations: ["United Kingdom", "Australia", "Canada"],
-    studyLevel: "Master's",
-    fields: ["Data Science & AI", "Computer Science & IT"],
-    intake: "January",
-    budget: "£30k – £40k",
-    accommodation: "University Halls",
-    scholarshipInterest: true,
-    emailUpdates: true,
-    smsUpdates: true,
-    whatsappUpdates: false,
-    pushUpdates: true,
-    contactLanguage: "English",
-  },
-  s6: {
-    destinations: ["United Kingdom"],
-    studyLevel: "Master's",
-    fields: ["Data Science & AI"],
-    intake: "September",
-    budget: "£20k – £30k",
-    accommodation: "Not decided",
-    scholarshipInterest: true,
-    emailUpdates: true,
-    smsUpdates: false,
-    whatsappUpdates: false,
-    pushUpdates: false,
-    contactLanguage: "English",
-  },
-};
+// No seeded profiles: every student's details come from what they (or their agent/counsellor) actually saved.
+const SEED_PERSONAL: Record<string, PersonalInfoDetails> = {};
+const SEED_ENGLISH: Record<string, EnglishTestDetails[]> = {};
+const SEED_WORK: Record<string, WorkExperienceDetails[]> = {};
+const SEED_PREFERENCES: Record<string, PreferencesDetails> = {};
 
 function keyFor(section: string, studentId: string) {
   return `sd-profile-details:${section}:${studentId}`;

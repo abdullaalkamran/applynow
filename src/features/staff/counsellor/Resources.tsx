@@ -1,5 +1,5 @@
 import { Award, FileText, Globe2 } from "lucide-react";
-import { UNIVERSITIES } from "../../../data/mockData";
+import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { BackButton } from "../../../components/ui";
 
 const GUIDES = [
@@ -22,7 +22,7 @@ const GUIDES = [
 ];
 
 export default function CounsellorResources() {
-  const scholarshipUniversities = UNIVERSITIES.filter((u) => u.scholarshipsAvailable);
+  const scholarshipUniversities = getAllUniversities().filter((u) => u.scholarshipsAvailable);
 
   return (
     <div>

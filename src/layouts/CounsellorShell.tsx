@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutGrid, Users, UserPlus, FileText, MessageCircle, Landmark, ShieldCheck, ListChecks, Mail, BarChart3, FolderOpen, Settings,
-  Gem, Lightbulb, ArrowRight, X, LogOut, Sparkles, Globe2,
+  Gem, Lightbulb, ArrowRight, X, LogOut, Sparkles, Globe2, Bell,
 } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
@@ -16,6 +16,7 @@ import { AIAssistantWidget } from "../components/ui/AIAssistantWidget";
 import { useCacheSync } from "../utils/syncCache";
 import { useScrollToTopOnNavigate } from "../utils/useScrollToTopOnNavigate";
 import { unreadMessageCount } from "../data/messagesStore";
+import { unreadInboxCount } from "../data/inboxStore";
 
 interface NavEntry {
   label: string;
@@ -44,6 +45,7 @@ export default function CounsellorShell() {
   // Messages now reads the real direct-messaging system (see messagesStore.ts) instead of fake
   // seed data — comments posted elsewhere also fan out into this count (see applications.js).
   const unreadMessages = unreadMessageCount();
+  const unreadAlerts = unreadInboxCount();
   const doneIds = loadDoneMeetingIds();
   const openTasks = loadMeetings().filter((m) => !doneIds.has(m.id)).length;
   const newLeads = loadLeads().filter((s) => loadLeadFollowUpStatus(s.id) === "New").length;
@@ -178,6 +180,18 @@ export default function CounsellorShell() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
           <div className="flex shrink-0 items-center gap-3">
+            <button
+              onClick={() => navigate("/staff/counsellor/notifications")}
+              aria-label="Notifications"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
+            >
+              <Bell size={16} />
+              {unreadAlerts > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                  {unreadAlerts}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => navigate("/staff/counsellor/messages")}
               aria-label="Messages"

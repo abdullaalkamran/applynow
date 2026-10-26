@@ -13,8 +13,10 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const prisma = require("./prismaClient");
 
-const PAGE_SIZE = 1; // universities per database round trip (each carries all its courses)
-const MAX_AGE_MS = 2 * 60 * 1000; // safety net for any write path that forgets to call invalidateCatalog()
+// Universities per database round trip (each carries all its courses). One at a time meant one round trip per university —
+// hundreds of sequential queries holding connections from the shared pool while a counsellor's own requests waited behind them.
+const PAGE_SIZE = 5;
+const MAX_AGE_MS = 10 * 60 * 1000; // safety net for any write path that forgets to call invalidateCatalog()
 
 let version = 0;
 let built = null; // { version, at, etag, gzip }
@@ -57,14 +59,25 @@ async function buildCatalog(serializeUniversity) {
   return { version: startedAt, at: Date.now(), etag: `"cat-${hash.digest("hex").slice(0, 20)}"`, gzip };
 }
 
-async function getCatalog(serializeUniversity) {
-  if (built && built.version === version && Date.now() - built.at < MAX_AGE_MS) return built;
+function startBuild(serializeUniversity) {
   if (!inflight) {
     inflight = buildCatalog(serializeUniversity)
       .then((entry) => { built = entry; return entry; })
       .finally(() => { inflight = null; });
   }
   return inflight;
+}
+
+async function getCatalog(serializeUniversity) {
+  const current = built && built.version === version;
+  if (current && Date.now() - built.at < MAX_AGE_MS) return built;
+  // Only aged out (nothing was written): keep serving the copy we have and refresh it behind the scenes, so no request
+  // ever waits on a rebuild. After a real write (version moved on) the next request does wait, so it sees the change.
+  if (current) {
+    startBuild(serializeUniversity).catch((err) => console.warn("Background catalog refresh failed:", err));
+    return built;
+  }
+  return startBuild(serializeUniversity);
 }
 
 module.exports = { getCatalog, invalidateCatalog };

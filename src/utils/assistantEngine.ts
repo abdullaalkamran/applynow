@@ -1,5 +1,5 @@
 import type { Role } from "../types";
-import { sendAssistantRequest } from "./assistantClient";
+import { sendAssistantRequest, AssistantRequestError } from "./assistantClient";
 import type { AssistantMessage, ToolSpec } from "./assistantTypes";
 
 export interface ToolDefinition {
@@ -83,9 +83,11 @@ export async function runAssistantTurn(
       // there indefinitely with no error, which looks exactly like "taking forever to respond".
       const message = err instanceof Error ? err.message : String(err);
       const rateLimited = /429|RESOURCE_EXHAUSTED|quota/i.test(message);
-      const reply = rateLimited
-        ? "I'm being rate-limited by the AI provider right now (too many requests too quickly) — please wait a moment and try again."
-        : "Sorry, I couldn't reach the AI service just now — please try again in a moment.";
+      const reply = err instanceof AssistantRequestError && err.friendly
+        ? err.message
+        : rateLimited
+          ? "I'm being rate-limited by the AI provider right now (too many requests too quickly) — please wait a moment and try again."
+          : "Sorry, I couldn't reach the AI service just now — please try again in a moment.";
       working = [...working, { role: "assistant", text: reply }];
       return { reply, updatedHistory: working };
     }

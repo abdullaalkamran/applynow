@@ -9,7 +9,8 @@ import { LogoBadge } from "../../../components/ui/mobile";
 import { ProfileStepsPanel, Detail } from "../../../components/ProfileStepsPanel";
 import { ApplicationChecklistCard } from "../../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../../components/DocViewButton";
-import { DOCUMENTS, AGENTS, COUNSELLORS, ADMISSION_OFFICERS } from "../../../data/mockData";
+import { DOCUMENTS } from "../../../data/mockData";
+import { findStaffContact } from "../../../utils/currentStaff";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { getAllApplications, getStatusHistory, createApplication, sortByCreatedAscending } from "../../../data/applicationsStore";
 import {
@@ -21,7 +22,8 @@ import {
 import { getStudentTasks } from "../../../utils/taskBoard";
 import { addCoreDoc, verifyCoreDoc, rejectCoreDoc } from "../../../data/coreDocsStore";
 import { AddCoreDocumentButton } from "../../../components/CoreDocumentCard";
-import { StudentCommentsCard } from "../../../components/StudentCommentsCard";
+import { StudentApplicationComments } from "../../../components/StudentApplicationComments";
+import { IssuedDocumentsCard } from "../../../components/IssuedDocumentsCard";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
@@ -196,7 +198,7 @@ export default function StudentProfile() {
     );
   };
 
-  const agent = student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
+  const agent = findStaffContact(student.agentId);
 
   return (
     <div className="max-w-5xl">
@@ -331,8 +333,8 @@ export default function StudentProfile() {
             // actual source of truth — journey.stages.application.data never gets written to by
             // that flow, so reading from there always showed "Unassigned" regardless of what was
             // actually assigned.
-            const assignedCounsellor = COUNSELLORS.find((c) => c.id === a.responsibleCounsellorId);
-            const assignedAdmissionOfficer = ADMISSION_OFFICERS.find((o) => o.id === a.responsibleAdmissionOfficerId);
+            const assignedCounsellor = findStaffContact(a.responsibleCounsellorId);
+            const assignedAdmissionOfficer = findStaffContact(a.responsibleAdmissionOfficerId);
             return (
               <div key={a.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_0_10px_rgba(0,0,0,0.06)]">
                 <button
@@ -460,6 +462,8 @@ export default function StudentProfile() {
                           </div>
                           <p className="mt-1.5 text-[11px] text-slate-400">Notifies the student and their agent, and appears on the student's Documents tab.</p>
                         </div>
+
+                        <IssuedDocumentsCard applicationId={a.id} canManage />
                       </div>
 
                       {/* Column 2 — Status (the 9-stage journey + responsible staff) */}
@@ -739,9 +743,8 @@ export default function StudentProfile() {
 
       {tab === "Comments" && (
         <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
-          <p className="mb-3 text-sm font-semibold text-slate-800">Case comments</p>
-          <p className="mb-3 text-xs text-slate-400">Visible to and postable by this student, their counsellor and their agent — posting notifies each of their inboxes.</p>
-          <StudentCommentsCard studentId={student.id} />
+          <p className="mb-3 text-sm font-semibold text-slate-800">Application comments</p>
+          <StudentApplicationComments studentId={student.id} />
         </div>
       )}
     </div>

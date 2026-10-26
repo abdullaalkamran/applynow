@@ -35,13 +35,43 @@ router.post("/", requireAuth, async (req, res, next) => {
     }
     if (totalChars > MAX_TOTAL_CHARS) return res.status(400).json({ error: "Conversation is too long — start a new chat." });
 
-    const provider = getProvider(getConfig().provider);
+    const config = getConfig();
+    const provider = getProvider(config.provider);
     const reply = await provider.send({ systemPrompt: withIdentity(systemPrompt), messages, tools: tools || [] });
     res.json(reply);
   } catch (err) {
-    next(err);
+    // The global error handler hides every 5xx behind "Internal server error" — fine for most routes, but it turned
+    // "no API key configured" or "the provider is down" into an opaque failure that nobody could diagnose from the app.
+    // These messages are safe to show (no keys, no provider response bodies); the full error stays in the server log.
+    const friendly = describeProviderFailure(err);
+    if (!friendly) return next(err);
+    console.error("Assistant provider failure:", err);
+    res.status(friendly.status).json({ error: friendly.message });
   }
 });
+
+/** A safe, human-readable explanation for the provider failures an admin can actually fix, or null for anything else. */
+function describeProviderFailure(err) {
+  const message = String(err?.message || "");
+  if (/API_KEY is not set|api key.*not set|not configured/i.test(message)) {
+    return { status: 503, message: "The AI assistant isn't set up on the server yet — an admin needs to add the provider's API key under Admin → AI Settings." };
+  }
+  if (/Unknown AI_PROVIDER/i.test(message)) {
+    return { status: 503, message: "The AI provider on the server is set to an unknown value — an admin needs to pick one under Admin → AI Settings." };
+  }
+  const upstream = /API error: (\d{3})/.exec(message);
+  if (upstream) {
+    const code = Number(upstream[1]);
+    if (code === 401 || code === 403) return { status: 502, message: "The AI provider rejected the server's API key — an admin needs to check it under Admin → AI Settings." };
+    if (code === 404) return { status: 502, message: "The AI provider doesn't recognise the configured model — an admin needs to check the model name under Admin → AI Settings." };
+    if (code === 429) return { status: 429, message: "The AI provider is rate-limiting requests right now — please wait a moment and try again." };
+    return { status: 502, message: `The AI provider returned an error (${code}) — please try again in a moment.` };
+  }
+  if (err?.name === "TimeoutError" || err?.name === "AbortError" || /fetch failed|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EAI_AGAIN/i.test(message)) {
+    return { status: 504, message: "The server couldn't reach the AI provider in time — please try again in a moment." };
+  }
+  return null;
+}
 
 // Public (no admin token) — any signed-in role needs to know which voice engine is active and
 // whether it's actually usable (has a key), without ever seeing the keys themselves.

@@ -167,7 +167,7 @@ const COUNSELLOR_CONFIG: RoleAssistantConfig = {
       execute: () => getCounsellorTasks(ctx.userId),
     },
   ],
-  suggestions: ["What tasks do I have today?", "Suggest courses and scholarships for Sarah Khan", "Which documents is Sarah Khan still missing?", "What's blocking Sarah Khan's application?"],
+  suggestions: ["What tasks do I have today?", "Which of my students are missing documents?", "Which applications need my attention?", "Summarise my caseload by application stage"],
 };
 
 const ADMIN_CONFIG: RoleAssistantConfig = {

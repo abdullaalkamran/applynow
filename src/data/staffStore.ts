@@ -3,6 +3,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Role } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 export type StaffStatus = "Active" | "Invited" | "Inactive";
 
@@ -67,7 +68,7 @@ export function updateStaffRole(id: string, role: Role) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist staff role change:", err);
+      reportSaveError("Failed to persist staff role change:", err);
     });
 }
 
@@ -81,7 +82,7 @@ export function setStaffStatus(id: string, status: StaffStatus) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist staff status change:", err);
+      reportSaveError("Failed to persist staff status change:", err);
     });
 }
 
@@ -105,7 +106,7 @@ export function removeStaff(id: string) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to delete staff member on server:", err);
+      reportSaveError("Failed to delete staff member on server:", err);
     });
 }
 

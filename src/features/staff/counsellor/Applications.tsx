@@ -10,7 +10,8 @@ import { LogoBadge } from "../../../components/ui/mobile";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, pipelineBucketFor, daysAgo, type PipelineBucket } from "../../../utils/counsellorData";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
-import { AGENTS, DOCUMENTS } from "../../../data/mockData";
+import { DOCUMENTS } from "../../../data/mockData";
+import { findStaffContact } from "../../../utils/currentStaff";
 import { getAllUniversities } from "../../../data/universityCatalogStore";
 import { createApplication, applicationSortKey } from "../../../data/applicationsStore";
 import { destinationOptions, campusesFor, courseHasOpenIntake } from "../../../utils/universityFilter";
@@ -74,7 +75,7 @@ export default function CounsellorApplications() {
     if (sourceTab === "Agents" && !student.agentId) return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
-    const agent = student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
+    const agent = findStaffContact(student.agentId);
     return (
       student.name.toLowerCase().includes(q) ||
       app.university.toLowerCase().includes(q) ||
@@ -241,7 +242,7 @@ export default function CounsellorApplications() {
         {paginated.map(({ student, app }) => {
           const isNew = isNewSubmission(app);
           const university = UNIVERSITIES.find((u) => u.name === app.university);
-          const agent = student.agentId ? AGENTS.find((a) => a.id === student.agentId) : undefined;
+          const agent = findStaffContact(student.agentId);
           const openApplication = () => {
             markSeenByCounsellor(app.id);
             navigate(`/staff/counsellor/students/${student.id}`, { state: { tab: "Applications", appId: app.id } });

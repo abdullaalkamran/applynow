@@ -342,6 +342,13 @@ model Document {
   rejectionReason String?
   issuedDate      DateTime?      @db.Date
   expiryDate      DateTime?      @db.Date
+  // True for a document STAFF attach to an application (an offer letter, CAS letter, ...) under a field
+  // name of their choosing — as opposed to a student's upload or a requested placeholder. Visible to
+  // everyone tied to the application (student, agent, counsellor, admission) and never part of the
+  // student's required-documents checklist.
+  issuedByStaff   Boolean        @default(false)
+  uploadedByName  String?
+  uploadedByRole  String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

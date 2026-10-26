@@ -1,3 +1,4 @@
+import { unreadInboxCount } from "../data/inboxStore";
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
@@ -153,14 +154,14 @@ export default function AgentShell() {
         <header className="flex items-center justify-end gap-4 border-b border-slate-200 bg-white px-4 py-3.5 sm:px-6">
           <div className="flex shrink-0 items-center gap-3">
             <button
-              onClick={() => navigate("/agent/messages")}
-              aria-label="Messages"
+              onClick={() => navigate("/agent/notifications")}
+              aria-label="Notifications"
               className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-slate-600 shadow-[0_0_8px_rgba(0,0,0,0.07)]"
             >
               <Bell size={16} />
-              {unreadNotifications > 0 && (
+              {unreadInboxCount() > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
-                  {unreadNotifications}
+                  {unreadInboxCount()}
                 </span>
               )}
             </button>

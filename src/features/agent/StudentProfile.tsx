@@ -8,6 +8,8 @@ import { StatusBadge, Badge } from "../../components/ui";
 import { LogoBadge, DocChecklistRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
 import { ProfileStepsPanel } from "../../components/ProfileStepsPanel";
 import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
+import { IssuedDocumentsCard } from "../../components/IssuedDocumentsCard";
+import { StudentApplicationComments } from "../../components/StudentApplicationComments";
 import { ApplicationChecklistCard } from "../../components/ApplicationChecklistCard";
 import { DocViewButton } from "../../components/DocViewButton";
 import { CreateApplicationModal } from "./CreateApplicationModal";
@@ -29,7 +31,7 @@ import { daysAgo } from "../../utils/counsellorData";
 import { loadOpenNextStepsFor } from "../../utils/agentNextSteps";
 
 const CLOSED_STATUSES = new Set(["Enrolled", "Deferred", "Withdrawn", "Rejected"]);
-const TABS = ["Overview", "Applications", "Shortlist", "Documents", "Tasks"] as const;
+const TABS = ["Overview", "Applications", "Shortlist", "Documents", "Comments", "Tasks"] as const;
 type Tab = (typeof TABS)[number];
 
 const CORE_KEY = "core";
@@ -480,6 +482,10 @@ export default function AgentStudentProfile() {
                       </div>
                     </div>
 
+                    <div className="mt-4">
+                      <IssuedDocumentsCard applicationId={a.id} canManage={false} />
+                    </div>
+
                     <div className="mt-4 rounded-xl border border-slate-100 bg-white p-3">
                       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                         <MessageCircle size={13} /> Comments{" "}
@@ -649,6 +655,13 @@ export default function AgentStudentProfile() {
             className="hidden"
             onChange={(e) => { if (e.target.files?.[0]) handleDocFile(student.id, e.target.files[0]); e.target.value = ""; }}
           />
+        </div>
+      )}
+
+      {tab === "Comments" && (
+        <div className="mt-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
+          <p className="mb-3 text-sm font-semibold text-slate-800">Application comments</p>
+          <StudentApplicationComments studentId={student.id} />
         </div>
       )}
 

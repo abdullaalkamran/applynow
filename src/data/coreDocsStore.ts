@@ -6,6 +6,7 @@
 import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { BACKEND_BASE } from "../utils/backendBase";
+import { reportSaveError } from "../utils/toast";
 
 export interface CoreDoc {
   id: string;
@@ -102,7 +103,7 @@ export function addCoreDoc(studentId: string, name: string, file: File): CoreDoc
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist core document:", err);
+      reportSaveError("Failed to persist core document:", err);
     });
   return cache.filter((d) => d.studentId === studentId);
 }
@@ -128,7 +129,7 @@ export function requestCoreDocType(studentId: string, type: string): void {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to request core document type:", err);
+      reportSaveError("Failed to request core document type:", err);
     });
 }
 
@@ -158,7 +159,7 @@ export function deleteCoreDoc(id: string): void {
     if ((err as Error)?.name === "StaleSessionError") return;
     cache = prev;
     notifyCacheChange();
-    console.warn("Failed to delete core document:", err);
+    reportSaveError("Failed to delete core document:", err);
   });
 }
 
@@ -187,7 +188,7 @@ export function verifyCoreDoc(id: string): void {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to verify core document:", err);
+      reportSaveError("Failed to verify core document:", err);
     });
 }
 
@@ -208,7 +209,7 @@ export function rejectCoreDoc(id: string, reason: string): void {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to reject core document:", err);
+      reportSaveError("Failed to reject core document:", err);
     });
 }
 

@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { CountryBadge } from "../../components/ui/CountryBadge";
 import { SkylineArt, SupportRow, LogoBadge, Pill } from "../../components/ui/mobile";
-import { DOCUMENTS, CURRENT_STUDENT_ID, COUNSELLORS, AGENTS } from "../../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { findStaffContact } from "../../utils/currentStaff";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { RecommendedCarousel } from "./RecommendedCarousel";
@@ -247,8 +248,8 @@ export default function Dashboard() {
   }
   const initials = student.name.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const firstName = student.name.split(" ")[0];
-  const myCounsellor = COUNSELLORS.find((c) => c.id === student.counsellorId);
-  const myAgent = AGENTS.find((a) => a.id === student.agentId);
+  const myCounsellor = findStaffContact(student.counsellorId);
+  const myAgent = findStaffContact(student.agentId);
 
   // Nothing else on the home page — recommendations, applications, tasks — means anything until the
   // required parts of the profile are filled in (same gate as Explore/Apply); showing any of it

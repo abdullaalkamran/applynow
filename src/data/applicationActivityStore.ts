@@ -11,6 +11,7 @@ import { apiGet, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Role } from "../types";
 import type { StageType } from "../types/journey";
+import { reportSaveError } from "../utils/toast";
 
 export interface ActivityEvent {
   id: string;
@@ -74,7 +75,7 @@ export function recordActivity(event: Omit<ActivityEvent, "id" | "timestamp">): 
       cache[event.applicationId] = cache[event.applicationId].map((e) => (e.id === optimistic.id ? serverEvent : e));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist application activity:", err));
+    .catch((err) => reportSaveError("Failed to persist application activity:", err));
 
   return optimistic;
 }

@@ -6,7 +6,7 @@ import {
   Building2, Clock3, ExternalLink, ChevronRight, Landmark, ListChecks, BookOpen,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
-import { getAllUniversities } from "../../data/universityCatalogStore";
+import { useUniversity } from "../../data/useUniversity";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor, courseIntakeLabel } from "../../utils/universityFilter";
 import { subjectsPreview, campusesPreview, coursesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
@@ -38,9 +38,7 @@ export default function AgentUniversityDetail() {
   const location = useLocation();
   const navState = location.state as { selectedCourseName?: string; subject?: string } | null;
   const students = loadAgentStudents();
-  const UNIVERSITIES = getAllUniversities();
-
-  const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
+  const { university, loading: universityLoading } = useUniversity(id);
   const [activeCourseName, setActiveCourseName] = useState<string | null>(navState?.selectedCourseName ?? null);
   const [uniTab, setUniTab] = useState<(typeof UNI_TABS)[number]>("Overview");
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Overview");
@@ -52,7 +50,7 @@ export default function AgentUniversityDetail() {
         <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
           <ArrowLeft size={14} /> Back
         </button>
-        <p className="text-xs text-slate-400">University not found.</p>
+        <p className="text-xs text-slate-400">{universityLoading ? "Loading university…" : "University not found."}</p>
       </div>
     );
   }

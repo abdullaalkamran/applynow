@@ -19,8 +19,20 @@ export interface NotificationItem {
   path: string;
   // Set on document/comment items pointing at an application — opens straight to the tab that
   // actually shows what triggered the notification, instead of always landing on Overview.
-  state?: { tab: "Documents" | "Comments" };
+  state?: { tab: "Documents" | "Comments" | "Overview" };
+  // True for items that are real server rows (their read state lives on the server, not in this browser).
+  fromInbox?: boolean;
 }
+
+// Server inbox row types -> how the student's feed shows them.
+const INBOX_KIND: Record<string, NotificationType> = {
+  comment_added: "comment",
+  document_added: "document",
+  document_requested: "document",
+  document_uploaded: "document",
+  document_reviewed: "document",
+  status_changed: "application",
+};
 
 function relativeTime(dateStr: string): string {
   const days = Math.round((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
@@ -39,17 +51,20 @@ export function getNotifications(): NotificationItem[] {
   // Real, server-backed comment notifications (see server's POST /:id/activity) — unlike every
   // other item below, `read` here already comes from the server rather than the local readIds set.
   getInboxItems()
-    .filter((n) => n.type === "comment_added")
+    .filter((n) => n.type in INBOX_KIND)
     .forEach((n) => {
+      const kind = INBOX_KIND[n.type];
+      const isDoc = kind === "document";
       items.push({
         id: n.id,
-        type: "comment",
+        type: kind,
         title: n.title,
         detail: n.body ?? "",
         time: relativeTime(n.createdAt),
         read: n.read,
         path: n.applicationId ? `/student/applications/${n.applicationId}` : "/student/notifications",
-        state: n.applicationId ? { tab: "Comments" } : undefined,
+        state: n.applicationId ? { tab: isDoc ? "Documents" : kind === "comment" ? "Comments" : "Overview" } : undefined,
+        fromInbox: true,
       });
     });
 
@@ -74,7 +89,7 @@ export function getNotifications(): NotificationItem[] {
   );
 
   applications.forEach((app) => {
-    const id = `app-${app.id}`;
+    const id = `app-${app.id}:${app.status}`;
     items.push({
       id,
       type: "application",
@@ -107,7 +122,7 @@ export function getNotifications(): NotificationItem[] {
 
   const missingCore = coreChecklist.filter((r) => !r.own).length;
   if (missingCore > 0) {
-    const id = "doc-core";
+    const id = `doc-core:${missingCore}`;
     items.push({
       id,
       type: "document",
@@ -147,7 +162,7 @@ export function getNotifications(): NotificationItem[] {
 
     const missing = checklist.filter((r) => !r.own && !r.reused).length;
     if (missing === 0) return;
-    const id = `doc-${app.id}`;
+    const id = `doc-${app.id}:${missing}`;
     items.push({
       id,
       type: "document",

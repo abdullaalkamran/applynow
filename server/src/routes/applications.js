@@ -9,6 +9,8 @@ const { sendStatusNotification } = require("../notifications/dispatch");
 const { threadIdFor } = require("./messages");
 const { requireInternal, applicationWhere, accessibleApplication, accessibleStudent, isInternal } = require("../middleware/access");
 
+const { notifyInBackground } = require("../inboxNotify");
+
 const router = express.Router();
 
 const NOT_FOUND = { error: "Application not found." };
@@ -67,6 +69,23 @@ async function recipientsAndVariablesFor(application) {
   return { recipients, variables };
 }
 
+/** Looks up the student/counsellor/agent contacts and sends the WhatsApp/email status alert — always called WITHOUT await,
+ * after the HTTP response is on its way. It used to run inline (two more queries before the response), which on a slow
+ * database was a large part of why changing a status felt like it timed out. */
+function notifyStatusChangeInBackground(application, status, actor) {
+  notifyInBackground({
+    studentId: application.studentId, application, actor, type: "status_changed",
+    title: `${application.university} — ${status}`,
+    body: `${application.course}: status is now ${status}.`,
+  });
+  recipientsAndVariablesFor(application)
+    .then(({ recipients, variables }) => {
+      if (recipients.length === 0) return undefined;
+      return sendStatusNotification({ status, recipients, variables });
+    })
+    .catch((err) => console.warn("Status-change notification failed to send:", err));
+}
+
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const { studentId, status, responsibleCounsellorId } = req.query;
@@ -78,6 +97,41 @@ router.get("/", requireAuth, async (req, res, next) => {
     if (responsibleCounsellorId) where.responsibleCounsellorId = String(responsibleCounsellorId);
     const apps = await prisma.application.findMany({ where, orderBy: { createdAt: "asc" } });
     res.json(apps.map(serializeApplication));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Platform-wide audit trail for the admin Audit Logs page: the most recent recorded events (status
+// changes, stage updates, assignments, document requests, comments) across every application,
+// attributed to whoever did them. Registered before "/:id" so "audit-log" is not read as an id.
+router.get("/audit-log", requireAuth, async (req, res, next) => {
+  try {
+    if (req.authUser.role !== "admin") return res.status(403).json({ error: "Admin role required." });
+    const rows = await prisma.applicationActivity.findMany({
+      where: { action: { not: "comment_added" } },
+      orderBy: { timestamp: "desc" },
+      take: 200,
+    });
+    const apps = await prisma.application.findMany({
+      where: { id: { in: [...new Set(rows.map((r) => r.applicationId))] } },
+      select: { id: true, university: true, course: true },
+    });
+    const byId = new Map(apps.map((a) => [a.id, a]));
+    res.json(
+      rows.map((r) => {
+        const a = byId.get(r.applicationId);
+        return {
+          id: r.id,
+          actor: r.performedByName,
+          role: r.performedByRole,
+          action: String(r.action).replace(/_/g, " "),
+          target: a ? `${a.university} — ${a.course}` : r.applicationId,
+          detail: r.newValue ? String(r.oldValue ? `${r.oldValue} → ${r.newValue}` : r.newValue) : "",
+          timestamp: r.timestamp.toISOString(),
+        };
+      })
+    );
   } catch (err) {
     next(err);
   }
@@ -175,14 +229,9 @@ router.post("/", requireAuth, async (req, res, next) => {
     // Same notification path the status-PATCH route uses — a brand-new application is created
     // straight into "Submitted", which never goes through that route, so without this the
     // student's counsellor/agent never gets the WhatsApp/email "Submitted" alert at all.
-    const { recipients, variables } = await recipientsAndVariablesFor(app);
-    if (recipients.length > 0) {
-      sendStatusNotification({ status: "Submitted", recipients, variables }).catch((err) =>
-        console.warn("New-application notification failed to send:", err)
-      );
-    }
-
     res.status(201).json(serializeApplication(app));
+    notifyStatusChangeInBackground(app, "Submitted", actor);
+    return;
   } catch (err) {
     next(err);
   }
@@ -224,16 +273,9 @@ router.patch("/:id/status", requireAuth, requireInternal, async (req, res, next)
       return { updated, previousStatus };
     });
 
-    if (status !== previousStatus) {
-      const { recipients, variables } = await recipientsAndVariablesFor(updated);
-      if (recipients.length > 0) {
-        sendStatusNotification({ status, recipients, variables }).catch((err) =>
-          console.warn("Status-change notification failed to send:", err)
-        );
-      }
-    }
-
     res.json(serializeApplication(updated));
+    if (status !== previousStatus) notifyStatusChangeInBackground(updated, status, actor);
+    return;
   } catch (err) {
     next(err);
   }
@@ -372,6 +414,39 @@ router.get("/:id/activity", requireAuth, async (req, res, next) => {
   }
 });
 
+/** Inbox + 1:1 message fan-out for a new application comment — see the POST /:id/activity route. */
+async function fanOutComment(app, row, actor, notes) {
+  const participants = await getApplicationParticipants(app);
+  const recipients = participants.filter((p) => !(p.id === actor.id && p.role === actor.role));
+  if (recipients.length === 0) return;
+  await Promise.all([
+    prisma.notification.createMany({
+      data: recipients.map((p) => ({
+        userId: p.id,
+        userRole: p.role,
+        type: "comment_added",
+        title: `${actor.name} commented on ${app.university} — ${app.course}`,
+        body: String(notes).slice(0, 280),
+        studentId: app.studentId,
+        applicationId: app.id,
+        activityId: row.id,
+      })),
+    }),
+    // Also fans the comment out as an individual 1:1 message from the poster to each other
+    // participant — so it shows up in their normal chat with that person, not just the shared
+    // comment thread on the application itself.
+    prisma.message.createMany({
+      data: recipients.map((p) => ({
+        id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}-${p.id}`,
+        threadId: threadIdFor(actor, p),
+        fromId: actor.id, fromRole: actor.role, fromName: actor.name,
+        toId: p.id, toRole: p.role, toName: p.name,
+        text: `[${app.university} — ${app.course}] ${notes}`,
+      })),
+    }),
+  ]);
+}
+
 // For activity a client itself originates — a comment (action "comment_added", postable and
 // visible to anyone, same as GET above) or the counsellor's request_document AI tool call — as
 // opposed to the activity rows other routes in this file already create automatically alongside
@@ -412,38 +487,16 @@ router.post("/:id/activity", requireAuth, async (req, res, next) => {
       },
     });
 
-    if (action === "comment_added" && notes) {
-      const participants = await getApplicationParticipants(app);
-      const recipients = participants.filter((p) => !(p.id === actor.id && p.role === actor.role));
-      if (recipients.length > 0) {
-        await prisma.notification.createMany({
-          data: recipients.map((p) => ({
-            userId: p.id,
-            userRole: p.role,
-            type: "comment_added",
-            title: `${actor.name} commented on ${app.university} — ${app.course}`,
-            body: String(notes).slice(0, 280),
-            studentId: app.studentId,
-            applicationId: app.id,
-            activityId: row.id,
-          })),
-        });
-        // Also fans the comment out as an individual 1:1 message from the poster to each other
-        // participant — so it shows up in their normal chat with that person, not just the
-        // shared comment thread on the application itself.
-        await prisma.message.createMany({
-          data: recipients.map((p) => ({
-            id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}-${p.id}`,
-            threadId: threadIdFor(actor, p),
-            fromId: actor.id, fromRole: actor.role, fromName: actor.name,
-            toId: p.id, toRole: p.role, toName: p.name,
-            text: `[${app.university} — ${app.course}] ${notes}`,
-          })),
-        });
-      }
-    }
-
+    // The comment is saved; answer now and fan it out to the other participants afterwards. The fan-out
+    // is several more queries (participants, inbox rows, 1:1 messages) and used to be awaited before
+    // responding — on a slow database that made posting a comment feel like a timeout.
     res.status(201).json(serializeActivity(row));
+
+    if (action === "comment_added" && notes) {
+      fanOutComment(app, row, actor, notes).catch((err) => console.warn("Comment notification fan-out failed:", err));
+    }
+    return;
+
   } catch (err) {
     next(err);
   }
@@ -567,14 +620,7 @@ async function applyStageToApplication(applicationId, stageType, updatedStage, o
     return updated;
   });
 
-  if (derivedStatus !== previousStatus) {
-    const { recipients, variables } = await recipientsAndVariablesFor(updatedApp);
-    if (recipients.length > 0) {
-      sendStatusNotification({ status: derivedStatus, recipients, variables }).catch((err) =>
-        console.warn("Status-change notification failed to send:", err)
-      );
-    }
-  }
+  if (derivedStatus !== previousStatus) notifyStatusChangeInBackground(updatedApp, derivedStatus, actor);
 
   return nextStages;
 }

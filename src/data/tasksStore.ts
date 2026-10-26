@@ -5,6 +5,7 @@
 import type { StageType } from "../types/journey";
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 export type TaskRole = "student" | "agent" | "counsellor" | "admin" | "admission";
 
@@ -97,7 +98,7 @@ export function addTask(input: {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist new task:", err);
+      reportSaveError("Failed to persist new task:", err);
     });
   return task;
 }
@@ -112,7 +113,7 @@ export function patchTask(id: string, patch: Partial<Task>) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist task update:", err);
+      reportSaveError("Failed to persist task update:", err);
     });
 }
 
@@ -132,7 +133,7 @@ export function removeTask(id: string) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to delete task on server:", err);
+      reportSaveError("Failed to delete task on server:", err);
     });
 }
 

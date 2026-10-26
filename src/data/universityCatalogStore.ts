@@ -9,6 +9,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getCountryId } from "./countryRegistry";
 import type { University } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 type Course = University["courses"][number];
 
@@ -66,7 +67,7 @@ export function addUniversity(data: Omit<University, "id">): { optimistic: Unive
       if ((err as Error)?.name !== "StaleSessionError") {
         cache = prev;
         notifyCacheChange();
-        console.warn("Failed to persist new university:", err);
+        reportSaveError("Failed to persist new university:", err);
       }
       throw err;
     });
@@ -91,7 +92,7 @@ export function updateUniversity(id: string, patch: Partial<University>): Promis
       if ((err as Error)?.name !== "StaleSessionError") {
         cache = prev;
         notifyCacheChange();
-        console.warn("Failed to persist university update:", err);
+        reportSaveError("Failed to persist university update:", err);
       }
       throw err;
     });
@@ -107,7 +108,7 @@ export function deleteUniversity(id: string) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to delete university:", err);
+      reportSaveError("Failed to delete university:", err);
     });
 }
 
@@ -131,7 +132,7 @@ export function addCourse(universityId: string, course: Omit<Course, "id">): Cou
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist new course:", err);
+      reportSaveError("Failed to persist new course:", err);
     });
 
   return newCourse;
@@ -147,7 +148,7 @@ export function updateCourse(universityId: string, courseId: string, patch: Part
   notifyCacheChange();
 
   apiPatch<Course>(`/api/universities/${universityId}/courses/${courseId}`, patch).catch((err) =>
-    console.warn("Failed to persist course update:", err)
+    reportSaveError("Failed to persist course update:", err)
   );
 }
 
@@ -155,7 +156,7 @@ export function removeCourse(universityId: string, courseId: string) {
   cache = cache.map((u) => (u.id === universityId ? { ...u, courses: u.courses.filter((c) => c.id !== courseId) } : u));
   notifyCacheChange();
   apiDelete(`/api/universities/${universityId}/courses/${courseId}`).catch((err) =>
-    console.warn("Failed to delete course:", err)
+    reportSaveError("Failed to delete course:", err)
   );
 }
 

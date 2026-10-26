@@ -7,10 +7,8 @@ import {
   Clock, Landmark, GraduationCap, ChevronRight, ChevronDown, MessageCircle, ExternalLink, ListChecks, AlertCircle,
 } from "lucide-react";
 import { LogoBadge, DocChecklistRow, SupportRow, type ScanStatus, type UploadedDoc } from "../../components/ui/mobile";
-import {
-  DOCUMENTS, CURRENT_STUDENT_ID,
-  COUNSELLORS, AGENTS, ADMISSION_OFFICERS,
-} from "../../data/mockData";
+import { DOCUMENTS, CURRENT_STUDENT_ID } from "../../data/mockData";
+import { findStaffContact } from "../../utils/currentStaff";
 import { getAllStudents } from "../../data/allStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { getAllUniversities } from "../../data/universityCatalogStore";
@@ -21,6 +19,7 @@ import { statementOfPurposeType } from "../../data/coreDocsStore";
 import { APPLICATION_STAGES as STEPS, applicationStageIndex as pipelineIndex } from "../../utils/applicationStatus";
 import { loadNextSteps, toggleNextStepDone } from "../../data/applicationNextStepsStore";
 import { ApplicationJourneyPanel, ApplicationCommentsCard } from "../../components/ApplicationJourneyPanel";
+import { IssuedDocumentsCard } from "../../components/IssuedDocumentsCard";
 import { NeuTabs } from "../../components/ui/NeuTabs";
 import { courseFeeText } from "../../utils/courseFee";
 
@@ -80,7 +79,9 @@ export default function ApplicationDetail() {
   const [, forceTick] = useState(0);
   const nextSteps = loadNextSteps(application?.id ?? "");
 
-  const [uploadedDocs, setUploadedDocs] = useState(() => loadUploadedDocs(application?.id ?? ""));
+  // Read live from the document cache on every render. This used to be copied into state once, at first render — while the
+  // cache was still empty on a fresh load — so documents requested or reviewed by the counsellor did not show up until a refresh.
+  const uploadedDocs = loadUploadedDocs(application?.id ?? "");
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState<UploadedDoc | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
@@ -98,7 +99,7 @@ export default function ApplicationDetail() {
   }
 
   function addUploadedDoc(name: string, file: File) {
-    setUploadedDocs(addUploadedDocToStore(application.id, name, file));
+    addUploadedDocToStore(application.id, name, file);
   }
 
   // "Upload bank statement" -> "Bank statement" — the specific document this application's current
@@ -168,9 +169,9 @@ export default function ApplicationDetail() {
   // Only people actually assigned to this student/application — never a default admission or compliance officer. Compliance is
   // an internal review the student never deals with, and an admission officer shows only once one is assigned to this application.
   const reviewTeam = [
-    student && COUNSELLORS.find((c) => c.id === student.counsellorId),
-    student && AGENTS.find((a) => a.id === student.agentId),
-    application.responsibleAdmissionOfficerId ? ADMISSION_OFFICERS.find((o) => o.id === application.responsibleAdmissionOfficerId) : undefined,
+    findStaffContact(student?.counsellorId),
+    findStaffContact(student?.agentId),
+    findStaffContact(application.responsibleAdmissionOfficerId),
   ].filter((c): c is NonNullable<typeof c> => !!c);
 
   return (
@@ -402,6 +403,10 @@ export default function ApplicationDetail() {
                   <ApplicationJourneyPanel applicationId={application.id} mode="student" />
                 </div>
 
+                <div className="mb-5">
+                  <IssuedDocumentsCard applicationId={application.id} canManage={false} tone="neu" />
+                </div>
+
                 {course && university && (
                   <div className="rounded-2xl border border-transparent bg-[var(--sd-card)] shadow-neu">
                     <button
@@ -426,6 +431,8 @@ export default function ApplicationDetail() {
 
             {tab === "Documents" && (
               <div className="space-y-2.5">
+                <IssuedDocumentsCard applicationId={application.id} canManage={false} tone="neu" />
+
                 <button
                   onClick={() => navigate("/student/documents")}
                   className={`flex w-full items-center justify-between gap-2 rounded-2xl border p-3.5 text-left ${coreDocsBlocked ? `neu-card-red border-transparent ${shakeCard ? "shake-attn" : ""}` : "border-transparent bg-[var(--sd-card)] shadow-neu-inset-sm"}`}

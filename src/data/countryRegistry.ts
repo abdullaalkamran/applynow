@@ -11,6 +11,7 @@
 import { loadStoredAuth } from "../utils/authClient";
 import { apiGet, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 export interface RequiredDocument {
   id: string;
@@ -155,7 +156,7 @@ export function deleteCountry(id: string) {
     if ((err as Error)?.name === "StaleSessionError") return;
     cache = prev;
     notifyCacheChange();
-    console.warn("Failed to delete country:", err);
+    reportSaveError("Failed to delete country:", err);
   });
 }
 
@@ -223,7 +224,7 @@ export function updateCountryDetails(id: string, patch: Partial<Omit<CountryReco
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist country update:", err);
+      reportSaveError("Failed to persist country update:", err);
     });
 }
 

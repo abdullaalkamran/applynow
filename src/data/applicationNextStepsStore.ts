@@ -6,6 +6,7 @@
 // a due-dated task on their Tasks page either (see taskBoard.ts's nextStepTasksFor).
 import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 export interface NextStep {
   id: string;
@@ -64,7 +65,7 @@ export function addNextStep(applicationId: string, title: string, dueDate?: stri
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist next step:", err);
+      reportSaveError("Failed to persist next step:", err);
     });
   return optimistic;
 }
@@ -90,7 +91,7 @@ export function toggleNextStepDone(_applicationId: string, stepId: string) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to complete next step:", err);
+      reportSaveError("Failed to complete next step:", err);
     });
 }
 
@@ -111,7 +112,7 @@ export function setNextStepDueDate(_applicationId: string, stepId: string, dueDa
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to set next step due date:", err);
+      reportSaveError("Failed to set next step due date:", err);
     });
 }
 
@@ -125,7 +126,7 @@ export function removeNextStep(_applicationId: string, stepId: string) {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to remove next step:", err);
+      reportSaveError("Failed to remove next step:", err);
     });
 }
 

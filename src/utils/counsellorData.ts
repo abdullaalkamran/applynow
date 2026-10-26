@@ -1,4 +1,5 @@
-import { UNIVERSITIES, DOCUMENTS } from "../data/mockData";
+import { DOCUMENTS } from "../data/mockData";
+import { getAllUniversities } from "../data/universityCatalogStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
@@ -7,7 +8,7 @@ import type { AppStatus } from "../types";
 // Live binding, mirroring mockData.ts's CURRENT_STUDENT_ID / CURRENT_AGENT_ID — set from
 // AuthContext.tsx whenever a counsellor session is established, so the counsellor portal shows the
 // logged-in counsellor's own caseload rather than the seeded demo account's.
-export let COUNSELLOR_ID = "c1";
+export let COUNSELLOR_ID = "";
 export function setCounsellorId(id: string) {
   COUNSELLOR_ID = id;
 }
@@ -21,7 +22,7 @@ export function activeApplicationsFor(studentId: string) {
 export function missingDocsCountFor(studentId: string): number {
   let count = buildCoreChecklist(studentId).filter((r) => !r.own).length;
   activeApplicationsFor(studentId).forEach((app) => {
-    const university = UNIVERSITIES.find((u) => u.name === app.university);
+    const university = getAllUniversities().find((u) => u.name === app.university);
     if (!university) return;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === studentId && d.applicationId === app.id),
@@ -39,7 +40,7 @@ export function docCompletionFor(studentId: string): { total: number; fulfilled:
   let total = core.length;
   let fulfilled = core.filter((r) => r.own).length;
   activeApplicationsFor(studentId).forEach((app) => {
-    const university = UNIVERSITIES.find((u) => u.name === app.university);
+    const university = getAllUniversities().find((u) => u.name === app.university);
     if (!university) return;
     const docs = [
       ...DOCUMENTS.filter((d) => d.studentId === studentId && d.applicationId === app.id),

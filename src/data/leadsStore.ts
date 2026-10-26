@@ -3,6 +3,7 @@
 // as that account gets its first application, it naturally drops off this list on its own; there's
 // no separate "convert" step because the account was always real.
 
+import { userScopedKey } from "../utils/userScope";
 import { loadAssignedStudents } from "./counsellorStudentsStore";
 import { getAllApplications } from "./applicationsStore";
 import type { LeadFollowUpStatus, Student } from "../types";
@@ -12,7 +13,7 @@ const STATUS_KEY = "sd-lead-followup-status";
 function loadStatusMap(): Record<string, LeadFollowUpStatus> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(STATUS_KEY);
+    const raw = window.localStorage.getItem(userScopedKey(STATUS_KEY));
     return raw ? (JSON.parse(raw) as Record<string, LeadFollowUpStatus>) : {};
   } catch {
     return {};
@@ -21,7 +22,7 @@ function loadStatusMap(): Record<string, LeadFollowUpStatus> {
 
 function saveStatusMap(map: Record<string, LeadFollowUpStatus>) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STATUS_KEY, JSON.stringify(map));
+  window.localStorage.setItem(userScopedKey(STATUS_KEY), JSON.stringify(map));
 }
 
 /** Every assigned student who has never submitted an application. */

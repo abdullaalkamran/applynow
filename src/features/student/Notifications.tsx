@@ -29,14 +29,14 @@ export default function Notifications() {
   const unreadCount = items.filter((n) => !n.read).length;
 
   function open(item: NotificationItem) {
-    if (item.type === "comment") markInboxItemRead(item.id);
+    if (item.fromInbox) markInboxItemRead(item.id);
     else markNotificationRead(item.id);
     setReadNow((prev) => new Set(prev).add(item.id));
     navigate(item.path, item.state ? { state: item.state } : undefined);
   }
 
   function markAllRead() {
-    markAllNotificationsRead(items.filter((n) => n.type !== "comment").map((n) => n.id));
+    markAllNotificationsRead(items.filter((n) => !n.fromInbox).map((n) => n.id));
     markAllInboxRead();
     setReadNow(new Set(items.map((n) => n.id)));
   }

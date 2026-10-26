@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GOOGLE_CLIENT_ID } from "./utils/googleClientId";
 import { RequireAuth } from "./layouts/RequireAuth";
 import { ROLE_HOME } from "./layouts/nav";
+import { ToastHost } from "./components/ToastHost";
 
 // Every route below (and each role's whole shell) is lazy — previously all ~90 of these were
 // eagerly imported here, so every visitor's very first load downloaded every role's every page
@@ -83,6 +84,7 @@ const CounsellorUniversityDetail = lazy(() => import("./features/staff/counsello
 const CounsellorVisaCompliance = lazy(() => import("./features/staff/counsellor/VisaCompliance"));
 const CounsellorReports = lazy(() => import("./features/staff/counsellor/Reports"));
 const CounsellorResources = lazy(() => import("./features/staff/counsellor/Resources"));
+const InboxNotifications = lazy(() => import("./features/shared/InboxNotifications"));
 const CounsellorSettings = lazy(() => import("./features/staff/counsellor/Settings"));
 const AdmissionSubmissionQueue = lazy(() => import("./features/staff/admission/SubmissionQueue"));
 const SharedMessages = lazy(() => import("./features/shared/Messages"));
@@ -146,6 +148,7 @@ export default function App() {
     <MaybeGoogleOAuthProvider>
     <AuthProvider>
       <BrowserRouter>
+        <ToastHost />
         <RouteErrorBoundary>
         <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
@@ -201,7 +204,9 @@ export default function App() {
             <Route path="/staff/counsellor/students/:id" element={<CounsellorStudentProfile />} />
             <Route path="/staff/counsellor/applications" element={<CounsellorApplications />} />
             <Route path="/staff/counsellor/counseling" element={<CounsellorCounseling />} />
-            <Route path="/staff/counsellor/partners" element={<CounsellorUniversityPartners />} />
+            <Route path="/staff/counsellor/partners" element={<CounsellorUniversityPartners />}>
+              <Route path="filters" element={<UniversityFilters />} />
+            </Route>
             <Route path="/staff/counsellor/partners/universities/:id" element={<CounsellorUniversityDetail />} />
             <Route path="/staff/counsellor/partners/:country" element={<CounsellorCountryDetail />} />
             <Route path="/staff/counsellor/visa-compliance" element={<CounsellorVisaCompliance />} />
@@ -210,6 +215,7 @@ export default function App() {
             <Route path="/staff/counsellor/reports" element={<CounsellorReports />} />
             <Route path="/staff/counsellor/resources" element={<CounsellorResources />} />
             <Route path="/staff/counsellor/settings" element={<CounsellorSettings />} />
+            <Route path="/staff/counsellor/notifications" element={<InboxNotifications fallback="/staff/counsellor" studentsPath="/staff/counsellor/students" />} />
           </Route>
           </Route>
 
@@ -221,7 +227,9 @@ export default function App() {
             <Route path="/agent/students/new" element={<AgentCreateStudentProfile />} />
             <Route path="/agent/students/:id" element={<AgentStudentProfile />} />
             <Route path="/agent/applications" element={<AgentApplications />} />
-            <Route path="/agent/universities" element={<AgentUniversities />} />
+            <Route path="/agent/universities" element={<AgentUniversities />}>
+              <Route path="filters" element={<UniversityFilters />} />
+            </Route>
             <Route path="/agent/universities/:id" element={<AgentUniversityDetail />} />
             <Route path="/agent/universities/:id/campuses" element={<AgentCampusOptions />} />
             <Route path="/agent/subjects/:subject" element={<AgentSubjectDetail />} />
@@ -233,6 +241,7 @@ export default function App() {
             <Route path="/agent/tasks" element={<AgentTasks />} />
             <Route path="/agent/profile" element={<AgentProfile />} />
             <Route path="/agent/messages" element={<AgentMessages />} />
+            <Route path="/agent/notifications" element={<InboxNotifications fallback="/agent" studentsPath="/agent/students" />} />
           </Route>
           </Route>
 

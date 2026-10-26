@@ -1,3 +1,4 @@
+import { useUniversity } from "../../data/useUniversity";
 import { websiteHref } from "../../utils/safeHref";
 import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -6,7 +7,6 @@ import {
   Clock, Users, ChevronRight, ArrowUpRight, ExternalLink, Landmark, ListChecks, BookOpen, Briefcase, Search,
 } from "lucide-react";
 import { SkylineArt, Pill, LogoBadge, CoverPhoto } from "../../components/ui/mobile";
-import { getAllUniversities } from "../../data/universityCatalogStore";
 import { scholarshipLabel, depositLabel, courseHasOpenIntake, campusLabelFor, courseIntakeLabel } from "../../utils/universityFilter";
 import { campusesPreview, highlightsPreview, intakesPreview, scholarshipsPreview, admissionStepsPreview } from "../../utils/universityPreviews";
 import { curriculumForCourse } from "../../data/subjectCurriculum";
@@ -39,8 +39,7 @@ export default function UniversityDetail() {
   const location = useLocation();
   const navState = location.state as { selectedCourseName?: string; subject?: string } | null;
   const originSubject = navState?.subject;
-  const UNIVERSITIES = getAllUniversities();
-  const university = UNIVERSITIES.find((u) => u.id === id) ?? UNIVERSITIES[0];
+  const { university, loading: universityLoading } = useUniversity(id);
 
   // No course selected on entry (reached via the Universities tab) → show the university's overall
   // profile with a course list to choose from. A course chosen there, or arriving pre-selected from
@@ -58,7 +57,7 @@ export default function UniversityDetail() {
         <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           <ArrowLeft size={14} /> Back
         </button>
-        <p className="text-xs text-neutral-400">University not found.</p>
+        <p className="text-xs text-neutral-400">{universityLoading ? "Loading university…" : "University not found."}</p>
       </div>
     );
   }

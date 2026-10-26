@@ -12,6 +12,7 @@ import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { ensureCoreDocRequested, statementOfPurposeType } from "./coreDocsStore";
 import type { Application, AppStatus, Role } from "../types";
+import { reportSaveError } from "../utils/toast";
 
 type Actor = { id: string; role: Role; name: string };
 
@@ -93,7 +94,7 @@ export function updateApplicationStatus(applicationId: string, status: AppStatus
       cache = cache.map((a) => (a.id === applicationId ? updated : a));
       notifyCacheChange();
     })
-    .catch((err) => console.warn("Failed to persist status update:", err));
+    .catch((err) => reportSaveError("Failed to persist status update:", err));
 }
 
 // `actor` is accepted for call-site compatibility (ResponsibleStaffCard passes it) but no longer
@@ -103,7 +104,7 @@ export function assignCounsellor(applicationId: string, counsellorId: string, _a
   cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleCounsellorId: counsellorId } : a));
   notifyCacheChange();
   apiPatch(`/api/applications/${applicationId}/assign-counsellor`, { counsellorId }).catch((err) =>
-    console.warn("Failed to persist counsellor assignment:", err)
+    reportSaveError("Failed to persist counsellor assignment:", err)
   );
 }
 
@@ -112,7 +113,7 @@ export function assignAdmissionOfficer(applicationId: string, officerId: string,
   cache = cache.map((a) => (a.id === applicationId ? { ...a, responsibleAdmissionOfficerId: officerId } : a));
   notifyCacheChange();
   apiPatch(`/api/applications/${applicationId}/assign-admission-officer`, { officerId }).catch((err) =>
-    console.warn("Failed to persist admission officer assignment:", err)
+    reportSaveError("Failed to persist admission officer assignment:", err)
   );
 }
 

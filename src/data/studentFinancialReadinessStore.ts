@@ -6,6 +6,7 @@
 // migrated store.
 import { apiGet, apiPatch } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 export interface StudentFinancialReadiness {
   studentId: string;
@@ -90,7 +91,7 @@ export function updateFinancialReadiness(studentId: string, patch: Partial<Stude
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist financial readiness:", err);
+      reportSaveError("Failed to persist financial readiness:", err);
     });
 
   return optimistic;

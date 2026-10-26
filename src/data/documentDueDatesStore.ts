@@ -7,6 +7,7 @@
 // (applicationId, type).
 import { apiGet, apiPost, apiDelete } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
+import { reportSaveError } from "../utils/toast";
 
 interface DueDateEntry {
   id: string;
@@ -43,7 +44,7 @@ export function setDocDueDate(applicationId: string, type: string, dueDate: stri
     cache = cache.filter((d) => !(d.applicationId === applicationId && d.docType === type));
     notifyCacheChange();
     apiDelete(`/api/document-due-dates?applicationId=${encodeURIComponent(applicationId)}&docType=${encodeURIComponent(type)}`).catch(
-      (err) => console.warn("Failed to remove document due date:", err)
+      (err) => reportSaveError("Failed to remove document due date:", err)
     );
     return;
   }
@@ -67,7 +68,7 @@ export function setDocDueDate(applicationId: string, type: string, dueDate: stri
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist document due date:", err);
+      reportSaveError("Failed to persist document due date:", err);
     });
 }
 

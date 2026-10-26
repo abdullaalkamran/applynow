@@ -22,19 +22,7 @@ export const PROFILE_STEPS: ProfileStep[] = [
   { key: "preferences", label: "Preferences", path: "/student/profile/preferences", required: false },
 ];
 
-// Seeded per assigned student, so a counsellor can see real completion state for anyone in their
-// caseload, not just whoever's signed into the student app in this demo. Sarah's profile is
-// realistic everywhere except Preferences (not yet saved) — a fresh browser starts at a believable
-// 80%. The others have a plausible partial state of their own. A student with no entry here (e.g.
-// one just added via "Add New Student") genuinely hasn't started, so defaults to all-false.
-const DEFAULT_COMPLETE_BY_STUDENT: Record<string, Record<string, boolean>> = {
-  s1: { "personal-information": true, "academic-details": true, "english-proficiency": true, "work-experience": true, "preferences": false },
-  s2: { "personal-information": false, "academic-details": true, "english-proficiency": false, "work-experience": false, "preferences": false },
-  s3: { "personal-information": false, "academic-details": true, "english-proficiency": false, "work-experience": false, "preferences": false },
-  // s6 signed up and picked their study preferences but hasn't filled in the rest yet — a real
-  // "lead" still warming up. s7 just created an account and hasn't started (all-false default).
-  s6: { "personal-information": false, "academic-details": false, "english-proficiency": false, "work-experience": false, "preferences": true },
-};
+const DEFAULT_COMPLETE_BY_STUDENT: Record<string, Record<string, boolean>> = {};
 
 const STORAGE_PREFIX = "sd-profile-step:";
 

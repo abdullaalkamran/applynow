@@ -135,6 +135,33 @@ function sortedForCompare<T>(rows: T[]): T[] {
   return [...rows].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
 }
 
+const MAX_TYPING_DEFERRAL_MS = 90_000;
+const TYPING_IDLE_MS = 2500;
+
+// When the last character was typed in a text field. Enter resets it: pressing Enter means "send/submit", and the result of
+// that (a new message, a new task) must appear straight away rather than wait for the typing pause.
+let lastTypedAt = 0;
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Enter") { lastTypedAt = 0; return; }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key.length > 1 && e.key !== "Backspace" && e.key !== "Delete") return;
+      lastTypedAt = Date.now();
+    },
+    true
+  );
+}
+
+/** True while someone is actively typing into a text field (a key was pressed in it within the last couple of seconds). */
+function userIsTyping(): boolean {
+  if (typeof document === "undefined" || Date.now() - lastTypedAt > TYPING_IDLE_MS) return false;
+  const active = document.activeElement;
+  if (active instanceof HTMLTextAreaElement) return true;
+  if (active instanceof HTMLInputElement) return ["text", "search", "email", "url", "tel", "number", "password", ""].includes(active.type);
+  return active instanceof HTMLElement && active.isContentEditable;
+}
+
 /** Mounted once per role shell (AppLayout, StudentShell, CounsellorShell, AgentShell). Returns a
  * tick number that changes whenever any migrated store's cache changes — the shell must put this
  * on the `<Outlet key={tick} />` it renders (not just let the returned re-render happen on its
@@ -159,10 +186,22 @@ export function useCacheSync(): number {
     // a burst of changes into a single tick bump ~150ms after the last one keeps the "a page
     // reading a store directly must still pick up data that arrived after its last render"
     // guarantee this hook exists for, without remounting once per store on every warm-up.
+    // Rebuilding the page wipes every piece of local state on it, including a half-typed comment, document name or rejection
+    // reason that is not wired to useHoldCacheSync. Don't pull the page out from under someone who is typing: wait until the
+    // field loses focus / is emptied, but never for more than a minute and a half so data cannot stay stale indefinitely.
+    let deferredSince = 0;
     function scheduleBump() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
+      debounceRef.current = setTimeout(function run() {
         debounceRef.current = null;
+        if (userIsTyping()) {
+          deferredSince = deferredSince || Date.now();
+          if (Date.now() - deferredSince < MAX_TYPING_DEFERRAL_MS) {
+            debounceRef.current = setTimeout(run, 1200);
+            return;
+          }
+        }
+        deferredSince = 0;
         // Only now is the change "seen": marking it earlier meant React StrictMode's dev-only effect re-run (cleanup clears
         // this timer, then the effect runs again) found nothing to catch up on, and a page rendered before the cache
         // filled stayed empty until something else changed.

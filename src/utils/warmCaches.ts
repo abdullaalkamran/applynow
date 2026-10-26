@@ -47,7 +47,33 @@ import { clearAgentInvoicesCache } from "../data/agentInvoicesStore";
 import { notifyCacheChange } from "./syncCache";
 import { refreshUniversities, migrateLegacyLocalUniversities } from "../data/universityCatalogStore";
 
-export function warmCaches() {
+// The partner catalog (every university with every course — tens of MB of JSON on a real
+// deployment), the country list and the other reference data only change when Data Management
+// edits them. Re-downloading, parsing and deep-comparing them on the 12s poll hammered the shared
+// server and froze the page on every tick, which is what made every other request (comments,
+// status changes, tasks…) queue up and "time out" in the counsellor portal. They are loaded once
+// at login and then at most every few minutes.
+const REFERENCE_REFRESH_MS = 5 * 60_000;
+let lastReferenceRefresh = 0;
+
+function warmReferenceData(force: boolean) {
+  const now = Date.now();
+  if (!force && now - lastReferenceRefresh < REFERENCE_REFRESH_MS) return;
+  lastReferenceRefresh = now;
+  refreshSubjectCatalog().catch((err) => console.warn("Failed to warm subject-catalog cache:", err));
+  refreshCommissionRates().catch((err) => console.warn("Failed to warm commission-rates cache:", err));
+  migrateLegacyLocalUniversities()
+    .then(() => refreshUniversities())
+    .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
+  migrateLegacyLocalCountries()
+    .then(() => refreshCountries())
+    .catch((err) => console.warn("Failed to warm/migrate countries cache:", err));
+}
+
+/** `force` (login / first load) fetches everything; a poll tick skips reference data that has not
+ * had time to change. */
+export function warmCaches(force = true) {
+  warmReferenceData(force);
   refreshApplications().catch((err) => console.warn("Failed to warm applications cache:", err));
   refreshTasks().catch((err) => console.warn("Failed to warm tasks cache:", err));
   refreshStaff().catch((err) => console.warn("Failed to warm staff cache:", err));
@@ -66,15 +92,7 @@ export function warmCaches() {
   refreshThreadsList().catch((err) => console.warn("Failed to warm message-threads cache:", err));
   refreshContacts().catch((err) => console.warn("Failed to warm message-contacts cache:", err));
   refreshCachedMessageThreads();
-  refreshSubjectCatalog().catch((err) => console.warn("Failed to warm subject-catalog cache:", err));
-  refreshCommissionRates().catch((err) => console.warn("Failed to warm commission-rates cache:", err));
   refreshAgentInvoices().catch((err) => console.warn("Failed to warm agent-invoices cache:", err));
-  migrateLegacyLocalUniversities()
-    .then(() => refreshUniversities())
-    .catch((err) => console.warn("Failed to warm/migrate universities cache:", err));
-  migrateLegacyLocalCountries()
-    .then(() => refreshCountries())
-    .catch((err) => console.warn("Failed to warm/migrate countries cache:", err));
   // Not a bulk fetch like the others — re-fetches whichever applications' journeys this session
   // has actually looked at (see applicationJourneyStore.ts's own comment on why this needs to be
   // on the same poll/focus schedule as everything else).
@@ -90,11 +108,11 @@ export function warmCaches() {
 // from the cache (see syncCache.ts's cacheChanged), so a poll that finds nothing new is a no-op —
 // it does NOT force the remount useCacheSync's doc comment describes, so open pages don't reset
 // their scroll/expanded state/in-progress edits every tick for no reason.
-const POLL_INTERVAL_MS = 12_000;
+const POLL_INTERVAL_MS = 20_000;
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 
 function handleVisibilityChange() {
-  if (document.visibilityState === "visible") warmCaches();
+  if (document.visibilityState === "visible") warmCaches(false);
 }
 
 /** Called once after login (see AuthContext.tsx) — re-warms every cache on an interval, plus
@@ -103,7 +121,7 @@ function handleVisibilityChange() {
 export function startCachePolling() {
   if (pollHandle || typeof window === "undefined") return;
   pollHandle = setInterval(() => {
-    if (document.visibilityState === "visible") warmCaches();
+    if (document.visibilityState === "visible") warmCaches(false);
   }, POLL_INTERVAL_MS);
   document.addEventListener("visibilitychange", handleVisibilityChange);
 }
@@ -121,6 +139,7 @@ export function stopCachePolling() {
  * nothing from the previous session (a different user on a shared browser, or the same user
  * whose permissions changed) can be rendered before the fresh fetches land. */
 export function clearAllCaches() {
+  lastReferenceRefresh = 0;
   clearApplicationsCache();
   clearTasksCache();
   clearStaffCache();

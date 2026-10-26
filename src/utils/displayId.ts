@@ -1,13 +1,10 @@
 // Human-readable, unique tracking numbers for students and applications — distinct from the
-// internal `id` (used for routing/lookups). Seeded records get a stable number from their
-// position in mockData; anything created later (new student, new application) is assigned the
+// internal `id` (used for routing/lookups). Anything created (new student, new application) is assigned the
 // next number the first time it's formatted and that assignment is persisted, so the same
 // record always shows the same ID and no two records ever collide.
 
-import { STUDENTS, APPLICATIONS } from "../data/mockData";
-
-function makeIdFormatter(prefix: string, seedIds: string[], storageKey: string) {
-  const seedIndex = new Map(seedIds.map((id, i) => [id, i + 1]));
+// `offset` keeps numbers already handed out on this browser (when 12 demo students were counted first) from being reused.
+function makeIdFormatter(prefix: string, offset: number, storageKey: string) {
 
   function loadCounterMap(): Record<string, number> {
     if (typeof window === "undefined") return {};
@@ -25,18 +22,15 @@ function makeIdFormatter(prefix: string, seedIds: string[], storageKey: string) 
   }
 
   return function formatId(id: string): string {
-    const seeded = seedIndex.get(id);
-    if (seeded) return `${prefix}-${String(seeded).padStart(4, "0")}`;
-
     const map = loadCounterMap();
     if (map[id]) return `${prefix}-${String(map[id]).padStart(4, "0")}`;
 
-    const nextNum = seedIds.length + Object.keys(map).length + 1;
+    const nextNum = offset + Object.keys(map).length + 1;
     map[id] = nextNum;
     saveCounterMap(map);
     return `${prefix}-${String(nextNum).padStart(4, "0")}`;
   };
 }
 
-export const formatStudentId = makeIdFormatter("STU", STUDENTS.map((s) => s.id), "sd-student-id-counters");
-export const formatApplicationId = makeIdFormatter("APP", APPLICATIONS.map((a) => a.id), "sd-application-id-counters");
+export const formatStudentId = makeIdFormatter("STU", 12, "sd-student-id-counters");
+export const formatApplicationId = makeIdFormatter("APP", 0, "sd-application-id-counters");

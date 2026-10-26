@@ -7,6 +7,7 @@ import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiC
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getAllApplications } from "./applicationsStore";
 import { BACKEND_BASE } from "../utils/backendBase";
+import { reportSaveError } from "../utils/toast";
 
 export interface AppDoc {
   id: string;
@@ -32,6 +33,9 @@ interface ServerDocument {
   custom?: boolean;
   note?: string;
   rejectionReason?: string;
+  issuedByStaff?: boolean;
+  uploadedByName?: string;
+  uploadedByRole?: string;
   createdAt: string;
 }
 
@@ -64,7 +68,49 @@ export function refreshApplicationDocs(): Promise<void> {
 }
 
 export function loadUploadedDocs(applicationId: string): AppDoc[] {
-  return cache.filter((d) => d.applicationId === applicationId).map(toAppDoc);
+  // Staff-issued documents (offer letter, CAS, …) are shown in their own card — they are not part of
+  // the student's checklist, so they must never satisfy or clutter it.
+  return cache.filter((d) => d.applicationId === applicationId && !d.issuedByStaff).map(toAppDoc);
+}
+
+/** A document staff attached to an application under a name of their choosing (offer letter, CAS
+ * letter, …) — visible to the student, agent and everyone responsible for the application. */
+export interface IssuedDoc {
+  id: string;
+  label: string;
+  previewUrl?: string;
+  uploadedAt: string; // date-only (YYYY-MM-DD)
+  createdAt: string;
+  uploadedByName?: string;
+  uploadedByRole?: string;
+}
+
+export function loadIssuedDocs(applicationId: string): IssuedDoc[] {
+  return cache
+    .filter((d) => d.applicationId === applicationId && d.issuedByStaff)
+    .map((d) => ({
+      id: d.id, label: d.type, previewUrl: resolveFileUrl(d.fileUrl), uploadedAt: d.createdAt.slice(0, 10), createdAt: d.createdAt,
+      uploadedByName: d.uploadedByName, uploadedByRole: d.uploadedByRole,
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Genuinely async (not optimistic): staff need to know the file actually reached the server — these
+ * are the letters a student is waiting on — so a failure is thrown to the caller to show. */
+export async function addIssuedDoc(applicationId: string, label: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append("applicationId", applicationId);
+  form.append("label", label.trim());
+  form.append("file", file);
+  const serverDoc = await apiPostForm<ServerDocument>("/api/documents/issued", form);
+  cache = [...cache.filter((d) => d.id !== serverDoc.id), serverDoc];
+  notifyCacheChange();
+}
+
+export async function removeIssuedDoc(id: string): Promise<void> {
+  await apiDelete(`/api/documents/${id}`);
+  cache = cache.filter((d) => d.id !== id);
+  notifyCacheChange();
 }
 
 /** A real file upload — by the student themselves, or by a counsellor/agent uploading on their
@@ -110,7 +156,7 @@ export function addUploadedDoc(applicationId: string, name: string, file: File):
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist application document:", err);
+      reportSaveError("Failed to persist application document:", err);
     });
   return loadUploadedDocs(applicationId);
 }
@@ -131,7 +177,7 @@ export function verifyAppDoc(id: string): void {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to verify application document:", err);
+      reportSaveError("Failed to verify application document:", err);
     });
 }
 
@@ -152,7 +198,7 @@ export function rejectAppDoc(id: string, reason: string): void {
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to reject application document:", err);
+      reportSaveError("Failed to reject application document:", err);
     });
 }
 
@@ -210,7 +256,7 @@ export function addCustomDocRequest(applicationId: string, type: string, note?: 
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to persist document request:", err);
+      reportSaveError("Failed to persist document request:", err);
     });
 }
 
@@ -224,7 +270,7 @@ export function deleteAppDoc(id: string): void {
     if ((err as Error)?.name === "StaleSessionError") return;
     cache = prev;
     notifyCacheChange();
-    console.warn("Failed to delete document:", err);
+    reportSaveError("Failed to delete document:", err);
   });
 }
 
@@ -241,7 +287,7 @@ export function removeCustomDocRequest(applicationId: string, type: string): voi
       if ((err as Error)?.name === "StaleSessionError") return;
       cache = prev;
       notifyCacheChange();
-      console.warn("Failed to remove document request:", err);
+      reportSaveError("Failed to remove document request:", err);
     });
 }
 

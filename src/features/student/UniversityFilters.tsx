@@ -15,7 +15,7 @@ import { NeuSelect } from "../../components/ui/NeuSelect";
 
 export default function UniversityFilters() {
   const navigate = useNavigate();
-  const { filters, setFilters, resultCount } = useOutletContext<FiltersOutletContext>();
+  const { filters, setFilters, resultCount, basePath = "/student/search" } = useOutletContext<FiltersOutletContext>();
   // Which multi-select list is expanded (one at a time).
   const [openList, setOpenList] = useState<string | null>(null);
   const toggleOpen = (key: string) => setOpenList((cur) => (cur === key ? null : key));
@@ -71,7 +71,7 @@ export default function UniversityFilters() {
   return (
     <div className="flex min-h-full flex-col pb-6">
       <div className="lg:mx-auto lg:w-full lg:max-w-5xl">
-        <MobileHeader title="Advanced Search" onBack={() => navigate("/student/search")} />
+        <MobileHeader title="Advanced Search" onBack={() => navigate(basePath)} />
       </div>
 
       <div className="px-5 lg:mx-auto lg:w-full lg:max-w-5xl lg:px-10">
@@ -278,7 +278,7 @@ export default function UniversityFilters() {
           Clear All
         </button>
         <button
-          onClick={() => navigate("/student/search")}
+          onClick={() => navigate(basePath)}
           className="flex-1 rounded-xl bg-[image:var(--sd-gradient)] py-3.5 text-[13px] font-semibold text-white"
         >
           Show {resultCount} {resultCount === 1 ? "result" : "results"}

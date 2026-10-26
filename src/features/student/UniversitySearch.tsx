@@ -1,5 +1,5 @@
 import { NeuTabs } from "../../components/ui/NeuTabs";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import { usePreservedState } from "../../utils/syncCache";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
@@ -23,7 +23,8 @@ import {
 import { ApplyModal } from "./ApplyModal";
 import { ProgramCard, universityInitials } from "./ProgramCard";
 import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
-import type { University } from "../../types";
+import type { Student, University } from "../../types";
+import { CreateApplicationModal } from "../agent/CreateApplicationModal";
 import { NeuSelect } from "../../components/ui/NeuSelect";
 import { courseFeeIn, currenciesOf, sameCurrency } from "../../utils/courseFee";
 
@@ -50,7 +51,35 @@ export interface FiltersOutletContext {
   filters: UniversityFilterState;
   setFilters: Dispatch<SetStateAction<UniversityFilterState>>;
   resultCount: number;
+  // Where the Explore page lives, so Advanced Search can return to the right role's page.
+  basePath?: string;
 }
+
+/** What differs between the student's Explore page and the counsellor's / agent's partner-university page. The page itself —
+ * tabs, search, Advanced Search, sorting, cards — is the same component for everyone. */
+export interface ExploreVariant {
+  /** Route of the page; Advanced Search lives at `${basePath}/filters`. */
+  basePath: string;
+  title: string;
+  universityPath: (id: string) => string;
+  countryPath: (name: string) => string;
+  /** Student only: personal shortlist, apply-for-myself and the "complete your profile first" gate. */
+  ownApplications: boolean;
+  /** Staff: people they can start an application for. Omit for a browse-only page. */
+  students?: () => Student[];
+  /** Agent: render a per-student shortlist picker on each program card. */
+  shortlistSlot?: (university: University, course: University["courses"][number], students: Student[]) => ReactNode;
+  /** Extra line on a university card (e.g. "2 of your students applying here"). */
+  universityNote?: (university: University) => ReactNode;
+}
+
+export const STUDENT_EXPLORE: ExploreVariant = {
+  basePath: "/student/search",
+  title: "Explore Universities",
+  universityPath: (id) => `/student/universities/${id}`,
+  countryPath: (name) => `/student/countries/${encodeURIComponent(name)}`,
+  ownApplications: true,
+};
 
 // Same name→tone hash the destination cards on Home use, so a country without a photo always gets the same illustration.
 const SKYLINE_TONES = ["violet", "amber", "teal", "rose"] as const;
@@ -63,10 +92,16 @@ function skylineToneFor(name: string): (typeof SKYLINE_TONES)[number] {
 const filterKey = (f: UniversityFilterState) => JSON.stringify(f, (_k, v) => (v instanceof Set ? [...v] : v));
 
 export default function UniversitySearch() {
+  return <ExploreUniversities variant={STUDENT_EXPLORE} />;
+}
+
+export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const student = getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID);
+  const student = variant.ownApplications ? getAllStudents().find((s) => s.id === CURRENT_STUDENT_ID) : undefined;
   const defaultResidenceCountry = countryByName(student?.country ?? "")?.iso2 ?? "";
+  const staffStudents = variant.students?.() ?? [];
+  const [staffApplyTarget, setStaffApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   // State that would otherwise reset whenever cached data refreshes and rebuilds this page (see syncCache.ts usePreservedState).
   const [query, setQuery] = usePreservedState("explore:query", "");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -101,7 +136,7 @@ export default function UniversitySearch() {
   // narrowing that list down to what's already bookmarked.
   const [programShortlistedOnly, setProgramShortlistedOnly] = usePreservedState("explore:shortlistedOnly", openOnShortlist);
 
-  const showingFilters = location.pathname === "/student/search/filters";
+  const showingFilters = location.pathname === `${variant.basePath}/filters`;
 
   const results = useMemo(() => {
     const filtered = applyFilters(getAllUniversities(), filters, query);
@@ -185,7 +220,7 @@ export default function UniversitySearch() {
   // admission officer needs that information to actually process an application, so letting someone
   // browse into applying without it just produces applications no one can act on. Only checked once
   // the student record has actually loaded (see the `!student` trade-off noted above).
-  const profileCompletion = student ? getProfileCompletion(student.id) : null;
+  const profileCompletion = variant.ownApplications && student ? getProfileCompletion(student.id) : null;
   if (profileCompletion && profileCompletion.requiredRemaining > 0) {
     const nextStep = profileCompletion.pendingSteps.find((s) => s.required) ?? profileCompletion.pendingSteps[0];
     return (
@@ -208,7 +243,7 @@ export default function UniversitySearch() {
   }
 
   if (showingFilters) {
-    return <Outlet context={{ filters, setFilters, resultCount: tab === "subjects" ? programs.length : results.length } satisfies FiltersOutletContext} />;
+    return <Outlet context={{ filters, setFilters, resultCount: tab === "subjects" ? programs.length : results.length, basePath: variant.basePath } satisfies FiltersOutletContext} />;
   }
 
   const activeFilterCount = countActiveFilters(filters);
@@ -244,7 +279,7 @@ export default function UniversitySearch() {
   }
 
   function openProgram(universityId: string, courseName: string, subject: string) {
-    navigate(`/student/universities/${universityId}`, { state: { selectedCourseName: courseName, subject } });
+    navigate(variant.universityPath(universityId), { state: { selectedCourseName: courseName, subject } });
   }
 
   return (
@@ -254,7 +289,7 @@ export default function UniversitySearch() {
           <div className="lg:hidden">
             <BackButton />
           </div>
-          <h1 className="text-xl font-bold text-neutral-900 lg:text-2xl">Explore Universities</h1>
+          <h1 className="text-xl font-bold text-neutral-900 lg:text-2xl">{variant.title}</h1>
         </div>
 
         <div className="mt-2">
@@ -364,7 +399,7 @@ export default function UniversitySearch() {
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/student/search/filters")}
+              onClick={() => navigate(`${variant.basePath}/filters`)}
               className="flex items-center gap-1 text-[13px] font-medium text-neutral-900"
             >
               Advanced Search {activeFilterCount > 0 && `(${activeFilterCount})`}
@@ -439,7 +474,7 @@ export default function UniversitySearch() {
                 return (
                   <button
                     key={c.name}
-                    onClick={() => navigate(`/student/countries/${encodeURIComponent(c.name)}`)}
+                    onClick={() => navigate(variant.countryPath(c.name))}
                     aria-label={c.name}
                     className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl text-left shadow-neu"
                   >
@@ -481,14 +516,16 @@ export default function UniversitySearch() {
               )}
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
-              <Chip
-                label="Shortlisted"
-                selected={programShortlistedOnly}
-                onClick={() => setProgramShortlistedOnly((v) => !v)}
-                icon={<Bookmark size={12} className={programShortlistedOnly ? "fill-white" : ""} />}
-              />
-            </div>
+            {variant.ownApplications && (
+              <div className="mt-3 flex items-center gap-2">
+                <Chip
+                  label="Shortlisted"
+                  selected={programShortlistedOnly}
+                  onClick={() => setProgramShortlistedOnly((v) => !v)}
+                  icon={<Bookmark size={12} className={programShortlistedOnly ? "fill-white" : ""} />}
+                />
+              </div>
+            )}
 
             {/* Same card shape as the Universities tab below (big logo tile, title, location line,
                 divider, detail row) so both tabs read as one consistent catalog. */}
@@ -500,10 +537,17 @@ export default function UniversitySearch() {
                     key={programKey}
                     university={u}
                     course={c}
-                    shortlisted={isShortlisted(programKey)}
-                    onToggleShortlist={() => toggleProgramShortlist(programKey)}
+                    shortlisted={variant.ownApplications ? isShortlisted(programKey) : false}
+                    onToggleShortlist={variant.ownApplications ? () => toggleProgramShortlist(programKey) : undefined}
                     onOpen={() => openProgram(u.id, c.name, c.subject)}
-                    onApply={() => setApplyTarget({ university: u, course: c })}
+                    onApply={
+                      variant.ownApplications
+                        ? () => setApplyTarget({ university: u, course: c })
+                        : variant.students
+                          ? () => setStaffApplyTarget({ university: u, course: c })
+                          : undefined
+                    }
+                    actionSlot={variant.shortlistSlot?.(u, c, staffStudents)}
                   />
                 );
               })}
@@ -550,7 +594,7 @@ export default function UniversitySearch() {
                 return (
                   <button
                     key={u.id}
-                    onClick={() => navigate(`/student/universities/${u.id}`)}
+                    onClick={() => navigate(variant.universityPath(u.id))}
                     className="relative flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu sm:gap-4 sm:rounded-3xl sm:p-5"
                   >
                     <span
@@ -584,6 +628,7 @@ export default function UniversitySearch() {
                           </>
                         )}
                       </div>
+                      {variant.universityNote?.(u)}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
                         <span className="inline-flex items-center gap-1 sm:gap-1.5">
                           <CalendarClock size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">Open: {u.openIntake}</span>
@@ -609,6 +654,15 @@ export default function UniversitySearch() {
 
       {applyTarget && (
         <ApplyModal university={applyTarget.university} course={applyTarget.course} onClose={() => setApplyTarget(null)} />
+      )}
+      {staffApplyTarget && (
+        <CreateApplicationModal
+          students={staffStudents}
+          initialUniversityId={staffApplyTarget.university.id}
+          initialCourseName={staffApplyTarget.course.name}
+          onClose={() => setStaffApplyTarget(null)}
+          onCreated={() => setStaffApplyTarget(null)}
+        />
       )}
     </div>
   );

@@ -1,4 +1,6 @@
-import { AGENTS, CURRENT_AGENT_ID, UNIVERSITIES } from "../data/mockData";
+import { CURRENT_AGENT_ID } from "../data/mockData";
+import { getAllUniversities } from "../data/universityCatalogStore";
+import { findStaffContact } from "./currentStaff";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadAgentStudents } from "../data/agentStudentsStore";
 import { VISA_STAGE_STATUSES } from "./agentPipeline";
@@ -24,7 +26,7 @@ export function buildAgentAnswer(question: string): string {
   const q = question.toLowerCase();
   const students = myStudents();
   const apps = myApplications();
-  const agent = AGENTS.find((a) => a.id === CURRENT_AGENT_ID);
+  const agent = findStaffContact(CURRENT_AGENT_ID);
 
   if (/follow.?up.*email|draft.*email|write.*email/.test(q)) {
     const pending = apps.filter((a) => a.waitingOn === "student");
@@ -66,9 +68,9 @@ export function buildAgentAnswer(question: string): string {
   if (/suggest.*universit|universit.*suggest|recommend.*universit/.test(q) || subjectMatch) {
     const subjectQuery = subjectMatch?.[1]?.trim();
     const matches = subjectQuery
-      ? UNIVERSITIES.filter((u) => u.subjects.some((s) => s.toLowerCase().includes(subjectQuery) || subjectQuery.includes(s.toLowerCase())))
+      ? getAllUniversities().filter((u) => u.subjects.some((s) => s.toLowerCase().includes(subjectQuery) || subjectQuery.includes(s.toLowerCase())))
       : [];
-    const pool = matches.length > 0 ? matches : UNIVERSITIES;
+    const pool = matches.length > 0 ? matches : getAllUniversities();
     const top = [...pool]
       .sort((a, b) => (parseInt(a.worldRank.replace(/\D/g, ""), 10) || 999) - (parseInt(b.worldRank.replace(/\D/g, ""), 10) || 999))
       .slice(0, 3);

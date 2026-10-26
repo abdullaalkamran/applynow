@@ -8,10 +8,11 @@ import { clearAdminToken } from "../utils/adminSettingsClient";
 import { setCurrentStudentId, setCurrentAgentId } from "../data/mockData";
 import { setCounsellorId } from "../utils/counsellorData";
 
-// Per-user state some (still localStorage-backed) stores keep under a fixed key rather than one
-// namespaced by user id — cleared on logout so it can't bleed into the next person's session on
-// a shared browser. Anything namespaced by id (sd-profile-details:<studentId> etc.) is left alone.
-const PER_USER_LOCAL_KEYS = [
+// Per-account UI state (read notifications, seen applications, lead follow-up status, …) is now
+// namespaced by user id (see utils/userScope.ts) instead of cleared on logout — clearing it is what
+// made every old notification and "New" badge come back after each login. Only the legacy
+// un-namespaced keys are removed here, once, so they cannot bleed between accounts.
+const LEGACY_SHARED_LOCAL_KEYS = [
   "sd-shortlisted-programs",
   "sd-notifications-read",
   "sd-lead-followup-status",
@@ -20,16 +21,11 @@ const PER_USER_LOCAL_KEYS = [
   "staff-custom-meetings",
   "staff-meetings-done",
 ];
-const PER_USER_LOCAL_PREFIXES = ["staff-stats-snapshot:"];
 
 function clearPerUserLocalState() {
   if (typeof window === "undefined") return;
   try {
-    for (const key of PER_USER_LOCAL_KEYS) window.localStorage.removeItem(key);
-    for (let i = window.localStorage.length - 1; i >= 0; i--) {
-      const key = window.localStorage.key(i);
-      if (key && PER_USER_LOCAL_PREFIXES.some((p) => key.startsWith(p))) window.localStorage.removeItem(key);
-    }
+    for (const key of LEGACY_SHARED_LOCAL_KEYS) window.localStorage.removeItem(key);
   } catch {
     // Storage can be unavailable (private mode, blocked) — nothing to clear then.
   }
@@ -66,6 +62,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/** Points the "who am I" live bindings at this user. Also called synchronously right before
+ * warmCaches() — the effect above only runs after the next render, so the very first fetches
+ * (e.g. the counsellor's student list, which is keyed by their id) would otherwise go out with
+ * whoever was signed in before, or nobody. */
+function applyIdentity(u: AuthUser) {
+  if (u.role === "student") setCurrentStudentId(u.roleUserId);
+  if (u.role === "agent") setCurrentAgentId(u.roleUserId);
+  if (u.role === "counsellor") setCounsellorId(u.roleUserId);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initial = loadStoredAuth();
   const [user, setUser] = useState<AuthUser | null>(initial?.user ?? null);
@@ -81,9 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // logged in, covering every path (session restore, login, signup, Google) since they all funnel
   // through this same `user` state.
   useEffect(() => {
-    if (user?.role === "student") setCurrentStudentId(user.roleUserId);
-    if (user?.role === "agent") setCurrentAgentId(user.roleUserId);
-    if (user?.role === "counsellor") setCounsellorId(user.roleUserId);
+    if (user) applyIdentity(user);
   }, [user]);
 
   // apiClient fires this when the server rejects the stored token (expired, account deactivated
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((freshUser) => {
         setUser(freshUser);
         saveAuth(initial.token, freshUser);
+        applyIdentity(freshUser);
         warmCaches();
         startCachePolling();
       })
@@ -126,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
+    applyIdentity(newUser);
     warmCaches();
     startCachePolling();
     return newUser;
@@ -137,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
+    applyIdentity(newUser);
     warmCaches();
     startCachePolling();
     return { user: newUser, agentName };
@@ -148,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
+    applyIdentity(newUser);
     warmCaches();
     startCachePolling();
     return { user: newUser, agentName };
@@ -158,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveAuth(newToken, newUser);
     setToken(newToken);
     setUser(newUser);
+    applyIdentity(newUser);
     warmCaches();
     startCachePolling();
   }
