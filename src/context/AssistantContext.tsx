@@ -9,6 +9,10 @@ import { fetchVoiceConfig, type VoiceConfig } from "../utils/voiceClient";
 interface AssistantContextValue {
   ask: (text: string) => Promise<string>;
   suggestions: string[];
+  /** The model-side conversation (tool calls and results included) — saved with a chat so it can be resumed. */
+  getConversation: () => AssistantMessage[];
+  /** Replace it: a saved chat being reopened, or [] for a fresh one. */
+  setConversation: (history: AssistantMessage[]) => void;
   voiceEngine: VoiceConfig["voiceEngine"];
 }
 
@@ -23,6 +27,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const { role, currentUser } = useRole();
   const { token } = useAuth();
   const [history, setHistory] = useState<AssistantMessage[]>([]);
+  const historyRef = useRef<AssistantMessage[]>([]);
+  historyRef.current = history;
+  const getConversation = useCallback(() => historyRef.current, []);
   const [voiceEngine, setVoiceEngine] = useState<VoiceConfig["voiceEngine"]>("browser");
 
   // The pending approval card (see ToolDefinition.requiresApproval) — one at a time, rendered below so it
@@ -71,9 +78,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   );
 
   const suggestions = ROLE_ASSISTANT_CONFIGS[role].suggestions;
+  const setConversation = useCallback((next: AssistantMessage[]) => setHistory(next), []);
 
   return (
-    <AssistantContext.Provider value={{ ask, suggestions, voiceEngine }}>
+    <AssistantContext.Provider value={{ ask, suggestions, getConversation, setConversation, voiceEngine }}>
       {children}
       {pending && (
         <div role="dialog" aria-modal="true" aria-label="Approve AI action" className="fixed inset-0 z-[100] flex items-end justify-center bg-black/30 p-4 sm:items-center">

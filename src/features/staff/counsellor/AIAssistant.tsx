@@ -3,20 +3,25 @@
 // them and build a profile. Risky actions pop an approval card (see AssistantContext) before they run.
 import { ChatMarkdown } from "../../../components/ChatMarkdown";
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, Sparkles, X } from "lucide-react";
+import { History, Paperclip, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { loadChats, saveChat, deleteChat, newChatId, type ChatLine } from "../../../data/aiChatHistoryStore";
 import { PageHeader } from "../../../components/ui";
 import { useAssistant } from "../../../context/AssistantContext";
 import { stageFiles, getStagedFiles, clearStagedFiles } from "../../../utils/profileFromDocuments";
 
-interface Msg { id: number; from: "ai" | "me"; text: string }
+type Msg = ChatLine;
 
 export default function CounsellorAIAssistant() {
-  const { ask, suggestions } = useAssistant();
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const { ask, suggestions, getConversation, setConversation } = useAssistant();
+  // The page is rebuilt whenever cached data refreshes, so the open chat is rebuilt from the last saved copy instead of starting blank.
+  const [chatId, setChatId] = useState(() => localStorage.getItem("sd-ai-open-chat") ?? newChatId());
+  const [chats, setChats] = useState(() => loadChats());
+  const [showHistory, setShowHistory] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>(() => loadChats().find((c) => c.id === (localStorage.getItem("sd-ai-open-chat") ?? ""))?.lines ?? []);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [attached, setAttached] = useState<File[]>(() => getStagedFiles());
-  const nextId = useRef(1);
+  const nextId = useRef(messages.reduce((m, l) => Math.max(m, l.id), 0) + 1);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages, thinking]);
@@ -26,6 +31,38 @@ export default function CounsellorAIAssistant() {
     stageFiles(Array.from(files));
     setAttached([...getStagedFiles()]);
   }
+  function remember(lines: Msg[]) {
+    saveChat(chatId, lines, getConversation());
+    localStorage.setItem("sd-ai-open-chat", chatId);
+    setChats(loadChats());
+  }
+
+  function startNewChat() {
+    const id = newChatId();
+    localStorage.setItem("sd-ai-open-chat", id);
+    setConversation([]);
+    setMessages([]);
+    setChatId(id);
+    setShowHistory(false);
+  }
+
+  function openChat(id: string) {
+    const chat = loadChats().find((c) => c.id === id);
+    if (!chat) return;
+    localStorage.setItem("sd-ai-open-chat", id);
+    setConversation(chat.history);
+    setMessages(chat.lines);
+    nextId.current = chat.lines.reduce((m, l) => Math.max(m, l.id), 0) + 1;
+    setChatId(id);
+    setShowHistory(false);
+  }
+
+  function removeChat(id: string) {
+    deleteChat(id);
+    setChats(loadChats());
+    if (id === chatId) startNewChat();
+  }
+
   function clearAttached() { clearStagedFiles(); setAttached([]); }
 
   async function send(text: string) {
@@ -34,15 +71,19 @@ export default function CounsellorAIAssistant() {
     // Tell the agent about attachments so it knows to read them — the files themselves stay in the browser
     // until read_attached_documents sends them for extraction.
     const note = attached.length ? `\n\n(Attached: ${attached.map((f) => f.name).join(", ")})` : "";
-    setMessages((m) => [...m, { id: nextId.current++, from: "me", text: trimmed }]);
+    let lines: Msg[] = [...messages, { id: nextId.current++, from: "me", text: trimmed }];
+    setMessages(lines);
     setInput("");
     setThinking(true);
     try {
       const reply = await ask(trimmed + note);
-      setMessages((m) => [...m, { id: nextId.current++, from: "ai", text: reply }]);
+      lines = [...lines, { id: nextId.current++, from: "ai", text: reply }];
+      setMessages(lines);
     } catch {
-      setMessages((m) => [...m, { id: nextId.current++, from: "ai", text: "Sorry, something went wrong — please try again." }]);
+      lines = [...lines, { id: nextId.current++, from: "ai", text: "Sorry, something went wrong — please try again." }];
+      setMessages(lines);
     } finally {
+      remember(lines);
       setThinking(false);
       setAttached([...getStagedFiles()]);
     }
@@ -50,7 +91,37 @@ export default function CounsellorAIAssistant() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-3xl flex-col">
-      <PageHeader title="AI Agent" subtitle="Ask about students, documents, applications and tasks — or attach a student's documents to build a profile." />
+      <PageHeader
+        title="AI Agent"
+        subtitle="Ask about students, documents, applications and tasks — or attach a student's documents to build a profile."
+        action={
+          <div className="flex shrink-0 items-center gap-2">
+            <button onClick={() => setShowHistory((v) => !v)} className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <History size={14} /> History{chats.length > 0 ? ` (${chats.length})` : ""}
+            </button>
+            <button onClick={startNewChat} className="flex items-center gap-1.5 rounded-lg bg-[var(--brand-600)] px-3 py-2 text-xs font-medium text-white">
+              <Plus size={14} /> New chat
+            </button>
+          </div>
+        }
+      />
+      {showHistory && (
+        <div className="mb-3 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+          {chats.length === 0 ? (
+            <p className="p-3 text-center text-xs text-slate-400">No saved chats yet.</p>
+          ) : (
+            chats.map((c) => (
+              <div key={c.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-slate-50 ${c.id === chatId ? "bg-slate-50" : ""}`}>
+                <button onClick={() => openChat(c.id)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate text-[13px] font-medium text-slate-700">{c.title}</p>
+                  <p className="text-[11px] text-slate-400">{new Date(c.updatedAt).toLocaleString()} · {c.lines.length} messages</p>
+                </button>
+                <button onClick={() => removeChat(c.id)} aria-label="Delete chat" className="shrink-0 text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4">
         {messages.length === 0 && (
           <div className="py-8 text-center">
