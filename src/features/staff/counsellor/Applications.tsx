@@ -2,11 +2,11 @@ import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, FileText, Plus, Globe2, Sparkles, Users, ChevronRight, Clock, FolderOpen,
-  FileCheck2, PlaneTakeoff, CheckCircle2, MoreVertical, Copy, Check, ChevronLeft, Briefcase,
+  FileCheck2, PlaneTakeoff, CheckCircle2, MoreVertical, Copy, Check, Briefcase,
   ListChecks, AlertCircle, CalendarDays, Upload,
 } from "lucide-react";
 import { StatusBadge, Modal, Button, SearchableSelect, FilterMenu, BackButton } from "../../../components/ui";
-import { LogoBadge } from "../../../components/ui/mobile";
+import { LogoBadge, Pagination } from "../../../components/ui/mobile";
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor, pipelineBucketFor, daysAgo, type PipelineBucket } from "../../../utils/counsellorData";
 import { formatStudentId, formatApplicationId } from "../../../utils/displayId";
@@ -382,30 +382,11 @@ export default function CounsellorApplications() {
             <p className="text-[11px] text-slate-400">
               Showing {(clampedPage - 1) * PAGE_SIZE + 1}–{Math.min(clampedPage * PAGE_SIZE, filtered.length)} of {filtered.length} application{filtered.length === 1 ? "" : "s"}
             </p>
-            {totalPages > 1 && (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={clampedPage === 1}
-                  aria-label="Previous page"
-                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40"
-                >
-                  <ChevronLeft size={13} />
-                </button>
-                <span className="flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-[image:var(--sd-gradient)] px-1.5 text-[11px] font-semibold text-white">
-                  {clampedPage}
-                </span>
-                <span className="text-[11px] text-slate-400">of {totalPages}</span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={clampedPage === totalPages}
-                  aria-label="Next page"
-                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40"
-                >
-                  <ChevronRight size={13} />
-                </button>
-              </div>
-            )}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="px-5 pb-4">
+            <Pagination page={clampedPage} totalPages={totalPages} onChange={setPage} />
           </div>
         )}
       </div>

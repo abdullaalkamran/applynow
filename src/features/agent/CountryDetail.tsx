@@ -65,7 +65,7 @@ export default function AgentCountryDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
         <ArrowLeft size={14} /> Back to Universities
       </button>
 
@@ -98,10 +98,10 @@ export default function AgentCountryDetail() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${tab === t ? "text-blue-700" : "text-slate-400"}`}
+            className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${tab === t ? "text-neutral-900" : "text-slate-400"}`}
           >
             {t}
-            {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+            {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-neutral-900" />}
           </button>
         ))}
       </div>
@@ -156,7 +156,7 @@ export default function AgentCountryDetail() {
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-slate-300"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900">
                   <BookOpen size={15} />
                 </div>
                 <div className="min-w-0">

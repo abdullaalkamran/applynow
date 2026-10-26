@@ -27,7 +27,7 @@ export default function AgentStatements() {
                   <p className="text-[11px] text-slate-400">{inv.createdAt} · {inv.lines.length} line{inv.lines.length === 1 ? "" : "s"}</p>
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900">${inv.totalAmount.toLocaleString()}</p>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${inv.status === "Paid" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${inv.status === "Paid" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-700"}`}>
                   {inv.status}
                 </span>
                 {open ? <ChevronUp size={16} className="shrink-0 text-slate-300" /> : <ChevronDown size={16} className="shrink-0 text-slate-300" />}

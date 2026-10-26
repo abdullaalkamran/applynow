@@ -226,6 +226,28 @@ button:active > .neu-btn-red {
 .neu-theme .text-neutral-500 { color: var(--neu-ink-2); }
 .neu-theme .text-neutral-400 { color: #707070; }
 .neu-theme .text-neutral-300 { color: #8a8a8a; }
+/* A lighter, whiter take on the soft-UI palette (the agent portal): same shapes and shadows, less grey. */
+.neu-light {
+  --sd-bg: #f5f6f8;
+  --sd-card: #fcfcfd;
+  --neu-bg: #f5f6f8;
+  --neu-bg-2: #f8f9fa;
+  --neu-surface: #fcfcfd;
+  --neu-dark: #d5d9e0;
+  --neu-inset-dark: #d9dde3;
+  --neu-border: #e6e8ec;
+}
+
+/* Pages written with slate/blue utility colours (the agent portal) pick up the same black-and-white neumorphic look. */
+.neu-theme .text-slate-900, .neu-theme .text-slate-800 { color: var(--neu-ink); }
+.neu-theme .text-slate-700, .neu-theme .text-slate-600 { color: #444444; }
+.neu-theme .text-slate-500 { color: var(--neu-ink-2); }
+.neu-theme .text-slate-400 { color: #707070; }
+.neu-theme .text-slate-300 { color: #8a8a8a; }
+.neu-theme .border-slate-50, .neu-theme .border-slate-100, .neu-theme .border-slate-200, .neu-theme .border-slate-300 { border-color: rgba(0, 0, 0, 0.07); }
+.neu-theme .bg-slate-50 { background-color: var(--neu-surface); }
+.neu-theme .bg-slate-100 { background-color: var(--neu-bg-2); }
+.neu-theme .divide-slate-50 > :not(:last-child), .neu-theme .divide-slate-100 > :not(:last-child) { border-color: rgba(0, 0, 0, 0.07); }
 .neu-theme button,
 .neu-theme a { transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease; }
 .neu-theme button:not(:disabled):active { transform: scale(0.97); }

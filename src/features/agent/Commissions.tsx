@@ -65,10 +65,10 @@ export default function AgentCommissions() {
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard icon={<Sparkles size={14} />} tone="bg-violet-50 text-violet-600" label="Total Estimated" value={`$${totalEstimated.toLocaleString()}`} />
-        <StatCard icon={<CheckCircle2 size={14} />} tone="bg-emerald-50 text-emerald-600" label="Claimable Now" value={`$${claimableTotal.toLocaleString()}`} />
-        <StatCard icon={<FileText size={14} />} tone="bg-amber-50 text-amber-600" label="Invoiced" value={`$${invoicedTotal.toLocaleString()}`} />
-        <StatCard icon={<Wallet size={14} />} tone="bg-blue-50 text-blue-600" label="Paid" value={`$${paidTotal.toLocaleString()}`} />
+        <StatCard icon={<Sparkles size={14} />} tone="bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-md" label="Total Estimated" value={`$${totalEstimated.toLocaleString()}`} />
+        <StatCard icon={<CheckCircle2 size={14} />} tone="bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md" label="Claimable Now" value={`$${claimableTotal.toLocaleString()}`} />
+        <StatCard icon={<FileText size={14} />} tone="bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md" label="Invoiced" value={`$${invoicedTotal.toLocaleString()}`} />
+        <StatCard icon={<Wallet size={14} />} tone="bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md" label="Paid" value={`$${paidTotal.toLocaleString()}`} />
       </div>
 
       <div className="mb-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
@@ -85,7 +85,7 @@ export default function AgentCommissions() {
                 <div className="mt-0.5 flex flex-wrap items-center gap-1">
                   <span className="text-[11px] font-semibold text-slate-700">{describeCommissionRate(rate)}</span>
                   {rate.bonusPercent > 0 && (
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-700">
+                    <span className="flex items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-700">
                       +{rate.bonusPercent}% {rate.bonusLabel}
                     </span>
                   )}
@@ -119,7 +119,7 @@ export default function AgentCommissions() {
                       type="checkbox"
                       checked={selected.has(app.id)}
                       onChange={() => toggleSelect(app.id)}
-                      className="h-4 w-4 shrink-0 accent-blue-600"
+                      className="h-4 w-4 shrink-0 accent-neutral-900"
                       aria-label={`Select commission for ${student.name}`}
                     />
                   ) : (
@@ -128,14 +128,14 @@ export default function AgentCommissions() {
                   <LogoBadge name={app.university} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-9 w-9 shrink-0 text-[11px]" />
                   <button
                     onClick={() => navigate(`/agent/students/${student.id}`, { state: { tab: "Applications", appId: app.id } })}
-                    className="min-w-0 flex-1 truncate text-left text-xs font-medium text-slate-800 hover:text-blue-600"
+                    className="min-w-0 flex-1 truncate text-left text-xs font-medium text-slate-800 hover:text-neutral-900"
                   >
                     {student.name} <span className="font-mono text-[10px] text-slate-400">{formatStudentId(student.id)}</span>
                   </button>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${
-                    invoice?.status === "Paid" ? "bg-blue-50 text-blue-700"
-                      : invoice ? "bg-amber-50 text-amber-700"
-                      : commission.claimable ? "bg-emerald-50 text-emerald-700"
+                    invoice?.status === "Paid" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900"
+                      : invoice ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-700"
+                      : commission.claimable ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-700"
                       : "bg-slate-100 text-slate-500"
                   }`}>
                     {invoice?.status === "Paid" ? "Paid" : invoice ? "Invoiced" : commission.claimable ? "Claimable" : "Estimated"}
@@ -170,7 +170,7 @@ export default function AgentCommissions() {
           <p className="text-xs text-slate-600">
             {selected.size} commission{selected.size === 1 ? "" : "s"} selected · <span className="font-semibold text-slate-900">${rows.filter((r) => selected.has(r.app.id)).reduce((s, r) => s + r.commission.totalAmount, 0).toLocaleString()}</span>
           </p>
-          <button onClick={generateInvoice} className="flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+          <button onClick={generateInvoice} className="flex items-center gap-1.5 rounded-full bg-neutral-900 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800">
             Generate Invoice <ArrowRight size={13} />
           </button>
         </div>

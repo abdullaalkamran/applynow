@@ -106,7 +106,7 @@ export default function AgentStudentProfile() {
     // agent-students cache just hasn't finished its first fetch yet, not a genuine mismatch.
     return (
       <div>
-        <button onClick={() => navigate("/agent/students")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate("/agent/students")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           <ArrowLeft size={14} /> Back to Students
         </button>
         <p className="text-xs text-slate-400">{agentStudents.length === 0 ? "Loading…" : "Student not found."}</p>
@@ -177,7 +177,7 @@ export default function AgentStudentProfile() {
 
   return (
     <div className="max-w-5xl">
-      <button onClick={() => navigate("/agent/students")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate("/agent/students")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
         <ArrowLeft size={14} /> Back to Students
       </button>
 
@@ -210,16 +210,16 @@ export default function AgentStudentProfile() {
                 key={t}
                 onClick={() => selectTab(t)}
                 className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 text-[13px] font-medium transition ${
-                  tab === t ? "text-blue-700" : "text-slate-400"
+                  tab === t ? "text-neutral-900" : "text-slate-400"
                 }`}
               >
                 {t}
                 {count !== null && count > 0 && (
-                  <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] ${tab === t ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] ${tab === t ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "bg-slate-100 text-slate-500"}`}>
                     {count}
                   </span>
                 )}
-                {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+                {tab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-neutral-900" />}
               </button>
             );
           })}
@@ -236,8 +236,8 @@ export default function AgentStudentProfile() {
               <div className="space-y-1.5">
                 {studentTasks.map((t) => {
                   const Icon = t.source === "document" ? FileText : t.source === "next-step" ? CheckCircle2 : ShieldCheck;
-                  const tone = t.tone === "overdue" ? "border-rose-200 bg-rose-50/60" : "border-slate-100 bg-slate-50";
-                  const iconTone = t.tone === "overdue" ? "bg-rose-100 text-rose-600" : "bg-[#E7EEFC] text-[#2955C4]";
+                  const tone = t.tone === "overdue" ? "border-rose-200 bg-[var(--sd-card)] shadow-neu-inset-sm/60" : "border-slate-100 bg-slate-50";
+                  const iconTone = t.tone === "overdue" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600" : "bg-[#E7EEFC] text-[#2955C4]";
                   return (
                     <div key={t.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${tone}`}>
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
@@ -332,7 +332,7 @@ export default function AgentStudentProfile() {
                           {(urgent || s.dueDate) && (
                             <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-[18px]">
                               {urgent && (
-                                <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                                <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
                                   <AlertCircle size={9} /> Emergency
                                 </span>
                               )}
@@ -349,7 +349,7 @@ export default function AgentStudentProfile() {
                     {missingDocs.map((row) => {
                       const due = loadDocDueDate(a.id, row.type);
                       return (
-                        <div key={row.type} className="flex items-center gap-2 rounded-lg bg-amber-50/60 px-2.5 py-1.5 text-xs">
+                        <div key={row.type} className="flex items-center gap-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm/60 px-2.5 py-1.5 text-xs">
                           <AlertCircle size={12} className="shrink-0 text-amber-500" />
                           <span className="min-w-0 flex-1 truncate text-slate-700">{row.type}</span>
                           {due && (
@@ -422,7 +422,7 @@ export default function AgentStudentProfile() {
                             return (
                               <div key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs">
                                 {urgent && (
-                                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
                                     <AlertCircle size={10} /> Emergency
                                   </span>
                                 )}
@@ -447,7 +447,7 @@ export default function AgentStudentProfile() {
                         <div className="space-y-2">
                           {statusHistory.map((h, i) => (
                             <div key={`${h.status}-${h.changedAt}-${i}`} className="flex items-center gap-2 text-[12px]">
-                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-blue-600" : "bg-slate-300"}`} />
+                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i === 0 ? "bg-neutral-900" : "bg-slate-300"}`} />
                               <span className={`flex-1 ${i === 0 ? "font-medium text-slate-800" : "text-slate-500"}`}>{h.status}</span>
                               <span className="shrink-0 text-[11px] text-slate-400">{h.changedAt}</span>
                             </div>
@@ -465,7 +465,7 @@ export default function AgentStudentProfile() {
                           <div className="space-y-2">
                             {uploadHistory.map((d) => (
                               <div key={d.id} className="flex items-center gap-2 text-[12px]">
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-700" />
                                 <span className="min-w-0 flex-1 truncate text-slate-700">{d.name}</span>
                                 {"previewUrl" in d && d.previewUrl && (
                                   <DocViewButton
@@ -528,7 +528,7 @@ export default function AgentStudentProfile() {
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button
                     onClick={() => setApplyTarget({ universityId: p.universityId, courseName: p.courseName })}
-                    className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700"
+                    className="rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-neutral-800"
                   >
                     Apply
                   </button>
@@ -561,11 +561,11 @@ export default function AgentStudentProfile() {
         <div className="mt-4 space-y-5">
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-600">
                 <AlertCircle size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Required — not uploaded yet</p>
-              <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-rose-600">
                 {requiredDocRows.length}
               </span>
             </div>
@@ -592,11 +592,11 @@ export default function AgentStudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-600">
                 <Clock3 size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Pending review</p>
-              <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                 {pendingDocRows.length}
               </span>
             </div>
@@ -613,11 +613,11 @@ export default function AgentStudentProfile() {
 
           <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-600">
                 <CheckCircle2 size={13} />
               </span>
               <p className="text-[13px] font-semibold text-slate-900">Uploaded &amp; verified</p>
-              <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="ml-auto shrink-0 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                 {verifiedDocRows.length}
               </span>
             </div>
@@ -683,7 +683,7 @@ export default function AgentStudentProfile() {
                         <button
                           onClick={() => { t.onToggle?.(); forceTick((n) => n + 1); }}
                           aria-label={t.done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${t.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${t.done ? "border-emerald-500 bg-neutral-700 text-white" : "border-slate-300"}`}
                         >
                           {t.done && <Check size={11} />}
                         </button>
@@ -719,7 +719,7 @@ export default function AgentStudentProfile() {
                   return (
                     <div key={s.id} className="flex flex-wrap items-center gap-2.5 rounded-xl border border-slate-100 p-3">
                       {urgent && (
-                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
+                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[10px] font-semibold text-rose-700">
                           <AlertCircle size={10} /> Emergency
                         </span>
                       )}

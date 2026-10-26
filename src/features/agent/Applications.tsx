@@ -1,11 +1,11 @@
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, FileText, Plus, Clock, FolderOpen, FileCheck2, PlaneTakeoff, CheckCircle2,
-  MoreVertical, Copy, Check, ChevronLeft, ChevronRight, ListChecks, AlertCircle, CalendarDays, Upload,
+  Search, FileText, Plus, Clock, FolderOpen, Award, PlaneTakeoff, CheckCircle2,
+  MoreVertical, Copy, Check, ListChecks, AlertCircle, CalendarDays, Upload,
 } from "lucide-react";
 import { StatusBadge, FilterMenu, Button } from "../../components/ui";
-import { LogoBadge } from "../../components/ui/mobile";
+import { LogoBadge, Pagination } from "../../components/ui/mobile";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getAllApplications } from "../../data/applicationsStore";
 import { loadUploadedDocs, addUploadedDoc } from "../../data/applicationDocsStore";
@@ -83,13 +83,15 @@ export default function AgentApplications() {
   const intakeCounts: Record<string, number> = { All: rows.length };
   rows.forEach(({ app }) => { intakeCounts[app.intake] = (intakeCounts[app.intake] ?? 0) + 1; });
 
+  // Same icons and gradient chips as the dashboard's tiles, so the two pages read as one set.
+  const chip = (from: string, to: string) => `bg-gradient-to-br ${from} ${to} text-white shadow-md`;
   const statTiles: { key: PipelineBucket | "Total"; label: string; icon: ReactNode; tone: string }[] = [
-    { key: "Total", label: "Total Applications", icon: <FileText size={14} />, tone: "bg-blue-50 text-blue-600" },
-    { key: "Documents", label: "Documents", icon: <FolderOpen size={14} />, tone: "bg-teal-50 text-teal-600" },
-    { key: "Under Review", label: "Under Review", icon: <Clock size={14} />, tone: "bg-amber-50 text-amber-600" },
-    { key: "Offer Received", label: "Offer Received", icon: <FileCheck2 size={14} />, tone: "bg-violet-50 text-violet-600" },
-    { key: "Visa Process", label: "Visa Process", icon: <PlaneTakeoff size={14} />, tone: "bg-sky-50 text-sky-600" },
-    { key: "Enrolled", label: "Enrolled", icon: <CheckCircle2 size={14} />, tone: "bg-emerald-50 text-emerald-600" },
+    { key: "Total", label: "Total Applications", icon: <FileText size={16} />, tone: chip("from-emerald-500", "to-teal-500") },
+    { key: "Documents", label: "Documents", icon: <FolderOpen size={16} />, tone: chip("from-sky-500", "to-blue-500") },
+    { key: "Under Review", label: "Under Review", icon: <Clock size={16} />, tone: chip("from-indigo-500", "to-violet-500") },
+    { key: "Offer Received", label: "Offer Received", icon: <Award size={16} />, tone: chip("from-fuchsia-500", "to-pink-500") },
+    { key: "Visa Process", label: "Visa Process", icon: <PlaneTakeoff size={16} />, tone: chip("from-amber-500", "to-orange-500") },
+    { key: "Enrolled", label: "Enrolled", icon: <CheckCircle2 size={16} />, tone: chip("from-green-500", "to-emerald-600") },
   ];
 
   return (
@@ -112,16 +114,16 @@ export default function AgentApplications() {
               key={t}
               onClick={() => setTab(t)}
               className={`relative flex shrink-0 items-center gap-1.5 px-2.5 py-2 text-xs font-medium transition ${
-                active ? "text-blue-700" : "text-slate-500 hover:text-slate-700"
+                active ? "text-neutral-900" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               {t}
               <span className={`flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
-                active ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                active ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900" : "bg-slate-100 text-slate-500"
               }`}>
                 {counts[t]}
               </span>
-              {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+              {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-neutral-900" />}
             </button>
           );
         })}
@@ -143,10 +145,10 @@ export default function AgentApplications() {
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {statTiles.map((s) => (
-          <div key={s.key} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
-            <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${s.tone}`}>{s.icon}</div>
-            <p className="mt-1.5 text-base font-bold text-slate-900">{s.key === "Total" ? rows.length : counts[s.key]}</p>
-            <p className="text-[10px] text-slate-500">{s.label}</p>
+          <div key={s.key} className="rounded-2xl border border-slate-100 bg-white p-3.5 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${s.tone}`}>{s.icon}</div>
+            <p className="mt-2 text-lg font-bold text-slate-900">{s.key === "Total" ? rows.length : counts[s.key]}</p>
+            <p className="text-[11px] text-slate-500">{s.label}</p>
           </div>
         ))}
       </div>
@@ -182,7 +184,7 @@ export default function AgentApplications() {
               <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-50 pt-3">
                 <StatusBadge status={app.status} />
                 {missingCoreDocs.length > 0 && (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
                     <AlertCircle size={9} /> Core docs missing ({missingCoreDocs.length})
                   </span>
                 )}
@@ -214,7 +216,7 @@ export default function AgentApplications() {
                     {(urgent || s.dueDate) && (
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 pl-[18px]">
                         {urgent && (
-                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
                             <AlertCircle size={9} /> Emergency
                           </span>
                         )}
@@ -234,7 +236,7 @@ export default function AgentApplications() {
                   {missingDocs.map((row) => {
                     const due = loadDocDueDate(app.id, row.type);
                     return (
-                      <div key={row.type} className="flex items-center gap-2 rounded-lg bg-amber-50/60 px-2.5 py-1.5 text-xs">
+                      <div key={row.type} className="flex items-center gap-2 rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm/60 px-2.5 py-1.5 text-xs">
                         <AlertCircle size={12} className="shrink-0 text-amber-500" />
                         <span className="min-w-0 flex-1 truncate text-slate-700">{row.type}</span>
                         {due && (
@@ -283,30 +285,11 @@ export default function AgentApplications() {
             <p className="text-[11px] text-slate-400">
               Showing {(clampedPage - 1) * PAGE_SIZE + 1}–{Math.min(clampedPage * PAGE_SIZE, filtered.length)} of {filtered.length} application{filtered.length === 1 ? "" : "s"}
             </p>
-            {totalPages > 1 && (
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={clampedPage === 1}
-                  aria-label="Previous page"
-                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40"
-                >
-                  <ChevronLeft size={13} />
-                </button>
-                <span className="flex h-6 min-w-[24px] items-center justify-center rounded-lg bg-blue-600 px-1.5 text-[11px] font-semibold text-white">
-                  {clampedPage}
-                </span>
-                <span className="text-[11px] text-slate-400">of {totalPages}</span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={clampedPage === totalPages}
-                  aria-label="Next page"
-                  className="flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40"
-                >
-                  <ChevronRight size={13} />
-                </button>
-              </div>
-            )}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="px-5 pb-4">
+            <Pagination page={clampedPage} totalPages={totalPages} onChange={setPage} />
           </div>
         )}
       </div>

@@ -71,7 +71,7 @@ export default function AgentStudents() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {openTasks.length > 0 && (
-                  <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                  <span className="flex items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-2 py-0.5 text-[11px] font-medium text-neutral-900">
                     <ListChecks size={11} /> {openTasks.length} task{openTasks.length === 1 ? "" : "s"}
                   </span>
                 )}

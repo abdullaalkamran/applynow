@@ -17,7 +17,7 @@ export default function AgentCampusOptions() {
   if (!university) {
     return (
       <div className="max-w-2xl">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           <ArrowLeft size={14} /> Back
         </button>
         <p className="text-xs text-slate-400">University not found.</p>
@@ -30,7 +30,7 @@ export default function AgentCampusOptions() {
 
   return (
     <div className="max-w-2xl">
-      <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
         <ArrowLeft size={14} /> Back
       </button>
 

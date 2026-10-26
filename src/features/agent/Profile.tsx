@@ -84,7 +84,7 @@ export default function AgentProfile() {
         <p className="mt-1 text-sm text-slate-500">Your own account details — visible to students and staff you work with.</p>
       </div>
 
-      {loadError && <p className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-600">{loadError}</p>}
+      {loadError && <p className="mb-4 rounded-xl bg-[var(--sd-card)] shadow-neu-inset-sm p-3 text-sm text-rose-600">{loadError}</p>}
 
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_0_10px_rgba(0,0,0,0.06)]">
         <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export default function AgentProfile() {
         onClick={handleLogout}
         className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white px-5 py-3.5 text-left shadow-[0_0_10px_rgba(0,0,0,0.06)]"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-500">
           <LogOut size={16} />
         </div>
         <span className="text-sm font-medium text-rose-500">Log Out</span>

@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
-  Sparkles, ChevronDown, ChevronLeft, ChevronRight, GraduationCap, Copy, AlertCircle, Trash2,
+  Sparkles, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, GraduationCap, Copy, AlertCircle, Trash2,
 } from "lucide-react";
 import { WhatsAppIcon } from "./WhatsAppIcon";
 import type { SupportContact } from "../../types";
@@ -534,21 +534,25 @@ export function CoverPhoto({
   return <img src={src} alt={alt} loading="lazy" decoding="async" className={className} onError={() => setFailed(true)} />;
 }
 
-// Condensed page-number list: first, last, current ±1, with a "…" for any gap — the standard
-// pattern for not rendering 30 page buttons in a row once a list has many pages.
+// Condensed page-number list: the first two and last two pages and the current page ±2, with a "…" for any gap — enough
+// numbers to jump around a long list without rendering every page button.
 function paginationRange(page: number, totalPages: number): (number | "...")[] {
-  const pages = new Set([1, totalPages, page - 1, page, page + 1]);
+  const pages = new Set([1, 2, totalPages - 1, totalPages, page - 2, page - 1, page, page + 1, page + 2]);
   const sorted = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
   const withGaps: (number | "...")[] = [];
   sorted.forEach((p, i) => {
-    if (i > 0 && p - (sorted[i - 1] as number) > 1) withGaps.push("...");
+    const prev = sorted[i - 1] as number | undefined;
+    // A gap of exactly one page is shown as that page instead of "…" (a "…" hiding a single number is just annoying).
+    if (prev !== undefined && p - prev === 2) withGaps.push(p - 1);
+    else if (prev !== undefined && p - prev > 2) withGaps.push("...");
     withGaps.push(p);
   });
   return withGaps;
 }
 
 /** Numbered pagination for an already-loaded list sliced client-side (see usePagedList) — renders
- * nothing for a single page, so it's always safe to drop in unconditionally. */
+ * nothing for a single page, so it's always safe to drop in unconditionally. First/Previous/Next/Last,
+ * a window of page numbers, and a "go to page" box for long lists. */
 /** The nearest ancestor that actually scrolls — every shell scrolls an inner container, not the
  * window (see useScrollToTopOnNavigate.ts) — falling back to the window itself. */
 function scrollParentOf(el: HTMLElement | null): HTMLElement | Window {
@@ -561,50 +565,78 @@ function scrollParentOf(el: HTMLElement | null): HTMLElement | Window {
 
 export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [jump, setJump] = useState("");
   if (totalPages <= 1) return null;
 
   // A new page of results should start from the top of the list, not leave the reader parked at
   // the pagination bar at the bottom of it.
   function goTo(next: number) {
+    const target = Math.min(totalPages, Math.max(1, next));
     const scroller = scrollParentOf(rootRef.current);
-    onChange(next);
+    onChange(target);
     scroller.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function submitJump() {
+    const n = parseInt(jump, 10);
+    if (Number.isFinite(n)) goTo(n);
+    setJump("");
+  }
+
+  const edge = "flex h-10 w-10 items-center justify-center rounded-xl text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent";
+
   return (
-    <div ref={rootRef} className="mt-4 flex items-center justify-center gap-1">
-      <button
-        onClick={() => goTo(page - 1)}
-        disabled={page === 1}
-        aria-label="Previous page"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent"
-      >
-        <ChevronLeft size={16} />
-      </button>
-      {paginationRange(page, totalPages).map((p, i) =>
-        p === "..." ? (
-          <span key={`gap-${i}`} className="px-1.5 text-xs text-neutral-400">…</span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => goTo(p)}
-            aria-current={p === page ? "page" : undefined}
-            className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[12.5px] font-medium ${
-              p === page ? "bg-[var(--sd-ink,#1e293b)] text-white" : "text-neutral-600 hover:bg-neutral-100"
-            }`}
-          >
-            {p}
-          </button>
-        )
-      )}
-      <button
-        onClick={() => goTo(page + 1)}
-        disabled={page === totalPages}
-        aria-label="Next page"
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-transparent"
-      >
-        <ChevronRight size={16} />
-      </button>
+    <div ref={rootRef} className="mt-5 flex flex-col items-center gap-2.5">
+      <div className="flex flex-wrap items-center justify-center gap-1">
+        <button onClick={() => goTo(1)} disabled={page === 1} aria-label="First page" title="First page" className={edge}>
+          <ChevronsLeft size={17} />
+        </button>
+        <button onClick={() => goTo(page - 1)} disabled={page === 1} aria-label="Previous page" title="Previous page" className={edge}>
+          <ChevronLeft size={17} />
+        </button>
+        {paginationRange(page, totalPages).map((p, i) =>
+          p === "..." ? (
+            <span key={`gap-${i}`} className="px-1 text-sm text-neutral-400">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => goTo(p)}
+              aria-current={p === page ? "page" : undefined}
+              aria-label={`Page ${p}`}
+              className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-2.5 text-[13.5px] font-semibold ${
+                p === page ? "bg-[var(--sd-ink,#1e293b)] text-white shadow-neu-dark" : "text-neutral-600 hover:bg-neutral-100"
+              }`}
+            >
+              {p}
+            </button>
+          )
+        )}
+        <button onClick={() => goTo(page + 1)} disabled={page === totalPages} aria-label="Next page" title="Next page" className={edge}>
+          <ChevronRight size={17} />
+        </button>
+        <button onClick={() => goTo(totalPages)} disabled={page === totalPages} aria-label="Last page" title="Last page" className={edge}>
+          <ChevronsRight size={17} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 text-xs text-neutral-500">
+        <span>Page {page} of {totalPages}</span>
+        {totalPages > 7 && (
+          <form onSubmit={(e) => { e.preventDefault(); submitJump(); }} className="flex items-center gap-1.5">
+            <span className="text-neutral-300">·</span>
+            <label htmlFor="page-jump">Go to</label>
+            <input
+              id="page-jump"
+              value={jump}
+              onChange={(e) => setJump(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputMode="numeric"
+              placeholder="#"
+              className="h-8 w-14 rounded-lg border border-neutral-200 px-2 text-center text-xs text-neutral-700 focus:outline-none"
+            />
+            <button type="submit" disabled={!jump} className="h-8 rounded-lg bg-[var(--sd-ink,#1e293b)] px-3 text-xs font-semibold text-white disabled:opacity-40">Go</button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

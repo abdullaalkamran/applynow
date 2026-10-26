@@ -47,7 +47,7 @@ export default function AgentUniversityDetail() {
   if (!university) {
     return (
       <div className="max-w-4xl">
-        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+        <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
           <ArrowLeft size={14} /> Back
         </button>
         <p className="text-xs text-slate-400">{universityLoading ? "Loading university…" : "University not found."}</p>
@@ -60,7 +60,7 @@ export default function AgentUniversityDetail() {
 
   return (
     <div className="max-w-4xl">
-      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
         <ArrowLeft size={14} /> Back to Universities
       </button>
 
@@ -77,7 +77,7 @@ export default function AgentUniversityDetail() {
               <p className="text-xs text-slate-400">{university.name}</p>
               <h1 className="mt-0.5 text-lg font-semibold text-slate-900">{course.name}</h1>
               {navState?.subject && (
-                <button onClick={() => navigate(`/agent/subjects/${encodeURIComponent(navState.subject!)}`)} className="mt-1 text-[11px] font-medium text-blue-600">
+                <button onClick={() => navigate(`/agent/subjects/${encodeURIComponent(navState.subject!)}`)} className="mt-1 text-[11px] font-medium text-neutral-900">
                   View {navState.subject} at other universities →
                 </button>
               )}
@@ -104,10 +104,10 @@ export default function AgentUniversityDetail() {
                 <button
                   key={t}
                   onClick={() => setCourseTab(t)}
-                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${courseTab === t ? "text-blue-700" : "text-slate-400"}`}
+                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${courseTab === t ? "text-neutral-900" : "text-slate-400"}`}
                 >
                   {t}
-                  {courseTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+                  {courseTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-neutral-900" />}
                 </button>
               ))}
             </div>
@@ -152,7 +152,7 @@ export default function AgentUniversityDetail() {
                 <ul className="space-y-2">
                   {curriculumForCourse(course).modules.map((m) => (
                     <li key={m} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <CheckCircle2 size={13} className="shrink-0 text-blue-500" /> {m}
+                      <CheckCircle2 size={13} className="shrink-0 text-neutral-900" /> {m}
                     </li>
                   ))}
                 </ul>
@@ -176,7 +176,7 @@ export default function AgentUniversityDetail() {
                 <button
                   onClick={() => setApplyOpen(true)}
                   disabled={!courseHasOpenIntake(university, course)}
-                  className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+                  className="rounded-full bg-neutral-900 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:bg-slate-300"
                 >
                   {courseHasOpenIntake(university, course) ? "Apply Now" : "Intake Closed"}
                 </button>
@@ -190,10 +190,10 @@ export default function AgentUniversityDetail() {
                 <button
                   key={t}
                   onClick={() => setUniTab(t)}
-                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${uniTab === t ? "text-blue-700" : "text-slate-400"}`}
+                  className={`relative shrink-0 whitespace-nowrap py-3 text-[13px] font-medium ${uniTab === t ? "text-neutral-900" : "text-slate-400"}`}
                 >
                   {t}
-                  {uniTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-blue-600" />}
+                  {uniTab === t && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-neutral-900" />}
                 </button>
               ))}
             </div>
@@ -327,7 +327,7 @@ export default function AgentUniversityDetail() {
               <a href={websiteHref(university.website)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-slate-500">
                 Website <ExternalLink size={12} />
               </a>
-              <button onClick={() => setUniTab("Courses")} className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+              <button onClick={() => setUniTab("Courses")} className="rounded-full bg-neutral-900 px-4 py-2 text-xs font-semibold text-white hover:bg-neutral-800">
                 View Courses →
               </button>
             </div>

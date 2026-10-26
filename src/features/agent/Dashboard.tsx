@@ -7,7 +7,6 @@ import {
 import { LogoBadge } from "../../components/ui/mobile";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { CURRENT_AGENT_ID } from "../../data/mockData";
-import { staffContact } from "../../utils/currentStaff";
 import { getAllApplications, getStatusHistory } from "../../data/applicationsStore";
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { getStatTrends } from "../../data/staffStatsSnapshotStore";
@@ -20,11 +19,11 @@ import type { Student } from "../../types";
 const CLOSED_STATUSES = new Set(["Enrolled", "Deferred", "Withdrawn", "Rejected"]);
 
 const STAGE_STYLE: Record<AgentStage, { badge: string; dot: string }> = {
-  Enquiry: { badge: "bg-blue-50 text-blue-700", dot: "bg-blue-500" },
-  Application: { badge: "bg-violet-50 text-violet-700", dot: "bg-violet-500" },
-  "Under Review": { badge: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
-  Offer: { badge: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
-  Visa: { badge: "bg-rose-50 text-rose-700", dot: "bg-rose-500" },
+  Enquiry: { badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-neutral-900", dot: "bg-neutral-700" },
+  Application: { badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-violet-700", dot: "bg-violet-500" },
+  "Under Review": { badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-700", dot: "bg-neutral-700" },
+  Offer: { badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-700", dot: "bg-neutral-700" },
+  Visa: { badge: "bg-[var(--sd-card)] shadow-neu-inset-sm text-rose-700", dot: "bg-rose-500" },
 };
 
 const COUNTRY_FLAG: Record<string, string> = {
@@ -46,7 +45,6 @@ export default function AgentDashboard() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
 
-  const agent = staffContact(CURRENT_AGENT_ID, "agent");
   const students = loadAgentStudents();
   const allApps = getAllApplications().filter((a) => students.some((s) => s.id === a.studentId));
   const activeApps = allApps.filter((a) => !CLOSED_STATUSES.has(a.status));
@@ -127,44 +125,33 @@ export default function AgentDashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Welcome banner + Global Impact */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-100 p-6 lg:col-span-2">
-          <svg className="pointer-events-none absolute inset-x-0 bottom-0 h-24 w-full opacity-40" viewBox="0 0 400 100" preserveAspectRatio="none">
-            <path d="M0 100 L60 40 L110 75 L170 20 L230 70 L290 30 L350 65 L400 45 L400 100 Z" fill="#60a5fa" />
-            <path d="M0 100 L90 60 L150 90 L210 50 L280 85 L340 55 L400 80 L400 100 Z" fill="#93c5fd" opacity="0.7" />
-          </svg>
-          <p className="relative text-xs text-slate-500">Welcome back,</p>
-          <h1 className="relative mt-0.5 text-xl font-bold text-slate-900">{agent.name} 👋</h1>
-          <p className="relative mt-1 text-xs text-slate-500">New opportunities. Brighter futures.</p>
-          <p className="relative mt-4 max-w-[220px] font-serif text-base italic text-slate-400/80">Students Beyond Borders</p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 to-blue-950 p-5 text-white">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full border border-white/10" />
-          <div className="relative flex items-center gap-1.5 text-xs font-medium text-white/70">
+      {/* Global Impact */}
+      <div className="grid grid-cols-1 gap-5">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-100 via-violet-100 to-pink-100 p-5 text-neutral-900 shadow-neu">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/60 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full border border-white/70" />
+          <div className="relative flex items-center gap-1.5 text-xs font-medium text-neutral-600">
             <Globe2 size={13} /> Your Global Impact
           </div>
           <div className="relative mt-3 flex items-center justify-between">
             <div>
               <p className="text-xl font-bold">{enrolledCount}</p>
-              <p className="text-[11px] text-white/60">Students Placed</p>
+              <p className="text-[11px] text-neutral-500">Students Placed</p>
               {impactTrends.placed !== null && (
-                <p className={`mt-1 flex items-center gap-1 text-[10.5px] font-medium ${impactTrends.placed >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                <p className={`mt-1 flex items-center gap-1 text-[10.5px] font-medium ${impactTrends.placed >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                   {impactTrends.placed >= 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />} {Math.abs(impactTrends.placed)}% since last visit
                 </p>
               )}
             </div>
             <div className="text-right">
               <p className="text-xl font-bold">{partnerCountries}</p>
-              <p className="text-[11px] text-white/60">Partner Countries</p>
+              <p className="text-[11px] text-neutral-500">Partner Countries</p>
             </div>
           </div>
           {partnerCountries > 0 && (
             <div className="relative mt-3 flex flex-wrap gap-1.5">
               {Array.from(new Set(activeApps.map((a) => a.country))).slice(0, 6).map((c) => (
-                <span key={c} className="rounded-full bg-white/10 px-2 py-0.5 text-[10.5px]">{c}</span>
+                <span key={c} className="rounded-full bg-white/70 px-2 py-0.5 text-[10.5px] text-neutral-700">{c}</span>
               ))}
             </div>
           )}
@@ -175,10 +162,10 @@ export default function AgentDashboard() {
         <div className="space-y-5 lg:col-span-2">
           {/* Stat tiles */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile icon={<Users size={16} />} tone="bg-blue-50 text-blue-600" value={students.length} label="Total Students" trend={trends.students} />
-            <StatTile icon={<FileText size={16} />} tone="bg-emerald-50 text-emerald-600" value={activeApps.length} label="Active Applications" trend={trends.applications} />
-            <StatTile icon={<Award size={16} />} tone="bg-violet-50 text-violet-600" value={offerCount} label="Offers Received" trend={trends.offers} />
-            <StatTile icon={<PlaneTakeoff size={16} />} tone="bg-amber-50 text-amber-600" value={visaCount} label="Visa In Process" trend={trends.visa} />
+            <StatTile icon={<Users size={16} />} tone="bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md" value={students.length} label="Total Students" trend={trends.students} />
+            <StatTile icon={<FileText size={16} />} tone="bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md" value={activeApps.length} label="Active Applications" trend={trends.applications} />
+            <StatTile icon={<Award size={16} />} tone="bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white shadow-md" value={offerCount} label="Offers Received" trend={trends.offers} />
+            <StatTile icon={<PlaneTakeoff size={16} />} tone="bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md" value={visaCount} label="Visa In Process" trend={trends.visa} />
           </div>
 
           {/* Application Pipeline */}
@@ -188,7 +175,7 @@ export default function AgentDashboard() {
                 <h2 className="text-[15px] font-semibold text-slate-900">Application Pipeline</h2>
                 <p className="text-xs text-slate-500">Track and manage your students across every stage</p>
               </div>
-              <button onClick={() => navigate("/agent/applications")} className="flex items-center gap-1 text-xs font-medium text-blue-600">
+              <button onClick={() => navigate("/agent/applications")} className="flex items-center gap-1 text-xs font-medium text-neutral-900">
                 View All <ChevronRight size={13} />
               </button>
             </div>
@@ -261,7 +248,7 @@ export default function AgentDashboard() {
                       <LogoBadge name={uni} tone={university?.tone ?? "violet"} logoUrl={university?.logoUrl} className="h-6 w-6 shrink-0 text-[9px]" />
                       <span className="min-w-0 flex-1 truncate text-xs text-slate-600">{uni}</span>
                       <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-blue-500" style={{ width: `${(count / maxUniCount) * 100}%` }} />
+                        <div className="h-full rounded-full bg-neutral-700" style={{ width: `${(count / maxUniCount) * 100}%` }} />
                       </div>
                       <span className="w-4 shrink-0 text-right text-[11px] font-semibold text-slate-500">{count}</span>
                     </div>
@@ -280,7 +267,7 @@ export default function AgentDashboard() {
                   <div key={m.label} className="flex flex-1 flex-col items-center gap-1">
                     <span className="text-[10px] font-semibold text-slate-500">{m.count}</span>
                     <div
-                      className="w-full rounded-t bg-blue-400"
+                      className="w-full rounded-t bg-neutral-700"
                       style={{ height: `${Math.max(6, (m.count / maxMonthCount) * 72)}px` }}
                     />
                     <span className="text-[10px] text-slate-400">{m.label}</span>
@@ -295,9 +282,9 @@ export default function AgentDashboard() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_0_10px_rgba(0,0,0,0.05)]">
             <div className="flex items-center gap-1.5">
-              <Sparkles size={14} className="text-blue-500" />
+              <Sparkles size={14} className="text-neutral-900" />
               <h3 className="text-[13px] font-semibold text-slate-800">AI Assistant</h3>
-              <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-blue-600">Beta</span>
+              <span className="rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-neutral-900">Beta</span>
             </div>
             <p className="mt-1 text-[11px] text-slate-500">Get insights, draft messages, and more.</p>
 
@@ -308,7 +295,7 @@ export default function AgentDashboard() {
                   onClick={() => { setQuestion(s); askAssistant(s); }}
                   className="flex w-full items-center gap-2 rounded-lg border border-slate-100 px-2.5 py-2 text-left text-[11.5px] text-slate-600 hover:bg-slate-50"
                 >
-                  <Sparkles size={11} className="shrink-0 text-blue-400" /> {s}
+                  <Sparkles size={11} className="shrink-0 text-neutral-900" /> {s}
                 </button>
               ))}
             </div>
@@ -357,7 +344,7 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => { t.onToggle?.(); forceTick((n) => n + 1); }}
                       aria-label={t.done ? `Mark "${t.title}" not done` : `Mark "${t.title}" done`}
-                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${t.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}
+                      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${t.done ? "border-emerald-500 bg-neutral-700 text-white" : "border-slate-300"}`}
                     >
                       {t.done && <Check size={10} />}
                     </button>
@@ -392,7 +379,7 @@ export default function AgentDashboard() {
                       <p className="truncate text-[10.5px] text-slate-400">{s.studentName} · {s.university}</p>
                     </div>
                     {urgent ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--sd-card)] shadow-neu-inset-sm px-1.5 py-0.5 text-[9.5px] font-semibold text-rose-700">
                         <AlertCircle size={9} /> Emergency
                       </span>
                     ) : s.dueDate ? (
@@ -413,7 +400,7 @@ export default function AgentDashboard() {
               {activity.map((item, i) => {
                 const stage = agentStageFor(item.status as never);
                 const Icon = stage === "Offer" ? Award : stage === "Visa" ? PlaneTakeoff : stage === "Under Review" ? Clock : MessageSquare;
-                const tone = stage === "Offer" ? "bg-emerald-50 text-emerald-600" : stage === "Visa" ? "bg-sky-50 text-sky-600" : stage === "Under Review" ? "bg-amber-50 text-amber-600" : "bg-violet-50 text-violet-600";
+                const tone = stage === "Offer" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-emerald-600" : stage === "Visa" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-sky-600" : stage === "Under Review" ? "bg-[var(--sd-card)] shadow-neu-inset-sm text-amber-600" : "bg-[var(--sd-card)] shadow-neu-inset-sm text-violet-600";
                 return (
                   <div key={i} className="flex items-start gap-2.5">
                     <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone}`}>
@@ -434,8 +421,8 @@ export default function AgentDashboard() {
       </div>
 
       {/* Bottom banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 to-blue-900 p-6">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-blue-500/20 blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-neutral-700/20 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-16 right-24 h-32 w-32 rounded-full border border-white/10" />
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>

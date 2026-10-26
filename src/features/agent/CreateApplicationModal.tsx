@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Modal, Button, SearchableSelect } from "../../components/ui";
+import { Modal, Button } from "../../components/ui";
+import { NeuSelect } from "../../components/ui/NeuSelect";
 import { getAllUniversities } from "../../data/universityCatalogStore";
 import { createApplication } from "../../data/applicationsStore";
 import { destinationOptions, campusesFor, courseHasOpenIntake } from "../../utils/universityFilter";
@@ -55,14 +56,14 @@ export function CreateApplicationModal({
     <Modal title="Create application" onClose={onClose}>
       <div className="space-y-3">
         <Field label="Student">
-          <select value={studentId} onChange={(e) => setStudentId(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect searchable value={studentId} onChange={(e) => setStudentId(e.target.value)} className={SELECT_CLASS}>
             {students.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="Country">
-          <select
+          <NeuSelect
             value={country}
             onChange={(e) => {
               const v = e.target.value;
@@ -80,10 +81,11 @@ export function CreateApplicationModal({
             {destinationOptions().map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="University">
-          <select
+          <NeuSelect
+            searchable
             value={universityId}
             onChange={(e) => {
               const v = e.target.value;
@@ -99,39 +101,44 @@ export function CreateApplicationModal({
             {universitiesInCountry.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         {university && (
           <Field label="Subject">
-            <SearchableSelect
+            <NeuSelect
+              searchable
               value={courseName}
-              onChange={(v) => {
+              onChange={(e) => {
+                const v = e.target.value;
                 setCourseName(v);
                 const c = university.courses.find((x) => x.name === v);
                 setCampus((c ? campusesFor(university, c) : [])[0]?.name ?? "");
                 setIntake((c ? openIntakesFor(university, c) : [])[0] ?? "");
               }}
-              options={openCourses.map((c) => c.name)}
-              placeholder="Search subjects…"
-            />
+              className={SELECT_CLASS}
+            >
+              {openCourses.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </NeuSelect>
             {openCourses.length === 0 && (
               <p className="mt-1 text-[11px] text-rose-500">No courses at this university currently have an open intake.</p>
             )}
           </Field>
         )}
         <Field label="Campus">
-          <select value={campus} onChange={(e) => setCampus(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect value={campus} onChange={(e) => setCampus(e.target.value)} className={SELECT_CLASS}>
             {campuses.map((c) => (
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
-          </select>
+          </NeuSelect>
         </Field>
         <Field label="Intake">
-          <select value={intake} onChange={(e) => setIntake(e.target.value)} className={SELECT_CLASS}>
+          <NeuSelect value={intake} onChange={(e) => setIntake(e.target.value)} className={SELECT_CLASS}>
             {openIntakes.map((i) => (
               <option key={i} value={i}>{i}</option>
             ))}
-          </select>
+          </NeuSelect>
           {openIntakes.length === 0 && <p className="mt-1 text-[11px] text-rose-500">This course has no open intake right now.</p>}
         </Field>
         {error && <p className="text-xs text-rose-600">{error}</p>}
@@ -163,13 +170,13 @@ export function CreateApplicationModal({
   );
 }
 
-const SELECT_CLASS = "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800";
+const SELECT_CLASS = "mt-1 w-full text-[13px]";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block text-xs font-medium text-slate-500">
+    <div className="block text-xs font-medium text-slate-500">
       {label}
       {children}
-    </label>
+    </div>
   );
 }

@@ -42,7 +42,7 @@ export default function AgentSubjectDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-blue-600">
+      <button onClick={() => navigate("/agent/universities")} className="mb-4 flex items-center gap-1.5 text-xs font-medium text-neutral-900">
         <ArrowLeft size={14} /> Back to Universities
       </button>
 
@@ -55,7 +55,7 @@ export default function AgentSubjectDetail() {
         <PillSelect label="Fees" value={band.bandValue} options={band.bandOptions} onChange={band.onBandChange} />
         {band.showCurrency && <PillSelect label="Currency" value={band.currencyValue} options={band.currencyOptions} onChange={band.onCurrencyChange} />}
         {hasFilters && (
-          <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="shrink-0 text-[11px] font-medium text-blue-600">
+          <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="shrink-0 text-[11px] font-medium text-neutral-900">
             Clear
           </button>
         )}
@@ -76,7 +76,7 @@ export default function AgentSubjectDetail() {
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
           <p className="text-xs text-slate-400">No programs match this view.</p>
           {hasFilters && (
-            <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="mt-2 text-[11px] font-medium text-blue-600">
+            <button onClick={() => { setDestination(""); setIntake(""); band.reset(); }} className="mt-2 text-[11px] font-medium text-neutral-900">
               Reset filters
             </button>
           )}

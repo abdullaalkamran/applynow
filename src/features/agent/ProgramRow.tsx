@@ -52,7 +52,7 @@ export function ProgramRow({
       </div>
 
       <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-50 pt-2.5">
-        <button onClick={openDetail} className="text-[11px] font-medium text-blue-600">
+        <button onClick={openDetail} className="text-[11px] font-medium text-neutral-900">
           University Profile →
         </button>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -60,7 +60,7 @@ export function ProgramRow({
           <button
             onClick={() => onApply(university, course)}
             disabled={!courseHasOpenIntake(university, course)}
-            className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+            className="rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-neutral-800 disabled:bg-slate-300"
           >
             {courseHasOpenIntake(university, course) ? "Apply" : "Intake Closed"}
           </button>
