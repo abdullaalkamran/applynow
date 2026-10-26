@@ -1,6 +1,8 @@
 const { getConfig } = require("../config");
 
-const LLM_TIMEOUT_MS = 90_000;
+// One request through a shared-hosting proxy has roughly a minute; retries and the fallback model must fit inside that
+// total, not each take their own 90s (which ended as a bare gateway timeout in the browser).
+const LLM_BUDGET_MS = 52_000;
 
 function apiUrl(config, model = config.gemini.model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.gemini.apiKey}`;
@@ -104,11 +106,12 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   const fallbackBody = JSON.parse(body);
   fallbackBody.generationConfig.thinkingConfig = { thinkingBudget: 0 };
 
+  const deadline = Date.now() + LLM_BUDGET_MS;
   const post = (model, payload) =>
     fetch(apiUrl(config, model), {
       method: "POST",
       // Bounded so a hung upstream can never pin a request worker indefinitely.
-      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(Math.max(5_000, deadline - Date.now())),
       headers: { "content-type": "application/json" },
       body: payload,
     });
@@ -117,9 +120,10 @@ async function send({ systemPrompt, messages, tools, maxTokens, jsonMode }) {
   for (let attempt = 0; attempt < 3; attempt++) {
     response = await post(config.gemini.model, body);
     if (response.ok || !RETRYABLE.has(response.status)) break;
+    if (Date.now() > deadline - 15_000) break; // no time left for another full attempt
     if (attempt < 2) await sleep(1000 * (attempt + 1));
   }
-  if (!response.ok && RETRYABLE.has(response.status) && config.gemini.model !== FALLBACK_MODEL) {
+  if (!response.ok && RETRYABLE.has(response.status) && config.gemini.model !== FALLBACK_MODEL && Date.now() < deadline - 8_000) {
     console.warn(`Gemini ${config.gemini.model} unavailable (${response.status}) — falling back to ${FALLBACK_MODEL}.`);
     const fallback = await post(FALLBACK_MODEL, JSON.stringify(fallbackBody));
     if (fallback.ok) response = fallback;

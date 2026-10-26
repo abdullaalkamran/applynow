@@ -76,7 +76,12 @@ export default function CounsellorAIAssistant() {
     setInput("");
     setThinking(true);
     try {
-      const reply = await ask(trimmed + note);
+      // A whole turn can chain several AI calls and tool runs; if it still has not finished after two and a half minutes,
+      // free the chat instead of leaving "Working on it…" on screen forever.
+      const reply = await Promise.race([
+        ask(trimmed + note),
+        new Promise<string>((resolve) => setTimeout(() => resolve("That is taking too long — the AI service may be busy. Please try again."), 150_000)),
+      ]);
       lines = [...lines, { id: nextId.current++, from: "ai", text: reply }];
       setMessages(lines);
     } catch {

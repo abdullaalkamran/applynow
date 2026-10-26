@@ -1,6 +1,8 @@
 const { getConfig } = require("../config");
 
-const LLM_TIMEOUT_MS = 90_000;
+// Kept under the ~60s a shared-hosting proxy allows a request, so a slow provider is reported properly instead of the
+// browser getting a bare gateway timeout.
+const LLM_TIMEOUT_MS = 50_000;
 
 const API_URL = "https://api.openai.com/v1/chat/completions";
 

@@ -1,6 +1,8 @@
 const { getConfig } = require("../config");
 
-const LLM_TIMEOUT_MS = 90_000;
+// Kept under the ~60s a shared-hosting proxy allows a request, so a slow provider is reported properly instead of the
+// browser getting a bare gateway timeout.
+const LLM_TIMEOUT_MS = 50_000;
 
 // Ollama's /api/chat speaks an OpenAI-flavored dialect for tool-capable local models
 // (e.g. llama3.1). Intended for local dev/testing, not production — no API key involved.

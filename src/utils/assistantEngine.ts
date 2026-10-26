@@ -35,6 +35,21 @@ export interface RoleAssistantConfig {
 
 const MAX_TOOL_ITERATIONS = 5;
 
+// A tool that returns a huge payload (a catalog search, a long student list) is resent on every following request in the turn;
+// past a point that only makes each call slower and more likely to time out, without helping the answer.
+const MAX_TOOL_RESULT_CHARS = 20_000;
+function capToolResult(result: unknown): unknown {
+  try {
+    const text = JSON.stringify(result);
+    if (text && text.length > MAX_TOOL_RESULT_CHARS) {
+      return { truncated: true, note: "Result was too large and has been cut — narrow the request for more detail.", preview: text.slice(0, MAX_TOOL_RESULT_CHARS) };
+    }
+  } catch {
+    return { error: "Tool result could not be read." };
+  }
+  return result;
+}
+
 // Every turn resends the whole conversation to the provider — with no cap, a long-running chat
 // keeps growing the prompt forever, and response time grows right along with it (more input
 // tokens to process every single turn, even for a one-word reply). Keeping only the last N user
@@ -93,8 +108,10 @@ export async function runAssistantTurn(
     }
 
     if (providerReply.kind === "text") {
-      working = [...working, { role: "assistant", text: providerReply.text }];
-      return { reply: providerReply.text || "", updatedHistory: working };
+      // The model can come back with nothing (a safety block, a cut-off) — an empty bubble looks like the chat froze.
+      const text = providerReply.text?.trim() ? providerReply.text : "I didn't get an answer back from the AI that time — please try asking again.";
+      working = [...working, { role: "assistant", text }];
+      return { reply: text, updatedHistory: working };
     }
 
     working = [...working, { role: "assistant", toolCalls: providerReply.toolCalls }];
@@ -117,7 +134,7 @@ export async function runAssistantTurn(
       } catch (err) {
         result = { error: err instanceof Error ? err.message : String(err) };
       }
-      working = [...working, { role: "tool", toolCallId: call.id, toolName: call.name, toolResult: result }];
+      working = [...working, { role: "tool", toolCallId: call.id, toolName: call.name, toolResult: capToolResult(result) }];
     }
   }
 
