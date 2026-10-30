@@ -40,6 +40,7 @@ const commissionRatesRoute = require("./routes/commissionRates");
 const agentInvitesRoute = require("./routes/agentInvites");
 const agentInvoicesRoute = require("./routes/agentInvoices");
 const blogRoute = require("./routes/blog");
+const { registerSeoRoutes } = require("./seo");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -193,6 +194,10 @@ app.use("/api/blog", blogRoute);
 // installed in this production Node runtime) from this same origin, so a shared-hosting deploy
 // needs only one cPanel Node app and one domain. `BACKEND_BASE` in src/utils/backendBase.ts is
 // built as "" for this setup, making every API call same-origin — no CORS/second host involved.
+// Public pages (/, /news, /news/:slug) plus robots.txt, sitemap.xml and llms.txt are answered here — before the static
+// files below, which would otherwise serve the bare index.html for "/" — so crawlers get real content, titles and structured data.
+registerSeoRoutes(app);
+
 const clientDistPath = path.join(__dirname, "..", "..", "dist");
 app.use(
   express.static(clientDistPath, {

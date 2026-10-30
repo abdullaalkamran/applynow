@@ -1,0 +1,22 @@
+[
+  {
+    "q": "What is UnifinderAi?",
+    "a": "UnifinderAi is a study-abroad platform that helps students find universities and courses around the world, understand entry requirements, and apply with the support of counsellors and partner agents. An AI assistant answers questions and helps with next steps."
+  },
+  {
+    "q": "How does UnifinderAi help me choose a university?",
+    "a": "You can search partner universities and courses by country, subject, level, intake and budget, compare fees and entry requirements, and shortlist the programs that fit. The AI assistant can suggest options based on your profile."
+  },
+  {
+    "q": "Can I track my application and documents on UnifinderAi?",
+    "a": "Yes. After you create an account you can upload your documents once and reuse them across applications, see which documents are still needed, and follow each application from submission through offer, visa and enrolment."
+  },
+  {
+    "q": "Who can use UnifinderAi?",
+    "a": "Students applying to study abroad, partner education agents who manage their own students, and UnifinderAi counsellors and admissions staff. Students and agents verify their email with a one-time code when they create an account."
+  },
+  {
+    "q": "Do I need an account to read the news and updates?",
+    "a": "No. The News & Updates section is public and can be read without signing in. An account is only needed to search programs in full, save a shortlist or apply."
+  }
+]

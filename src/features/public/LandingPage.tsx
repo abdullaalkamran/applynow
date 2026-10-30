@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
 import { BACKEND_BASE } from "../../utils/backendBase";
 import RealGlobe from "./RealGlobe";
+import faq from "../../data/landingFaq.json";
 import { fetchPublicNews, mediaSrc, formatPostDate, type PublicNewsItem } from "../../data/blogApi";
 import "./LandingPage.css";
 
@@ -70,6 +71,25 @@ function Header() {
         </Link>
       </div>
     </header>
+  );
+}
+
+/** Common questions, answered in plain sentences. The same list is emitted as FAQPage structured data by the server
+ * (server/src/seo.js), so search engines and AI assistants can quote it. */
+function FaqSection() {
+  return (
+    <section className="faq-section" aria-label="Frequently asked questions">
+      <p className="news-kicker">FAQ</p>
+      <h2>Frequently asked questions</h2>
+      <div className="faq-list">
+        {faq.map((f) => (
+          <details key={f.q} className="faq-item">
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -147,6 +167,7 @@ export default function LandingPage() {
     navigate("/login");
   };
   const { destinations, logos } = useLanding();
+  useEffect(() => { document.title = "UnifinderAi — Find your next university"; }, []);
 
   return (
     <main className="ai-landing" aria-label="UnifinderAi landing page">
@@ -210,6 +231,8 @@ export default function LandingPage() {
       {logos.length > 0 && <LogoMarquee logos={logos} />}
 
       <NewsSection />
+
+      <FaqSection />
 
       <section className="guidance-section" aria-label="AI guidance">
         <div className="guidance-copy">

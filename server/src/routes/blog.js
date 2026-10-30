@@ -4,6 +4,7 @@ const express = require("express");
 const crypto = require("crypto");
 const prisma = require("../prismaClient");
 const requireAuth = require("../middleware/requireAuth");
+const { invalidateSeoCache } = require("../seo");
 const { requireDataRole } = require("../middleware/access");
 
 const router = express.Router();
@@ -93,6 +94,7 @@ router.post("/", requireAuth, requireDataRole, async (req, res, next) => {
         publishedAt: status === "published" ? new Date() : null,
       },
     });
+    invalidateSeoCache();
     res.status(201).json(serialize(post));
   } catch (err) {
     next(err);
@@ -108,6 +110,7 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
     // First time it goes live, stamp the publish date; unpublishing keeps it so re-publishing doesn't reorder the news.
     if (data.status === "published" && !existing.publishedAt) data.publishedAt = new Date();
     const post = await prisma.blogPost.update({ where: { id: req.params.id }, data });
+    invalidateSeoCache();
     res.json(serialize(post));
   } catch (err) {
     next(err);
@@ -117,6 +120,7 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
 router.delete("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   try {
     await prisma.blogPost.delete({ where: { id: req.params.id } });
+    invalidateSeoCache();
     res.status(204).end();
   } catch (err) {
     next(err);
