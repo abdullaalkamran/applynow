@@ -1273,3 +1273,23 @@ model EmailOtp {
 
   @@index([email, purpose, createdAt])
 }
+
+// News & Updates posts: written by Data Management (or an admin) and shown on the public landing page — readable
+// without logging in once status is "published". Content is Markdown text, rendered without raw HTML.
+model BlogPost {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  excerpt       String?   @db.Text
+  content       String    @db.LongText
+  coverImageUrl String?   @db.Text
+  // draft | published
+  status        String    @default("draft")
+  authorName    String
+  authorId      String?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, publishedAt])
+}

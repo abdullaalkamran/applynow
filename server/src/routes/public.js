@@ -84,6 +84,37 @@ router.get("/landing", async (_req, res, next) => {
   }
 });
 
+// News & Updates for the logged-out landing page: only posts an editor has published, never drafts. List rows carry
+// no body (just what a card needs); the full text comes from /news/:slug.
+router.get("/news", async (_req, res, next) => {
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { status: "published" },
+      orderBy: { publishedAt: "desc" },
+      take: 60,
+      select: { id: true, slug: true, title: true, excerpt: true, coverImageUrl: true, authorName: true, publishedAt: true },
+    });
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(posts.map((p) => ({ ...p, excerpt: p.excerpt || "", coverImageUrl: p.coverImageUrl || undefined, publishedAt: p.publishedAt?.toISOString() })));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/news/:slug", async (req, res, next) => {
+  try {
+    const post = await prisma.blogPost.findFirst({ where: { slug: req.params.slug, status: "published" } });
+    if (!post) return res.status(404).json({ error: "Post not found." });
+    res.set("Cache-Control", "public, max-age=60");
+    res.json({
+      id: post.id, slug: post.slug, title: post.title, excerpt: post.excerpt || "", content: post.content,
+      coverImageUrl: post.coverImageUrl || undefined, authorName: post.authorName, publishedAt: post.publishedAt?.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const PHOTO_SOURCES = {
   country: (id) => prisma.country.findUnique({ where: { id }, select: { photoUrl: true } }).then((r) => r?.photoUrl),
   university: (id) => prisma.university.findUnique({ where: { id }, select: { coverPhotoUrl: true } }).then((r) => r?.coverPhotoUrl),

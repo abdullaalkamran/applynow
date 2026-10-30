@@ -92,6 +92,10 @@ const ComplianceRiskQueue = lazy(() => import("./features/staff/compliance/RiskQ
 const DataCatalog = lazy(() => import("./features/staff/data/Catalog"));
 const DataSubjects = lazy(() => import("./features/staff/data/Subjects"));
 const DataSubjectForm = lazy(() => import("./features/staff/data/SubjectForm"));
+const DataBlog = lazy(() => import("./features/staff/data/Blog"));
+const DataBlogForm = lazy(() => import("./features/staff/data/BlogForm"));
+const NewsList = lazy(() => import("./features/public/News"));
+const NewsPost = lazy(() => import("./features/public/NewsPost"));
 const DataKnowledge = lazy(() => import("./features/staff/data/Knowledge"));
 const DataCountries = lazy(() => import("./features/staff/data/Countries"));
 const DataUniversities = lazy(() => import("./features/staff/data/Universities"));
@@ -154,6 +158,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
+          <Route path="/news" element={<NewsList />} />
+          <Route path="/news/:slug" element={<NewsPost />} />
           <Route path="/login" element={<Login />} />
           {/* Same page/logic as /login (login is role-agnostic — the backend returns whatever
               role the account actually has) — just a distinct URL to hand to staff/admin instead
@@ -270,6 +276,9 @@ export default function App() {
             <Route path="/staff/data/subjects/new" element={<DataSubjectForm />} />
             <Route path="/staff/data/subjects/:id" element={<DataSubjectForm />} />
             <Route path="/staff/data/knowledge" element={<DataKnowledge />} />
+            <Route path="/staff/data/blog" element={<DataBlog />} />
+            <Route path="/staff/data/blog/new" element={<DataBlogForm />} />
+            <Route path="/staff/data/blog/:id" element={<DataBlogForm />} />
             <Route path="/staff/data/catalog" element={<DataCatalog />} />
             <Route path="/staff/finance" element={<FinanceCommissionApprovals />} />
 

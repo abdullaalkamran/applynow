@@ -91,7 +91,10 @@ export function NeuSelect({
     const target = { value: opt.value, name: name ?? "", id: id ?? "" };
     onChange({ target, currentTarget: target } as unknown as ChangeEvent<HTMLSelectElement>);
     close();
-    (inputRef.current ?? triggerRef.current)?.focus();
+    // A searchable field opens itself on focus, so refocusing it here popped the list straight back open after every pick.
+    // Drop focus instead; a plain button keeps it for keyboard users.
+    if (searchable) inputRef.current?.blur();
+    else triggerRef.current?.focus();
   };
 
   // Keep the panel attached to the field while the page scrolls or resizes; close on an outside press.
@@ -153,7 +156,12 @@ export function NeuSelect({
         <div
           ref={triggerRef as React.RefObject<HTMLDivElement>}
           className={`neu-select-trigger ${variant === "inline" ? "neu-select-trigger--inline" : ""} ${disabled ? "opacity-60" : ""} cursor-text ${className}`}
-          onClick={() => { inputRef.current?.focus(); if (!open) openList(); }}
+          onClick={(e) => {
+            // Pressing the arrow (anywhere outside the text box) while the list is open closes it.
+            if (open && e.target !== inputRef.current) { close(); inputRef.current?.blur(); return; }
+            inputRef.current?.focus();
+            if (!open) openList();
+          }}
         >
           <span className="flex min-w-0 flex-1 items-center gap-2.5">
             {startAdornment}
@@ -170,11 +178,12 @@ export function NeuSelect({
               disabled={disabled}
               autoComplete="off"
               value={open ? query : selected && selected.value !== "" ? textOf(selected.label) : ""}
-              placeholder={selected && selected.value === "" ? textOf(selected.label) : allOptions[0] ? textOf(allOptions[0].label) : ""}
+              placeholder={selected && selected.value !== "" ? textOf(selected.label) : selected ? textOf(selected.label) : allOptions[0] ? textOf(allOptions[0].label) : ""}
               onChange={(e) => { setQuery(e.target.value); setActive(0); if (!open) { place(); setOpen(true); } }}
               onFocus={() => { if (!open) openList(); }}
               onKeyDown={onKeyDown}
               onBlur={() => window.setTimeout(() => { if (document.activeElement !== inputRef.current) close(); }, 120)}
+              onClick={(e) => e.stopPropagation()}
               className="neu-select-input min-w-0 flex-1 truncate border-0 p-0 text-inherit shadow-none outline-none placeholder:text-neutral-500"
               style={{ boxShadow: "none", background: "transparent" }}
             />

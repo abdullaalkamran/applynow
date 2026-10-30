@@ -39,6 +39,7 @@ const profileExtractionRoute = require("./routes/profileExtraction");
 const commissionRatesRoute = require("./routes/commissionRates");
 const agentInvitesRoute = require("./routes/agentInvites");
 const agentInvoicesRoute = require("./routes/agentInvoices");
+const blogRoute = require("./routes/blog");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -185,6 +186,7 @@ app.use("/api/profile-extraction", profileExtractionRoute);
 app.use("/api/commission-rates", commissionRatesRoute);
 app.use("/api/agent-invites", agentInvitesRoute);
 app.use("/api/agent-invoices", agentInvoicesRoute);
+app.use("/api/blog", blogRoute);
 
 // Serves the built frontend (see the repo root's committed `dist/`, produced by `npm run build`
 // on a machine that has the frontend's devDependencies — vite/tsc/tailwind are intentionally not

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Search } from "lucide-react";
 import { BACKEND_BASE } from "../../utils/backendBase";
 import RealGlobe from "./RealGlobe";
+import { fetchPublicNews, mediaSrc, formatPostDate, type PublicNewsItem } from "../../data/blogApi";
 import "./LandingPage.css";
 
 type Destination = { id: string; name: string; universityCount?: number; photoUrl?: string };
@@ -59,6 +60,7 @@ function Header() {
         <Link to="/login">Programs</Link>
         <Link to="/login">Universities</Link>
         <Link to="/login">Countries</Link>
+        <Link to="/news">News &amp; Updates</Link>
       </nav>
 
       <div className="header-actions">
@@ -68,6 +70,48 @@ function Header() {
         </Link>
       </div>
     </header>
+  );
+}
+
+/** The latest published News & Updates posts (no login needed). Renders nothing while loading, on error, or when there are
+ * none, so an empty blog never leaves a blank section on the landing page. */
+function NewsSection() {
+  const [posts, setPosts] = useState<PublicNewsItem[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicNews(controller.signal)
+      .then((rows) => setPosts(rows.slice(0, 3)))
+      .catch(() => { /* offline or no news yet: keep the section hidden */ });
+    return () => controller.abort();
+  }, []);
+  if (posts.length === 0) return null;
+  return (
+    <section className="news-section" aria-label="News and updates">
+      <div className="news-head">
+        <div>
+          <p className="news-kicker">News &amp; Updates</p>
+          <h2>What's new at UnifinderAi</h2>
+        </div>
+        <Link className="news-all" to="/news">
+          View all <ArrowRight size={18} strokeWidth={1.6} />
+        </Link>
+      </div>
+      <div className="news-grid">
+        {posts.map((p) => {
+          const cover = mediaSrc(p.coverImageUrl);
+          return (
+            <Link className="news-card" to={`/news/${p.slug}`} key={p.id}>
+              <div className="news-cover" style={cover ? { backgroundImage: `url("${cover}")` } : undefined} />
+              <div className="news-body">
+                <span>{formatPostDate(p.publishedAt)}</span>
+                <h3>{p.title}</h3>
+                {p.excerpt && <p>{p.excerpt}</p>}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -164,6 +208,8 @@ export default function LandingPage() {
       </section>
 
       {logos.length > 0 && <LogoMarquee logos={logos} />}
+
+      <NewsSection />
 
       <section className="guidance-section" aria-label="AI guidance">
         <div className="guidance-copy">

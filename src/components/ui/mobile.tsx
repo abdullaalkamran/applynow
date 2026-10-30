@@ -1,5 +1,5 @@
 import { Logo } from "../Logo";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Home, Compass, FileText, MessageCircle, Phone, User, Upload, Loader2, Check, RotateCcw, X,
@@ -293,10 +293,26 @@ export function DropdownChips({
   floating?: boolean;
 }) {
   const [search, setSearch] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Close when the user clicks anywhere else (or presses Escape) — the list used to stay open until its own button was pressed
+  // again, covering the page. The typed search is cleared with it so the next open starts fresh.
+  useEffect(() => {
+    if (!open) { setSearch(""); return; }
+    const outside = (e: Event) => { if (!rootRef.current?.contains(e.target as Node)) onToggleOpen(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onToggleOpen(); };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("touchstart", outside, { passive: true });
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("touchstart", outside);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open, onToggleOpen]);
   const shown = search.trim() ? options.filter((o) => o.toLowerCase().includes(search.trim().toLowerCase())) : options;
   const summary = selected.size === 0 ? placeholder : selected.size === 1 ? [...selected][0] : `${selected.size} selected`;
   return (
-    <div className={floating ? "relative" : undefined}>
+    <div ref={rootRef} className={floating ? "relative" : undefined}>
       <SubLabel>{label}</SubLabel>
       <button
         type="button"
