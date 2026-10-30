@@ -122,6 +122,10 @@ function render({ title, description, path: pagePath, image, type = "website", j
     .replace(/<meta\s+name="description"[^>]*>/gi, "")
     .replace(/<meta\s+name="robots"[^>]*>/gi, "")
     .replace(/<link\s+rel="canonical"[^>]*>/gi, "")
+    // The landing page's structured data and <noscript> copy are baked into the built index.html (see vite.config.ts);
+    // other routes get their own, so remove them here.
+    .replace(/<script[^>]*data-landing-seo[^>]*>[\s\S]*?<\/script>\s*/gi, "")
+    .replace(/<noscript[^>]*data-landing-seo[^>]*>[\s\S]*?<\/noscript>\s*/gi, "")
     .replace(/<meta\s+property="og:[^>]*>/gi, "")
     .replace(/<meta\s+name="twitter:[^>]*>/gi, "")
     .replace("</head>", `    ${head}\n  </head>`);
@@ -272,6 +276,9 @@ function robotsTxt() {
   return [
     "User-agent: *",
     "Allow: /",
+    // The landing and news pages load their content from these public JSON endpoints; Googlebot has to be able to fetch
+    // them to render the page. (The more specific Allow wins over the broader Disallow of /api/ below.)
+    "Allow: /api/public/",
     ...["/student", "/agent", "/staff", "/admin", "/login", "/signup", "/accept-invite", "/messages", "/api/", "/uploads/documents/"].map((p) => `Disallow: ${p}`),
     "",
     `Sitemap: ${siteUrl()}/sitemap.xml`,

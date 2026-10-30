@@ -18,6 +18,10 @@ echo "==> Pulling latest code..."
 git checkout -- index.html 2>/dev/null || true
 git pull origin main
 
+# The web server in front of Node serves "/" straight from the repo-root index.html, so it must be the BUILT page (the
+# committed source copy points at /src/main.tsx and would show a blank page). Keep the two in step on every deploy.
+if [ -f dist/index.html ]; then cp dist/index.html index.html; fi
+
 echo "==> Activating Node virtual environment..."
 # CloudLinux's own activate script isn't written to survive `set -u` — it references
 # CL_VIRTUAL_ENV without a fallback, which is normally only pre-set when a terminal is opened
