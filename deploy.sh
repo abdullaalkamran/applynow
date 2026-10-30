@@ -13,6 +13,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 echo "==> Pulling latest code..."
+# A build run on this server rewrites the SOURCE index.html (Vite injects its asset tags into it), which then makes
+# `git pull` refuse to continue. The committed copy is the correct one, so drop any local edit to just that file first.
+git checkout -- index.html 2>/dev/null || true
 git pull origin main
 
 echo "==> Activating Node virtual environment..."
