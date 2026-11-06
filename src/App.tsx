@@ -19,6 +19,9 @@ const Login = lazy(() => import("./features/auth/Login"));
 const Signup = lazy(() => import("./features/auth/Signup"));
 const AcceptInvite = lazy(() => import("./features/auth/AcceptInvite"));
 const LandingPage = lazy(() => import("./features/public/LandingPage"));
+const PublicUniversities = lazy(() => import("./features/public/PublicPages").then((m) => ({ default: m.PublicUniversities })));
+const PublicCourses = lazy(() => import("./features/public/PublicPages").then((m) => ({ default: m.PublicCourses })));
+const PublicUniversityDetail = lazy(() => import("./features/public/PublicPages").then((m) => ({ default: m.PublicUniversityDetail })));
 const AppLayout = lazy(() => import("./layouts/AppLayout"));
 const AdminShell = lazy(() => import("./layouts/AdminShell"));
 const StudentShell = lazy(() => import("./layouts/StudentShell"));
@@ -158,6 +161,13 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
+          <Route path="/universities" element={<PublicUniversities />}>
+            <Route path="filters" element={<UniversityFilters />} />
+          </Route>
+          <Route path="/universities/:id" element={<PublicUniversityDetail />} />
+          <Route path="/courses" element={<PublicCourses />}>
+            <Route path="filters" element={<UniversityFilters />} />
+          </Route>
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:slug" element={<NewsPost />} />
           <Route path="/login" element={<Login />} />

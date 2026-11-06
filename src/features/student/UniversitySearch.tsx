@@ -30,7 +30,7 @@ import { CreateApplicationModal } from "../agent/CreateApplicationModal";
 import { NeuSelect } from "../../components/ui/NeuSelect";
 import { sameCurrency } from "../../utils/courseFee";
 
-type Tab = "universities" | "subjects" | "countries";
+export type Tab = "universities" | "subjects" | "countries";
 
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "best", label: "Best Match" },
@@ -65,6 +65,11 @@ export interface ExploreVariant {
   shortlistSlot?: (university: University, course: University["courses"][number], students: Student[]) => ReactNode;
   /** Extra line on a university card (e.g. "2 of your students applying here"). */
   universityNote?: (university: University) => ReactNode;
+  /** Logged-out visitors (/universities, /courses): same page and data, every signed-in action goes to the sign-in page, and the
+   * Universities/Courses tabs are separate URLs (`defaultTab` is the one this route shows). */
+  publicMode?: boolean;
+  tabs?: Tab[];
+  defaultTab?: Tab;
 }
 
 const EXPLORE_FACETS = ["level"];
@@ -122,7 +127,10 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
   // Courses tab with only the student's bookmarked programs showing.
   const openOnShortlist = new URLSearchParams(location.search).get("shortlisted") === "1";
-  const [tab, setTab] = usePreservedState<Tab>("explore:tab", "subjects");
+  const [tabState, setTabState] = usePreservedState<Tab>("explore:tab", "subjects");
+  // Public pages keep the tab in the URL (/universities, /courses); the signed-in page keeps it in state, as before.
+  const tab: Tab = variant.publicMode ? variant.defaultTab ?? "universities" : tabState;
+  const setTab = (t: Tab) => (variant.publicMode ? navigate(t === "subjects" ? "/courses" : "/universities") : setTabState(t));
 
   // The flat "all programs" list on the Courses tab also honours the one shared search bar/filter
   // panel above (see advancedFilteredUniversityIds below) — this is only its own quick toggle for
@@ -249,7 +257,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
         <div className="mt-2">
           <NeuTabs
             ariaLabel="Explore"
-            tabs={["universities", "subjects", "countries"] as const}
+            tabs={variant.tabs ?? (["universities", "subjects", "countries"] as Tab[])}
             labels={{ universities: "Universities", subjects: "Courses", countries: "Countries" }}
             value={tab}
             onChange={setTab}
@@ -315,7 +323,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                   className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-[13px] text-neutral-700"
                 >
                   <option value="">Any year</option>
-                  {yearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+                  {(facets?.years ?? yearOptions()).map((y) => <option key={y} value={y}>{y}</option>)}
                 </NeuSelect>
               </div>
               <div>
@@ -503,7 +511,9 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                         ? () => { void openApply(row); }
                         : variant.students
                           ? () => setStaffApplyTarget({ university: u, course: c })
-                          : undefined
+                          : variant.publicMode
+                            ? () => navigate("/login")
+                            : undefined
                     }
                     actionSlot={variant.shortlistSlot?.(u, c, staffStudents)}
                   />

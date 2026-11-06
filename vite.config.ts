@@ -29,7 +29,7 @@ function landingSeo(): Plugin {
         },
       ]
       const scripts = ld.map((o) => `<script type="application/ld+json" data-landing-seo>${JSON.stringify(o).replace(/</g, '\\u003c')}</script>`).join('\n    ')
-      const noscript = `<noscript data-landing-seo><main><h1>UnifinderAi — Find your next university</h1><p>${escHtml(DESCRIPTION)}</p><p><a href="/news">News &amp; Updates</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a></p><h2>Frequently asked questions</h2>${faq.map((f) => `<h3>${escHtml(f.q)}</h3><p>${escHtml(f.a)}</p>`).join('')}</main></noscript>`
+      const noscript = `<noscript data-landing-seo><main><h1>UnifinderAi — Find your next university</h1><p>${escHtml(DESCRIPTION)}</p><p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/news">News &amp; Updates</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a></p><h2>Frequently asked questions</h2>${faq.map((f) => `<h3>${escHtml(f.q)}</h3><p>${escHtml(f.a)}</p>`).join('')}</main></noscript>`
       return html
         .replace('</head>', `    <link rel="canonical" href="${SITE_URL}/" />\n    ${scripts}\n  </head>`)
         .replace('<div id="root"></div>', `<div id="root"></div>\n    ${noscript}`)

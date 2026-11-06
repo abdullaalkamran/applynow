@@ -45,7 +45,7 @@ export interface PublicNewsItem {
 }
 export interface PublicNewsPost extends PublicNewsItem { content: string }
 
-async function publicGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function publicGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${BACKEND_BASE}${path}`, { signal });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error((data as { error?: string }).error || `Request failed (${response.status})`), { status: response.status });

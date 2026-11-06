@@ -1,20 +1,27 @@
 // Public "News & Updates" — every published post, no login needed.
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "../../components/Logo";
 import { fetchPublicNews, mediaSrc, formatPostDate, type PublicNewsItem } from "../../data/blogApi";
 
 export function PublicHeader() {
+  const { pathname } = useLocation();
+  // The Explore pages are public too: anyone can browse universities and courses before signing up.
+  const link = (to: string, label: string) => (
+    <Link to={to} className={pathname === to || pathname.startsWith(`${to}/`) ? "text-neutral-900" : "hover:text-neutral-900"}>{label}</Link>
+  );
   return (
-    <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
+    <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-5 py-5">
       <Link to="/" aria-label="UnifinderAi home"><Logo className="h-8" /></Link>
-      <nav className="flex items-center gap-5 text-[14px] font-medium text-neutral-600">
-        <Link to="/news" className="text-neutral-900">News &amp; Updates</Link>
-        <Link to="/login" className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 text-neutral-900 hover:bg-neutral-100">
-          Sign in <ArrowRight size={15} />
-        </Link>
+      <nav aria-label="Main navigation" className="order-last flex w-full items-center gap-5 overflow-x-auto text-[14px] font-medium text-neutral-600 sm:order-none sm:w-auto">
+        {link("/universities", "Universities")}
+        {link("/courses", "Courses")}
+        {link("/news", "News & Updates")}
       </nav>
+      <Link to="/login" className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 text-[14px] font-medium text-neutral-900 hover:bg-neutral-100">
+        Sign in <ArrowRight size={15} />
+      </Link>
     </header>
   );
 }

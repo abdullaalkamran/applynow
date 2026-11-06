@@ -77,4 +77,4 @@ router.patch("/:id", requireAuth, requireDataRole, async (req, res, next) => {
   }
 });
 
-module.exports = router;
+module.exports = Object.assign(router, { serialize });

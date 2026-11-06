@@ -99,6 +99,13 @@ export interface CountryRecord {
 let cache: CountryRecord[] = [];
 let refreshSeq = 0;
 
+/** Fills the registry from the public reference data (logged-out visitors). A signed-in session's own copy is never replaced. */
+export function seedCountries(list: CountryRecord[]) {
+  if (cache.length > 0) return;
+  cache = list;
+  notifyCacheChange();
+}
+
 export function refreshCountries(): Promise<void> {
   return dedupeInFlight("countries", async () => {
     const seq = ++refreshSeq;

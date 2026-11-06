@@ -1,9 +1,13 @@
-// Read-only data for the logged-out marketing landing page. Everything else under /api needs a login;
-// this is the one deliberately public surface, so it only ever returns a tiny, non-sensitive summary
-// (country name, tagline, how many partner universities it has, a photo) — never student, staff or
-// application data, and never the full Country Guide / university records.
+// Read-only data for logged-out visitors. Everything else under /api needs a login; this is the one deliberately public
+// surface. It carries the marketing landing page's summaries, the public News & Updates posts, and the university catalogue
+// a prospective student browses before signing up (list/search, filter options, one university with its course list).
+// It never returns student, staff, commission or application data.
 const express = require("express");
 const prisma = require("../prismaClient");
+const { search, facetsFor } = require("../courseSearch");
+const { serializeUniversity } = require("./universities");
+const { serializeCountry } = require("./countries");
+const { serialize: serializeSubject } = require("./subjects");
 
 const router = express.Router();
 
@@ -129,6 +133,70 @@ router.get("/news/:slug", async (req, res, next) => {
     res.json({
       id: post.id, slug: post.slug, title: post.title, excerpt: post.excerpt || "", content: post.content,
       coverImageUrl: post.coverImageUrl || undefined, publishedAt: post.publishedAt?.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- University catalogue (public browsing) ------------------------------------------------------------------------------
+// The logged-out Explore pages are the SAME pages students see (same components), so these endpoints return the same data the
+// signed-in endpoints do: the search, the filter options, one university with all its courses, and the country guides and subject
+// list those pages read. Only student/staff/commission/application data stays behind login.
+const PUBLIC_MAX_LIMIT = 50;
+
+// Same body as POST /api/courses/search (see routes/courses.js), page size capped.
+router.post("/courses/search", async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    res.json(await search({ ...body, shortlistKeys: undefined, limit: Math.min(Number(body.limit) || 20, PUBLIC_MAX_LIMIT) }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/courses/facets", async (req, res, next) => {
+  try {
+    res.json(await facetsFor(req.body || {}));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// One university with every course — exactly what GET /api/universities/:id gives a signed-in student. Logo / cover photos that are
+// stored inline (data: URLs) are served as normal images through /photo/... instead of being embedded in the JSON.
+router.get("/universities/:id", async (req, res, next) => {
+  try {
+    const row = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
+    if (!row) return res.status(404).json({ error: "University not found." });
+    const u = serializeUniversity(row);
+    res.set("Cache-Control", "public, max-age=60");
+    res.json({ ...u, logoUrl: photoRef("universityLogo", u.id, row.logoUrl), coverPhotoUrl: photoRef("university", u.id, row.coverPhotoUrl) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The country guides and the subject list (curriculum, careers) the university pages draw on — the same records signed-in users
+// get from /api/countries and /api/subjects, minus the inline sample-document files and inline images (served via /photo/...).
+router.get("/reference", async (_req, res, next) => {
+  try {
+    const [countries, subjects] = await Promise.all([
+      prisma.country.findMany({ orderBy: { createdAt: "asc" } }),
+      prisma.subject.findMany({ orderBy: { name: "asc" } }),
+    ]);
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({
+      countries: countries.map((c) => {
+        const out = serializeCountry(c);
+        return {
+          ...out,
+          logoUrl: out.logoUrl && !out.logoUrl.startsWith("data:") ? out.logoUrl : undefined,
+          photoUrl: photoRef("country", c.id, c.photoUrl),
+          requiredDocuments: out.requiredDocuments?.map(({ sampleFileDataUrl: _drop, ...doc }) => doc),
+        };
+      }),
+      subjects: subjects.map(serializeSubject),
     });
   } catch (err) {
     next(err);

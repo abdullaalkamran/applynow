@@ -197,6 +197,98 @@ async function newsIndexPage() {
   });
 }
 
+// ---- public university catalogue pages (/universities, /universities/:id, /courses) ----
+const publicImage = (v) => (typeof v === "string" && (v.startsWith("/uploads/") || /^https?:\/\//i.test(v)) ? v : undefined);
+
+async function universitiesIndexPage() {
+  const rows = await prisma.university.findMany({ select: { id: true, name: true, city: true, country: true }, orderBy: { name: "asc" }, take: 500 });
+  const bodyHtml = `
+    <main>
+      <h1>Explore universities</h1>
+      <p>Browse partner universities worldwide: where they are, what they offer, fees and entry requirements.</p>
+      <ul>${rows.map((u) => `<li><h2><a href="/universities/${esc(u.id)}">${esc(u.name)}</a></h2><p>${esc(u.city)}, ${esc(u.country)}</p></li>`).join("")}</ul>
+    </main>`;
+  return render({
+    title: `Explore Universities — ${SITE_NAME}`,
+    description: "Browse partner universities worldwide on UnifinderAi: location, courses, fees, intakes, scholarships and entry requirements.",
+    path: "/universities",
+    jsonLd: [{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Explore universities", url: `${siteUrl()}/universities` }],
+    bodyHtml,
+  });
+}
+
+async function coursesIndexPage() {
+  const bodyHtml = `
+    <main>
+      <h1>Explore courses</h1>
+      <p>Search thousands of courses at partner universities worldwide and compare level, duration, fees and intakes.</p>
+      <p><a href="/universities">Browse universities</a></p>
+    </main>`;
+  return render({
+    title: `Explore Courses — ${SITE_NAME}`,
+    description: "Search courses at partner universities worldwide on UnifinderAi and compare level, duration, fees and intakes.",
+    path: "/courses",
+    jsonLd: [{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Explore courses", url: `${siteUrl()}/courses` }],
+    bodyHtml,
+  });
+}
+
+async function universityPage(id) {
+  const u = await prisma.university.findUnique({
+    where: { id },
+    select: {
+      id: true, name: true, city: true, country: true, description: true, highlights: true, website: true, logoUrl: true, coverPhotoUrl: true,
+      courses: { select: { name: true, level: true, duration: true }, orderBy: { id: "asc" }, take: 40 },
+      _count: { select: { courses: true } },
+    },
+  });
+  if (!u) {
+    return render({ title: `University not found — ${SITE_NAME}`, description: "This university doesn't exist or is no longer available.", path: `/universities/${id}`, noindex: true, status: 404, bodyHtml: "<main><h1>University not found</h1></main>" });
+  }
+  const where = `${u.city}, ${u.country}`;
+  const description = oneLine(u.description, 200) || `${u.name} in ${where}: courses, fees, intakes and entry requirements on ${SITE_NAME}.`;
+  const image = publicImage(u.coverPhotoUrl) || publicImage(u.logoUrl);
+  const highlights = Array.isArray(u.highlights) ? u.highlights.filter((h) => typeof h === "string") : [];
+  const bodyHtml = `
+    <main><article>
+      <p><a href="/universities">All universities</a></p>
+      <h1>${esc(u.name)}</h1>
+      <p>${esc(where)}</p>
+      ${u.description ? `<p>${esc(u.description)}</p>` : ""}
+      ${highlights.length ? `<ul>${highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
+      ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li>${esc(c.name)} — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
+    </article></main>`;
+  return render({
+    title: `${u.name} — ${where} — ${SITE_NAME}`,
+    description,
+    path: `/universities/${u.id}`,
+    image,
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "CollegeOrUniversity",
+        name: u.name,
+        description,
+        url: `${siteUrl()}/universities/${u.id}`,
+        sameAs: u.website ? [`https://${String(u.website).replace(/^https?:\/\//i, "")}`] : undefined,
+        logo: absolute(publicImage(u.logoUrl)),
+        image: image ? [absolute(image)] : undefined,
+        address: { "@type": "PostalAddress", addressLocality: u.city, addressCountry: u.country },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl() },
+          { "@type": "ListItem", position: 2, name: "Universities", item: `${siteUrl()}/universities` },
+          { "@type": "ListItem", position: 3, name: u.name, item: `${siteUrl()}/universities/${u.id}` },
+        ],
+      },
+    ],
+    bodyHtml,
+  });
+}
+
 async function newsPostPage(slug) {
   const post = await prisma.blogPost.findFirst({ where: { slug, status: "published" } });
   if (!post) {
@@ -288,9 +380,13 @@ function robotsTxt() {
 
 async function sitemapXml() {
   const posts = await publishedPosts(1000);
+  const universities = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 5000 });
   const base = siteUrl();
   const urls = [
     { loc: `${base}/`, changefreq: "weekly", priority: "1.0" },
+    { loc: `${base}/universities`, changefreq: "weekly", priority: "0.9" },
+    { loc: `${base}/courses`, changefreq: "weekly", priority: "0.8" },
+    ...universities.map((u) => ({ loc: `${base}/universities/${u.id}`, changefreq: "monthly", priority: "0.7", lastmod: u.updatedAt })),
     { loc: `${base}/news`, changefreq: "daily", priority: "0.8", lastmod: posts[0]?.updatedAt },
     ...posts.map((p) => ({ loc: `${base}/news/${p.slug}`, changefreq: "monthly", priority: "0.6", lastmod: p.updatedAt })),
   ];
@@ -311,6 +407,8 @@ async function llmsTxt() {
     "",
     "## Key pages",
     `- [Home](${base}/): what UnifinderAi is and common questions`,
+    `- [Universities](${base}/universities): partner universities worldwide, with courses, fees, intakes and entry requirements`,
+    `- [Courses](${base}/courses): search courses at partner universities`,
     `- [News & Updates](${base}/news): announcements about destinations, intakes and scholarships`,
     "",
     ...(posts.length ? ["## Latest news", ...posts.map((p) => `- [${p.title}](${base}/news/${p.slug})${p.excerpt ? `: ${oneLine(p.excerpt, 140)}` : ""}`), ""] : []),
@@ -345,6 +443,9 @@ function registerSeoRoutes(app) {
   app.get("/sitemap.xml", textHandler("application/xml", sitemapXml));
   app.get("/llms.txt", textHandler("text/plain", llmsTxt));
   app.get("/", pageHandler(landingPage));
+  app.get("/universities", pageHandler(universitiesIndexPage));
+  app.get("/universities/:id", pageHandler((req) => universityPage(req.params.id)));
+  app.get("/courses", pageHandler(coursesIndexPage));
   app.get("/news", pageHandler(newsIndexPage));
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));
 }

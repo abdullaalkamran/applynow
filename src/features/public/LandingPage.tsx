@@ -58,8 +58,8 @@ function Header() {
       </a>
 
       <nav aria-label="Main navigation">
-        <Link to="/login">Programs</Link>
-        <Link to="/login">Universities</Link>
+        <Link to="/courses">Courses</Link>
+        <Link to="/universities">Universities</Link>
         <Link to="/login">Countries</Link>
         <Link to="/news">News &amp; Updates</Link>
       </nav>

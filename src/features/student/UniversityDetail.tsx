@@ -1,4 +1,5 @@
 import { useUniversity } from "../../data/useUniversity";
+import { usePublicMode } from "../../data/publicMode";
 import { websiteHref } from "../../utils/safeHref";
 import { useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -33,6 +34,13 @@ const UNIVERSITY_TABS = ["Overview", "Courses", "Requirements", "Fees", "Country
 
 type Course = University["courses"][number];
 
+/** Navigates to a signed-in page — or, for a logged-out visitor on the public pages, to the sign-in page instead. */
+function useStudentNavigate() {
+  const navigate = useNavigate();
+  const pub = usePublicMode();
+  return (path: string, state?: unknown) => (pub ? navigate("/login") : navigate(path, state === undefined ? undefined : { state }));
+}
+
 export default function UniversityDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -50,6 +58,9 @@ export default function UniversityDetail() {
   const [uniTab, setUniTab] = useState<(typeof UNIVERSITY_TABS)[number]>("Overview");
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
+  // Logged-out visitors can read everything; applying and saving need an account, so those buttons lead to sign-in.
+  const pub = usePublicMode();
+  const toggleSaved = () => (pub ? navigate("/login") : setSaved((v) => !v));
 
   if (!university) {
     return (
@@ -66,7 +77,7 @@ export default function UniversityDetail() {
     <div className="w-full space-y-2">
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setSaved((v) => !v)}
+          onClick={toggleSaved}
           aria-label="Shortlist"
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border py-3 text-[13px] font-semibold ${
             saved ? "border-[var(--sd-ink)] bg-[image:var(--sd-gradient)] text-white" : "border-neutral-200 bg-[var(--sd-card)] text-neutral-700"
@@ -100,12 +111,12 @@ export default function UniversityDetail() {
         </a>
       </div>
       <button
-        onClick={() => setApplying(true)}
+        onClick={() => (pub ? navigate("/login") : setApplying(true))}
         disabled={!courseHasOpenIntake(university, course)}
         className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-[13px] font-semibold ${courseHasOpenIntake(university, course) ? "neu-btn-green" : "bg-[var(--sd-card)] text-neutral-400 shadow-neu-inset-sm"}`}
       >
         {courseHasOpenIntake(university, course) ? (
-          <>Apply Now <ArrowLeft size={14} className="rotate-180" /></>
+          <>{pub ? "Sign in to Apply" : "Apply Now"} <ArrowLeft size={14} className="rotate-180" /></>
         ) : (
           "Intake Closed"
         )}
@@ -113,7 +124,7 @@ export default function UniversityDetail() {
     </div>
   ) : (
     <div className="flex w-full items-center gap-3">
-      <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700">
+      <button onClick={pub ? toggleSaved : undefined} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-[var(--sd-card)] py-3 text-[13px] font-semibold text-neutral-700">
         Shortlist
       </button>
       <a
@@ -155,7 +166,7 @@ export default function UniversityDetail() {
             </button>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setSaved((v) => !v)}
+                onClick={toggleSaved}
                 aria-label="Save"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--sd-card)] text-neutral-800 shadow"
               >
@@ -197,7 +208,8 @@ function CourseView({
 }: {
   university: University; course: Course; originSubject?: string;
 }) {
-  const navigate = useNavigate();
+  const navigate = useStudentNavigate();
+  const pub = usePublicMode();
   const scholarship = scholarshipLabel(university);
   const { modules, careers } = curriculumForCourse(course);
   const description =
@@ -205,7 +217,7 @@ function CourseView({
     `This ${course.level.toLowerCase()} programme gives you a strong foundation in ${course.subject}, taught by leading faculty at ${university.name}.`;
 
   function openCampuses() {
-    navigate(`/student/universities/${university.id}/campuses`, { state: { courseName: course.name } });
+    navigate(`/student/universities/${university.id}/campuses`, { courseName: course.name });
   }
 
   return (
@@ -220,7 +232,7 @@ function CourseView({
         </div>
       </div>
 
-      {originSubject && (
+      {originSubject && !pub && (
         <button
           onClick={() => navigate(`/student/subjects/${encodeURIComponent(originSubject)}`)}
           className="mt-2 flex items-center gap-1 text-[12px] font-medium text-[var(--sd-ink)]"
@@ -363,7 +375,7 @@ function UniversityView({
   university: University; tab: (typeof UNIVERSITY_TABS)[number]; setTab: (t: (typeof UNIVERSITY_TABS)[number]) => void;
   onSelectCourse: (name: string) => void;
 }) {
-  const navigate = useNavigate();
+  const navigate = useStudentNavigate();
   const country = getCountryByName(university.country);
   return (
     <>
@@ -469,7 +481,7 @@ function UniversityView({
                 </div>
               ))}
               <button
-                onClick={() => navigate("/student/cost-planner", { state: { universityId: university.id } })}
+                onClick={() => navigate("/student/cost-planner", { universityId: university.id })}
                 className="mt-3 w-full rounded-xl bg-neutral-50 py-2.5 text-center text-[13px] font-medium text-[var(--sd-ink)]"
               >
                 Open full Cost Planner

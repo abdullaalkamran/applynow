@@ -23,6 +23,13 @@ export interface SubjectRecord {
 let cache: SubjectRecord[] = [];
 let refreshSeq = 0;
 
+/** Fills the catalog from the public reference data (logged-out visitors). A signed-in session's own copy is never replaced. */
+export function seedSubjectCatalog(list: SubjectRecord[]) {
+  if (cache.length > 0) return;
+  cache = list;
+  notifyCacheChange();
+}
+
 export function refreshSubjectCatalog(): Promise<void> {
   return dedupeInFlight("subject-catalog", async () => {
     const seq = ++refreshSeq;

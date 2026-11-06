@@ -79,8 +79,10 @@ export interface SearchParams {
   shortlistKeys?: string[];
 }
 
-export const searchPrograms = (p: SearchParams) => apiPost<SearchPage<ProgramRow>>("/api/courses/search", p);
-export const searchUniversities = (p: SearchParams) => apiPost<SearchPage<CardUniversity>>("/api/courses/search", p);
+// `pub` = logged-out visitor: same search, public endpoints (see routes/public.js).
+const base = (pub: boolean) => (pub ? "/api/public/courses" : "/api/courses");
+export const searchPrograms = (p: SearchParams, pub = false) => apiPost<SearchPage<ProgramRow>>(`${base(pub)}/search`, p);
+export const searchUniversities = (p: SearchParams, pub = false) => apiPost<SearchPage<CardUniversity>>(`${base(pub)}/search`, p);
 
 export interface Facets {
   facets: Partial<Record<"destination" | "location" | "university" | "course" | "subject" | "duration" | "level" | "intake", string[]>>;
@@ -91,7 +93,7 @@ export interface Facets {
   feeStats: { unknown: number; otherCurrency: number };
   feeCurrency: string;
 }
-export const fetchFacets = (filters: SearchFilters, facets?: string[]) => apiPost<Facets>("/api/courses/facets", { filters, facets });
+export const fetchFacets = (filters: SearchFilters, facets?: string[], pub = false) => apiPost<Facets>(`${base(pub)}/facets`, { filters, facets });
 
 /** Card rows are not full University/Course records (no campuses, descriptions…), but carry everything the cards read. */
 export const asUniversity = (u: CardUniversity) => u as unknown as University;
