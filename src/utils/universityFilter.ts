@@ -367,6 +367,9 @@ export interface UniversityFilterState {
   scholarshipOnly: boolean;
   minGPA: string; // "" = any
   withoutEnglishProficiency: boolean; // moiAccepted
+  // A home university the student's MOI letter comes from — typed or picked; keeps only partner universities whose
+  // `moiAcceptedUniversities` list names it (case-insensitive, any part of the name when typed).
+  moiUniversity: string;
   withoutGRE: boolean;
   withoutGMAT: boolean;
   withoutMaths: boolean;
@@ -375,6 +378,17 @@ export interface UniversityFilterState {
   feeWaiverOnly: boolean;
   eslElpOnly: boolean;
   openProgramsOnly: boolean;
+}
+
+/** Every home university any partner accepts an MOI letter from — the options for the "MOI University" dropdown. */
+export function moiUniversityOptions(): string[] {
+  const seen = new Map<string, string>();
+  getAllUniversities().forEach((u) => (u.moiAcceptedUniversities ?? []).forEach((n) => {
+    const t = n.trim();
+    const k = normalizeText(t);
+    if (t && !seen.has(k)) seen.set(k, t);
+  }));
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
 export function emptyFilters(residenceCountry = ""): UniversityFilterState {
@@ -402,6 +416,7 @@ export function emptyFilters(residenceCountry = ""): UniversityFilterState {
     scholarshipOnly: false,
     minGPA: "",
     withoutEnglishProficiency: false,
+    moiUniversity: "",
     withoutGRE: false,
     withoutGMAT: false,
     withoutMaths: false,
@@ -433,6 +448,7 @@ export function countActiveFilters(f: UniversityFilterState): number {
   if (f.scholarshipOnly) n++;
   if (f.minGPA) n++;
   if (f.withoutEnglishProficiency) n++;
+  if (f.moiUniversity.trim()) n++;
   if (f.withoutGRE) n++;
   if (f.withoutGMAT) n++;
   if (f.withoutMaths) n++;
@@ -492,6 +508,7 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
   const englishScore = f.englishScore ? Number(f.englishScore) : null;
   const ieltsEquivalent = englishScore !== null ? toIELTSEquivalent(f.englishTestName, englishScore) : null;
   const gpa = f.minGPA ? Number(f.minGPA) : null;
+  const moiQuery = normalizeText(f.moiUniversity.trim());
   return (u) => {
     if (residenceName && fullCountryName(u.country) === residenceName) return false;
     if (f.destination.size > 0 && !f.destination.has(u.country)) return false;
@@ -507,6 +524,7 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
     if (f.scholarshipOnly && !u.scholarshipsAvailable) return false;
     if (gpa !== null && u.minGPA > gpa) return false;
     if (f.withoutEnglishProficiency && !u.moiAccepted) return false;
+    if (moiQuery && !(u.moiAccepted && (u.moiAcceptedUniversities ?? []).some((n) => normalizeText(n).includes(moiQuery)))) return false;
     if (f.feeWaiverOnly && !u.applicationFeeWaiverAvailable) return false;
     if (f.eslElpOnly && !u.eslElpAvailable) return false;
     return true;

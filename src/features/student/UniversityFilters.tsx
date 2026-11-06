@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { Globe2, ListChecks, ShieldCheck } from "lucide-react";
-import { MobileHeader, Section, SubLabel, DropdownChips, Toggle, CheckboxList, inputClass } from "../../components/ui/mobile";
+import { MobileHeader, Section, SubLabel, DropdownChips, SuggestInput, Toggle, CheckboxList, inputClass } from "../../components/ui/mobile";
 import {
   TEST_NAME_OPTIONS, locationOptions, facetOptions,
   STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
   FEE_MIN, FEE_MAX, FEE_STEP, activeFeeCurrency, feeRangeActive, feeFilterStats,
-  emptyFilters, type UniversityFilterState,
+  emptyFilters, moiUniversityOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import type { FiltersOutletContext } from "./UniversitySearch";
 import { feeCurrenciesFor } from "../../utils/courseFee";
@@ -51,6 +51,7 @@ export default function UniversityFilters() {
   // courses use several. Amounts are never converted — see utils/courseFee.ts.
   const feeCurrencies = useMemo(() => feeCurrenciesFor([...filters.destination]), [filters.destination]);
   const feeCurrency = activeFeeCurrency(filters);
+  const moiOptions = useMemo(() => moiUniversityOptions(), []);
   const feeStats = useMemo(() => feeFilterStats(filters), [filters]);
   // A value picked earlier stays in its list even if a later choice made it unavailable, so the conflict is
   // obvious (and one tap away from fixing) rather than the chip silently vanishing.
@@ -172,6 +173,14 @@ export default function UniversityFilters() {
                   <input type="checkbox" checked={filters.withoutEnglishProficiency} onChange={(e) => update("withoutEnglishProficiency", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-neutral-300" />
                   Without English Proficiency
                 </label>
+                {/* Type a name, or pick one from the list — a native suggestion dropdown over the home universities partners accept MOI letters from. */}
+                <div className="pt-1.5">
+                  <SubLabel>MOI University</SubLabel>
+                  <SuggestInput
+                    value={filters.moiUniversity} onChange={(v) => update("moiUniversity", v)}
+                    options={moiOptions} placeholder="Type or select your university" chevron
+                  />
+                </div>
                 <label className="flex items-center gap-2 text-[12.5px] text-neutral-600">
                   <input type="checkbox" checked={filters.withoutGRE} onChange={(e) => update("withoutGRE", e.target.checked)} className="h-3.5 w-3.5 shrink-0 rounded border-neutral-300" />
                   Without GRE

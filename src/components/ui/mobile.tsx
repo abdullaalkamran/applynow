@@ -354,8 +354,8 @@ export function DropdownChips({
 
 /** Free-text input with a live filtered suggestion list dropped below it — tapping a suggestion fills the field. */
 export function SuggestInput({
-  value, onChange, options, placeholder,
-}: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string }) {
+  value, onChange, options, placeholder, chevron = false,
+}: { value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; /** Show a ▾ so it reads as a dropdown as well as a text box. */ chevron?: boolean }) {
   const [focused, setFocused] = useState(false);
   const q = value.trim().toLowerCase();
   const suggestions = (q ? options.filter((o) => o.toLowerCase().includes(q)) : options).filter((o) => o.toLowerCase() !== q).slice(0, 50);
@@ -369,8 +369,9 @@ export function SuggestInput({
         onFocus={() => setFocused(true)}
         onBlur={() => window.setTimeout(() => setFocused(false), 150)}
         placeholder={placeholder}
-        className={inputClass}
+        className={chevron ? `${inputClass} pr-9` : inputClass}
       />
+      {chevron && <ChevronDown size={14} className={`pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-900 transition-transform ${showSuggestions ? "rotate-180" : ""}`} />}
       {showSuggestions && (
         <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl bg-[var(--sd-card)] shadow-neu-lg">
           {suggestions.map((s) => (
