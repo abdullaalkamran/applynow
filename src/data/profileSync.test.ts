@@ -78,6 +78,31 @@ describe("profile section saves", () => {
     expect(store["sd-profile-step:personal-information:st-gone"]).toBe("true"); // the draft itself is untouched
   });
 
+  it("deletes each local draft once the server has confirmed the save — and only that one", async () => {
+    store["sd-profile-details:personal:st-1"] = "{\"name\":\"draft\"}";
+    store["sd-profile-details:preferences:st-1"] = "{\"x\":1}";
+    store["sd-profile-step:st-1:personal-information"] = "true";
+    store["sd-academic-levels:st-1"] = "[]";
+    const { putServerSection } = await load();
+    putServerSection("st-1", "personal", { name: "Ali" });
+    putServerSection("st-1", "step:personal-information", true);
+    putServerSection("st-1", "academic", []);
+    await tick(900);
+    expect("sd-profile-details:personal:st-1" in store).toBe(false);
+    expect("sd-profile-step:st-1:personal-information" in store).toBe(false);
+    expect("sd-academic-levels:st-1" in store).toBe(false);
+    expect("sd-profile-details:preferences:st-1" in store).toBe(true); // not saved yet: still protected
+  });
+
+  it("keeps the draft when the save fails", async () => {
+    api.apiPut.mockRejectedValue(Object.assign(new Error("boom"), { status: 400 }));
+    store["sd-profile-details:personal:st-1"] = "{\"name\":\"draft\"}";
+    const { putServerSection } = await load();
+    putServerSection("st-1", "personal", { name: "Ali" });
+    await tick(5000);
+    expect("sd-profile-details:personal:st-1" in store).toBe(true);
+  });
+
   it("a server refresh does not overwrite an edit that is still waiting to be sent", async () => {
     api.apiGet.mockResolvedValue({ "st-1": { personal: { name: "old" } } });
     const { putServerSection, refreshProfileSections, getServerSection } = await load();

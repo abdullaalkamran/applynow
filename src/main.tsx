@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { clearReloadGuard, reloadOnceForNewVersion } from "./components/ErrorBoundary";
+import { runStorageCleanup } from "./utils/storageCleanup";
+
+runStorageCleanup();
 
 // Vite fires this when a lazy screen's file can't be fetched (typically an old tab after a new deploy) — refresh once to pick up the new version.
 window.addEventListener("vite:preloadError", (event) => {

@@ -40,6 +40,16 @@ function markUnreachable(studentId: string) {
   try { window.localStorage.setItem(UNREACHABLE_KEY, JSON.stringify({ ...readUnreachable(), [studentId]: Date.now() })); } catch { /* storage full/unavailable */ }
 }
 
+/** The browser-held draft (see the stores' own keys) for a section — removed once the server has confirmed the same data. */
+function removeLocalDraft(studentId: string, section: string) {
+  if (typeof window === "undefined") return;
+  try {
+    if (section === "academic") window.localStorage.removeItem(`sd-academic-levels:${studentId}`);
+    else if (section.startsWith("step:")) window.localStorage.removeItem(`sd-profile-step:${studentId}:${section.slice(5)}`);
+    else window.localStorage.removeItem(`sd-profile-details:${section}:${studentId}`);
+  } catch { /* storage unavailable */ }
+}
+
 const SEP = "\u0000";
 const split = (key: string): [string, string] => { const i = key.indexOf(SEP); return [key.slice(0, i), key.slice(i + 1)]; };
 const pathFor = (studentId: string, section: string) => `/api/student-profile/${encodeURIComponent(studentId)}/${encodeURIComponent(section)}`;
@@ -50,6 +60,8 @@ const pathFor = (studentId: string, section: string) => `/api/student-profile/${
 const writer = createCoalescedWriter<unknown>({
   send: (key, data) => { const [studentId, section] = split(key); return apiPut(pathFor(studentId, section), { data }).then(() => undefined); },
   sendOnUnload: (key, data) => { const [studentId, section] = split(key); apiPutOnUnload(pathFor(studentId, section), { data }); },
+  // The local draft was only a safety net until the server had the value — drop it now that it does.
+  onSaved: (key) => { const [studentId, section] = split(key); removeLocalDraft(studentId, section); },
   onGiveUp: (key, err) => {
     const [studentId, section] = split(key);
     const status = (err as { status?: number })?.status;

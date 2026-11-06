@@ -14,6 +14,8 @@ export interface WriterOptions<T> {
   /** True for an error that retrying can't fix. Default: any 4xx status. */
   isFatal?: (err: unknown) => boolean;
   onGiveUp?: (key: string, err: unknown) => void;
+  /** Called after the server has accepted a value. */
+  onSaved?: (key: string, value: T) => void;
   delayMs?: number;
   maxRetries?: number;
   backoffMs?: number;
@@ -42,6 +44,7 @@ export function createCoalescedWriter<T>(options: WriterOptions<T>) {
       try {
         await options.send(key, value);
         lastSaved.set(key, json);
+        options.onSaved?.(key, value);
         return;
       } catch (err) {
         if ((err as Error)?.name === "StaleSessionError") return;
