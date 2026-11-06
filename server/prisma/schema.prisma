@@ -674,6 +674,9 @@ model University {
   updatedAt                     DateTime           @updatedAt
   courses                       Course[]
   courseImports                 CourseImportItem[]
+
+  // The catalog's own ordering — see migrations/20261106140000_university_catalog_order_index.
+  @@index([createdAt, id])
 }
 
 enum CourseFeeStatus {

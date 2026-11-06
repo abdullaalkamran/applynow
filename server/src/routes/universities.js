@@ -413,5 +413,6 @@ router.delete("/:id/courses/:courseId", requireAuth, requireDataRole, async (req
 // is created exactly the way a hand-entered course is. Attaching them to the router keeps
 // `app.use("/api/universities", require(...))` working unchanged.
 setTimeout(() => warmCatalog(serializeUniversity), 5000).unref();
+setTimeout(() => require("../courseSearch").warmIndex(), 8000).unref();
 
 module.exports = Object.assign(router, { courseWriteData, serializeCourse, mergedSubjects, universityWriteData, serializeUniversity });
