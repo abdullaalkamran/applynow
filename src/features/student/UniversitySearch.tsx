@@ -67,6 +67,8 @@ export interface ExploreVariant {
   universityNote?: (university: University) => ReactNode;
 }
 
+const EXPLORE_FACETS = ["level"];
+
 export const STUDENT_EXPLORE: ExploreVariant = {
   basePath: "/student/search",
   title: "Explore Universities",
@@ -131,7 +133,8 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
 
   // Searching, filtering, sorting and paging all happen on the server (see data/catalogSearchApi.ts): the browser only ever
   // holds the page it is showing, instead of the whole catalog. The server applies exactly the filters this page always had.
-  const facets = useCatalogFacets(filters);
+  // Only the Level list is needed here (plus the catalog-wide intakes and fee currency every facets answer carries).
+  const facets = useCatalogFacets(filters, true, EXPLORE_FACETS);
   const shortlistKeys = programShortlistedOnly ? allShortlistedKeys() : undefined;
   // Re-reads the browser-held bookmarks after each toggle so un-bookmarking drops the program from a "Shortlisted" list at once.
   void shortlistTick;

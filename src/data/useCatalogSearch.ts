@@ -109,7 +109,10 @@ export function useCatalogPage<T extends ProgramRow | CardUniversity>(o: PageOpt
 }
 
 /** The dropdown options for the chosen filters (each list leaves out its own selection), fetched debounced. */
-export function useCatalogFacets(filters: UniversityFilterState, enabled = true): Facets | null {
+/** `names` limits which option lists are computed and sent (each one is a scan of the catalog and a list in the response);
+ * the default is every list the Advanced Search page shows — never the course-name list, which no screen uses. */
+export const ADVANCED_FACETS = ["destination", "location", "university", "subject", "duration", "level", "intake"];
+export function useCatalogFacets(filters: UniversityFilterState, enabled = true, names: string[] = ADVANCED_FACETS): Facets | null {
   const key = useDebounced(filterStateKey(filters));
   const [facets, setFacets] = useState<Facets | null>(null);
   const seq = useRef(0);
@@ -118,9 +121,10 @@ export function useCatalogFacets(filters: UniversityFilterState, enabled = true)
   useEffect(() => {
     if (!enabled) return;
     const mine = ++seq.current;
-    withRetry(() => fetchFacets(toSearchFilters(latest.current)))
+    withRetry(() => fetchFacets(toSearchFilters(latest.current), names))
       .then((res) => { if (mine === seq.current) setFacets(res); })
       .catch(() => { /* keep the previous options; the dropdowns still show what is selected */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `names` is a constant list per call site
   }, [key, enabled]);
   return facets;
 }

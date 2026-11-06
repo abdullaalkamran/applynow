@@ -152,4 +152,15 @@ describe("useCatalogFacets", () => {
     await flush();
     expect(api.fetchFacets).toHaveBeenCalledTimes(2);
   });
+
+  it("asks only for the lists a screen shows — never the course-name list by default", async () => {
+    renderHook(() => useCatalogFacets(emptyFilters()));
+    await flush(0);
+    const asked = api.fetchFacets.mock.calls[0][1] as string[];
+    expect(asked).toContain("destination");
+    expect(asked).not.toContain("course");
+    renderHook(() => useCatalogFacets(emptyFilters(), true, ["level"]));
+    await flush(0);
+    expect(api.fetchFacets.mock.calls[1][1]).toEqual(["level"]);
+  });
 });
