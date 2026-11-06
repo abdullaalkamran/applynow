@@ -290,7 +290,7 @@ const wantsLocation = (f, place) => {
 
 function courseConditionsActive(f) {
   return (
-    !!f.courseQuery.trim() || (f.disciplineSubjects !== null && f.disciplineSubjects.size > 0) || f.duration.size > 0 || f.level.size > 0 ||
+    !!f.courseQuery.trim() || f.disciplineSubjects !== null || f.duration.size > 0 || f.level.size > 0 ||
     f.standardizedTests.size > 0 || f.withoutGRE || f.withoutGMAT || f.withoutMaths || f.stemOnly ||
     f.accepts15YearsOnly || f.openProgramsOnly || f.intakes.size > 0 || f.feeActive
   );
@@ -319,7 +319,7 @@ function courseMatchesFilters(f, u, c, tokens) {
   }
   if (f.location.size > 0 && !courseLocations(u, c).some((l) => wantsLocation(f, l))) return false;
   // The client resolves "discipline area" to the subjects in those areas (a course whose subject has no area never matches).
-  if (f.disciplineSubjects !== null && f.disciplineSubjects.size > 0 && !f.disciplineSubjects.has(String(c.subject).toLowerCase())) return false;
+  if (f.disciplineSubjects !== null && !f.disciplineSubjects.has(String(c.subject).toLowerCase())) return false;
   if (f.duration.size > 0 && !f.duration.has(c.duration)) return false;
   if (f.level.size > 0 && !f.level.has(c.level) && !(c.programLevel ?? []).some((l) => f.level.has(l))) return false;
   if (f.standardizedTests.size > 0 && !(c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t))) return false;

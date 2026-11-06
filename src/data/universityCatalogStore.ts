@@ -16,22 +16,16 @@ type Course = University["courses"][number];
 let cache: University[] = [];
 let refreshSeq = 0;
 
+// The catalog loads in two sizes. By default only the SUMMARY (every university, no courses — a few KB) is held, which is all
+// the Explore page needs because it searches on the server (see catalogSearchApi.ts). The FULL catalog (every course — tens of
+// MB) is downloaded only when something actually asks for courses: getAllUniversities() / getUniversityById() are that ask,
+// getUniversitySummaries() is not. Until the full catalog lands, summary entries carry `courses: []` and `coursesLoaded: false`.
+let fullRequested = false;
 let fullLoaded = false;
 
-export function refreshUniversities(): Promise<void> {
-  return dedupeInFlight("universities", async () => {
+function loadFull(): Promise<void> {
+  return dedupeInFlight("universities-full", async () => {
     const seq = ++refreshSeq;
-    // First load: universities appear within a second from the small summary; the full catalog (every course — tens of MB)
-    // then arrives in the background and replaces it. Later refreshes only fetch the full catalog.
-    if (!fullLoaded && cache.length === 0) {
-      apiGet<University[]>("/api/universities/summary")
-        .then((summary) => {
-          if (fullLoaded || cache.length > 0 || seq !== refreshSeq) return;
-          cache = summary;
-          notifyCacheChange();
-        })
-        .catch(() => { /* the full load below still runs */ });
-    }
     const next = await apiGet<University[]>("/api/universities");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
@@ -42,20 +36,60 @@ export function refreshUniversities(): Promise<void> {
   });
 }
 
+function loadSummary(): Promise<void> {
+  return dedupeInFlight("universities-summary", async () => {
+    const seq = ++refreshSeq;
+    const summary = await apiGet<University[]>("/api/universities/summary");
+    if (seq !== refreshSeq || fullLoaded) return; // the full catalog already covers this
+    if (!cacheChanged(summary, cache)) return;
+    cache = summary;
+    notifyCacheChange();
+  });
+}
+
+/** Called after login and on the slow refresh: keeps whichever size has been asked for current. */
+export function refreshUniversities(): Promise<void> {
+  return fullRequested ? loadFull() : loadSummary();
+}
+
+/** Asks for the full catalog (idempotent). Everything that reads courses calls this, directly or via getAllUniversities(). */
+export function ensureFullCatalog(): Promise<void> {
+  if (fullLoaded) return Promise.resolve();
+  if (!fullRequested) {
+    fullRequested = true;
+    return loadFull().catch((err) => { fullRequested = false; console.warn("Failed to load the full catalog:", err); });
+  }
+  return loadFull();
+}
+
+/** Every university WITH its courses. Starts the full download the first time it is called; callers are re-rendered when it
+ * arrives (until then they see summary entries with no courses). */
+export function getAllUniversities(): University[] {
+  if (!fullRequested && cache.length > 0) void ensureFullCatalog();
+  return cache;
+}
+
+/** Every university without needing its courses — never starts the full download. */
+export function getUniversitySummaries(): University[] {
+  return cache;
+}
+
+export function getUniversityById(id: string): University | undefined {
+  if (!fullRequested && cache.length > 0) void ensureFullCatalog();
+  return cache.find((u) => u.id === id);
+}
+
+/** One university by id for a page that fetches its own record (useUniversity) — no full download. */
+export function peekUniversityById(id: string): University | undefined {
+  return cache.find((u) => u.id === id);
+}
+
 /** Fetches one university's full record (with courses) and swaps it into the cache — used when its page opens while only
  * the fast summary is loaded. */
 export async function hydrateUniversity(id: string): Promise<void> {
   const full = await apiGet<University>(`/api/universities/${encodeURIComponent(id)}`);
   cache = cache.map((u) => (u.id === id && u.coursesLoaded === false ? full : u));
   notifyCacheChange();
-}
-
-export function getAllUniversities(): University[] {
-  return cache;
-}
-
-export function getUniversityById(id: string): University | undefined {
-  return cache.find((u) => u.id === id);
 }
 
 /** Every university here is real, Data-Management-authored content now (no more static seed to
@@ -224,4 +258,5 @@ export async function migrateLegacyLocalUniversities(): Promise<void> {
 export function clearUniversityCatalogCache() {
   cache = [];
   fullLoaded = false;
+  fullRequested = false;
 }

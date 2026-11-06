@@ -1,4 +1,4 @@
-import { getAllUniversities } from "../data/universityCatalogStore";
+import { getAllUniversities, getUniversitySummaries } from "../data/universityCatalogStore";
 import { getAllSubjects } from "../data/subjectsStore";
 import { getAllCountries } from "../data/countryRegistry";
 import { countryByIso2 } from "../data/countries";
@@ -10,13 +10,13 @@ import { courseFeeKind, courseFeeIn, courseCurrencySymbol as courseCurrencyOf, f
 // so a university or course added through Data Management shows up immediately — a plain const
 // computed once at import time would never see it without a full page reload.
 export function destinationOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().map((u) => u.country).filter(Boolean))).sort();
+  return Array.from(new Set(getUniversitySummaries().map((u) => u.country).filter(Boolean))).sort();
 }
 export function cityOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().map((u) => u.city))).sort();
+  return Array.from(new Set(getUniversitySummaries().map((u) => u.city))).sort();
 }
 export function universityOptions(): string[] {
-  return getAllUniversities().map((u) => u.name);
+  return getUniversitySummaries().map((u) => u.name);
 }
 export function courseOptions(): string[] {
   return Array.from(new Set(getAllUniversities().flatMap((u) => u.courses.map((c) => c.name)))).sort();
@@ -49,7 +49,7 @@ export function intakeOptions(): string[] {
   );
 }
 export function accreditationOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().flatMap((u) => u.accreditations))).sort();
+  return Array.from(new Set(getUniversitySummaries().flatMap((u) => u.accreditations))).sort();
 }
 export function disciplineAreaOptions(): string[] {
   return Array.from(new Set(getSubjectCatalog().map((s) => s.disciplineArea).filter((d): d is string => !!d))).sort();
@@ -68,7 +68,7 @@ function universityYears(u: University): Set<string> {
   return years;
 }
 export function yearOptions(): string[] {
-  return Array.from(new Set(getAllUniversities().flatMap((u) => [...universityYears(u)]))).sort();
+  return Array.from(new Set(getUniversitySummaries().flatMap((u) => [...universityYears(u)]))).sort();
 }
 
 // Every English test named anywhere in the university's own or any of its courses' requirements —
@@ -273,7 +273,7 @@ export interface SubjectStat {
 // One row per field of study, used to render the "Subjects" tab on Explore — counts how many
 // universities offer it.
 export function subjectStats(): SubjectStat[] {
-  const universities = getAllUniversities();
+  const universities = getUniversitySummaries();
   return getAllSubjects().map((subject) => {
     const offeringUniversities = universities.filter((u) => u.subjects.includes(subject));
     return { name: subject, universityCount: offeringUniversities.length };
@@ -293,7 +293,7 @@ export interface CountryStat {
 // into before any partner university has been added under it, and hiding it here just made it
 // silently disappear from Explore while staff's and counsellor's own country lists still showed it.
 export function countryStats(): CountryStat[] {
-  const universities = getAllUniversities();
+  const universities = getUniversitySummaries();
   const byCountry = new Map<string, University[]>();
   universities.forEach((u) => {
     const list = byCountry.get(u.country) ?? [];
@@ -304,7 +304,7 @@ export function countryStats(): CountryStat[] {
     if (!byCountry.has(c.name)) byCountry.set(c.name, []);
   });
   return Array.from(byCountry.entries())
-    .map(([name, list]) => ({ name, universityCount: list.length, courseCount: list.reduce((sum, u) => sum + u.courses.length, 0) }))
+    .map(([name, list]) => ({ name, universityCount: list.length, courseCount: list.reduce((sum, u) => sum + (u.coursesLoaded === false ? u.courseCount ?? 0 : u.courses.length), 0) }))
     .sort((a, b) => b.universityCount - a.universityCount);
 }
 
@@ -383,7 +383,7 @@ export interface UniversityFilterState {
 /** Every home university any partner accepts an MOI letter from — the options for the "MOI University" dropdown. */
 export function moiUniversityOptions(): string[] {
   const seen = new Map<string, string>();
-  getAllUniversities().forEach((u) => (u.moiAcceptedUniversities ?? []).forEach((n) => {
+  getUniversitySummaries().forEach((u) => (u.moiAcceptedUniversities ?? []).forEach((n) => {
     const t = n.trim();
     const k = normalizeText(t);
     if (t && !seen.has(k)) seen.set(k, t);

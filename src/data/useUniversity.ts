@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUniversityById, hydrateUniversity } from "./universityCatalogStore";
+import { peekUniversityById, hydrateUniversity } from "./universityCatalogStore";
 import { apiGet } from "../utils/apiClient";
 import type { University } from "../types";
 
@@ -7,7 +7,7 @@ import type { University } from "../types";
  * (a single small request) instead of showing "not found" — or sitting blank — until the whole multi-megabyte catalog has
  * downloaded, which on a slow connection or a busy server looked like the page timing out. */
 export function useUniversity(id: string | undefined): { university: University | undefined; loading: boolean } {
-  const cached = id ? getUniversityById(id) : undefined;
+  const cached = id ? peekUniversityById(id) : undefined;
   const [fetched, setFetched] = useState<University | undefined>(undefined);
   const [settled, setSettled] = useState(false);
 

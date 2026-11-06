@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { Globe2, ListChecks, ShieldCheck } from "lucide-react";
 import { MobileHeader, Section, SubLabel, DropdownChips, SuggestInput, Toggle, CheckboxList, inputClass } from "../../components/ui/mobile";
 import {
-  TEST_NAME_OPTIONS, locationOptions, facetOptions,
+  TEST_NAME_OPTIONS,
   STANDARDIZED_TEST_OPTIONS, ACCEPTED_ENGLISH_TEST_CHECKBOXES,
-  FEE_MIN, FEE_MAX, FEE_STEP, activeFeeCurrency, feeRangeActive, feeFilterStats,
+  FEE_MIN, FEE_MAX, FEE_STEP, feeRangeActive,
   emptyFilters, moiUniversityOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import type { FiltersOutletContext } from "./UniversitySearch";
-import { feeCurrenciesFor } from "../../utils/courseFee";
+import { sameCurrency } from "../../utils/courseFee";
+import { useCatalogFacets } from "../../data/useCatalogSearch";
+import { getCountryByName } from "../../data/countryRegistry";
+import { getSubjectRecord } from "../../data/subjectCatalogStore";
 import { FeeRangeFilter } from "../../components/ui/FeeRangeFilter";
 import { NeuSelect } from "../../components/ui/NeuSelect";
 
@@ -36,23 +39,50 @@ export default function UniversityFilters() {
     });
   }
 
-  // Every dropdown lists only what still exists among the courses passing all the other filters.
-  const options = useMemo(() => ({
-    level: facetOptions(filters, "level"),
-    destination: facetOptions(filters, "destination"),
-    location: facetOptions(filters, "location"),
-    university: facetOptions(filters, "university"),
-    course: facetOptions(filters, "course"),
-    discipline: facetOptions(filters, "discipline"),
-    duration: facetOptions(filters, "duration"),
-    intake: facetOptions(filters, "intake"),
-  }), [filters]);
+  // Every dropdown lists only what still exists among the courses passing all the other filters. The server works that out
+  // (see data/catalogSearchApi.ts) so this page never needs the catalog itself.
+  const facets = useCatalogFacets(filters);
+  const options = useMemo(() => {
+    const f = facets?.facets ?? {};
+    const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    // "Discipline area" is a property of a subject: map the subjects present to their areas with the browser's own subject list.
+    const areas = new Map<string, string>();
+    (f.subject ?? []).forEach((subject) => {
+      const area = getSubjectRecord(subject)?.disciplineArea?.trim();
+      if (area && !areas.has(norm(area))) areas.set(norm(area), area);
+    });
+    return {
+      level: f.level ?? [],
+      destination: f.destination ?? [],
+      location: f.location ?? [],
+      university: f.university ?? [],
+      course: f.course ?? [],
+      discipline: [...areas.values()].sort((x, y) => x.localeCompare(y)),
+      duration: f.duration ?? [],
+      intake: f.intake ?? [],
+    };
+  }, [facets]);
   // The fee range speaks one currency at a time: the destination's own (country-configured first), with chips when its
   // courses use several. Amounts are never converted — see utils/courseFee.ts.
-  const feeCurrencies = useMemo(() => feeCurrenciesFor([...filters.destination]), [filters.destination]);
-  const feeCurrency = activeFeeCurrency(filters);
+  const feeCurrencies = useMemo(() => {
+    const configured = [...filters.destination].flatMap((d) => getCountryByName(d)?.currencySymbols ?? []);
+    const out: string[] = [];
+    for (const sym of [...configured, ...(facets?.currenciesUsed ?? [])]) if (sym.trim() && !out.some((o) => sameCurrency(o, sym))) out.push(sym);
+    return out;
+  }, [filters.destination, facets]);
+  const feeCurrency = filters.feeCurrency || feeCurrencies[0] || "";
   const moiOptions = useMemo(() => moiUniversityOptions(), []);
-  const feeStats = useMemo(() => feeFilterStats(filters), [filters]);
+  const feeStats = facets?.feeStats ?? { unknown: 0, otherCurrency: 0 };
+
+  // Cities picked earlier stay only while they still exist in the chosen countries (the old check ran as the country was
+  // toggled; now it runs when the server's list of that country's cities arrives).
+  const validLocations = facets?.locationsForDestination;
+  useEffect(() => {
+    if (!validLocations || filters.destination.size === 0 || filters.location.size === 0) return;
+    const valid = new Set(validLocations);
+    if ([...filters.location].every((l) => valid.has(l))) return;
+    setFilters((prev) => (prev.destination.size === 0 ? prev : { ...prev, location: new Set([...prev.location].filter((l) => valid.has(l))) }));
+  }, [validLocations, filters.destination, filters.location, setFilters]);
   // A value picked earlier stays in its list even if a later choice made it unavailable, so the conflict is
   // obvious (and one tap away from fixing) rather than the chip silently vanishing.
   const withSelected = (list: string[], picked: Set<string>) => [...new Set([...picked, ...list])];
@@ -61,11 +91,8 @@ export default function UniversityFilters() {
     setFilters((prev) => {
       const destination = new Set(prev.destination);
       if (destination.has(value)) destination.delete(value); else destination.add(value);
-      // Keep only the picked cities that still exist in the chosen countries.
-      const valid = destination.size === 0 ? null : new Set(locationOptions(destination));
-      const location = valid ? new Set([...prev.location].filter((l) => valid.has(l))) : prev.location;
       // Amounts in one currency mean nothing in another, so the fee range starts over for the new destination.
-      return { ...prev, destination, location, feeCurrency: "", minFee: String(FEE_MIN), maxFee: String(FEE_MAX) };
+      return { ...prev, destination, feeCurrency: "", minFee: String(FEE_MIN), maxFee: String(FEE_MAX) };
     });
   }
 

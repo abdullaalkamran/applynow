@@ -1,5 +1,5 @@
 import { DOCUMENTS, CURRENT_STUDENT_ID } from "../data/mockData";
-import { getAllUniversities } from "../data/universityCatalogStore";
+import { getUniversitySummaries } from "../data/universityCatalogStore";
 import { getAllApplications } from "../data/applicationsStore";
 import { loadUploadedDocs } from "../data/applicationDocsStore";
 import { buildChecklist, buildCoreChecklist } from "./documentChecklist";
@@ -134,7 +134,8 @@ export function getNotifications(): NotificationItem[] {
     });
   }
 
-  const universities = getAllUniversities();
+  // Only the university's own record is needed here (document requirements), never its courses — so the cheap summary will do.
+  const universities = getUniversitySummaries();
   applications.forEach((app) => {
     const university = universities.find((u) => u.name === app.university);
     if (!university) return;

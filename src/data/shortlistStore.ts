@@ -33,3 +33,8 @@ export function toggleShortlisted(programKey: string): boolean {
 export function shortlistedCount(): number {
   return loadShortlist().size;
 }
+
+/** Every shortlisted program key (`${universityId}::${courseName}`) — sent to the search endpoint for the "Shortlisted" filter. */
+export function allShortlistedKeys(): string[] {
+  return [...loadShortlist()];
+}

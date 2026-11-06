@@ -9,16 +9,18 @@ import {
 import { BackButton, Chip, DropdownChips, SubLabel, Pagination, SkylineArt } from "../../components/ui/mobile";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryBadge } from "../../components/ui/CountryBadge";
-import { usePagedList } from "../../utils/usePagedList";
+import { useCatalogPage, useCatalogFacets } from "../../data/useCatalogSearch";
+import { asUniversity, asCourse, type CardUniversity, type ProgramRow, type SortBy } from "../../data/catalogSearchApi";
+import { apiGet } from "../../utils/apiClient";
+import { reportSaveError } from "../../utils/toast";
+import { allShortlistedKeys } from "../../data/shortlistStore";
 import { CURRENT_STUDENT_ID } from "../../data/mockData";
 import { getAllStudents } from "../../data/allStudentsStore";
-import { getAllUniversities } from "../../data/universityCatalogStore";
 import { COUNTRIES, countryByName } from "../../data/countries";
 import { getProfileCompletion } from "../../data/profileCompletion";
 import {
-  emptyFilters, applyFilters, countActiveFilters,
-  allPrograms, courseMatchesFilters,
-  countryStats, intakeOptions, yearOptions, facetOptions, activeFeeCurrency, type UniversityFilterState,
+  emptyFilters, countActiveFilters,
+  countryStats, yearOptions, type UniversityFilterState,
 } from "../../utils/universityFilter";
 import { ApplyModal } from "./ApplyModal";
 import { ProgramCard, universityInitials } from "./ProgramCard";
@@ -26,11 +28,10 @@ import { isShortlisted, toggleShortlisted } from "../../data/shortlistStore";
 import type { Student, University } from "../../types";
 import { CreateApplicationModal } from "../agent/CreateApplicationModal";
 import { NeuSelect } from "../../components/ui/NeuSelect";
-import { courseFeeIn, currenciesOf, sameCurrency } from "../../utils/courseFee";
+import { sameCurrency } from "../../utils/courseFee";
 
 type Tab = "universities" | "subjects" | "countries";
 
-type SortBy = "best" | "rank" | "feeLow" | "feeHigh" | "employability" | "name";
 const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "best", label: "Best Match" },
   { value: "rank", label: "World Ranking" },
@@ -39,13 +40,6 @@ const SORT_OPTIONS: { value: SortBy; label: string }[] = [
   { value: "employability", label: "Employability" },
   { value: "name", label: "Name (A–Z)" },
 ];
-
-function rankNumber(rank: string) {
-  return parseInt(rank.replace(/\D/g, ""), 10) || Infinity;
-}
-function employabilityNumber(emp: string) {
-  return parseInt(emp.replace(/\D/g, ""), 10) || 0;
-}
 
 export interface FiltersOutletContext {
   filters: UniversityFilterState;
@@ -87,9 +81,6 @@ function skylineToneFor(name: string): (typeof SKYLINE_TONES)[number] {
   const seed = [...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
   return SKYLINE_TONES[seed % SKYLINE_TONES.length];
 }
-
-// JSON.stringify drops a Set's members ({}), so the multi-select filters would never look "changed" — list them out.
-const filterKey = (f: UniversityFilterState) => JSON.stringify(f, (_k, v) => (v instanceof Set ? [...v] : v));
 
 export default function UniversitySearch() {
   return <ExploreUniversities variant={STUDENT_EXPLORE} />;
@@ -138,35 +129,18 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
 
   const showingFilters = location.pathname === `${variant.basePath}/filters`;
 
-  const results = useMemo(() => {
-    const filtered = applyFilters(getAllUniversities(), filters, query);
-    const sorted = [...filtered];
-    if (sortBy === "rank") sorted.sort((a, b) => rankNumber(a.worldRank) - rankNumber(b.worldRank));
-    else if (sortBy === "employability") sorted.sort((a, b) => employabilityNumber(b.employability) - employabilityNumber(a.employability));
-    else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sortBy === "feeLow" || sortBy === "feeHigh") {
-      // A university's fee = its cheapest course fee that can be compared (same currency); none comparable → listed last.
-      const cur = sortCurrency || activeFeeCurrency(filters) || currenciesOf(sorted.flatMap((u) => u.courses.map((c) => ({ u, c }))))[0] || "";
-      const cheapest = (u: University) => {
-        const fees = u.courses.map((c) => courseFeeIn(u, c, cur)).filter((f): f is number => f !== null && f > 0);
-        return fees.length ? Math.min(...fees) : null;
-      };
-      const keyed = new Map(sorted.map((u) => [u.id, cheapest(u)]));
-      sorted.sort((a, b) => {
-        const fa = keyed.get(a.id), fb = keyed.get(b.id);
-        if (fa === null && fb === null) return 0;
-        if (fa === null) return 1;
-        if (fb === null) return -1;
-        return sortBy === "feeLow" ? (fa ?? 0) - (fb ?? 0) : (fb ?? 0) - (fa ?? 0);
-      });
-    }
-    return sorted;
-  }, [query, filters, sortBy, sortCurrency]);
-
-  // Universities that pass the shared top search bar + Advanced Search filters — reused to gate the
-  // Courses tab's flat program list too, so the one search bar shown on every tab actually filters
-  // every tab rather than just being visually present on the ones that didn't build it.
-  const advancedFilteredUniversityIds = useMemo(() => new Set(results.map((u) => u.id)), [results]);
+  // Searching, filtering, sorting and paging all happen on the server (see data/catalogSearchApi.ts): the browser only ever
+  // holds the page it is showing, instead of the whole catalog. The server applies exactly the filters this page always had.
+  const facets = useCatalogFacets(filters);
+  const shortlistKeys = programShortlistedOnly ? allShortlistedKeys() : undefined;
+  // Re-reads the browser-held bookmarks after each toggle so un-bookmarking drops the program from a "Shortlisted" list at once.
+  void shortlistTick;
+  const programsPage = useCatalogPage<ProgramRow>({
+    enabled: tab === "subjects", view: "courses", query, filters, sort: sortBy, sortCurrency, shortlistKeys, pageSize: 30, persistKey: "explore:programsPage",
+  });
+  const resultsPage = useCatalogPage<CardUniversity>({
+    enabled: tab === "universities" || (tab === "countries" && showingFilters), view: "universities", query, filters, sort: sortBy, sortCurrency, pageSize: 30, persistKey: "explore:resultsPage",
+  });
 
   // Countries tab only meaningfully honours the shared bar's free-text search (matching by country
   // name) — the other advanced fields don't map onto a plain destination list, and countryStats()
@@ -177,44 +151,21 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
     return q ? countryStats().filter((c) => c.name.toLowerCase().includes(q)) : countryStats();
   }, [query]);
 
-  const unsortedPrograms = useMemo(
-    () =>
-      allPrograms().filter(({ university: u, course: c }) => {
-        if (!advancedFilteredUniversityIds.has(u.id)) return false;
-        if (!courseMatchesFilters(u, c, filters, query)) return false;
-        if (programShortlistedOnly && !isShortlisted(`${u.id}::${c.name}`)) return false;
-        return true;
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- shortlistTick re-reads localStorage-backed bookmarks
-    [advancedFilteredUniversityIds, filters, query, programShortlistedOnly, shortlistTick]
-  );
   // Currencies among the courses currently listed — the choices when sorting by fee.
-  const sortCurrencies = useMemo(() => currenciesOf(unsortedPrograms.map(({ university, course }) => ({ u: university, c: course }))).map((c) => c.trim()), [unsortedPrograms]);
-  const programs = useMemo(() => {
-    if (sortBy === "best") return unsortedPrograms;
-    const list = [...unsortedPrograms];
-    if (sortBy === "rank") list.sort((a, b) => rankNumber(a.university.worldRank) - rankNumber(b.university.worldRank));
-    else if (sortBy === "employability") list.sort((a, b) => employabilityNumber(b.university.employability) - employabilityNumber(a.university.employability));
-    else if (sortBy === "name") list.sort((a, b) => a.course.name.localeCompare(b.course.name));
-    else {
-      const cur = sortCurrency || activeFeeCurrency(filters) || sortCurrencies[0] || "";
-      const fee = (p: { university: University; course: University["courses"][number] }) => {
-        const v = courseFeeIn(p.university, p.course, cur);
-        return v !== null && v > 0 ? v : null; // not provided / other currency / free-as-zero all sort last
-      };
-      list.sort((a, b) => {
-        const fa = fee(a), fb = fee(b);
-        if (fa === null && fb === null) return 0;
-        if (fa === null) return 1;
-        if (fb === null) return -1;
-        return sortBy === "feeLow" ? fa - fb : fb - fa;
-      });
-    }
-    return list;
-  }, [unsortedPrograms, sortBy, sortCurrency, sortCurrencies, filters]);
+  const sortCurrencies = programsPage.currencies;
   const programFiltersActive = programShortlistedOnly;
-  const programsPage = usePagedList(programs, 30, `${query}:${filterKey(filters)}:${programShortlistedOnly}:${sortBy}:${sortCurrency}`, "explore:programsPage");
-  const resultsPage = usePagedList(results, 30, `${query}:${filterKey(filters)}:${sortBy}:${sortCurrency}`, "explore:resultsPage");
+
+  // The application form needs the university's campuses, intake status and so on, which a list row doesn't carry: fetch the
+  // one full record when Apply is pressed.
+  async function openApply(row: ProgramRow) {
+    try {
+      const full = await apiGet<University>(`/api/universities/${encodeURIComponent(row.university.id)}`);
+      const course = full.courses.find((c) => c.id === row.course.id);
+      if (course) setApplyTarget({ university: full, course });
+    } catch (err) {
+      reportSaveError("Couldn't open the application form:", err);
+    }
+  }
 
   // Explore/apply is gated on having filled in the required parts of the profile — a counsellor or
   // admission officer needs that information to actually process an application, so letting someone
@@ -243,7 +194,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   }
 
   if (showingFilters) {
-    return <Outlet context={{ filters, setFilters, resultCount: tab === "subjects" ? programs.length : results.length, basePath: variant.basePath } satisfies FiltersOutletContext} />;
+    return <Outlet context={{ filters, setFilters, resultCount: tab === "subjects" ? programsPage.total : resultsPage.total, basePath: variant.basePath } satisfies FiltersOutletContext} />;
   }
 
   const activeFilterCount = countActiveFilters(filters);
@@ -333,7 +284,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                 <DropdownChips
                   label="Level"
                   floating
-                  options={[...new Set([...filters.level, ...facetOptions(filters, "level")])]}
+                  options={[...new Set([...filters.level, ...(facets?.facets.level ?? [])])]}
                   selected={filters.level}
                   onToggle={toggleFilterLevel}
                   open={levelDropdownOpen}
@@ -345,7 +296,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                 <DropdownChips
                   label="Intake"
                   floating
-                  options={intakeOptions()}
+                  options={[...new Set([...filters.intakes, ...(facets?.intakesAll ?? [])])]}
                   selected={filters.intakes}
                   onToggle={toggleFilterIntake}
                   open={intakeDropdownOpen}
@@ -451,7 +402,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                       <Chip
                         key={c}
                         label={c}
-                        selected={sameCurrency(sortCurrency || activeFeeCurrency(filters) || sortCurrencies[0], c)}
+                        selected={sameCurrency(sortCurrency || filters.feeCurrency || facets?.feeCurrency || sortCurrencies[0], c)}
                         onClick={() => setSortCurrency(c)}
                       />
                     ))}
@@ -505,9 +456,11 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
           <div className="mt-4">
             <div className="flex items-center justify-between">
               <p className="text-[13px] text-neutral-500">
-                {programShortlistedOnly
-                  ? `${programs.length} shortlisted ${programs.length === 1 ? "program" : "programs"}.`
-                  : `${programs.length} ${programs.length === 1 ? "program" : "programs"} from top universities worldwide.`}
+                {programsPage.initialLoading
+                  ? "Loading programs…"
+                  : programShortlistedOnly
+                    ? `${programsPage.total} shortlisted ${programsPage.total === 1 ? "program" : "programs"}.`
+                    : `${programsPage.total.toLocaleString()} ${programsPage.total === 1 ? "program" : "programs"} from top universities worldwide.`}
               </p>
               {programFiltersActive && (
                 <button onClick={resetProgramFilters} className="flex items-center gap-0.5 text-[12px] font-medium text-neutral-900">
@@ -530,7 +483,9 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
             {/* Same card shape as the Universities tab below (big logo tile, title, location line,
                 divider, detail row) so both tabs read as one consistent catalog. */}
             <div className="mt-3 grid grid-cols-1 gap-3">
-              {programsPage.pageItems.map(({ university: u, course: c }) => {
+              {programsPage.items.map((row) => {
+                const u = asUniversity(row.university);
+                const c = asCourse(row.course);
                 const programKey = `${u.id}::${c.name}`;
                 return (
                   <ProgramCard
@@ -542,7 +497,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                     onOpen={() => openProgram(u.id, c.name, c.subject)}
                     onApply={
                       variant.ownApplications
-                        ? () => setApplyTarget({ university: u, course: c })
+                        ? () => { void openApply(row); }
                         : variant.students
                           ? () => setStaffApplyTarget({ university: u, course: c })
                           : undefined
@@ -552,7 +507,14 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                 );
               })}
 
-              {programs.length === 0 && (
+              {programsPage.error && programsPage.items.length === 0 && (
+                <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu lg:col-span-full">
+                  <p className="text-sm font-medium text-neutral-700">Couldn't load programs right now</p>
+                  <p className="mt-1 text-xs text-neutral-400">Please check your connection and try again.</p>
+                  <button onClick={programsPage.reload} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">Try again</button>
+                </div>
+              )}
+              {!programsPage.initialLoading && !programsPage.error && programsPage.total === 0 && (
                 <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu lg:col-span-full">
                   {programShortlistedOnly ? (
                     <>
@@ -578,17 +540,24 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
         ) : (
           <>
             <div className="mt-4">
-              <p className="text-[13px] text-neutral-500">{results.length} {results.length === 1 ? "university" : "universities"} found</p>
+              <p className="text-[13px] text-neutral-500">{resultsPage.initialLoading ? "Loading universities…" : `${resultsPage.total} ${resultsPage.total === 1 ? "university" : "universities"} found`}</p>
             </div>
 
             <div className="mt-3 grid grid-cols-1 gap-3">
-              {results.length === 0 && (
+              {resultsPage.error && resultsPage.items.length === 0 && (
+                <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu lg:col-span-full">
+                  <p className="text-sm font-medium text-neutral-700">Couldn't load universities right now</p>
+                  <p className="mt-1 text-xs text-neutral-400">Please check your connection and try again.</p>
+                  <button onClick={resultsPage.reload} className="mt-2 text-[12.5px] font-medium text-[var(--sd-ink)]">Try again</button>
+                </div>
+              )}
+              {!resultsPage.initialLoading && !resultsPage.error && resultsPage.total === 0 && (
                 <div className="rounded-2xl bg-[var(--sd-card)] p-6 text-center shadow-neu lg:col-span-full">
                   <p className="text-sm font-medium text-neutral-700">No universities match your filters</p>
                   <p className="mt-1 text-xs text-neutral-400">Try clearing a filter or searching a different term.</p>
                 </div>
               )}
-              {resultsPage.pageItems.map((u) => {
+              {resultsPage.items.map((u) => {
                 const fav = favorites.has(u.id);
                 const initials = universityInitials(u.name);
                 return (
@@ -628,7 +597,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                           </>
                         )}
                       </div>
-                      {variant.universityNote?.(u)}
+                      {variant.universityNote?.(asUniversity(u))}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
                         <span className="inline-flex items-center gap-1 sm:gap-1.5">
                           <CalendarClock size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">Open: {u.openIntake}</span>

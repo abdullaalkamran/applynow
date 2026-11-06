@@ -7,7 +7,7 @@ process.env.DATABASE_URL ||= "mysql://test:test@localhost:3306/test";
 
 // The browser's catalog store is what the client filter helpers read (facets, fee currency); point it at the catalog under test.
 const holder = vi.hoisted(() => ({ catalog: [] }));
-vi.mock("../../src/data/universityCatalogStore", () => ({ getAllUniversities: () => holder.catalog }));
+vi.mock("../../src/data/universityCatalogStore", () => ({ getAllUniversities: () => holder.catalog, getUniversitySummaries: () => holder.catalog }));
 
 // The client's discipline-area lookup reads a browser store; stub it with a fixed subject → area table.
 const AREAS = { "Computer Science": "STEM", "Data Science": "STEM", Engineering: "STEM", Business: "Business", Law: "Humanities", Medicine: "Health", Design: "Arts" };
