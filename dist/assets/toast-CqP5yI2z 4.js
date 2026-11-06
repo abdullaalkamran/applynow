@@ -1,0 +1,1 @@
+var e=`sd-toast`,t=``,n=0;function r(r,i=`info`){if(typeof window>`u`)return;let a=Date.now();r===t&&a-n<4e3||(t=r,n=a,window.dispatchEvent(new CustomEvent(e,{detail:{message:r,tone:i}})))}function i(e,t){t?.name!==`StaleSessionError`&&(console.warn(e,t),r(`Couldn't save your change. ${t instanceof Error&&t.message?t.message:`Unknown error.`}`,`error`))}export{i as n,e as t};

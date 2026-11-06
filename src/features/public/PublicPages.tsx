@@ -21,6 +21,7 @@ function PublicShell({ children }: { children: ReactNode }) {
 
 const common: Omit<ExploreVariant, "basePath" | "title" | "defaultTab"> = {
   universityPath: (id) => `/universities/${id}`,
+  coursePath: (universityId, courseId) => `/universities/${universityId}/courses/${encodeURIComponent(courseId)}`,
   countryPath: () => "/login",
   ownApplications: false,
   publicMode: true,

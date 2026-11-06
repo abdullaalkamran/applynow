@@ -68,6 +68,8 @@ export interface ExploreVariant {
   /** Logged-out visitors (/universities, /courses): same page and data, every signed-in action goes to the sign-in page, and the
    * Universities/Courses tabs are separate URLs (`defaultTab` is the one this route shows). */
   publicMode?: boolean;
+  /** Where a course lives, when it has its own address (public pages): opening a program card goes there. */
+  coursePath?: (universityId: string, courseId: string) => string;
   tabs?: Tab[];
   defaultTab?: Tab;
 }
@@ -240,7 +242,8 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
     });
   }
 
-  function openProgram(universityId: string, courseName: string, subject: string) {
+  function openProgram(universityId: string, courseId: string, courseName: string, subject: string) {
+    if (variant.coursePath) return navigate(variant.coursePath(universityId, courseId));
     navigate(variant.universityPath(universityId), { state: { selectedCourseName: courseName, subject } });
   }
 
@@ -505,7 +508,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                     course={c}
                     shortlisted={variant.ownApplications ? isShortlisted(programKey) : false}
                     onToggleShortlist={variant.ownApplications ? () => toggleProgramShortlist(programKey) : undefined}
-                    onOpen={() => openProgram(u.id, c.name, c.subject)}
+                    onOpen={() => openProgram(u.id, c.id, c.name, c.subject)}
                     onApply={
                       variant.ownApplications
                         ? () => { void openApply(row); }

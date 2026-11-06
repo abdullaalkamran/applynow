@@ -165,6 +165,7 @@ export default function App() {
             <Route path="filters" element={<UniversityFilters />} />
           </Route>
           <Route path="/universities/:id" element={<PublicUniversityDetail />} />
+          <Route path="/universities/:id/courses/:courseId" element={<PublicUniversityDetail />} />
           <Route path="/courses" element={<PublicCourses />}>
             <Route path="filters" element={<UniversityFilters />} />
           </Route>

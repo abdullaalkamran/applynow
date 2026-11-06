@@ -238,7 +238,7 @@ async function universityPage(id) {
     where: { id },
     select: {
       id: true, name: true, city: true, country: true, description: true, highlights: true, website: true, logoUrl: true, coverPhotoUrl: true,
-      courses: { select: { name: true, level: true, duration: true }, orderBy: { id: "asc" }, take: 40 },
+      courses: { select: { id: true, name: true, level: true, duration: true }, orderBy: { id: "asc" }, take: 40 },
       _count: { select: { courses: true } },
     },
   });
@@ -256,7 +256,7 @@ async function universityPage(id) {
       <p>${esc(where)}</p>
       ${u.description ? `<p>${esc(u.description)}</p>` : ""}
       ${highlights.length ? `<ul>${highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
-      ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li>${esc(c.name)} — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
+      ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li><a href="/universities/${esc(u.id)}/courses/${esc(encodeURIComponent(c.id))}">${esc(c.name)}</a> — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
     </article></main>`;
   return render({
     title: `${u.name} — ${where} — ${SITE_NAME}`,
@@ -282,6 +282,81 @@ async function universityPage(id) {
           { "@type": "ListItem", position: 1, name: "Home", item: siteUrl() },
           { "@type": "ListItem", position: 2, name: "Universities", item: `${siteUrl()}/universities` },
           { "@type": "ListItem", position: 3, name: u.name, item: `${siteUrl()}/universities/${u.id}` },
+        ],
+      },
+    ],
+    bodyHtml,
+  });
+}
+
+const feeSentence = (course, uni) => {
+  if (course.feeStatus === "free") return "Free";
+  if (course.feeStatus !== "unknown" && Number.isFinite(course.feeUSD) && course.feeUSD > 0) {
+    const symbol = (course.currencySymbol && course.currencySymbol.trim() ? course.currencySymbol : uni.currencySymbol) || "";
+    return `${symbol}${Math.round(course.feeUSD).toLocaleString("en-US")} per year`;
+  }
+  return "";
+};
+
+async function coursePage(universityId, courseId) {
+  const c = await prisma.course.findFirst({
+    where: { id: courseId, universityId },
+    select: {
+      id: true, name: true, level: true, duration: true, subject: true, feeUSD: true, feeStatus: true, currencySymbol: true, description: true,
+      studyMode: true, intakes: true, modules: true, careers: true,
+      university: { select: { id: true, name: true, city: true, country: true, currencySymbol: true, logoUrl: true, coverPhotoUrl: true, website: true } },
+    },
+  });
+  const path = `/universities/${universityId}/courses/${courseId}`;
+  if (!c) {
+    return render({ title: `Course not found — ${SITE_NAME}`, description: "This course doesn't exist or is no longer available.", path, noindex: true, status: 404, bodyHtml: "<main><h1>Course not found</h1></main>" });
+  }
+  const u = c.university;
+  const where = `${u.city}, ${u.country}`;
+  const fee = feeSentence(c, u);
+  const facts = [c.level, c.duration, c.studyMode, c.subject].filter(Boolean).join(" · ");
+  const description = oneLine(c.description, 200) || `${c.name} at ${u.name}, ${where}. ${facts}${fee ? ` · ${fee}` : ""}. See intakes, entry requirements and how to apply on ${SITE_NAME}.`;
+  const image = publicImage(u.coverPhotoUrl) || publicImage(u.logoUrl);
+  const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
+  const modules = list(c.modules);
+  const careers = list(c.careers);
+  const intakes = list(c.intakes);
+  const uniUrl = `${siteUrl()}/universities/${u.id}`;
+  const bodyHtml = `
+    <main><article>
+      <p><a href="/universities">Universities</a> › <a href="/universities/${esc(u.id)}">${esc(u.name)}</a></p>
+      <h1>${esc(c.name)}</h1>
+      <p>${esc(u.name)} — ${esc(where)}</p>
+      <p>${esc(facts)}${fee ? ` · ${esc(fee)}` : ""}</p>
+      ${intakes.length ? `<p>Intakes: ${esc(intakes.join(", "))}</p>` : ""}
+      ${c.description ? `<p>${esc(c.description)}</p>` : ""}
+      ${modules.length ? `<h2>Modules</h2><ul>${modules.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
+      ${careers.length ? `<h2>Careers</h2><ul>${careers.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
+    </article></main>`;
+  return render({
+    title: `${c.name} at ${u.name} — ${SITE_NAME}`,
+    description,
+    path,
+    image,
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        name: c.name,
+        description,
+        url: `${siteUrl()}${path}`,
+        educationalLevel: c.level || undefined,
+        about: c.subject || undefined,
+        provider: { "@type": "CollegeOrUniversity", name: u.name, url: uniUrl, address: { "@type": "PostalAddress", addressLocality: u.city, addressCountry: u.country } },
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl() },
+          { "@type": "ListItem", position: 2, name: "Universities", item: `${siteUrl()}/universities` },
+          { "@type": "ListItem", position: 3, name: u.name, item: uniUrl },
+          { "@type": "ListItem", position: 4, name: c.name, item: `${siteUrl()}${path}` },
         ],
       },
     ],
@@ -378,21 +453,46 @@ function robotsTxt() {
   ].join("\n");
 }
 
-async function sitemapXml() {
-  const posts = await publishedPosts(1000);
-  const universities = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 5000 });
+// The sitemap is an index: one file for the fixed pages, news posts and universities, plus the courses split into files of
+// COURSES_PER_SITEMAP (a sitemap file may hold at most 50,000 URLs, and courses keep being added).
+const COURSES_PER_SITEMAP = 20000;
+const urlsetXml = (urls) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+  .map((u) => `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${new Date(u.lastmod).toISOString()}</lastmod>` : ""}<changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
+  .join("\n")}\n</urlset>\n`;
+
+async function sitemapIndexXml() {
   const base = siteUrl();
-  const urls = [
+  const courseCount = await prisma.course.count();
+  const files = ["sitemap-pages.xml", ...Array.from({ length: Math.ceil(courseCount / COURSES_PER_SITEMAP) }, (_v, i) => `sitemap-courses-${i + 1}.xml`)];
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${files.map((f) => `  <sitemap><loc>${esc(`${base}/${f}`)}</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`;
+}
+
+async function sitemapPagesXml() {
+  const posts = await publishedPosts(1000);
+  const universities = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 40000 });
+  const base = siteUrl();
+  return urlsetXml([
     { loc: `${base}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${base}/universities`, changefreq: "weekly", priority: "0.9" },
     { loc: `${base}/courses`, changefreq: "weekly", priority: "0.8" },
-    ...universities.map((u) => ({ loc: `${base}/universities/${u.id}`, changefreq: "monthly", priority: "0.7", lastmod: u.updatedAt })),
     { loc: `${base}/news`, changefreq: "daily", priority: "0.8", lastmod: posts[0]?.updatedAt },
+    ...universities.map((u) => ({ loc: `${base}/universities/${u.id}`, changefreq: "monthly", priority: "0.7", lastmod: u.updatedAt })),
     ...posts.map((p) => ({ loc: `${base}/news/${p.slug}`, changefreq: "monthly", priority: "0.6", lastmod: p.updatedAt })),
-  ];
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
-    .map((u) => `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${new Date(u.lastmod).toISOString()}</lastmod>` : ""}<changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`)
-    .join("\n")}\n</urlset>\n`;
+  ]);
+}
+
+/** One file of course URLs (null when n is past the last file). Courses carry no timestamp of their own, so lastmod is the
+ * university's. */
+async function sitemapCoursesXml(n) {
+  const total = await prisma.course.count();
+  if (!Number.isInteger(n) || n < 1 || n > Math.max(1, Math.ceil(total / COURSES_PER_SITEMAP))) return null;
+  const [courses, universities] = await Promise.all([
+    prisma.course.findMany({ select: { id: true, universityId: true }, orderBy: { id: "asc" }, skip: (n - 1) * COURSES_PER_SITEMAP, take: COURSES_PER_SITEMAP }),
+    prisma.university.findMany({ select: { id: true, updatedAt: true } }),
+  ]);
+  const modified = new Map(universities.map((u) => [u.id, u.updatedAt]));
+  const base = siteUrl();
+  return urlsetXml(courses.map((c) => ({ loc: `${base}/universities/${c.universityId}/courses/${encodeURIComponent(c.id)}`, changefreq: "monthly", priority: "0.5", lastmod: modified.get(c.universityId) })));
 }
 
 async function llmsTxt() {
@@ -418,10 +518,10 @@ async function llmsTxt() {
   ].join("\n");
 }
 
-function textHandler(type, build) {
+function textHandler(type, build, key = type) {
   return async (_req, res, next) => {
     try {
-      const body = await cached(`text:${type}`, async () => ({ html: await build(), status: 200 }));
+      const body = await cached(`text:${key}`, async () => ({ html: await build(), status: 200 }));
       res.status(200).set({ "Content-Type": `${type}; charset=utf-8`, "Cache-Control": "public, max-age=600" }).send(body.html);
     } catch (err) {
       next(err);
@@ -440,11 +540,23 @@ function noindexPrivate(req, res, next) {
 function registerSeoRoutes(app) {
   app.use(noindexPrivate);
   app.get("/robots.txt", (_req, res) => res.type("text/plain").set("Cache-Control", "public, max-age=3600").send(robotsTxt()));
-  app.get("/sitemap.xml", textHandler("application/xml", sitemapXml));
-  app.get("/llms.txt", textHandler("text/plain", llmsTxt));
+  app.get("/sitemap.xml", textHandler("application/xml", sitemapIndexXml, "sitemap-index"));
+  app.get("/sitemap-pages.xml", textHandler("application/xml", sitemapPagesXml, "sitemap-pages"));
+  app.get("/sitemap-courses-:n.xml", async (req, res, next) => {
+    try {
+      const n = Number(req.params.n);
+      const body = await cached(`sitemap:courses:${n}`, async () => ({ xml: await sitemapCoursesXml(n) }));
+      if (!body.xml) return res.status(404).type("text/plain").send("Not found");
+      res.status(200).set({ "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" }).send(body.xml);
+    } catch (err) {
+      next(err);
+    }
+  });
+  app.get("/llms.txt", textHandler("text/plain", llmsTxt, "llms"));
   app.get("/", pageHandler(landingPage));
   app.get("/universities", pageHandler(universitiesIndexPage));
   app.get("/universities/:id", pageHandler((req) => universityPage(req.params.id)));
+  app.get("/universities/:id/courses/:courseId", pageHandler((req) => coursePage(req.params.id, req.params.courseId)));
   app.get("/courses", pageHandler(coursesIndexPage));
   app.get("/news", pageHandler(newsIndexPage));
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));

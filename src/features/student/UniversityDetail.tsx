@@ -42,7 +42,7 @@ function useStudentNavigate() {
 }
 
 export default function UniversityDetail() {
-  const { id } = useParams();
+  const { id, courseId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const navState = location.state as { selectedCourseName?: string; subject?: string } | null;
@@ -52,14 +52,23 @@ export default function UniversityDetail() {
   // No course selected on entry (reached via the Universities tab) → show the university's overall
   // profile with a course list to choose from. A course chosen there, or arriving pre-selected from
   // a Subject listing, switches to the single-course detail view.
-  const [activeCourseName, setActiveCourseName] = useState<string | null>(navState?.selectedCourseName ?? null);
-  const course = university?.courses.find((c) => c.name === activeCourseName);
+  const [activeCourseName, setActiveCourseNameState] = useState<string | null>(navState?.selectedCourseName ?? null);
+  // Public pages keep the chosen course in the URL (/universities/:id/courses/:courseId) so each course has its own shareable,
+  // indexable address; the signed-in pages keep it in state, as before.
+  const pub = usePublicMode();
+  const course = pub
+    ? (courseId ? university?.courses.find((c) => c.id === courseId) : undefined)
+    : university?.courses.find((c) => c.name === activeCourseName);
+  function setActiveCourseName(name: string | null) {
+    if (!pub) return setActiveCourseNameState(name);
+    const chosen = name ? university?.courses.find((c) => c.name === name) : undefined;
+    navigate(chosen ? `/universities/${id}/courses/${encodeURIComponent(chosen.id)}` : `/universities/${id}`);
+  }
 
   const [uniTab, setUniTab] = useState<(typeof UNIVERSITY_TABS)[number]>("Overview");
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
   // Logged-out visitors can read everything; applying and saving need an account, so those buttons lead to sign-in.
-  const pub = usePublicMode();
   const toggleSaved = () => (pub ? navigate("/login") : setSaved((v) => !v));
 
   if (!university) {
