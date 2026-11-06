@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getUniversityById } from "./universityCatalogStore";
+import { getUniversityById, hydrateUniversity } from "./universityCatalogStore";
 import { apiGet } from "../utils/apiClient";
 import type { University } from "../types";
 
@@ -10,6 +10,11 @@ export function useUniversity(id: string | undefined): { university: University 
   const cached = id ? getUniversityById(id) : undefined;
   const [fetched, setFetched] = useState<University | undefined>(undefined);
   const [settled, setSettled] = useState(false);
+
+  const needsCourses = cached?.coursesLoaded === false;
+  useEffect(() => {
+    if (id && needsCourses) hydrateUniversity(id).catch(() => { /* the full catalog load will still fill it in */ });
+  }, [id, needsCourses]);
 
   useEffect(() => {
     if (!id || cached) return;
@@ -22,5 +27,5 @@ export function useUniversity(id: string | undefined): { university: University 
   }, [id, cached]);
 
   const university = cached ?? fetched;
-  return { university, loading: !university && !settled };
+  return { university, loading: needsCourses || (!university && !settled) };
 }

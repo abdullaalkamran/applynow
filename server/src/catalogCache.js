@@ -68,16 +68,43 @@ function startBuild(serializeUniversity) {
   return inflight;
 }
 
+// After a write the previous copy is still served for up to this long while a fresh one builds in the background. A bulk
+// edit (dozens of PATCHes in a row) used to make every list request wait for a full ~30 MB rebuild — minutes of "loading",
+// and pile-ups of builds holding database connections. The writer's own browser already applies its change locally, and
+// everyone else catches up on their next poll once the rebuild lands.
+const MAX_STALE_MS = 3 * 60 * 1000;
+const REBUILD_DEBOUNCE_MS = 4000; // coalesce a burst of writes into one rebuild
+let rebuildTimer = null;
+
+function scheduleRebuild(serializeUniversity) {
+  if (rebuildTimer || inflight) return;
+  rebuildTimer = setTimeout(() => {
+    rebuildTimer = null;
+    startBuild(serializeUniversity).catch((err) => console.warn("Background catalog rebuild failed:", err));
+  }, REBUILD_DEBOUNCE_MS);
+  if (rebuildTimer.unref) rebuildTimer.unref();
+}
+
 async function getCatalog(serializeUniversity) {
-  const current = built && built.version === version;
-  if (current && Date.now() - built.at < MAX_AGE_MS) return built;
-  // Only aged out (nothing was written): keep serving the copy we have and refresh it behind the scenes, so no request
-  // ever waits on a rebuild. After a real write (version moved on) the next request does wait, so it sees the change.
-  if (current) {
-    startBuild(serializeUniversity).catch((err) => console.warn("Background catalog refresh failed:", err));
-    return built;
+  if (built) {
+    const current = built.version === version;
+    const age = Date.now() - built.at;
+    if (current && age < MAX_AGE_MS) return built;
+    if (current || age < MAX_STALE_MS) {
+      // Serve what we have now; refresh behind the scenes.
+      if (current) startBuild(serializeUniversity).catch((err) => console.warn("Background catalog refresh failed:", err));
+      else scheduleRebuild(serializeUniversity);
+      return built;
+    }
   }
   return startBuild(serializeUniversity);
 }
 
-module.exports = { getCatalog, invalidateCatalog };
+/** Builds the catalog ahead of the first request (call once at server start). */
+function warmCatalog(serializeUniversity) {
+  startBuild(serializeUniversity).catch((err) => console.warn("Catalog warm-up failed:", err));
+}
+
+const catalogVersion = () => version;
+
+module.exports = { getCatalog, invalidateCatalog, warmCatalog, catalogVersion };

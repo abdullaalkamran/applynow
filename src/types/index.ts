@@ -202,6 +202,10 @@ export interface University {
   studentCount: string;
   description: string;
   highlights: string[];
+  // Set only on the fast first-paint list (GET /api/universities/summary): `courses` is empty until the full catalog or this
+  // university's own record has loaded. Absent everywhere else, meaning the courses are present.
+  coursesLoaded?: boolean;
+  courseCount?: number;
   courses: {
     id: string;
     name: string;

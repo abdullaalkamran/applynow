@@ -8,7 +8,7 @@ const requireAuth = require("../middleware/requireAuth");
 const { requireDataRole } = require("../middleware/access");
 
 const zlib = require("zlib");
-const { getCatalog, invalidateCatalog } = require("../catalogCache");
+const { getCatalog, invalidateCatalog, warmCatalog, catalogVersion } = require("../catalogCache");
 
 const router = express.Router();
 
@@ -88,7 +88,7 @@ function serializeUniversity(u) {
     intakeDates: u.intakeDates || undefined,
     website: u.website,
     tone: u.tone,
-    logoUrl: u.logoUrl || undefined,
+    logoUrl: u.logoUrl && !u.logoUrl.startsWith("data:") ? u.logoUrl : undefined,
     coverPhotoUrl: u.coverPhotoUrl || undefined,
   };
 }
@@ -229,6 +229,32 @@ router.get("/", requireAuth, async (req, res, next) => {
       return res.end(catalog.gzip);
     }
     zlib.gunzip(catalog.gzip, (err, plain) => (err ? next(err) : res.end(plain)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Everything about every university EXCEPT its courses (one cheap query, no course join), plus `courseCount`. A few KB per
+// university instead of the whole catalog, so the app can show universities straight away while the full catalog (with
+// courses) loads in the background. `coursesLoaded: false` tells the client this entry's `courses` is still empty.
+let summaryCache = null; // { v, at, body }
+const SUMMARY_TTL_MS = 30 * 1000;
+router.get("/summary", requireAuth, async (req, res, next) => {
+  try {
+    if (!summaryCache || summaryCache.v !== catalogVersion() || Date.now() - summaryCache.at > SUMMARY_TTL_MS) {
+      const v = catalogVersion();
+      const rows = await prisma.university.findMany({
+        include: { _count: { select: { courses: true } } },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      });
+      summaryCache = {
+        v,
+        at: Date.now(),
+        body: rows.map((u) => ({ ...serializeUniversity({ ...u, courses: [] }), courseCount: u._count.courses, coursesLoaded: false })),
+      };
+    }
+    res.set("Cache-Control", "private, max-age=15");
+    res.json(summaryCache.body);
   } catch (err) {
     next(err);
   }
@@ -386,4 +412,6 @@ router.delete("/:id/courses/:courseId", requireAuth, requireDataRole, async (req
 // The course write/read helpers are shared with routes/courseImports.js so an approved import
 // is created exactly the way a hand-entered course is. Attaching them to the router keeps
 // `app.use("/api/universities", require(...))` working unchanged.
+setTimeout(() => warmCatalog(serializeUniversity), 5000).unref();
+
 module.exports = Object.assign(router, { courseWriteData, serializeCourse, mergedSubjects, universityWriteData, serializeUniversity });

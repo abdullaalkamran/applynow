@@ -16,16 +16,38 @@ type Course = University["courses"][number];
 let cache: University[] = [];
 let refreshSeq = 0;
 
+let fullLoaded = false;
+
 export function refreshUniversities(): Promise<void> {
   return dedupeInFlight("universities", async () => {
     const seq = ++refreshSeq;
+    // First load: universities appear within a second from the small summary; the full catalog (every course — tens of MB)
+    // then arrives in the background and replaces it. Later refreshes only fetch the full catalog.
+    if (!fullLoaded && cache.length === 0) {
+      apiGet<University[]>("/api/universities/summary")
+        .then((summary) => {
+          if (fullLoaded || cache.length > 0 || seq !== refreshSeq) return;
+          cache = summary;
+          notifyCacheChange();
+        })
+        .catch(() => { /* the full load below still runs */ });
+    }
     const next = await apiGet<University[]>("/api/universities");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
+    fullLoaded = true;
     if (!cacheChanged(next, cache)) return;
     cache = next;
     notifyCacheChange();
   });
+}
+
+/** Fetches one university's full record (with courses) and swaps it into the cache — used when its page opens while only
+ * the fast summary is loaded. */
+export async function hydrateUniversity(id: string): Promise<void> {
+  const full = await apiGet<University>(`/api/universities/${encodeURIComponent(id)}`);
+  cache = cache.map((u) => (u.id === id && u.coursesLoaded === false ? full : u));
+  notifyCacheChange();
 }
 
 export function getAllUniversities(): University[] {
@@ -201,4 +223,5 @@ export async function migrateLegacyLocalUniversities(): Promise<void> {
  * so the next user on this browser never sees the previous one's data. */
 export function clearUniversityCatalogCache() {
   cache = [];
+  fullLoaded = false;
 }
