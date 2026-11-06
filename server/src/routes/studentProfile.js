@@ -43,7 +43,9 @@ router.get("/:studentId", requireAuth, async (req, res, next) => {
 
 router.put("/:studentId/:section", requireAuth, async (req, res, next) => {
   try {
-    const { studentId, section } = req.params;
+    const { studentId } = req.params;
+    // Older clients / stored drafts may send the bare step name ("personal-information"); the stored section is "step:personal-information".
+    const section = STEP_KEYS.includes(req.params.section) ? `step:${req.params.section}` : req.params.section;
     if (!SECTIONS.has(section)) return res.status(400).json({ error: "Unknown profile section." });
     if (!(await canAccessStudent(req.authUser, studentId))) return res.status(404).json({ error: "Student not found." });
     const data = req.body?.data;

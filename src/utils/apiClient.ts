@@ -52,7 +52,7 @@ async function handle<T>(response: Response, generation: number): Promise<T> {
     expireSession();
     throw new Error(data.error || "Your session has expired — please log in again.");
   }
-  if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+  if (!response.ok) throw Object.assign(new Error(data.error || `Request failed (${response.status})`), { status: response.status });
   return data as T;
 }
 
@@ -188,4 +188,17 @@ export function apiPut<T>(path: string, body?: unknown): Promise<T> {
 
 export function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: "DELETE", headers: { ...authHeader() } });
+}
+
+/** Fire-and-forget PUT that survives the page closing (fetch keepalive, bodies up to ~64 KB) — for flushing pending saves on
+ * pagehide/beforeunload. Errors are ignored: there is no one left to tell. */
+export function apiPutOnUnload(path: string, body: unknown): void {
+  try {
+    void fetch(`${BACKEND_BASE}${path}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...authHeader() },
+      body: JSON.stringify(body ?? {}),
+      keepalive: true,
+    }).catch(() => { /* closing anyway */ });
+  } catch { /* closing anyway */ }
 }
