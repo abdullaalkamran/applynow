@@ -14,6 +14,7 @@ export interface BlogPost {
   coverImageUrl?: string;
   status: BlogStatus;
   authorName: string;
+  viewCount: number;
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -40,7 +41,6 @@ export interface PublicNewsItem {
   title: string;
   excerpt: string;
   coverImageUrl?: string;
-  authorName: string;
   publishedAt?: string;
 }
 export interface PublicNewsPost extends PublicNewsItem { content: string }
@@ -54,6 +54,12 @@ async function publicGet<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 export const fetchPublicNews = (signal?: AbortSignal) => publicGet<PublicNewsItem[]>("/api/public/news", signal);
 export const fetchPublicNewsPost = (slug: string, signal?: AbortSignal) => publicGet<PublicNewsPost>(`/api/public/news/${encodeURIComponent(slug)}`, signal);
+
+/** Records a visit to a post page (every visit counts; the number is only shown in Data Management). Fire-and-forget:
+ * a failure must never get in the way of reading. */
+export function recordNewsRead(slug: string): void {
+  fetch(`${BACKEND_BASE}/api/public/news/${encodeURIComponent(slug)}/read`, { method: "POST", keepalive: true }).catch(() => { /* ignore */ });
+}
 
 /** Cover/photo URLs from the server are root-relative (/uploads/…) — prefix the API host when it differs. */
 export function mediaSrc(url?: string): string | undefined {

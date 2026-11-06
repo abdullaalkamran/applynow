@@ -92,10 +92,30 @@ router.get("/news", async (_req, res, next) => {
       where: { status: "published" },
       orderBy: { publishedAt: "desc" },
       take: 60,
-      select: { id: true, slug: true, title: true, excerpt: true, coverImageUrl: true, authorName: true, publishedAt: true },
+      select: { id: true, slug: true, title: true, excerpt: true, coverImageUrl: true, publishedAt: true },
     });
     res.set("Cache-Control", "public, max-age=60");
     res.json(posts.map((p) => ({ ...p, excerpt: p.excerpt || "", coverImageUrl: p.coverImageUrl || undefined, publishedAt: p.publishedAt?.toISOString() })));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Counts a visit to a post page — every visit, so the number is page views (never shown to visitors, only to Data
+// Management). The same address re-opening the same post within a few seconds is ignored, which only absorbs the page
+// firing twice for one visit (dev double-render, a fast double reload), not genuine repeat visits.
+const recentReads = new Map(); // `${ip}|${slug}` -> time of the last counted visit
+const READ_DEBOUNCE_MS = 5000;
+router.post("/news/:slug/read", async (req, res, next) => {
+  try {
+    const key = `${req.ip}|${req.params.slug}`;
+    const now = Date.now();
+    if (recentReads.size > 5000) for (const [k, t] of recentReads) if (now - t > READ_DEBOUNCE_MS) recentReads.delete(k);
+    if (now - (recentReads.get(key) || 0) < READ_DEBOUNCE_MS) return res.json({ counted: false });
+    const { count } = await prisma.blogPost.updateMany({ where: { slug: req.params.slug, status: "published" }, data: { viewCount: { increment: 1 } } });
+    if (count === 0) return res.status(404).json({ error: "Post not found." });
+    recentReads.set(key, now);
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
@@ -108,7 +128,7 @@ router.get("/news/:slug", async (req, res, next) => {
     res.set("Cache-Control", "public, max-age=60");
     res.json({
       id: post.id, slug: post.slug, title: post.title, excerpt: post.excerpt || "", content: post.content,
-      coverImageUrl: post.coverImageUrl || undefined, authorName: post.authorName, publishedAt: post.publishedAt?.toISOString(),
+      coverImageUrl: post.coverImageUrl || undefined, publishedAt: post.publishedAt?.toISOString(),
     });
   } catch (err) {
     next(err);

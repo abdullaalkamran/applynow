@@ -17,7 +17,7 @@ const STATUSES = ["draft", "published"];
 function serialize(p) {
   return {
     id: p.id, slug: p.slug, title: p.title, excerpt: p.excerpt || "", content: p.content,
-    coverImageUrl: p.coverImageUrl || undefined, status: p.status, authorName: p.authorName,
+    coverImageUrl: p.coverImageUrl || undefined, status: p.status, authorName: p.authorName, viewCount: p.viewCount,
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : undefined,
     createdAt: p.createdAt.toISOString(), updatedAt: p.updatedAt.toISOString(),
   };

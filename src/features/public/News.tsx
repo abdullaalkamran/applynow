@@ -22,14 +22,14 @@ export function PublicHeader() {
 export function NewsCard({ post }: { post: PublicNewsItem }) {
   const cover = mediaSrc(post.coverImageUrl);
   return (
-    <Link to={`/news/${post.slug}`} className="group flex flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition hover:shadow-lg">
+    <Link to={`/news/${post.slug}`} className="group flex w-[68vw] max-w-[270px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white transition hover:shadow-lg sm:w-auto sm:max-w-none sm:shrink">
       <div className="aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-neutral-200 to-neutral-100">
         {cover && <img src={cover} alt="" loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />}
       </div>
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
         <p className="text-[12px] font-medium text-neutral-400">{formatPostDate(post.publishedAt)}</p>
-        <h2 className="mt-1.5 text-[17px] font-semibold leading-snug text-neutral-900">{post.title}</h2>
-        {post.excerpt && <p className="mt-2 line-clamp-3 text-[14px] leading-relaxed text-neutral-500">{post.excerpt}</p>}
+        <h2 className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug text-neutral-900 sm:line-clamp-none sm:text-[17px]">{post.title}</h2>
+        {post.excerpt && <p className="mt-2 line-clamp-2 text-[13px] sm:line-clamp-3 sm:text-[14px] leading-relaxed text-neutral-500">{post.excerpt}</p>}
         <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-neutral-900">Read more <ArrowRight size={14} /></span>
       </div>
     </Link>
@@ -64,7 +64,7 @@ export default function News() {
         ) : posts.length === 0 ? (
           <p className="mt-10 text-neutral-500">No news yet — check back soon.</p>
         ) : (
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="-mx-5 mt-8 flex scroll-pl-5 snap-x snap-mandatory gap-3.5 overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:mx-0 sm:mt-10 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden">
             {posts.map((p) => <NewsCard key={p.id} post={p} />)}
           </div>
         )}

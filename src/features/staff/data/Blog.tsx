@@ -62,7 +62,7 @@ export default function DataBlog() {
         <EmptyState title="No posts yet" subtitle='Click "New post" to write the first one.' />
       ) : posts ? (
         <div className="rounded-xl border border-slate-200 bg-white">
-          <Table head={["Title", "Status", "Published", "Author", ""]}>
+          <Table head={["Title", "Status", "Published", "Visits", "Author", ""]}>
             {posts.map((p) => (
               <tr key={p.id} className="hover:bg-slate-50">
                 <td className="max-w-sm px-5 py-3">
@@ -71,6 +71,7 @@ export default function DataBlog() {
                 </td>
                 <td className="px-5 py-3"><Badge tone={p.status === "published" ? "green" : "amber"}>{p.status === "published" ? "Published" : "Draft"}</Badge></td>
                 <td className="px-5 py-3 text-xs text-slate-500">{formatPostDate(p.publishedAt) || "—"}</td>
+                <td className="px-5 py-3 text-xs tabular-nums text-slate-500">{p.status === "published" ? p.viewCount.toLocaleString() : "—"}</td>
                 <td className="px-5 py-3 text-xs text-slate-500">{p.authorName}</td>
                 <td className="whitespace-nowrap px-5 py-3 text-right text-xs font-medium">
                   <button onClick={() => navigate(`/staff/data/blog/${p.id}`)} className="mr-3 text-[var(--brand-600)]">Edit</button>

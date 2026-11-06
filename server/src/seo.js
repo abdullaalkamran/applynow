@@ -156,7 +156,7 @@ async function publishedPosts(take = 60) {
     where: { status: "published" },
     orderBy: { publishedAt: "desc" },
     take,
-    select: { slug: true, title: true, excerpt: true, content: true, coverImageUrl: true, authorName: true, publishedAt: true, updatedAt: true },
+    select: { slug: true, title: true, excerpt: true, content: true, coverImageUrl: true, publishedAt: true, updatedAt: true },
   });
 }
 
@@ -209,7 +209,7 @@ async function newsPostPage(slug) {
     <main><article>
       <p><a href="/news">All news</a></p>
       <h1>${esc(post.title)}</h1>
-      <p>${esc(dateText(post.publishedAt))} · ${esc(post.authorName)}</p>
+      <p>${esc(dateText(post.publishedAt))}</p>
       ${post.excerpt ? `<p><strong>${esc(post.excerpt)}</strong></p>` : ""}
       ${image ? `<img src="${esc(image)}" alt="${esc(post.title)}" />` : ""}
       ${markdownToHtml(post.content)}

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ChatMarkdown } from "../../components/ChatMarkdown";
-import { fetchPublicNewsPost, mediaSrc, formatPostDate, type PublicNewsPost } from "../../data/blogApi";
+import { fetchPublicNewsPost, recordNewsRead, mediaSrc, formatPostDate, type PublicNewsPost } from "../../data/blogApi";
 import { PublicHeader } from "./News";
 
 export default function NewsPost() {
@@ -16,7 +16,10 @@ export default function NewsPost() {
     const controller = new AbortController();
     setState("loading");
     fetchPublicNewsPost(slug, controller.signal)
-      .then((p) => { setPost(p); setState("ready"); document.title = `${p.title} — UnifinderAi`; })
+      .then((p) => {
+        setPost(p); setState("ready"); document.title = `${p.title} — UnifinderAi`;
+        recordNewsRead(slug);
+      })
       .catch((err) => {
         if ((err as Error)?.name === "AbortError") return;
         setState((err as { status?: number })?.status === 404 ? "missing" : "failed");
@@ -39,7 +42,7 @@ export default function NewsPost() {
 
         {state === "ready" && post && (
           <article>
-            <p className="text-[13px] font-medium text-neutral-400">{formatPostDate(post.publishedAt)} · {post.authorName}</p>
+            <p className="text-[13px] font-medium text-neutral-400">{formatPostDate(post.publishedAt)}</p>
             <h1 className="mt-2 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
             {post.excerpt && <p className="mt-3 text-[17px] leading-relaxed text-neutral-500">{post.excerpt}</p>}
             {cover && <img src={cover} alt="" className="mt-7 w-full rounded-2xl object-cover" />}
