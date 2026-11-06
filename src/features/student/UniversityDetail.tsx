@@ -1,7 +1,8 @@
 import { useUniversity } from "../../data/useUniversity";
 import { usePublicMode } from "../../data/publicMode";
+import { setPageMeta } from "../../utils/pageMeta";
 import { websiteHref } from "../../utils/safeHref";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bookmark, Share2, CheckCircle2, Wallet, CalendarDays, GraduationCap, Building2,
@@ -70,6 +71,21 @@ export default function UniversityDetail() {
   const [applying, setApplying] = useState(false);
   // Logged-out visitors can read everything; applying and saving need an account, so those buttons lead to sign-in.
   const toggleSaved = () => (pub ? navigate("/login") : setSaved((v) => !v));
+
+  // Public pages: the tab title and description follow the university / course on screen during client-side navigation.
+  const metaUniversity = university?.name;
+  const metaCourse = course?.name;
+  useEffect(() => {
+    if (!pub || !university) return;
+    const where = [university.city, university.country].filter(Boolean).join(", ");
+    return setPageMeta(
+      metaCourse ? `${metaCourse} at ${university.name} — UnifinderAi` : `${university.name} — ${where} — UnifinderAi`,
+      metaCourse && course
+        ? `${metaCourse} at ${university.name}, ${where}. ${[course.level, course.duration].filter(Boolean).join(", ")}. See fees, intakes and how to apply.`
+        : `${university.name} in ${where}: courses, fees, intakes and entry requirements.`,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on what is shown
+  }, [pub, metaUniversity, metaCourse]);
 
   if (!university) {
     return (

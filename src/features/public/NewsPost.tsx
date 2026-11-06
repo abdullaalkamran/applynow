@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { ChatMarkdown } from "../../components/ChatMarkdown";
 import { fetchPublicNewsPost, recordNewsRead, mediaSrc, formatPostDate, type PublicNewsPost } from "../../data/blogApi";
 import { PublicHeader } from "./News";
+import { setPageMeta } from "../../utils/pageMeta";
 
 export default function NewsPost() {
   const { slug } = useParams();
@@ -14,17 +15,18 @@ export default function NewsPost() {
   useEffect(() => {
     if (!slug) return;
     const controller = new AbortController();
+    let restoreMeta: (() => void) | null = null;
     setState("loading");
     fetchPublicNewsPost(slug, controller.signal)
       .then((p) => {
-        setPost(p); setState("ready"); document.title = `${p.title} — UnifinderAi`;
+        setPost(p); setState("ready"); restoreMeta = setPageMeta(`${p.title} — UnifinderAi`, p.excerpt || p.content.replace(/[#*`>_\[\]()-]+/g, " "));
         recordNewsRead(slug);
       })
       .catch((err) => {
         if ((err as Error)?.name === "AbortError") return;
         setState((err as { status?: number })?.status === 404 ? "missing" : "failed");
       });
-    return () => { controller.abort(); document.title = "UnifinderAi"; };
+    return () => { controller.abort(); restoreMeta?.(); };
   }, [slug]);
 
   const cover = mediaSrc(post?.coverImageUrl);

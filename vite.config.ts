@@ -3,8 +3,8 @@ import { defineConfig, type Plugin } from 'vite'
 import { readFileSync } from 'node:fs'
 
 const SITE_URL = (process.env.VITE_SITE_URL || 'https://unifinderai.com').replace(/\/+$/, '')
-const DESCRIPTION =
-  'Find universities and courses worldwide, compare fees and entry requirements, and apply with the help of counsellors and an AI assistant. Track your documents and application from offer to enrolment.'
+const siteMeta = JSON.parse(readFileSync(new URL('./src/data/siteMeta.json', import.meta.url), 'utf8')) as { name: string; title: string; description: string }
+const DESCRIPTION = siteMeta.description
 
 const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -21,7 +21,15 @@ function landingSeo(): Plugin {
       const faq = JSON.parse(readFileSync(new URL('./src/data/landingFaq.json', import.meta.url), 'utf8')) as { q: string; a: string }[]
       const ld = [
         { '@context': 'https://schema.org', '@type': 'Organization', name: 'UnifinderAi', url: SITE_URL, logo: `${SITE_URL}/brand/share.png`, description: DESCRIPTION },
-        { '@context': 'https://schema.org', '@type': 'WebSite', name: 'UnifinderAi', url: SITE_URL, description: DESCRIPTION },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'UnifinderAi',
+          url: SITE_URL,
+          description: DESCRIPTION,
+          // Lets search engines offer a search box for the university catalogue straight from the results page.
+          potentialAction: { '@type': 'SearchAction', target: { '@type': 'EntryPoint', urlTemplate: `${SITE_URL}/universities?q={search_term_string}` }, 'query-input': 'required name=search_term_string' },
+        },
         {
           '@context': 'https://schema.org',
           '@type': 'FAQPage',
@@ -29,7 +37,7 @@ function landingSeo(): Plugin {
         },
       ]
       const scripts = ld.map((o) => `<script type="application/ld+json" data-landing-seo>${JSON.stringify(o).replace(/</g, '\\u003c')}</script>`).join('\n    ')
-      const noscript = `<noscript data-landing-seo><main><h1>UnifinderAi — Find your next university</h1><p>${escHtml(DESCRIPTION)}</p><p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/news">News &amp; Updates</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a></p><h2>Frequently asked questions</h2>${faq.map((f) => `<h3>${escHtml(f.q)}</h3><p>${escHtml(f.a)}</p>`).join('')}</main></noscript>`
+      const noscript = `<noscript data-landing-seo><main><h1>${escHtml(siteMeta.title)}</h1><p>${escHtml(DESCRIPTION)}</p><p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/news">News &amp; Updates</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a></p><h2>Frequently asked questions</h2>${faq.map((f) => `<h3>${escHtml(f.q)}</h3><p>${escHtml(f.a)}</p>`).join('')}</main></noscript>`
       return html
         .replace('</head>', `    <link rel="canonical" href="${SITE_URL}/" />\n    ${scripts}\n  </head>`)
         .replace('<div id="root"></div>', `<div id="root"></div>\n    ${noscript}`)

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "../../components/Logo";
+import { setPageMeta } from "../../utils/pageMeta";
 import { fetchPublicNews, mediaSrc, formatPostDate, type PublicNewsItem } from "../../data/blogApi";
 
 export function PublicHeader() {
@@ -44,6 +45,7 @@ export function NewsCard({ post }: { post: PublicNewsItem }) {
 }
 
 export default function News() {
+  useEffect(() => setPageMeta("News & Updates — UnifinderAi", "News and updates from UnifinderAi: study destinations, intakes, scholarships and product news for students and agents."), []);
   const [posts, setPosts] = useState<PublicNewsItem[] | null>(null);
   const [failed, setFailed] = useState(false);
 

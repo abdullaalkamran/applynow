@@ -2,6 +2,7 @@
 // the university/course detail — rendered in "public mode" (see data/publicMode.ts): same components and information, public data
 // endpoints, and every signed-in action leads to the sign-in page. Wrapped in the student visual theme with the public header.
 import { useEffect, type ReactNode } from "react";
+import { setPageMeta } from "../../utils/pageMeta";
 import { ExploreUniversities, type ExploreVariant } from "../student/UniversitySearch";
 import UniversityDetail from "../student/UniversityDetail";
 import { PublicHeader } from "./News";
@@ -32,9 +33,11 @@ const UNIVERSITIES: ExploreVariant = { ...common, basePath: "/universities", tit
 const COURSES: ExploreVariant = { ...common, basePath: "/courses", title: "Explore Courses", defaultTab: "subjects" };
 
 export function PublicUniversities() {
+  useEffect(() => setPageMeta("Explore Universities Worldwide — UnifinderAi", "Browse partner universities worldwide: location, courses, fees, intakes, scholarships and entry requirements."), []);
   return <PublicShell><ExploreUniversities variant={UNIVERSITIES} /></PublicShell>;
 }
 export function PublicCourses() {
+  useEffect(() => setPageMeta("Explore Courses Worldwide — UnifinderAi", "Search courses at partner universities worldwide and compare level, duration, fees and intakes. Filter by country, subject and budget."), []);
   return <PublicShell><ExploreUniversities variant={COURSES} /></PublicShell>;
 }
 export function PublicUniversityDetail() {

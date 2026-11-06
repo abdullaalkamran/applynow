@@ -103,7 +103,8 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   const staffStudents = variant.students?.() ?? [];
   const [staffApplyTarget, setStaffApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   // State that would otherwise reset whenever cached data refreshes and rebuilds this page (see syncCache.ts usePreservedState).
-  const [query, setQuery] = usePreservedState("explore:query", "");
+  // On the public pages a search link (/universities?q=leeds — also what the site-search schema advertises) starts the search.
+  const [query, setQuery] = usePreservedState("explore:query", () => (variant.publicMode ? new URLSearchParams(location.search).get("q") ?? "" : ""));
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   // Bumped on every bookmark toggle so the memoised program list re-evaluates — matters when the
   // "Shortlisted" chip is on and un-bookmarking a program should drop it from the list immediately.

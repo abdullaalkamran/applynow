@@ -10,9 +10,9 @@ const { getConfig } = require("./config");
 const faq = require("../../src/data/landingFaq.json");
 
 const SITE_NAME = "UnifinderAi";
-const DEFAULT_TITLE = "UnifinderAi — Find your next university";
-const DEFAULT_DESCRIPTION =
-  "Find universities and courses worldwide, compare fees and entry requirements, and apply with the help of counsellors and an AI assistant. Track your documents and application from offer to enrolment.";
+const siteMeta = require("../../src/data/siteMeta.json");
+const DEFAULT_TITLE = siteMeta.title;
+const DEFAULT_DESCRIPTION = siteMeta.description;
 const CACHE_MS = 5 * 60 * 1000;
 
 // Areas that must never be indexed: everything behind a login, the auth pages, and the API.
@@ -81,6 +81,28 @@ function markdownToHtml(md) {
   return out.join("\n");
 }
 
+/** Fits text into a search-result snippet: one line, cut at a word boundary with an ellipsis. Descriptions over ~160 characters are
+ * truncated by search engines anyway, so cut them ourselves at a sensible place. */
+function clampText(text, max) {
+  const t = String(text || "").replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  // Prefer ending on a whole sentence; otherwise on a whole word.
+  const upTo = t.slice(0, max);
+  const sentence = upTo.search(/[.!?](?=[^.!?]*$)/);
+  if (sentence >= max * 0.6) return upTo.slice(0, sentence + 1);
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,;:.\-–—]+$/, "")}…`;
+}
+const DESCRIPTION_MAX = 160;
+const TITLE_MAX = 65;
+/** A page title: the site name is dropped from the end when it would push the title past what results display. */
+function fitTitle(title) {
+  if (title.length <= TITLE_MAX) return title;
+  const bare = title.replace(new RegExp(`\\s+[—-]\\s+${SITE_NAME}$`), "");
+  return clampText(bare, TITLE_MAX);
+}
+
 /** Plain-text summary of a post, for its description when the author left the summary empty. */
 function plainText(md) {
   return String(md || "").replace(/[#*`>_-]+/g, " ").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\s+/g, " ").trim();
@@ -92,9 +114,11 @@ function jsonLdScript(objects) {
   return objects.map((o) => `<script type="application/ld+json">${JSON.stringify(o).replace(/</g, "\\u003c")}</script>`).join("\n    ");
 }
 
-function render({ title, description, path: pagePath, image, type = "website", jsonLd = [], bodyHtml = "", noindex = false, status = 200 }) {
+function render({ title: rawTitle, description: rawDescription, path: pagePath, image, type = "website", jsonLd = [], bodyHtml = "", noindex = false, status = 200 }) {
   const html = readTemplate();
   if (!html) return null;
+  const title = fitTitle(rawTitle);
+  const description = clampText(rawDescription, DESCRIPTION_MAX);
   const url = `${siteUrl()}${pagePath}`;
   // Default preview is the square (1:1) brand image; a post with its own cover uses that instead.
   const img = absolute(image) || absolute("/brand/share.png");
@@ -149,7 +173,15 @@ const orgJsonLd = () => ({
   description: DEFAULT_DESCRIPTION,
 });
 
-const siteJsonLd = () => ({ "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: siteUrl(), description: DEFAULT_DESCRIPTION });
+const siteJsonLd = () => ({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: siteUrl(),
+  description: DEFAULT_DESCRIPTION,
+  // Lets search engines offer a search box for the university catalogue straight from the results page.
+  potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: `${siteUrl()}/universities?q={search_term_string}` }, "query-input": "required name=search_term_string" },
+});
 
 async function publishedPosts(take = 60) {
   return prisma.blogPost.findMany({
@@ -162,6 +194,75 @@ async function publishedPosts(take = 60) {
 
 const dateText = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
 
+// ---- direct answers (AEO) -------------------------------------------------------------------------------------------------
+// Short, factual answers built ONLY from what is stored for the university/course — nothing is invented; a question is left out
+// when the data to answer it isn't there. They appear as readable text on the page and as FAQPage structured data, which is what
+// search engines and AI answer engines quote.
+const joinList = (items, max = 6) => {
+  const list = items.filter(Boolean);
+  const shown = list.slice(0, max);
+  return shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0] || "";
+};
+const strings = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()) : []);
+const money = (symbol, amount) => `${(symbol || "").trim()}${Math.round(amount).toLocaleString("en-US")}`;
+const plural = (n, one, many) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+
+function universityFacts(u) {
+  const where = [u.city, u.state, u.country].filter(Boolean).join(", ");
+  const rank = u.qsRanking ? `QS #${String(u.qsRanking).replace(/^#/, "")}` : u.timesHigherRanking ? `THE #${String(u.timesHigherRanking).replace(/^#/, "")}` : "";
+  const intakes = strings(u.intakes);
+  const courseCount = u.courseCount ?? 0;
+  const summary = [
+    `${u.name} is a university in ${where}${rank ? `, ranked ${rank}` : ""}.`,
+    courseCount > 0 ? `${plural(courseCount, "course", "courses")} listed${u.scholarshipsAvailable ? ", scholarships available" : ""}.` : "",
+    intakes.length ? `Intakes: ${joinList(intakes)}.` : "",
+  ].filter(Boolean).join(" ");
+
+  const faqs = [{ q: `Where is ${u.name} located?`, a: `${u.name} is in ${where}.` }];
+  const names = strings(u.courseNames);
+  if (courseCount > 0) faqs.push({ q: `What courses does ${u.name} offer?`, a: `${u.name} lists ${plural(courseCount, "course", "courses")} on ${SITE_NAME}${names.length ? `, such as ${joinList(names, 5)}` : ""}. You can filter them by level, intake and fee.` });
+  const fees = (Array.isArray(u.fees) ? u.fees : []).filter((f) => f && typeof f.label === "string" && Number.isFinite(f.amount) && f.amount > 0).slice(0, 6);
+  if (fees.length) faqs.push({ q: `What are the tuition fees at ${u.name}?`, a: `Published fees at ${u.name}: ${fees.map((f) => `${f.label} ${money(u.currencySymbol, f.amount)}`).join("; ")}. The exact annual fee depends on the course — check each course's page.` });
+  const tests = [...new Set([...(u.englishRequirements?.undergraduate ?? []), ...(u.englishRequirements?.postgraduate ?? [])].map((e) => e && e.testName).filter(Boolean))];
+  if (u.minIELTS > 0 || tests.length) {
+    faqs.push({ q: `What English language score do I need for ${u.name}?`, a: `${u.minIELTS > 0 ? `The minimum is an IELTS overall score of ${u.minIELTS}. ` : ""}${tests.length ? `Accepted English tests include ${joinList(tests)}.` : ""}`.trim() });
+  }
+  if (intakes.length) faqs.push({ q: `When are the intakes at ${u.name}?`, a: `${u.name} runs intakes in ${joinList(intakes, 12)}.${u.openIntake ? ` The intake currently open for applications is ${u.openIntake}.` : ""}` });
+  if (u.scholarshipsAvailable) {
+    const named = (Array.isArray(u.scholarships) ? u.scholarships : []).filter((s) => s && s.name).slice(0, 3);
+    faqs.push({ q: `Does ${u.name} offer scholarships?`, a: `Yes.${named.length ? ` For example: ${named.map((s) => `${s.name}${s.amount ? ` (${s.amount})` : ""}`).join("; ")}.` : ""}` });
+  }
+  const steps = strings(u.admissionSteps).slice(0, 8);
+  faqs.push({ q: `How do I apply to ${u.name}?`, a: steps.length ? `The steps are: ${steps.map((s, i) => `${i + 1}. ${s}`).join(" ")}` : `Create a free ${SITE_NAME} account, shortlist the courses you want and apply with the help of a counsellor.` });
+  return { summary, faqs };
+}
+
+function courseFacts(c, u) {
+  const where = [u.city, u.country].filter(Boolean).join(", ");
+  const fee = feeSentence(c, u);
+  const intakes = strings(c.intakes).length ? strings(c.intakes) : strings(u.intakes);
+  const kind = [c.level && c.level.toLowerCase(), c.subject].filter(Boolean).join(" ");
+  const clauses = [c.duration && `takes ${c.duration}`, fee && (fee === "Free" ? "is free" : `costs ${fee}`), intakes.length && `starts in ${joinList(intakes, 6)}`].filter(Boolean);
+  const summary = `${c.name} is ${kind ? `a ${kind} course` : "a course"} at ${u.name}, ${where}.${clauses.length ? ` It ${joinList(clauses, 3)}.` : ""}`;
+  // The meta description: the same facts, tighter, so duration / fee / start survive the ~160-character limit.
+  const quick = [c.duration, fee && (fee === "Free" ? "free" : fee), intakes.length && `starts ${joinList(intakes, 3)}`].filter(Boolean).join(", ");
+  const snippet = `${c.name} — ${kind ? `${kind} course` : "course"} at ${u.name}, ${u.country}.${quick ? ` ${quick}.` : ""}`;
+
+  const faqs = [];
+  if (c.duration) faqs.push({ q: `How long is ${c.name} at ${u.name}?`, a: `${c.name} takes ${c.duration}${c.studyMode ? ` (${c.studyMode})` : ""}.` });
+  if (fee) faqs.push({ q: `How much does ${c.name} at ${u.name} cost?`, a: fee === "Free" ? "It is listed as free." : `The listed tuition fee is ${fee}. Fees can change, so confirm the current amount before you apply.` });
+  if (intakes.length) faqs.push({ q: `When does ${c.name} start?`, a: `Intakes: ${joinList(intakes, 12)}.` });
+  if (c.level) faqs.push({ q: `What level is ${c.name}?`, a: `It is a ${c.level.toLowerCase()} course${c.subject ? ` in ${c.subject}` : ""}.` });
+  const modules = strings(c.modules);
+  if (modules.length) faqs.push({ q: `What will I study on ${c.name}?`, a: `Modules include ${joinList(modules, 6)}.` });
+  const careers = strings(c.careers);
+  if (careers.length) faqs.push({ q: `What careers can ${c.name} lead to?`, a: `Typical roles include ${joinList(careers, 6)}.` });
+  return { summary, snippet, faqs };
+}
+
+const faqHtml = (faqs) => (faqs.length ? `<section><h2>Frequently asked questions</h2>${faqs.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}</section>` : "");
+const faqLd = (faqs) => (faqs.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []);
+
 async function landingPage() {
   const posts = await publishedPosts(3);
   const newsHtml = posts.length
@@ -169,9 +270,9 @@ async function landingPage() {
     : "";
   const bodyHtml = `
     <main>
-      <h1>Find your next university</h1>
+      <h1>${esc(DEFAULT_TITLE)}</h1>
       <p>${esc(DEFAULT_DESCRIPTION)}</p>
-      <p><a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
+      <p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
       <section><h2>Frequently asked questions</h2>
         ${faq.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("\n        ")}
       </section>
@@ -209,10 +310,19 @@ async function universitiesIndexPage() {
       <ul>${rows.map((u) => `<li><h2><a href="/universities/${esc(u.id)}">${esc(u.name)}</a></h2><p>${esc(u.city)}, ${esc(u.country)}</p></li>`).join("")}</ul>
     </main>`;
   return render({
-    title: `Explore Universities — ${SITE_NAME}`,
-    description: "Browse partner universities worldwide on UnifinderAi: location, courses, fees, intakes, scholarships and entry requirements.",
+    title: `Explore Universities Worldwide — ${SITE_NAME}`,
+    description: `Browse ${rows.length ? `${rows.length.toLocaleString("en-US")} partner` : "partner"} universities worldwide: location, courses, fees, intakes, scholarships and entry requirements.`,
     path: "/universities",
-    jsonLd: [{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Explore universities", url: `${siteUrl()}/universities` }],
+    jsonLd: [
+      { "@context": "https://schema.org", "@type": "CollectionPage", name: "Explore universities", url: `${siteUrl()}/universities` },
+      {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: "Partner universities",
+        numberOfItems: rows.length,
+        itemListElement: rows.slice(0, 100).map((u, i) => ({ "@type": "ListItem", position: i + 1, name: u.name, url: `${siteUrl()}/universities/${u.id}` })),
+      },
+    ],
     bodyHtml,
   });
 }
@@ -225,8 +335,8 @@ async function coursesIndexPage() {
       <p><a href="/universities">Browse universities</a></p>
     </main>`;
   return render({
-    title: `Explore Courses — ${SITE_NAME}`,
-    description: "Search courses at partner universities worldwide on UnifinderAi and compare level, duration, fees and intakes.",
+    title: `Explore Courses Worldwide — ${SITE_NAME}`,
+    description: "Search courses at partner universities worldwide and compare level, duration, fees and intakes. Filter by country, subject and budget.",
     path: "/courses",
     jsonLd: [{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Explore courses", url: `${siteUrl()}/courses` }],
     bodyHtml,
@@ -237,7 +347,9 @@ async function universityPage(id) {
   const u = await prisma.university.findUnique({
     where: { id },
     select: {
-      id: true, name: true, city: true, country: true, description: true, highlights: true, website: true, logoUrl: true, coverPhotoUrl: true,
+      id: true, name: true, city: true, state: true, country: true, description: true, highlights: true, website: true, logoUrl: true, coverPhotoUrl: true,
+      fees: true, currencySymbol: true, intakes: true, openIntake: true, minIELTS: true, englishRequirements: true, scholarshipsAvailable: true,
+      scholarships: true, admissionSteps: true, qsRanking: true, timesHigherRanking: true,
       courses: { select: { id: true, name: true, level: true, duration: true }, orderBy: { id: "asc" }, take: 40 },
       _count: { select: { courses: true } },
     },
@@ -246,7 +358,9 @@ async function universityPage(id) {
     return render({ title: `University not found — ${SITE_NAME}`, description: "This university doesn't exist or is no longer available.", path: `/universities/${id}`, noindex: true, status: 404, bodyHtml: "<main><h1>University not found</h1></main>" });
   }
   const where = `${u.city}, ${u.country}`;
-  const description = oneLine(u.description, 200) || `${u.name} in ${where}: courses, fees, intakes and entry requirements on ${SITE_NAME}.`;
+  const facts = universityFacts({ ...u, courseCount: u._count.courses, courseNames: u.courses.map((c) => c.name) });
+  // The meta description is the direct-answer summary (name, place, ranking, courses, intakes) — what a result snippet should say.
+  const description = facts.summary;
   const image = publicImage(u.coverPhotoUrl) || publicImage(u.logoUrl);
   const highlights = Array.isArray(u.highlights) ? u.highlights.filter((h) => typeof h === "string") : [];
   const bodyHtml = `
@@ -254,9 +368,11 @@ async function universityPage(id) {
       <p><a href="/universities">All universities</a></p>
       <h1>${esc(u.name)}</h1>
       <p>${esc(where)}</p>
+      <p><strong>${esc(facts.summary)}</strong></p>
       ${u.description ? `<p>${esc(u.description)}</p>` : ""}
       ${highlights.length ? `<ul>${highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
       ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li><a href="/universities/${esc(u.id)}/courses/${esc(encodeURIComponent(c.id))}">${esc(c.name)}</a> — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
+      ${faqHtml(facts.faqs)}
     </article></main>`;
   return render({
     title: `${u.name} — ${where} — ${SITE_NAME}`,
@@ -284,6 +400,7 @@ async function universityPage(id) {
           { "@type": "ListItem", position: 3, name: u.name, item: `${siteUrl()}/universities/${u.id}` },
         ],
       },
+      ...faqLd(facts.faqs),
     ],
     bodyHtml,
   });
@@ -304,7 +421,7 @@ async function coursePage(universityId, courseId) {
     select: {
       id: true, name: true, level: true, duration: true, subject: true, feeUSD: true, feeStatus: true, currencySymbol: true, description: true,
       studyMode: true, intakes: true, modules: true, careers: true,
-      university: { select: { id: true, name: true, city: true, country: true, currencySymbol: true, logoUrl: true, coverPhotoUrl: true, website: true } },
+      university: { select: { id: true, name: true, city: true, country: true, currencySymbol: true, logoUrl: true, coverPhotoUrl: true, website: true, intakes: true } },
     },
   });
   const path = `/universities/${universityId}/courses/${courseId}`;
@@ -315,7 +432,9 @@ async function coursePage(universityId, courseId) {
   const where = `${u.city}, ${u.country}`;
   const fee = feeSentence(c, u);
   const facts = [c.level, c.duration, c.studyMode, c.subject].filter(Boolean).join(" · ");
-  const description = oneLine(c.description, 200) || `${c.name} at ${u.name}, ${where}. ${facts}${fee ? ` · ${fee}` : ""}. See intakes, entry requirements and how to apply on ${SITE_NAME}.`;
+  const answers = courseFacts(c, u);
+  // Direct-answer summary (level, subject, university, place, duration, fee, start) — what a result snippet should say.
+  const description = answers.snippet;
   const image = publicImage(u.coverPhotoUrl) || publicImage(u.logoUrl);
   const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
   const modules = list(c.modules);
@@ -327,11 +446,13 @@ async function coursePage(universityId, courseId) {
       <p><a href="/universities">Universities</a> › <a href="/universities/${esc(u.id)}">${esc(u.name)}</a></p>
       <h1>${esc(c.name)}</h1>
       <p>${esc(u.name)} — ${esc(where)}</p>
+      <p><strong>${esc(answers.summary)}</strong></p>
       <p>${esc(facts)}${fee ? ` · ${esc(fee)}` : ""}</p>
       ${intakes.length ? `<p>Intakes: ${esc(intakes.join(", "))}</p>` : ""}
       ${c.description ? `<p>${esc(c.description)}</p>` : ""}
       ${modules.length ? `<h2>Modules</h2><ul>${modules.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
       ${careers.length ? `<h2>Careers</h2><ul>${careers.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
+      ${faqHtml(answers.faqs)}
     </article></main>`;
   return render({
     title: `${c.name} at ${u.name} — ${SITE_NAME}`,
@@ -359,6 +480,7 @@ async function coursePage(universityId, courseId) {
           { "@type": "ListItem", position: 4, name: c.name, item: `${siteUrl()}${path}` },
         ],
       },
+      ...faqLd(answers.faqs),
     ],
     bodyHtml,
   });
@@ -505,11 +627,18 @@ async function llmsTxt() {
     "",
     "UnifinderAi is a study-abroad platform for students, partner education agents and counsellors.",
     "",
+    "## Key facts",
+    "- What it does: search partner universities and courses worldwide, compare fees, intakes and entry requirements, shortlist programs and apply with a counsellor's help.",
+    "- Who it is for: international students, and the education agents and counsellors who support them.",
+    "- Browsing universities, courses, entry requirements and news is free and needs no account; applying needs a free account.",
+    "- Every university page and course page states its location, fees, intakes, English requirements and how to apply.",
+    "",
     "## Key pages",
     `- [Home](${base}/): what UnifinderAi is and common questions`,
     `- [Universities](${base}/universities): partner universities worldwide, with courses, fees, intakes and entry requirements`,
     `- [Courses](${base}/courses): search courses at partner universities`,
     `- [News & Updates](${base}/news): announcements about destinations, intakes and scholarships`,
+    `- [Sitemap](${base}/sitemap.xml): every university and course page`,
     "",
     ...(posts.length ? ["## Latest news", ...posts.map((p) => `- [${p.title}](${base}/news/${p.slug})${p.excerpt ? `: ${oneLine(p.excerpt, 140)}` : ""}`), ""] : []),
     "## Frequently asked questions",
@@ -562,4 +691,4 @@ function registerSeoRoutes(app) {
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));
 }
 
-module.exports = { registerSeoRoutes, invalidateSeoCache };
+module.exports = { registerSeoRoutes, invalidateSeoCache, clampText, fitTitle, universityFacts, courseFacts };
