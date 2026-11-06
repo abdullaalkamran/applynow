@@ -84,18 +84,42 @@ function releaseReadSlot() {
   readQueue.shift()?.();
 }
 
+// Identical reads that are in flight at the same moment share one network request. Several stores asking for the same URL at
+// login (e.g. /api/students for three different caches) used to each hit the server. The first caller gets the parsed result;
+// every other caller gets its own copy of it (parsed from a snapshot taken the instant the response lands), so one store
+// mutating its data can never change another's.
+const inflightReads = new Map<string, { followers: number; promise: Promise<{ value: unknown; snapshot: string | null }> }>();
+
 async function request<T>(path: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const isRead = !init.method || init.method === "GET";
   // Captured now, not when the request finally starts: a read that waited in the queue across a logout/login must still
   // be recognised as belonging to the old session and discarded.
   const generation = sessionGeneration;
   if (!isRead) return runRequest<T>(path, init, timeoutMs, false, generation);
-  await acquireReadSlot();
-  try {
-    return await runRequest<T>(path, init, timeoutMs, true, generation);
-  } finally {
-    releaseReadSlot();
+
+  const key = `${generation}|${path}`;
+  const shared = inflightReads.get(key);
+  if (shared) {
+    shared.followers++;
+    const { snapshot, value } = await shared.promise;
+    return (snapshot !== null ? JSON.parse(snapshot) : value) as T;
   }
+  const entry: { followers: number; promise: Promise<{ value: unknown; snapshot: string | null }> } = {
+    followers: 0,
+    promise: Promise.resolve({ value: undefined, snapshot: null }),
+  };
+  entry.promise = (async () => {
+    await acquireReadSlot();
+    try {
+      const value = await runRequest<T>(path, init, timeoutMs, true, generation);
+      return { value, snapshot: entry.followers > 0 && value !== undefined ? JSON.stringify(value) : null };
+    } finally {
+      releaseReadSlot();
+      inflightReads.delete(key);
+    }
+  })();
+  inflightReads.set(key, entry);
+  return (await entry.promise).value as T;
 }
 
 async function runRequest<T>(path: string, init: RequestInit, timeoutMs: number, isRead: boolean, generation: number): Promise<T> {

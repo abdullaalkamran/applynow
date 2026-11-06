@@ -45,6 +45,7 @@ import { refreshCountries, migrateLegacyLocalCountries, clearCountryRegistryCach
 import { clearCommissionRatesCache } from "../data/commissionRatesStore";
 import { clearAgentInvoicesCache } from "../data/agentInvoicesStore";
 import { notifyCacheChange } from "./syncCache";
+import { loadStoredAuth } from "./authClient";
 import { refreshUniversities, migrateLegacyLocalUniversities } from "../data/universityCatalogStore";
 
 // The partner catalog (every university with every course — tens of MB of JSON on a real
@@ -73,12 +74,18 @@ function warmReferenceData(force: boolean) {
 /** `force` (login / first load) fetches everything; a poll tick skips reference data that has not
  * had time to change. */
 export function warmCaches(force = true) {
+  // Each account only loads what its own screens use — the server would refuse (or return nothing for) the rest anyway:
+  // staff lists, per-agent and per-counsellor student lists and agent invoices are for agents/internal staff only.
+  const role = loadStoredAuth()?.user.role;
+  const isStudent = role === "student";
+  const isAgent = role === "agent";
+  const isInternalStaff = !!role && !isStudent && !isAgent;
   warmReferenceData(force);
   refreshApplications().catch((err) => console.warn("Failed to warm applications cache:", err));
   refreshTasks().catch((err) => console.warn("Failed to warm tasks cache:", err));
-  refreshStaff().catch((err) => console.warn("Failed to warm staff cache:", err));
-  refreshAgentStudents().catch((err) => console.warn("Failed to warm agent-students cache:", err));
-  refreshAssignedStudents().catch((err) => console.warn("Failed to warm counsellor-students cache:", err));
+  if (isInternalStaff) refreshStaff().catch((err) => console.warn("Failed to warm staff cache:", err));
+  if (isAgent) refreshAgentStudents().catch((err) => console.warn("Failed to warm agent-students cache:", err));
+  if (isInternalStaff) refreshAssignedStudents().catch((err) => console.warn("Failed to warm counsellor-students cache:", err));
   refreshAllStudents().catch((err) => console.warn("Failed to warm all-students cache:", err));
   refreshCoreDocs().catch((err) => console.warn("Failed to warm core-docs cache:", err));
   refreshApplicationDocs().catch((err) => console.warn("Failed to warm application-docs cache:", err));
@@ -92,7 +99,7 @@ export function warmCaches(force = true) {
   refreshThreadsList().catch((err) => console.warn("Failed to warm message-threads cache:", err));
   refreshContacts().catch((err) => console.warn("Failed to warm message-contacts cache:", err));
   refreshCachedMessageThreads();
-  refreshAgentInvoices().catch((err) => console.warn("Failed to warm agent-invoices cache:", err));
+  if (isAgent || isInternalStaff) refreshAgentInvoices().catch((err) => console.warn("Failed to warm agent-invoices cache:", err));
   // Not a bulk fetch like the others — re-fetches whichever applications' journeys this session
   // has actually looked at (see applicationJourneyStore.ts's own comment on why this needs to be
   // on the same poll/focus schedule as everything else).

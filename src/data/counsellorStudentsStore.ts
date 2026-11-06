@@ -14,9 +14,12 @@ let cache: Student[] = [];
 
 export function refreshAssignedStudents(): Promise<void> {
   return dedupeInFlight("assigned-students", async () => {
+    // With no counsellor id the server ignores the (empty) filter and returns every student the caller may see — which is
+    // exactly what `/api/students` returns, so ask for that once instead of sending an empty `?counsellorId=`.
+    const allRequest = apiGet<Student[]>("/api/students");
     const [assigned, all] = await Promise.all([
-      apiGet<Student[]>(`/api/students?counsellorId=${encodeURIComponent(COUNSELLOR_ID)}`),
-      apiGet<Student[]>("/api/students"),
+      COUNSELLOR_ID ? apiGet<Student[]>(`/api/students?counsellorId=${encodeURIComponent(COUNSELLOR_ID)}`) : allRequest,
+      allRequest,
     ]);
     // Any student with no counsellor yet is a lead every counsellor should be able to see and pick
     // up — not just the ones an agent happened to refer. A fully independent self-signup (no agent,

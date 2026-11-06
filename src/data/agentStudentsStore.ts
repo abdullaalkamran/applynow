@@ -10,6 +10,9 @@ let refreshSeq = 0;
 
 export function refreshAgentStudents(): Promise<void> {
   return dedupeInFlight("agent-students", async () => {
+    // Not an agent session (or the agent id isn't known yet): there is nothing to ask for, and `?agentId=` with no value is
+    // a pointless request.
+    if (!CURRENT_AGENT_ID) return;
     const seq = ++refreshSeq;
     const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
     // A slower, older response landing after a newer one must not win.
