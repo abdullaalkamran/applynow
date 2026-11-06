@@ -235,7 +235,9 @@ function prepareFilters(raw) {
     duration: set(r.duration),
     level: set(r.level),
     year: r.year || "",
-    disciplineSubjects: Array.isArray(r.disciplineSubjects) ? new Set(r.disciplineSubjects) : null,
+    // Subject names are matched case-insensitively, like the browser's own subject lookup.
+    disciplineSubjects: Array.isArray(r.disciplineSubjects) ? new Set(r.disciplineSubjects.map((x) => String(x).toLowerCase())) : null,
+    feeCurrencyConfigured: arr(r.feeCurrencyConfigured),
     intakes: set(r.intakes),
     standardizedTests: set(r.standardizedTests),
     acceptedEnglishTests: set(r.acceptedEnglishTests),
@@ -317,7 +319,7 @@ function courseMatchesFilters(f, u, c, tokens) {
   }
   if (f.location.size > 0 && !courseLocations(u, c).some((l) => wantsLocation(f, l))) return false;
   // The client resolves "discipline area" to the subjects in those areas (a course whose subject has no area never matches).
-  if (f.disciplineSubjects !== null && f.disciplineSubjects.size > 0 && !f.disciplineSubjects.has(c.subject)) return false;
+  if (f.disciplineSubjects !== null && f.disciplineSubjects.size > 0 && !f.disciplineSubjects.has(String(c.subject).toLowerCase())) return false;
   if (f.duration.size > 0 && !f.duration.has(c.duration)) return false;
   if (f.level.size > 0 && !f.level.has(c.level) && !(c.programLevel ?? []).some((l) => f.level.has(l))) return false;
   if (f.standardizedTests.size > 0 && !(c.standardizedTests ?? []).some((t) => f.standardizedTests.has(t))) return false;
@@ -396,6 +398,16 @@ function sortPrograms(list, sortBy, sortCurrency, f, currencies) {
   return out;
 }
 
+/** Port of activeFeeCurrency(): the currency chosen, else the destination's first — the country's configured symbols (sent by
+ * the client, which holds Country Management's list) first, then whichever currency its courses use most. */
+function resolveFeeCurrency(index, f) {
+  if (f.feeCurrency) return f.feeCurrency;
+  const dests = [...f.destination];
+  const pairs = index.universities.filter((u) => dests.length === 0 || dests.includes(u.country)).flatMap((u) => u.courses.map((c) => ({ u, c })));
+  for (const sym of [...f.feeCurrencyConfigured, ...currenciesOf(pairs)]) if (sym.trim()) return sym;
+  return "";
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------------------------------------------------
@@ -433,6 +445,7 @@ function runSearch(index, params) {
   const sortBy = SORTS.has(p.sort) ? p.sort : "best";
   const limit = clampInt(p.limit, DEFAULT_LIMIT, 1, MAX_LIMIT);
   const f = prepareFilters(p.filters);
+  if (f.feeActive || sortBy === "feeLow" || sortBy === "feeHigh") f.feeCurrency = resolveFeeCurrency(index, f);
   const q = typeof p.q === "string" ? p.q : "";
   const sortCurrency = typeof p.sortCurrency === "string" ? p.sortCurrency : "";
 
@@ -468,9 +481,126 @@ async function search(params) {
   return runSearch(await getIndex(), params);
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Facets: the options for the filter dropdowns (port of facetOptions / intakeOptions / yearOptions / locationOptions /
+// feeFilterStats in universityFilter.ts). Each dropdown lists only what still exists among the courses passing every OTHER
+// filter. "Discipline area" is returned as the subjects present — the client maps subject → area with its own subject list.
+// ---------------------------------------------------------------------------------------------------------------------
+const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const PROGRAM_LEVEL_OPTIONS = [
+  "High School (11th - 12th)", "UG Diploma/Certificate/Associate Degree", "UG",
+  "PG Diploma/Certificate", "PG", "UG+PG (Accelerated) Degree", "PhD",
+  "Short-term/Summer Programs", "Pathway Programs (UG)", "Pathway Programs (PG)",
+  "Semester Study Abroad", "Twinning Programmes (UG)", "Twinning Programmes (PG)",
+  "English Language Program", "Online Programmes / Distance Learning", "Hybrid",
+  "Grades Below 10th",
+];
+const FACETS = ["destination", "location", "university", "course", "subject", "duration", "level", "intake"];
+
+function facetOptionsFor(universities, f, facet) {
+  const g = { ...f };
+  switch (facet) {
+    case "destination": g.destination = new Set(); break;
+    case "location": g.location = new Set(); break;
+    case "university": g.universities = new Set(); break;
+    case "course": g.courseQuery = ""; break;
+    case "subject": g.disciplineSubjects = null; break;
+    case "level": g.level = new Set(); break;
+    case "duration": g.duration = new Set(); break;
+    case "intake": g.intakes = new Set(); break;
+  }
+  const seen = new Map();
+  const add = (v) => { const t = v?.trim(); if (t) { const k = normalizeText(t); if (!seen.has(k)) seen.set(k, t); } };
+  for (const u of universities) {
+    if (!universityGate(g, u)) continue;
+    if (u.courses.length === 0) {
+      if (!courselessUniversityPasses(g, u, [])) continue;
+      if (facet === "destination") add(u.country);
+      else if (facet === "university") add(u.name);
+      else if (facet === "location") universityLocations(u).forEach(add);
+      else if (facet === "intake") u.intakes.forEach(add);
+      continue;
+    }
+    for (const c of u.courses) {
+      if (!courseMatchesFilters(g, u, c, [])) continue;
+      switch (facet) {
+        case "destination": add(u.country); break;
+        case "location": courseLocations(u, c).forEach(add); break;
+        case "university": add(u.name); break;
+        case "course": add(c.name); break;
+        case "subject": add(c.subject); break;
+        case "level": add(c.level); (c.programLevel ?? []).forEach(add); break;
+        case "duration": add(c.duration); break;
+        case "intake": (c.intakes && c.intakes.length > 0 ? c.intakes : u.intakes).forEach(add); break;
+      }
+    }
+  }
+  const out = [...seen.values()];
+  if (facet === "intake") return out.sort((x, y) => MONTH_ORDER.indexOf(x) - MONTH_ORDER.indexOf(y));
+  if (facet === "duration") return out.sort((x, y) => (parseFloat(x) || 0) - (parseFloat(y) || 0) || x.localeCompare(y));
+  if (facet === "level") return [...out.filter((l) => !PROGRAM_LEVEL_OPTIONS.includes(l)).sort(), ...PROGRAM_LEVEL_OPTIONS.filter((l) => out.includes(l))];
+  return out.sort((x, y) => x.localeCompare(y));
+}
+
+/** Port of locationOptions(destination): every city/state a course is taught in, narrowed to the chosen countries. */
+function locationOptionsFor(universities, destination) {
+  const want = [...destination];
+  const seen = new Map();
+  universities.filter((u) => want.length === 0 || want.includes(u.country)).forEach((u) => {
+    universityLocations(u).forEach((l) => { const k = normalizeText(l.trim()); if (k && !seen.has(k)) seen.set(k, l.trim()); });
+  });
+  return [...seen.values()].sort((x, y) => x.localeCompare(y));
+}
+
+/** Port of feeFilterStats(): among courses passing every other filter, how many the fee range can't judge. */
+function feeStatsFor(universities, f) {
+  const g = { ...f, feeMin: FEE_MIN, feeMax: FEE_MAX, feeActive: false };
+  let unknown = 0, otherCurrency = 0;
+  for (const u of universities) {
+    if (!universityGate(g, u)) continue;
+    for (const c of u.courses) {
+      if (!courseMatchesFilters(g, u, c, [])) continue;
+      if (courseFeeKind(c) === "unknown") unknown++;
+      else if (!sameCurrency(courseCurrencySymbol(u, c), f.feeCurrency)) otherCurrency++;
+    }
+  }
+  return { unknown, otherCurrency };
+}
+
+/** params: { filters, facets?: string[] } → option lists for the requested facets plus the catalog-wide lists the pickers use. */
+function runFacets(index, params) {
+  const p = params || {};
+  const f = prepareFilters(p.filters);
+  f.feeCurrency = resolveFeeCurrency(index, f);
+  const wanted = Array.isArray(p.facets) ? p.facets.filter((x) => FACETS.includes(x)) : FACETS;
+  const facets = {};
+  for (const facet of wanted) facets[facet] = facetOptionsFor(index.universities, f, facet);
+
+  const years = Array.from(new Set(index.universities.flatMap((u) => [...universityYears(u)]))).sort();
+  const intakesAll = Array.from(new Set(index.universities.flatMap((u) => [...u.intakes, ...u.courses.flatMap((c) => c.intakes ?? [])]))).sort(
+    (a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b)
+  );
+  const dests = [...f.destination];
+  const pairs = index.universities.filter((u) => dests.length === 0 || dests.includes(u.country)).flatMap((u) => u.courses.map((c) => ({ u, c })));
+  return {
+    facets,
+    years,
+    intakesAll,
+    currenciesUsed: currenciesOf(pairs),
+    locationsForDestination: locationOptionsFor(index.universities, f.destination),
+    feeStats: feeStatsFor(index.universities, f),
+    feeCurrency: f.feeCurrency,
+  };
+}
+
+async function facetsFor(params) {
+  return runFacets(await getIndex(), params);
+}
+
 /** Warm the index ahead of the first request. */
 function warmIndex() {
   startBuild().catch((err) => console.warn("Search index warm-up failed:", err));
 }
 
-module.exports = { search, runSearch, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };
+module.exports = { search, runSearch, resolveFeeCurrency, facetsFor, runFacets, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };

@@ -5,7 +5,7 @@
 // Both return { items, total, page, limit } with only what a list card shows. Full detail is GET /api/universities/:id.
 const express = require("express");
 const requireAuth = require("../middleware/requireAuth");
-const { search, MAX_LIMIT } = require("../courseSearch");
+const { search, facetsFor, MAX_LIMIT } = require("../courseSearch");
 
 const router = express.Router();
 
@@ -40,6 +40,15 @@ router.post("/search", requireAuth, async (req, res, next) => {
   try {
     const body = req.body || {};
     res.json(await search({ ...body, limit: Math.min(Number(body.limit) || 20, MAX_LIMIT) }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Options for the filter dropdowns and the fee notes, for the filters currently chosen — see courseSearch.js runFacets.
+router.post("/facets", requireAuth, async (req, res, next) => {
+  try {
+    res.json(await facetsFor(req.body || {}));
   } catch (err) {
     next(err);
   }

@@ -5,6 +5,10 @@ import { createRequire } from "node:module";
 
 process.env.DATABASE_URL ||= "mysql://test:test@localhost:3306/test";
 
+// The browser's catalog store is what the client filter helpers read (facets, fee currency); point it at the catalog under test.
+const holder = vi.hoisted(() => ({ catalog: [] }));
+vi.mock("../../src/data/universityCatalogStore", () => ({ getAllUniversities: () => holder.catalog }));
+
 // The client's discipline-area lookup reads a browser store; stub it with a fixed subject → area table.
 const AREAS = { "Computer Science": "STEM", "Data Science": "STEM", Engineering: "STEM", Business: "Business", Law: "Humanities", Medicine: "Health", Design: "Arts" };
 vi.mock("../../src/data/subjectCatalogStore", () => ({
@@ -79,7 +83,7 @@ function toRequest(c) {
       courseQuery: f.courseQuery, duration: [...f.duration], level: [...f.level], year: f.year,
       disciplineSubjects: f.disciplineArea.size ? Object.keys(AREAS).filter((s) => f.disciplineArea.has(AREAS[s])) : null,
       intakes: [...f.intakes], standardizedTests: [...f.standardizedTests], acceptedEnglishTests: [...f.acceptedEnglishTests],
-      minFee: f.minFee, maxFee: f.maxFee, feeCurrency: f.feeCurrency, includeUnknownFee: f.includeUnknownFee,
+      minFee: f.minFee, maxFee: f.maxFee, feeCurrency: f.feeCurrency, feeCurrencyConfigured: [], includeUnknownFee: f.includeUnknownFee,
       ieltsEquivalent: score !== null ? client.toIELTSEquivalent(f.englishTestName, score) : null,
       gpa: f.minGPA ? Number(f.minGPA) : null,
       accreditedOnly: f.accreditedOnly, scholarshipOnly: f.scholarshipOnly, withoutEnglishProficiency: f.withoutEnglishProficiency,
@@ -99,18 +103,21 @@ describe("server search matches the browser filter", () => {
     const catalog = makeCatalog(seed, 30);
     CASES.forEach((c, i) => {
       it(`seed ${seed}, case ${i} ${JSON.stringify(c)}`, () => {
+        holder.catalog = catalog;
         const { state, request } = toRequest(c);
         const q = c.q ?? "";
         const slim = serverIndex(catalog);
 
         const clientUnis = client.applyFilters(catalog, state, q);
-        const serverUnis = server.filterUniversities(slim, server.prepareFilters(request), q);
+        const preparedUnis = server.prepareFilters(request);
+        preparedUnis.feeCurrency = server.resolveFeeCurrency({ universities: slim }, preparedUnis);
+        const serverUnis = server.filterUniversities(slim, preparedUnis, q);
         expect(serverUnis.map((u) => u.id)).toEqual(clientUnis.map((u) => u.id));
 
         // The flat course list: every course of a surviving university that matches the same filters.
         const clientCourses = clientUnis.flatMap((u) => u.courses.filter((x) => client.courseMatchesFilters(u, x, state, q)).map((x) => x.id));
         const tokens = server.searchTokens(q);
-        const prepared = server.prepareFilters(request);
+        const prepared = preparedUnis;
         const serverCourses = serverUnis.flatMap((u) => u.courses.filter((x) => server.courseMatchesFilters(prepared, u, x, tokens)).map((x) => x.id));
         expect(serverCourses).toEqual(clientCourses);
       });
@@ -125,5 +132,32 @@ describe("server search matches the browser filter", () => {
     expect(some).toBeGreaterThan(0);
     expect(some).toBeLessThan(catalog.length);
     expect(rng(1)()).toBeLessThan(1);
+  });
+});
+
+describe("server facets match the browser's dropdown options", () => {
+  const catalog = makeCatalog(11, 40);
+  const slim = serverIndex(catalog);
+  const index = { universities: slim };
+  const FACET_MAP = { destination: "destination", location: "location", university: "university", course: "course", duration: "duration", level: "level", intake: "intake" };
+
+  CASES.forEach((c, i) => {
+    it(`case ${i} ${JSON.stringify(c.f ?? {})}`, () => {
+      holder.catalog = catalog;
+      const { state, request } = toRequest(c);
+      const out = server.runFacets(index, { filters: request });
+      // The client's facetOptions reads the browser's catalog store; give it this catalog for the comparison.
+      for (const [facet, key] of Object.entries(FACET_MAP)) {
+        expect(out.facets[facet], `facet ${facet}`).toEqual(client.facetOptions(state, key));
+      }
+      // discipline: server returns subjects; mapping through the same subject → area table must equal the client's list.
+      const areas = [...new Set(out.facets.subject.map((s) => AREAS[s]).filter(Boolean))].sort((x, y) => x.localeCompare(y));
+      expect(areas).toEqual(client.facetOptions(state, "discipline"));
+      expect(out.locationsForDestination).toEqual(client.locationOptions(state.destination));
+      expect(out.years).toEqual(client.yearOptions());
+      expect(out.intakesAll).toEqual(client.intakeOptions());
+      const stats = client.feeFilterStats(state);
+      expect(out.feeStats).toEqual(stats);
+    });
   });
 });
