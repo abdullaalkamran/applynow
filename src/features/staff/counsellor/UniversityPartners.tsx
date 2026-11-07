@@ -5,10 +5,10 @@ import { ExploreUniversities, type ExploreVariant } from "../../student/Universi
 import { loadAssignedStudents } from "../../../data/counsellorStudentsStore";
 import { activeApplicationsFor } from "../../../utils/counsellorData";
 
-const COUNSELLOR_EXPLORE: ExploreVariant = {
+export const COUNSELLOR_EXPLORE: ExploreVariant = {
   basePath: "/staff/counsellor/partners",
   title: "University Partners",
-  universityPath: (id) => `/staff/counsellor/partners/universities/${id}`,
+  universityPath: (id, slug) => `/staff/counsellor/partners/universities/${encodeURIComponent(slug ?? id)}`,
   countryPath: (name) => `/staff/counsellor/partners/${encodeURIComponent(name)}`,
   ownApplications: false,
   students: () => loadAssignedStudents(),

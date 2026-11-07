@@ -120,8 +120,8 @@ export function getUniversityById(id: string): University | undefined {
 }
 
 /** One university by id for a page that fetches its own record (useUniversity) — no full download. */
-export function peekUniversityById(id: string): University | undefined {
-  return cache.find((u) => u.id === id);
+export function peekUniversityById(idOrSlug: string): University | undefined {
+  return cache.find((u) => u.id === idOrSlug || u.slug === idOrSlug);
 }
 
 /** Fetches one university's full record (with courses) and swaps it into the cache — used when its page opens while only

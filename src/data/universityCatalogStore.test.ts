@@ -89,3 +89,17 @@ describe("loading the catalog", () => {
     expect(store.getUniversitySummaries()).toHaveLength(2);
   });
 });
+
+describe("finding a university by its readable name", () => {
+  it("peekUniversityById accepts the id or the slug", async () => {
+    api.apiGetList.mockResolvedValue([
+      { id: "u-custom-1", slug: "bpp-university", name: "BPP", courses: [], coursesLoaded: false, courseCount: 2 },
+      { id: "u-custom-2", name: "No slug", courses: [], coursesLoaded: false, courseCount: 1 },
+    ]);
+    await store.refreshUniversities();
+    expect(store.peekUniversityById("u-custom-1")?.name).toBe("BPP");
+    expect(store.peekUniversityById("bpp-university")?.name).toBe("BPP");
+    expect(store.peekUniversityById("u-custom-2")?.name).toBe("No slug");
+    expect(store.peekUniversityById("nope")).toBeUndefined();
+  });
+});

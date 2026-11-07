@@ -79,7 +79,7 @@ const EXPLORE_FACETS = ["level"];
 export const STUDENT_EXPLORE: ExploreVariant = {
   basePath: "/student/search",
   title: "Explore Universities",
-  universityPath: (id) => `/student/universities/${id}`,
+  universityPath: (id, slug) => `/student/universities/${encodeURIComponent(slug ?? id)}`,
   countryPath: (name) => `/student/countries/${encodeURIComponent(name)}`,
   ownApplications: true,
 };

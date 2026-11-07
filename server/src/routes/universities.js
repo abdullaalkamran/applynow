@@ -9,6 +9,7 @@ const { requireDataRole } = require("../middleware/access");
 
 const zlib = require("zlib");
 const { getCatalog, invalidateCatalog, catalogVersion } = require("../catalogCache");
+const { getIndex, resolveUniversity } = require("../courseSearch");
 
 const router = express.Router();
 
@@ -217,11 +218,23 @@ function courseWriteData(c) {
   };
 }
 
+// Readable URL names for universities (see slugs.js) come from the search index. If it can't be built, universities simply go
+// without a slug and keep their id-style addresses.
+async function slugLookup() {
+  try {
+    const index = await getIndex();
+    return { slugOf: (id) => index.byId.get(id)?.slug, index };
+  } catch {
+    return { slugOf: () => undefined, index: null };
+  }
+}
+
 // The catalog is big (every university with every course) — see catalogCache.js for how it is built and cached so that a
 // page load neither exhausts the server's memory nor repeats the work. Same JSON as before, served gzipped.
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const catalog = await getCatalog(serializeUniversity);
+    const { slugOf } = await slugLookup();
+    const catalog = await getCatalog((u) => ({ ...serializeUniversity(u), slug: slugOf(u.id) }));
     res.set({ ETag: catalog.etag, "Cache-Control": "private, no-cache", Vary: "Accept-Encoding", "Content-Type": "application/json; charset=utf-8" });
     if (req.fresh) return res.status(304).end(); // the browser already holds this exact catalog
     if (req.acceptsEncodings("gzip")) {
@@ -247,10 +260,11 @@ router.get("/summary", requireAuth, async (req, res, next) => {
         include: { _count: { select: { courses: true } } },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       });
+      const { slugOf } = await slugLookup();
       summaryCache = {
         v,
         at: Date.now(),
-        body: rows.map((u) => ({ ...serializeUniversity({ ...u, courses: [] }), courseCount: u._count.courses, coursesLoaded: false })),
+        body: rows.map((u) => ({ ...serializeUniversity({ ...u, courses: [] }), slug: slugOf(u.id), courseCount: u._count.courses, coursesLoaded: false })),
       };
     }
     res.set("Cache-Control", "private, max-age=15");
@@ -262,9 +276,13 @@ router.get("/summary", requireAuth, async (req, res, next) => {
 
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
-    const university = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
+    // The address part is the readable slug ("bpp-university") or the id.
+    const { index } = await slugLookup();
+    const hit = index ? resolveUniversity(index, req.params.id) : null;
+    const university = await prisma.university.findUnique({ where: { id: hit ? hit.id : req.params.id }, include: { courses: true } });
     if (!university) return res.status(404).json({ error: "University not found." });
-    res.json(serializeUniversity(university));
+    const out = serializeUniversity(university);
+    res.json({ ...out, slug: hit?.slug, courses: out.courses.map((c) => ({ ...c, slug: hit?.courseById.get(c.id)?.slug })) });
   } catch (err) {
     next(err);
   }

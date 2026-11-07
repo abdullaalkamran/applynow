@@ -5,10 +5,10 @@ import { ExploreUniversities, type ExploreVariant } from "../student/UniversityS
 import { loadAgentStudents } from "../../data/agentStudentsStore";
 import { ShortlistButton } from "./ShortlistButton";
 
-const AGENT_EXPLORE: ExploreVariant = {
+export const AGENT_EXPLORE: ExploreVariant = {
   basePath: "/agent/universities",
   title: "Explore Universities",
-  universityPath: (id) => `/agent/universities/${id}`,
+  universityPath: (id, slug) => `/agent/universities/${encodeURIComponent(slug ?? id)}`,
   countryPath: (name) => `/agent/countries/${encodeURIComponent(name)}`,
   ownApplications: false,
   students: () => loadAgentStudents(),
