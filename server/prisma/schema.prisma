@@ -1298,3 +1298,12 @@ model BlogPost {
 
   @@index([status, publishedAt])
 }
+
+// Editable public pages (currently just "about"): one row per page, the whole content as JSON. Data Management edits it
+// (routes/about.js); the public /about page, its SEO markup and the sitemap read it. No row = the built-in default text.
+model SitePage {
+  key       String   @id
+  data      String   @db.LongText
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

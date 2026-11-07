@@ -4,10 +4,11 @@
 // It never returns student, staff, commission or application data.
 const express = require("express");
 const prisma = require("../prismaClient");
-const { search, facetsFor, getIndex, resolveUniversity } = require("../courseSearch");
+const { search, facetsFor, getIndex, peekIndex, resolveUniversity } = require("../courseSearch");
 const { serializeUniversity } = require("./universities");
 const { serializeCountry } = require("./countries");
 const { serialize: serializeSubject } = require("./subjects");
+const { loadAbout } = require("../aboutPage");
 
 const router = express.Router();
 
@@ -71,8 +72,11 @@ async function buildLandingPayload() {
     take: MAX_LOGOS,
     select: { id: true, name: true, logoUrl: true },
   });
+  // Each logo links to its university's page; the readable address is used when the search index is already built (the landing
+  // page never waits for it — without a slug the link uses the id and is redirected to the readable address).
+  const index = peekIndex();
   const universities = withLogo
-    .map((u) => ({ id: u.id, name: u.name, logoUrl: photoRef("universityLogo", u.id, u.logoUrl) }))
+    .map((u) => ({ id: u.id, slug: index?.byId.get(u.id)?.slug, name: u.name, logoUrl: photoRef("universityLogo", u.id, u.logoUrl) }))
     .filter((u) => u.logoUrl);
 
   return { stats: { countries: countries.length, universities: universityTotal }, countries: out, universities };
@@ -90,6 +94,16 @@ router.get("/landing", async (_req, res, next) => {
 
 // News & Updates for the logged-out landing page: only posts an editor has published, never drafts. List rows carry
 // no body (just what a card needs); the full text comes from /news/:slug.
+// The About page's text (edited by Data Management): public, cached briefly by the browser like the rest.
+router.get("/about", async (_req, res, next) => {
+  try {
+    const { content } = await loadAbout();
+    res.set("Cache-Control", "public, max-age=60").json(content);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/news", async (_req, res, next) => {
   try {
     const posts = await prisma.blogPost.findMany({

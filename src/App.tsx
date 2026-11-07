@@ -97,6 +97,8 @@ const DataSubjects = lazy(() => import("./features/staff/data/Subjects"));
 const DataSubjectForm = lazy(() => import("./features/staff/data/SubjectForm"));
 const DataBlog = lazy(() => import("./features/staff/data/Blog"));
 const DataBlogForm = lazy(() => import("./features/staff/data/BlogForm"));
+const About = lazy(() => import("./features/public/About"));
+const DataAbout = lazy(() => import("./features/staff/data/AboutEditor"));
 const NewsList = lazy(() => import("./features/public/News"));
 const NewsPost = lazy(() => import("./features/public/NewsPost"));
 const DataKnowledge = lazy(() => import("./features/staff/data/Knowledge"));
@@ -169,6 +171,7 @@ export default function App() {
           <Route path="/courses" element={<PublicCourses />}>
             <Route path="filters" element={<UniversityFilters />} />
           </Route>
+          <Route path="/about" element={<About />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:slug" element={<NewsPost />} />
           <Route path="/login" element={<Login />} />
@@ -287,6 +290,7 @@ export default function App() {
             <Route path="/staff/data/subjects/new" element={<DataSubjectForm />} />
             <Route path="/staff/data/subjects/:id" element={<DataSubjectForm />} />
             <Route path="/staff/data/knowledge" element={<DataKnowledge />} />
+            <Route path="/staff/data/about" element={<DataAbout />} />
             <Route path="/staff/data/blog" element={<DataBlog />} />
             <Route path="/staff/data/blog/new" element={<DataBlogForm />} />
             <Route path="/staff/data/blog/:id" element={<DataBlogForm />} />

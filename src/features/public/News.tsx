@@ -19,6 +19,7 @@ export function PublicHeader() {
         {link("/universities", "Universities")}
         {link("/courses", "Courses")}
         {link("/news", "News & Updates")}
+        {link("/about", "About")}
       </nav>
       <Link to="/login" className="flex items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-1.5 text-[14px] font-medium text-neutral-900 hover:bg-neutral-100">
         Sign in <ArrowRight size={15} />

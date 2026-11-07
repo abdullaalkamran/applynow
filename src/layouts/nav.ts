@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, FileText, Folder, Compass, MessageCircle, User, Users, Wallet, BarChart3,
   ClipboardList, ShieldAlert, Globe2, Landmark, BookOpen, Percent, ScrollText, ListChecks,
-  GraduationCap, CalendarDays, Settings, Handshake, Newspaper, type LucideIcon,
+  GraduationCap, CalendarDays, Settings, Handshake, Newspaper, Info, type LucideIcon,
 } from "lucide-react";
 import type { Role } from "../types";
 
@@ -43,6 +43,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Universities", path: "/staff/data/universities", icon: Landmark },
     { label: "Subjects", path: "/staff/data/subjects", icon: BookOpen },
     { label: "News & Updates", path: "/staff/data/blog", icon: Newspaper },
+    { label: "About page", path: "/staff/data/about", icon: Info },
     { label: "Content Catalog", path: "/staff/data/catalog", icon: BookOpen },
     { label: "Training Knowledge", path: "/staff/data/knowledge", icon: GraduationCap },
     { label: "Messages", path: "/messages", icon: MessageCircle },
@@ -57,6 +58,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { label: "Students", path: "/admin/students", icon: GraduationCap },
     { label: "Universities", path: "/staff/data/universities", icon: Landmark },
     { label: "News & Updates", path: "/staff/data/blog", icon: Newspaper },
+    { label: "About page", path: "/staff/data/about", icon: Info },
     { label: "Counselors", path: "/admin/teams", icon: Users },
     { label: "Agents", path: "/admin/agents", icon: Handshake },
     { label: "Tasks", path: "/admin/tasks", icon: ListChecks },

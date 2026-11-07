@@ -1766,7 +1766,7 @@
 
 /* Partner-university logos: one endless, slow sideways drift. */
 .logo-marquee {
-  padding: 8px 0 44px;
+  padding: 8px 0 16px;
   text-align: center;
 }
 
@@ -1780,6 +1780,7 @@
 }
 
 .logo-marquee-viewport {
+  padding: 8px 0 28px;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
@@ -1799,24 +1800,81 @@
 }
 
 .logo-marquee-track li {
+  flex: none;
+  margin-right: 18px;
+}
+
+/* A card per university — the same white card, border, radius and hover lift as the news cards below. */
+.logo-chip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 282px;
+  height: 78px;
+  padding: 0 18px 0 14px;
+  border: 1px solid #e7e5e4;
+  border-radius: 18px;
+  background: #fff;
+  color: #0b0b0b;
+  text-align: left;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.logo-chip:hover,
+.logo-chip:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.1);
+}
+.logo-chip:focus-visible {
+  outline: 2px solid #0b0b0b;
+  outline-offset: 2px;
+}
+
+/* The logo sits on top of its initials: the initials show while it loads (or if it never does). */
+.logo-chip-mark {
+  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 150px;
-  height: 64px;
-  margin-right: 48px;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border: 1px solid #efeeec;
+  border-radius: 14px;
+  background: #f5f5f4;
 }
-
-.logo-marquee-track img {
-  max-width: 100%;
-  max-height: 100%;
+.logo-chip-mark b {
+  color: #8c8c8a;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.logo-chip-mark img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 5px;
   object-fit: contain;
-  transition: transform 0.25s ease;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.logo-chip-mark img.is-loaded {
+  opacity: 1;
 }
 
-.logo-marquee-track li:hover img {
-  transform: scale(1.08);
+.logo-chip-name {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 @keyframes logo-marquee-scroll {
@@ -1825,7 +1883,10 @@
 
 @media (max-width: 760px) {
   .logo-marquee { padding-bottom: 32px; }
-  .logo-marquee-track li { width: 110px; height: 48px; margin-right: 32px; }
+  .logo-marquee-track li { margin-right: 12px; }
+  .logo-chip { width: 232px; height: 66px; gap: 11px; padding: 0 14px 0 10px; border-radius: 16px; }
+  .logo-chip-mark { width: 44px; height: 44px; border-radius: 12px; }
+  .logo-chip-name { font-size: 13.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

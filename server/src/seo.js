@@ -8,6 +8,7 @@ const path = require("path");
 const prisma = require("./prismaClient");
 const { getConfig } = require("./config");
 const faq = require("../../src/data/landingFaq.json");
+const { loadAbout } = require("./aboutPage");
 
 const SITE_NAME = "UnifinderAi";
 const courseSearch = require("./courseSearch");
@@ -46,9 +47,11 @@ function inlineMd(text) {
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer">$1</a>');
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" rel="noopener noreferrer">$1</a>')
+    // same-site links ("/universities"); "//host" would be a protocol-relative link to another site, so it is left as text
+    .replace(/\[([^\]]+)\]\((\/(?!\/)[^)\s]*)\)/g, '<a href="$2">$1</a>');
 }
-function markdownToHtml(md) {
+function markdownToHtml(md, headingOffset = 1) {
   const lines = String(md || "").replace(/\r\n/g, "\n").split("\n");
   const out = [];
   let list = null;
@@ -61,7 +64,7 @@ function markdownToHtml(md) {
     if (!line.trim()) { flushPara(); flushList(); continue; }
     if ((m = /^(#{1,4})\s+(.*)$/.exec(line))) {
       flushPara(); flushList();
-      const level = Math.min(4, Math.max(2, m[1].length + 1)); // the page's own <h1> is the post title
+      const level = Math.min(4, Math.max(2, m[1].length + headingOffset)); // the page's own <h1> is the post title
       out.push(`<h${level}>${inlineMd(m[2])}</h${level}>`);
     } else if ((m = /^\s*[-*]\s+(.*)$/.exec(line))) {
       flushPara();
@@ -165,13 +168,17 @@ const faqJsonLd = () => ({
   mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
 });
 
-const orgJsonLd = () => ({
+const socialLinks = (about) => Object.values(about?.social || {}).filter(Boolean);
+// The home page and the About page describe the same organisation: same @id, same sameAs list.
+const orgJsonLd = (about) => ({
   "@context": "https://schema.org",
   "@type": "Organization",
+  "@id": `${siteUrl()}/#organization`,
   name: SITE_NAME,
   url: siteUrl(),
   logo: absolute("/brand/share.png"),
   description: DEFAULT_DESCRIPTION,
+  ...(socialLinks(about).length ? { sameAs: socialLinks(about) } : {}),
 });
 
 const siteJsonLd = () => ({
@@ -266,6 +273,7 @@ const faqLd = (faqs) => (faqs.length ? [{ "@context": "https://schema.org", "@ty
 
 async function landingPage() {
   const posts = await publishedPosts(3);
+  const { content: about } = await loadAbout();
   const newsHtml = posts.length
     ? `<section><h2>News &amp; Updates</h2><ul>${posts.map((p) => `<li><a href="/news/${esc(p.slug)}">${esc(p.title)}</a>${p.excerpt ? ` — ${esc(p.excerpt)}` : ""}</li>`).join("")}</ul><p><a href="/news">All news</a></p></section>`
     : "";
@@ -273,13 +281,63 @@ async function landingPage() {
     <main>
       <h1>${esc(DEFAULT_TITLE)}</h1>
       <p>${esc(DEFAULT_DESCRIPTION)}</p>
-      <p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
+      <p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/about">About</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
       <section><h2>Frequently asked questions</h2>
         ${faq.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("\n        ")}
       </section>
       ${newsHtml}
     </main>`;
-  return render({ title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, path: "/", jsonLd: [orgJsonLd(), siteJsonLd(), faqJsonLd()], bodyHtml });
+  return render({ title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION, path: "/", jsonLd: [orgJsonLd(about), siteJsonLd(), faqJsonLd()], bodyHtml });
+}
+
+/** Plain-text list of the company details that were actually filled in (nothing is shown or published for an empty field). */
+function companyRows(about) {
+  const c = about.company || {};
+  return [["Registered company", c.legalName], ["Founded", c.foundedYear], ["Founders", c.founders], ["Office", c.address], ["Email", c.email], ["Phone / WhatsApp", c.phone]].filter(([, v]) => v);
+}
+
+async function aboutPage() {
+  const { content: a } = await loadAbout();
+  const base = siteUrl();
+  const rows = companyRows(a);
+  const social = socialLinks(a);
+  const whoHtml = rows.length || social.length
+    ? `<section><h2>Who we are</h2>${rows.length ? `<ul>${rows.map(([k, v]) => `<li><strong>${esc(k)}:</strong> ${esc(v)}</li>`).join("")}</ul>` : ""}${social.length ? `<p>Follow us: ${social.map((u) => `<a href="${esc(u)}" rel="noopener noreferrer">${esc(u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>`).join(" · ")}</p>` : ""}</section>`
+    : "";
+  const bodyHtml = `
+    <main>
+      <h1>${esc(a.heading)}</h1>
+      ${a.subheading ? `<p>${esc(a.subheading)}</p>` : ""}
+      ${markdownToHtml(a.body, 0)}
+      ${whoHtml}
+      ${faqHtml(a.faqs)}
+      <p><a href="/">Home</a> · <a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/news">News &amp; Updates</a></p>
+    </main>`;
+  const c = a.company;
+  const org = {
+    "@type": "EducationalOrganization",
+    "@id": `${base}/#organization`,
+    name: SITE_NAME,
+    url: base,
+    logo: absolute("/brand/share.png"),
+    description: a.metaDescription || DEFAULT_DESCRIPTION,
+    ...(c.legalName ? { legalName: c.legalName } : {}),
+    ...(c.foundedYear ? { foundingDate: c.foundedYear } : {}),
+    ...(c.founders ? { founder: c.founders.split(/\s*(?:,|&|\band\b)\s*/i).filter(Boolean).map((name) => ({ "@type": "Person", name })) } : {}),
+    ...(c.address ? { address: { "@type": "PostalAddress", streetAddress: c.address } } : {}),
+    ...(c.email ? { email: c.email } : {}),
+    ...(c.phone ? { telephone: c.phone } : {}),
+    ...(social.length ? { sameAs: social } : {}),
+  };
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "AboutPage", "@id": `${base}/about#webpage`, url: `${base}/about`, name: a.metaTitle || a.heading, about: { "@id": `${base}/#organization` }, inLanguage: "en" },
+      org,
+      ...(a.faqs.length ? [{ "@type": "FAQPage", mainEntity: a.faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
+    ],
+  };
+  return render({ title: a.metaTitle || `${a.heading} — ${SITE_NAME}`, description: a.metaDescription || DEFAULT_DESCRIPTION, path: "/about", jsonLd: [graph], bodyHtml });
 }
 
 async function newsIndexPage() {
@@ -621,6 +679,7 @@ async function sitemapIndexXml() {
 
 async function sitemapPagesXml() {
   const posts = await publishedPosts(1000);
+  const about = await loadAbout();
   const rows = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 40000 });
   const idx = await catalog();
   const base = siteUrl();
@@ -628,6 +687,7 @@ async function sitemapPagesXml() {
     { loc: `${base}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${base}/universities`, changefreq: "weekly", priority: "0.9" },
     { loc: `${base}/courses`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${base}/about`, changefreq: "monthly", priority: "0.6", lastmod: about.updatedAt || undefined },
     { loc: `${base}/news`, changefreq: "daily", priority: "0.8", lastmod: posts[0]?.updatedAt },
     ...rows.map((r) => ({ loc: `${base}${universityPath(idx?.byId.get(r.id) ?? r)}`, changefreq: "monthly", priority: "0.7", lastmod: r.updatedAt })),
     ...posts.map((p) => ({ loc: `${base}/news/${p.slug}`, changefreq: "monthly", priority: "0.6", lastmod: p.updatedAt })),
@@ -653,6 +713,8 @@ async function sitemapCoursesXml(n) {
 
 async function llmsTxt() {
   const posts = await publishedPosts(20);
+  const { content: about } = await loadAbout();
+  const who = companyRows(about).map(([k, v]) => `- ${k}: ${v}`);
   const base = siteUrl();
   return [
     `# ${SITE_NAME}`,
@@ -667,10 +729,12 @@ async function llmsTxt() {
     "- Browsing universities, courses, entry requirements and news is free and needs no account; applying needs a free account.",
     "- Every university page and course page states its location, fees, intakes, English requirements and how to apply.",
     "",
+    ...(who.length ? ["## Who we are", ...who, "- UnifinderAi (unifinderai.com) is independent and not affiliated with unifinder.ai, myunifinder.com, unifinder.org or Charlie Group.", ""] : ["## Who we are", "- UnifinderAi (unifinderai.com) is independent and not affiliated with unifinder.ai, myunifinder.com, unifinder.org or Charlie Group.", ""]),
     "## Key pages",
     `- [Home](${base}/): what UnifinderAi is and common questions`,
     `- [Universities](${base}/universities): partner universities worldwide, with courses, fees, intakes and entry requirements`,
     `- [Courses](${base}/courses): search courses at partner universities`,
+    `- [About](${base}/about): who UnifinderAi is, what the AI voice assistant does, and how it differs from similarly named sites`,
     `- [News & Updates](${base}/news): announcements about destinations, intakes and scholarships`,
     `- [Sitemap](${base}/sitemap.xml): every university and course page`,
     "",
@@ -721,6 +785,7 @@ function registerSeoRoutes(app) {
   app.get("/universities/:id", pageHandler((req) => universityPage(req.params.id)));
   app.get("/universities/:id/courses/:courseId", pageHandler((req) => coursePage(req.params.id, req.params.courseId)));
   app.get("/courses", pageHandler(coursesIndexPage));
+  app.get("/about", pageHandler(aboutPage));
   app.get("/news", pageHandler(newsIndexPage));
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));
 }

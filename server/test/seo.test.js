@@ -124,6 +124,7 @@ const jsonLdTypes = (html) => [...html.matchAll(/<script type="application\/ld\+
 const INDEX_UNI = { id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", courses: [{ id: "c1", name: "MSc Data Science", level: "Postgraduate" }] };
 const INDEX = { universities: [INDEX_UNI], byId: new Map([["u1", INDEX_UNI]]), bySlug: courseSearch.assignSlugs([INDEX_UNI]) };
 
+const stored = { row: null };
 beforeAll(() => {
   courseSearch.getIndex = async () => INDEX;
   prisma.university.findMany = async () => [{ id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", updatedAt: new Date() }];
@@ -131,12 +132,14 @@ beforeAll(() => {
   prisma.blogPost.findMany = async () => [];
   prisma.course.findFirst = async ({ where }) => (where.id === "c1" ? COURSE : null);
   prisma.course.count = async () => 3;
+  prisma.sitePage = { findUnique: async () => stored.row, upsert: async () => null, deleteMany: async () => null };
   seo.registerSeoRoutes({ use() {}, get(p, h) { routes[p] = h; } });
 });
 
 describe("rendered pages", () => {
   const cases = [
     ["home", "/", "/"], ["universities", "/universities", "/universities"], ["courses", "/courses", "/courses"],
+    ["about", "/about", "/about"],
     ["university", "/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" }], ["course", "/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/msc-data-science", { id: "university-of-leeds", courseId: "msc-data-science" }],
   ];
   for (const [name, pattern, url, params] of cases) {
@@ -219,5 +222,66 @@ describe("readable addresses", () => {
     expect(pages.body).not.toContain("/universities/u1<");
     const courses = await page("/sitemap-courses-:n.xml", "/sitemap-courses-1.xml", { n: "1" });
     expect(courses.body).toContain("/universities/university-of-leeds/courses/msc-data-science<");
+  });
+});
+
+describe("About page", () => {
+  const about = require("../src/aboutPage.js");
+  const text = (body) => body.replace(/<script[\s\S]*?<\/script>/g, "");
+
+  it("shows the built-in text, with the AI assistant, FAQ and independence notice, and no empty details", async () => {
+    const { body } = await page("/about", "/about");
+    expect(body).toContain("<h1>About UnifinderAi</h1>");
+    expect(body).toContain("AI voice assistant");
+    expect(body).toContain("not affiliated");
+    expect(text(body)).not.toContain("Registered company"); // no company details filled in -> none shown
+    expect(text(body)).toContain("instagram.com/unifinderai.official");
+    expect(text(body)).not.toMatch(/\[[A-Z ]+\]/); // no leftover [PLACEHOLDER]
+    const ld = JSON.parse(body.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1].replace(/\\u003c/g, "<"));
+    expect(ld["@graph"].map((o) => o["@type"])).toEqual(["AboutPage", "EducationalOrganization", "FAQPage"]);
+  });
+
+  it("uses what the data manager saved, and publishes only the details that were filled in", async () => {
+    stored.row = { data: JSON.stringify(about.normalize({ heading: "About us", body: "## Hello\n\nSee [courses](/courses) and [evil](javascript:alert(1)).", company: { legalName: "Acme Ltd", email: "hi@acme.test" }, social: { facebook: "https://facebook.com/acme" }, faqs: [{ q: "Q?", a: "A." }, { q: "", a: "dropped" }] })) , updatedAt: new Date("2026-11-08"), updatedBy: "x" };
+    seo.invalidateSeoCache();
+    const { body } = await page("/about", "/about");
+    expect(body).toContain("<h1>About us</h1>");
+    expect(body).toContain('<h2>Hello</h2>');
+    expect(body).toContain('<a href="/courses">courses</a>');
+    expect(body).not.toMatch(/href="javascript/i);
+    expect(body).toContain("Acme Ltd");
+    expect(body).not.toContain("Founded");
+    expect(body).toContain("facebook.com/acme");
+    expect(body).toContain('"legalName":"Acme Ltd"');
+    expect(body).toContain('"sameAs":["https://facebook.com/acme"]');
+    expect((body.match(/Q\?/g) || []).length).toBeGreaterThan(0);
+    expect(body).not.toContain("dropped");
+    const llms = await page("/llms.txt", "/llms.txt");
+    expect(llms.body).toContain("Registered company: Acme Ltd");
+    stored.row = null;
+    seo.invalidateSeoCache();
+  });
+
+  it("is in the sitemap and in llms.txt", async () => {
+    const pages = await page("/sitemap-pages.xml", "/sitemap-pages.xml");
+    expect(pages.body).toMatch(/<loc>[^<]*\/about<\/loc>/);
+    expect((await page("/llms.txt", "/llms.txt")).body).toContain("/about)");
+  });
+
+  it("rejects bad input on save but never breaks reading", () => {
+    expect(() => about.normalize({ heading: "" }, { strict: true })).toThrow(/heading/);
+    expect(() => about.normalize({ social: { instagram: "javascript:alert(1)" } }, { strict: true })).toThrow(/https/);
+    expect(() => about.normalize({ company: { email: "nope" } }, { strict: true })).toThrow(/email/);
+    expect(() => about.normalize({ body: "x".repeat(70000) }, { strict: true })).toThrow(/too long/);
+    expect(about.normalize({ social: { instagram: "javascript:alert(1)" } }).social.instagram).toBe("");
+    expect(about.normalize(null).heading).toBe("About UnifinderAi");
+  });
+
+  it("a damaged saved row falls back to the built-in text", async () => {
+    stored.row = { data: "{not json", updatedAt: new Date(), updatedBy: null };
+    const loaded = await about.loadAbout();
+    expect(loaded.isDefault).toBe(true);
+    expect(loaded.content.heading).toBe("About UnifinderAi");
+    stored.row = null;
   });
 });

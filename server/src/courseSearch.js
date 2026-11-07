@@ -165,6 +165,11 @@ function startBuild() {
   return inflight;
 }
 
+/** The index if it has been built already, else null — never starts a build (for callers that mustn't wait on one). */
+function peekIndex() {
+  return built;
+}
+
 /** The current index. After a catalog write the previous one keeps serving for a short while while a new one builds. */
 async function getIndex() {
   if (built) {
@@ -638,4 +643,4 @@ function warmIndex() {
   startBuild().catch((err) => console.warn("Search index warm-up failed:", err));
 }
 
-module.exports = { search, runSearch, resolveUniversity, resolveCourse, assignSlugs, resolveFeeCurrency, facetsFor, runFacets, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };
+module.exports = { peekIndex, search, runSearch, resolveUniversity, resolveCourse, assignSlugs, resolveFeeCurrency, facetsFor, runFacets, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };

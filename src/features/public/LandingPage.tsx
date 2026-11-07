@@ -9,7 +9,7 @@ import { fetchPublicNews, mediaSrc, formatPostDate, type PublicNewsItem } from "
 import "./LandingPage.css";
 
 type Destination = { id: string; name: string; universityCount?: number; photoUrl?: string };
-type PartnerLogo = { id: string; name: string; logoUrl: string };
+type PartnerLogo = { id: string; slug?: string; name: string; logoUrl: string };
 
 // Shown only if the server can't deliver the real list (offline / empty) — never while it's still loading, since
 // that flashed four fake country cards before the real ones replaced them.
@@ -62,6 +62,7 @@ function Header() {
         <Link to="/universities">Universities</Link>
         <Link to="/login">Countries</Link>
         <Link to="/news">News &amp; Updates</Link>
+        <Link to="/about">About</Link>
       </nav>
 
       <div className="header-actions">
@@ -135,25 +136,57 @@ function NewsSection() {
   );
 }
 
-/** Partner universities' logos drifting sideways in an endless loop. The row is rendered twice and slid by exactly
- * half its width, so the loop has no visible jump; it pauses on hover and stays still for reduced-motion users. */
-function LogoMarquee({ logos }: { logos: PartnerLogo[] }) {
-  // Too few logos would leave gaps in the loop — repeat the set until a half is comfortably wider than a screen.
-  const repeats = Math.max(1, Math.ceil(14 / logos.length));
+/** Letters shown while a logo loads (or if it can't), like the app's own logo tiles: the first letters of the first two words
+ * ("BPP University" -> "BU"), or the first two letters of a single word ("Westminster" -> "WE"). */
+export function logoInitials(name: string) {
+  const words = name.replace(/^(The )?University of /i, "").split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words.map((w) => w[0]).slice(0, 2).join("") : (words[0] ?? "").slice(0, 2)).toUpperCase();
+}
+
+/** One university in the strip: its logo and name on a card (same look as the news cards), linking to its page. The initials sit
+ * behind the logo, so a slot is never empty while the image is still arriving; a logo that fails leaves just the initials. */
+export function LogoChip({ u, hidden }: { u: PartnerLogo; hidden: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  const [broken, setBroken] = useState(false);
+  const src = photoSrc(u.logoUrl);
+  return (
+    <li aria-hidden={hidden || undefined}>
+      <Link className="logo-chip" to={`/universities/${encodeURIComponent(u.slug ?? u.id)}`} tabIndex={hidden ? -1 : undefined} title={u.name}>
+        <span className="logo-chip-mark" aria-hidden="true">
+          <b>{logoInitials(u.name)}</b>
+          {src && !broken && (
+            <img
+              src={src}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className={loaded ? "is-loaded" : undefined}
+              onLoad={() => setLoaded(true)}
+              onError={() => setBroken(true)}
+            />
+          )}
+        </span>
+        <span className="logo-chip-name">{u.name}</span>
+      </Link>
+    </li>
+  );
+}
+
+/** Partner universities drifting sideways in an endless loop. The row is rendered twice and slid by exactly half its width, so
+ * the loop has no visible jump; it pauses on hover and stays still (scrollable) for reduced-motion users. */
+export function LogoMarquee({ logos }: { logos: PartnerLogo[] }) {
+  // Too few universities would leave gaps in the loop — repeat the set until a half is comfortably wider than a screen.
+  const repeats = Math.max(1, Math.ceil(8 / logos.length));
   const half = Array.from({ length: repeats }, () => logos).flat();
-  const seconds = Math.max(24, half.length * 3.2);
+  // ~60px a second whatever the card width (cards are ~300px with their gap).
+  const seconds = Math.max(30, half.length * 5);
   return (
     <section className="logo-marquee" aria-label="Partner universities">
       <p className="logo-marquee-title">Trusted by leading universities</p>
       <div className="logo-marquee-viewport">
         <ul className="logo-marquee-track" style={{ animationDuration: `${seconds}s` }}>
-          {[0, 1].flatMap((copy) =>
-            half.map((u, i) => (
-              <li key={`${copy}-${i}`} aria-hidden={copy === 1 || undefined}>
-                <img src={photoSrc(u.logoUrl)} alt={copy === 0 ? u.name : ""} title={u.name} loading="lazy" draggable={false} />
-              </li>
-            ))
-          )}
+          {[0, 1].flatMap((copy) => half.map((u, i) => <LogoChip key={`${copy}-${i}`} u={u} hidden={copy === 1} />))}
         </ul>
       </div>
     </section>
