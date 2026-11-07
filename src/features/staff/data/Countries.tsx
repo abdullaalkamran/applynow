@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Pencil, Trash2, Globe2, GraduationCap, ChevronRight } from "lucide-react";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
-import { getAllUniversities } from "../../../data/universityCatalogStore";
+import { getAllUniversities, courseCountOf } from "../../../data/universityCatalogStore";
+import { CatalogLoadNotice } from "../../../components/CatalogLoadNotice";
 import { getAllCountries, getCountryByName, getCountryId, deleteCountry } from "../../../data/countryRegistry";
 
 export default function DataCountries() {
@@ -10,8 +11,9 @@ export default function DataCountries() {
   const [query, setQuery] = useState("");
   const [, forceTick] = useState(0);
 
+  // getAllUniversities() is always a list (never an error object); course totals use the summary's counts until the courses arrive.
   const universities = getAllUniversities();
-  const totalCourses = universities.reduce((sum, u) => sum + u.courses.length, 0);
+  const totalCourses = universities.reduce((sum, u) => sum + courseCountOf(u), 0);
 
   const byCountry = new Map<string, typeof universities>();
   universities.forEach((u) => {
@@ -30,7 +32,7 @@ export default function DataCountries() {
     .map(([country, list]) => ({
       country,
       universities: list,
-      courseCount: list.reduce((sum, u) => sum + u.courses.length, 0),
+      courseCount: list.reduce((sum, u) => sum + courseCountOf(u), 0),
     }))
     .filter((c) => !query.trim() || c.country.toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => b.universities.length - a.universities.length);
@@ -58,6 +60,7 @@ export default function DataCountries() {
         }
       />
 
+      <CatalogLoadNotice />
       <div className="mb-6 flex flex-wrap gap-4">
         <StatTile label="Countries" value={String(byCountry.size)} />
         <StatTile label="Universities" value={String(universities.length)} />

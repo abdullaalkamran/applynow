@@ -5,7 +5,7 @@
 // universityFilter.ts — never need to change), backed by a cache warmed after login and kept
 // current after every write.
 import { loadStoredAuth } from "../utils/authClient";
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiGet, apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getCountryId } from "./countryRegistry";
 import type { University } from "../types";
@@ -22,14 +22,32 @@ let refreshSeq = 0;
 // getUniversitySummaries() is not. Until the full catalog lands, summary entries carry `courses: []` and `coursesLoaded: false`.
 let fullRequested = false;
 let fullLoaded = false;
+// Why the last load failed ("" when it didn't) — lets a screen say so, and offer a retry, instead of sitting empty. A failed
+// full-catalog load is not retried for FULL_RETRY_MS, so a slow server isn't hit again on every re-render.
+let loadError = "";
+let lastFullFailureAt = 0;
+const FULL_RETRY_MS = 30_000;
+const messageOf = (err: unknown) => (err instanceof Error && err.message ? err.message : "The server didn't answer — please try again.");
+
+/** The reason the last university load failed, or "" when there is no problem. */
+export function getUniversitiesLoadError(): string {
+  return loadError;
+}
+
+/** How many courses a university has — from the summary's count while its courses haven't been downloaded yet (they are an empty
+ * list until then, which would otherwise read as "0 courses"), from the list itself once they have. */
+export function courseCountOf(u: Pick<University, "courses" | "coursesLoaded" | "courseCount">): number {
+  return u.coursesLoaded === false ? u.courseCount ?? 0 : (u.courses ?? []).length;
+}
 
 function loadFull(): Promise<void> {
   return dedupeInFlight("universities-full", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<University[]>("/api/universities");
+    const next = await apiGetList<University>("/api/universities");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     fullLoaded = true;
+    loadError = "";
     if (!cacheChanged(next, cache)) return;
     cache = next;
     notifyCacheChange();
@@ -39,8 +57,15 @@ function loadFull(): Promise<void> {
 function loadSummary(): Promise<void> {
   return dedupeInFlight("universities-summary", async () => {
     const seq = ++refreshSeq;
-    const summary = await apiGet<University[]>("/api/universities/summary");
+    let summary: University[];
+    try {
+      summary = await apiGetList<University>("/api/universities/summary");
+    } catch (err) {
+      if ((err as Error)?.name !== "StaleSessionError" && cache.length === 0) { loadError = messageOf(err); notifyCacheChange(); }
+      throw err;
+    }
     if (seq !== refreshSeq || fullLoaded) return; // the full catalog already covers this
+    loadError = "";
     if (!cacheChanged(summary, cache)) return;
     cache = summary;
     notifyCacheChange();
@@ -57,7 +82,14 @@ export function ensureFullCatalog(): Promise<void> {
   if (fullLoaded) return Promise.resolve();
   if (!fullRequested) {
     fullRequested = true;
-    return loadFull().catch((err) => { fullRequested = false; console.warn("Failed to load the full catalog:", err); });
+    return loadFull().catch((err) => {
+      fullRequested = false;
+      if ((err as Error)?.name === "StaleSessionError") return;
+      lastFullFailureAt = Date.now();
+      loadError = messageOf(err);
+      console.warn("Failed to load the full catalog:", err);
+      notifyCacheChange();
+    });
   }
   return loadFull();
 }
@@ -65,17 +97,25 @@ export function ensureFullCatalog(): Promise<void> {
 /** Every university WITH its courses. Starts the full download the first time it is called; callers are re-rendered when it
  * arrives (until then they see summary entries with no courses). */
 export function getAllUniversities(): University[] {
-  if (!fullRequested && cache.length > 0) void ensureFullCatalog();
-  return cache;
+  if (!fullRequested && cache.length > 0 && Date.now() - lastFullFailureAt > FULL_RETRY_MS) void ensureFullCatalog();
+  return Array.isArray(cache) ? cache : [];
+}
+
+/** "Try again" after a failed load: forgets the failure and loads again straight away. */
+export function retryUniversities(): Promise<void> {
+  lastFullFailureAt = 0;
+  loadError = "";
+  notifyCacheChange();
+  return cache.length > 0 ? ensureFullCatalog() : loadSummary().catch(() => undefined);
 }
 
 /** Every university without needing its courses — never starts the full download. */
 export function getUniversitySummaries(): University[] {
-  return cache;
+  return Array.isArray(cache) ? cache : [];
 }
 
 export function getUniversityById(id: string): University | undefined {
-  if (!fullRequested && cache.length > 0) void ensureFullCatalog();
+  if (!fullRequested && cache.length > 0 && Date.now() - lastFullFailureAt > FULL_RETRY_MS) void ensureFullCatalog();
   return cache.find((u) => u.id === id);
 }
 
@@ -259,4 +299,6 @@ export function clearUniversityCatalogCache() {
   cache = [];
   fullLoaded = false;
   fullRequested = false;
+  loadError = "";
+  lastFullFailureAt = 0;
 }

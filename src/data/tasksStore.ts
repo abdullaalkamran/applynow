@@ -3,7 +3,7 @@
 // Enrolment workflow's task system via the optional applicationId/stageType/taskType/priority
 // fields, exactly as before this migration.
 import type { StageType } from "../types/journey";
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -39,7 +39,7 @@ let refreshSeq = 0;
 export function refreshTasks(): Promise<void> {
   return dedupeInFlight("tasks", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<Task[]>("/api/tasks");
+    const next = await apiGetList<Task>("/api/tasks");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

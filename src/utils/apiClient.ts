@@ -45,14 +45,22 @@ function expireSession() {
 async function handle<T>(response: Response, generation: number): Promise<T> {
   if (generation !== sessionGeneration) throw new StaleSessionError();
   if (response.status === 204) return undefined as T;
-  const data = await response.json().catch(() => ({}));
+  // Read the body as text first: an OK response whose body is not JSON (a hosting error page, a body cut off by a timeout) used to be
+  // turned into `{}` and handed to the caller as if it were the data — a store expecting a list then held an object and the
+  // screen crashed. Only a genuinely empty body counts as `{}`; anything else unreadable is an error.
+  const text = await response.text().catch(() => "");
+  let data: unknown = {};
+  if (text.trim()) {
+    try { data = JSON.parse(text); } catch { if (response.ok) throw new Error("The server sent an unexpected response — please try again in a moment."); }
+  }
+  const body = data as { error?: string };
   // Only the auth middleware sets this header; a route's own 401 (wrong current password, bad
   // admin token) must not end the session.
   if ((response.status === 401 || response.status === 403) && response.headers.get("x-session-invalid") === "1") {
     expireSession();
-    throw new Error(data.error || "Your session has expired — please log in again.");
+    throw new Error(body.error || "Your session has expired — please log in again.");
   }
-  if (!response.ok) throw Object.assign(new Error(data.error || `Request failed (${response.status})`), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(body.error || `Request failed (${response.status})`), { status: response.status });
   return data as T;
 }
 
@@ -150,6 +158,14 @@ async function runRequest<T>(path: string, init: RequestInit, timeoutMs: number,
 
 export function apiGet<T>(path: string): Promise<T> {
   return request<T>(path, { headers: { ...authHeader() } });
+}
+
+/** A GET for an endpoint that returns a list. Anything else (an error object, `{}`) is rejected rather than returned, so a store
+ * that caches the result can only ever hold a real array — a failed or garbled answer leaves the previous data in place. */
+export async function apiGetList<T>(path: string): Promise<T[]> {
+  const data = await apiGet<unknown>(path);
+  if (!Array.isArray(data)) throw new Error("The server sent an unexpected response — please try again in a moment.");
+  return data as T[];
 }
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {

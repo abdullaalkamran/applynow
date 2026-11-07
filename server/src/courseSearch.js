@@ -153,7 +153,8 @@ function resolveCourse(university, key) {
 
 let built = null;
 let inflight = null;
-const MAX_AGE_MS = 10 * 60 * 1000;
+// Rebuilt after a catalogue write (see catalogCache.js's version) or, as a safety net, once in a while — never at start-up.
+const MAX_AGE_MS = 30 * 60 * 1000;
 const MAX_STALE_MS = 3 * 60 * 1000;
 
 function startBuild() {

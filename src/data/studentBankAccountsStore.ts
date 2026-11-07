@@ -2,7 +2,7 @@
 // studentFinancialReadinessStore.ts (which keeps the derived one-record summary of these accounts that the journey
 // stage, tasks and notifications read). Both the student's own Dashboard card and a counsellor's Journey panel edit
 // through saveBankAccounts().
-import { apiGet, apiPut } from "../utils/apiClient";
+import { apiPut, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { refreshFinancialReadiness } from "./studentFinancialReadinessStore";
 import { refreshCachedJourneys } from "./applicationJourneyStore";
@@ -15,7 +15,7 @@ let refreshSeq = 0;
 export function refreshBankAccounts(): Promise<void> {
   return dedupeInFlight("bank-accounts", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<StoredBankAccount[]>("/api/financial-readiness/accounts");
+    const next = await apiGetList<StoredBankAccount>("/api/financial-readiness/accounts");
     if (seq !== refreshSeq) return; // a slower, older response must not win
     if (!cacheChanged(next, getBankAccountsCache())) return;
     setBankAccountsCache(next);

@@ -7,7 +7,7 @@
 // naturally per-application, and refreshed on the same poll/focus schedule as everything else
 // (see refreshCachedActivity, wired into warmCaches.ts) so a note or event added elsewhere doesn't
 // sit stale once this session has already looked at that application.
-import { apiGet, apiPost } from "../utils/apiClient";
+import { apiPost, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Role } from "../types";
 import type { StageType } from "../types/journey";
@@ -28,7 +28,7 @@ export interface ActivityEvent {
 const cache: Record<string, ActivityEvent[]> = {};
 
 function refreshFromServer(applicationId: string) {
-  apiGet<ActivityEvent[]>(`/api/applications/${applicationId}/activity`)
+  apiGetList<ActivityEvent>(`/api/applications/${applicationId}/activity`)
     .then((next) => {
       if (!cacheChanged(next, cache[applicationId] ?? [])) return;
       cache[applicationId] = next;

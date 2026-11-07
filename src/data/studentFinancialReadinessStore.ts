@@ -4,7 +4,7 @@
 // data to every one of the student's other applications) rather than each application tracking an
 // independent copy that could drift out of sync. Same synchronous-cache pattern as every other
 // migrated store.
-import { apiGet, apiPatch } from "../utils/apiClient";
+import { apiPatch, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -36,7 +36,7 @@ export interface FinancialReadinessHistoryEntry {
 }
 
 export function fetchFinancialReadinessHistory(studentId: string): Promise<FinancialReadinessHistoryEntry[]> {
-  return apiGet<FinancialReadinessHistoryEntry[]>(`/api/financial-readiness/${studentId}/history`);
+  return apiGetList<FinancialReadinessHistoryEntry>(`/api/financial-readiness/${studentId}/history`);
 }
 
 let cache: StudentFinancialReadiness[] = [];
@@ -47,7 +47,7 @@ let refreshSeq = 0;
 export function refreshFinancialReadiness(): Promise<void> {
   return dedupeInFlight("financial-readiness", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<StudentFinancialReadiness[]>("/api/financial-readiness");
+    const next = await apiGetList<StudentFinancialReadiness>("/api/financial-readiness");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

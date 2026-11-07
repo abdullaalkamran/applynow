@@ -3,7 +3,7 @@
 // Data Management's country page (see Universities.tsx) to show which students/agents are tied to
 // a given destination country — a role that has no existing "my students" scoping to reuse — and
 // by the admin Student Management page, which is where the write helpers below are used.
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
 import { reportSaveError } from "../utils/toast";
@@ -14,7 +14,7 @@ let refreshSeq = 0;
 export function refreshAllStudents(): Promise<void> {
   return dedupeInFlight("all-students", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<Student[]>("/api/students");
+    const next = await apiGetList<Student>("/api/students");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

@@ -4,7 +4,7 @@
 // student's and agent's own logins — the whole point of a "next step" only holds if the person
 // who has to act on it can actually see it, and the same gap meant it never actually turned into
 // a due-dated task on their Tasks page either (see taskBoard.ts's nextStepTasksFor).
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -28,7 +28,7 @@ let refreshSeq = 0;
 export function refreshNextSteps(): Promise<void> {
   return dedupeInFlight("next-steps", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<NextStep[]>("/api/next-steps");
+    const next = await apiGetList<NextStep>("/api/next-steps");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

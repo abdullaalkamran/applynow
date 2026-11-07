@@ -3,7 +3,7 @@
 // per-browser localStorage, which meant a student's own upload was invisible to their counsellor
 // and agent (different login, different browser) — the whole point of the core vault ("upload
 // once, every application and every role sees it") only holds if it's actually shared, not local.
-import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPostForm, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { BACKEND_BASE } from "../utils/backendBase";
 import { reportSaveError } from "../utils/toast";
@@ -58,7 +58,7 @@ let cache: CoreDoc[] = [];
  * utils/warmCaches.ts), same as every other migrated store. */
 export function refreshCoreDocs(): Promise<void> {
   return dedupeInFlight("core-docs", async () => {
-    const next = (await apiGet<ServerDocument[]>("/api/documents?scope=core")).map(toCoreDoc);
+    const next = (await apiGetList<ServerDocument>("/api/documents?scope=core")).map(toCoreDoc);
     if (!cacheChanged(next, cache)) return;
     cache = next;
     notifyCacheChange();

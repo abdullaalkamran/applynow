@@ -8,7 +8,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Plus, Share2, Wallet } from "lucide-react";
 import { LogoBadge, Pagination } from "../../components/ui/mobile";
 import { usePagedList } from "../../utils/usePagedList";
-import { getAllUniversities } from "../../data/universityCatalogStore";
+import { getAllUniversities, courseCountOf } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
@@ -47,7 +47,7 @@ export default function AgentCountryDetail() {
   const country = countryParam ? decodeURIComponent(countryParam) : "";
   const universities = getAllUniversities().filter((u) => u.country === country);
   const countryDetails = getCountryByName(country);
-  const totalCourses = universities.reduce((sum, u) => sum + u.courses.length, 0);
+  const totalCourses = universities.reduce((sum, u) => sum + courseCountOf(u), 0);
 
   const subjectCounts = (() => {
     const counts = new Map<string, number>();
@@ -187,7 +187,7 @@ export default function AgentCountryDetail() {
                 <p className="truncate text-xs text-slate-400">{u.city}, {u.country}</p>
                 <div className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
                   <span className="inline-flex items-center gap-1"><GraduationCap size={11} /> {u.worldRank}</span>
-                  <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
+                  <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {courseCountOf(u)} course{u.courses.length === 1 ? "" : "s"}</span>
                 </div>
               </div>
               <ChevronRight size={16} className="shrink-0 text-slate-300" />

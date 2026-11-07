@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 import { PageHeader, Button, Table, Modal } from "../../../components/ui";
-import { apiGet, apiPost, apiPatch, apiDelete, apiPostForm } from "../../../utils/apiClient";
+import { apiGet, apiPost, apiPatch, apiDelete, apiPostForm, apiGetList } from "../../../utils/apiClient";
 
 interface DocSummary { id: string; title: string; source?: string; category?: string; length: number; updatedAt: string }
 interface DocFull extends DocSummary { content: string }
@@ -22,7 +22,7 @@ export default function DataKnowledge() {
   const [error, setError] = useState("");
 
   async function load() {
-    try { setDocs(await apiGet<DocSummary[]>("/api/knowledge")); }
+    try { setDocs(await apiGetList<DocSummary>("/api/knowledge")); }
     catch (err) { setError(err instanceof Error ? err.message : "Failed to load documents."); setDocs([]); }
   }
   useEffect(() => { void load(); }, []);

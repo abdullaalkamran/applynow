@@ -1,6 +1,6 @@
 // News & Updates posts. Editors (Data Management / admin) use the authenticated /api/blog routes; the logged-out landing
 // page and /news pages use the public ones — plain fetch with no auth header, since there's no session there.
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiGet, apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { BACKEND_BASE } from "../utils/backendBase";
 
 export type BlogStatus = "draft" | "published";
@@ -28,7 +28,7 @@ export interface BlogInput {
   status: BlogStatus;
 }
 
-export const listPosts = () => apiGet<BlogPost[]>("/api/blog");
+export const listPosts = () => apiGetList<BlogPost>("/api/blog");
 export const getPost = (id: string) => apiGet<BlogPost>(`/api/blog/${encodeURIComponent(id)}`);
 export const createPost = (input: BlogInput) => apiPost<BlogPost>("/api/blog", input);
 export const updatePost = (id: string, patch: Partial<BlogInput>) => apiPatch<BlogPost>(`/api/blog/${encodeURIComponent(id)}`, patch);

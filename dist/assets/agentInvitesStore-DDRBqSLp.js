@@ -1,1 +1,0 @@
-import{a as e,r as t}from"./apiClient-BLuBX2ce.js";function n(t,n,r){return e(`/api/agent-invites`,{name:t,email:n,organization:r})}function r(e){return t(`/api/agent-invites/${e}`)}function i(t,n,r){return e(`/api/agent-invites/${t}/accept`,{password:n,otp:r})}function a(t){return e(`/api/agent-invites/${t}/otp`,{}).then(()=>void 0)}export{a as i,r as n,n as r,i as t};

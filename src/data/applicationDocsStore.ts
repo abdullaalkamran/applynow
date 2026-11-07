@@ -3,7 +3,7 @@
 // per-browser localStorage keyed only by applicationId, which meant a document an agent or student
 // uploaded for an application was invisible to the counsellor's separate login — so there was
 // nothing for a counsellor to view, let alone verify or reject.
-import { apiGet, apiPost, apiPostForm, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPostForm, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { getAllApplications } from "./applicationsStore";
 import { BACKEND_BASE } from "../utils/backendBase";
@@ -58,7 +58,7 @@ let refreshSeq = 0;
 export function refreshApplicationDocs(): Promise<void> {
   return dedupeInFlight("application-docs", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<ServerDocument[]>("/api/documents?scope=application");
+    const next = await apiGetList<ServerDocument>("/api/documents?scope=application");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

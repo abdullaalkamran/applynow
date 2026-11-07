@@ -9,7 +9,7 @@
 // uploads, Application Procedure, Visa Procedure) — genuinely country-level, not per-university,
 // so it's entered once via Data Management's Add/Edit Country form.
 import { loadStoredAuth } from "../utils/authClient";
-import { apiGet, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -109,7 +109,7 @@ export function seedCountries(list: CountryRecord[]) {
 export function refreshCountries(): Promise<void> {
   return dedupeInFlight("countries", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<CountryRecord[]>("/api/countries");
+    const next = await apiGetList<CountryRecord>("/api/countries");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;
@@ -189,6 +189,15 @@ export function getCountryId(name: string): string {
     })
     .catch((err) => {
       if ((err as Error)?.name === "StaleSessionError") return;
+      // The server already has a country with this name — the list this browser held was just out of date (it hadn't loaded, or
+      // loaded late). The entry added above never existed server-side, so drop it and pull the real list rather than leaving a
+      // look-alike duplicate on screen.
+      if ((err as { status?: number })?.status === 409) {
+        cache = cache.filter((c) => c.id !== id);
+        notifyCacheChange();
+        void refreshCountries().catch(() => { /* the next poll tries again */ });
+        return;
+      }
       // Left in place rather than rolled back: unlike a university/course, plenty of other reads
       // this same render pass (getCountryByName, a university's own .country string) already
       // depend on this id resolving for the rest of the session even if the persist failed — a

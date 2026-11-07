@@ -1,7 +1,7 @@
 // Client for the external-portal automation API (server/src/routes/portals.js). Deliberately not a cached store —
 // connections and submissions are only read by the Portals page and the AI agent's tools, and credentials are
 // write-only: the server never returns them, so there is nothing sensitive to hold here.
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { BACKEND_BASE } from "../utils/backendBase";
 
 export interface PortalConnection {
@@ -30,7 +30,7 @@ export interface PortalSubmission {
   updatedAt: string;
 }
 
-export const listPortals = () => apiGet<PortalConnection[]>("/api/portals");
+export const listPortals = () => apiGetList<PortalConnection>("/api/portals");
 export const addPortal = (input: { name: string; url: string; kind: "b2b" | "university"; username: string; password: string }) =>
   apiPost<PortalConnection>("/api/portals", input);
 export const updatePortal = (id: string, patch: { name?: string; url?: string; username?: string; password?: string }) =>
@@ -38,7 +38,7 @@ export const updatePortal = (id: string, patch: { name?: string; url?: string; u
 export const removePortal = (id: string) => apiDelete<void>(`/api/portals/${id}`);
 
 export const listSubmissions = (applicationId?: string) =>
-  apiGet<PortalSubmission[]>(`/api/portals/submissions${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}` : ""}`);
+  apiGetList<PortalSubmission>(`/api/portals/submissions${applicationId ? `?applicationId=${encodeURIComponent(applicationId)}` : ""}`);
 export const queueSubmission = (portalId: string, applicationId: string) =>
   apiPost<PortalSubmission>(`/api/portals/${portalId}/submissions`, { applicationId });
 export const confirmSubmission = (submissionId: string) => apiPost<{ ok: true }>(`/api/portals/submissions/${submissionId}/confirm`);

@@ -3,7 +3,7 @@
 // accrediting bodies). Distinct from subjectsStore.ts, which is just the flat name-only picklist
 // (localStorage) used by UniversityForm's "Subjects offered" checklist — that one isn't touched
 // here. Same synchronous-cache pattern as applicationsStore.ts.
-import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
+import { apiPost, apiPatch, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface SubjectRecord {
@@ -33,7 +33,7 @@ export function seedSubjectCatalog(list: SubjectRecord[]) {
 export function refreshSubjectCatalog(): Promise<void> {
   return dedupeInFlight("subject-catalog", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<SubjectRecord[]>("/api/subjects");
+    const next = await apiGetList<SubjectRecord>("/api/subjects");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

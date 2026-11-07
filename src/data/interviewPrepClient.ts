@@ -2,7 +2,7 @@
 // the rest of this app's stores — an interview session is a one-shot, per-visit flow (pick a set,
 // answer questions, see a summary), not shared reference data other pages need to read
 // synchronously, so plain async calls are simpler and correct here.
-import { apiGet, apiPost } from "../utils/apiClient";
+import { apiGet, apiPost, apiGetList } from "../utils/apiClient";
 
 export interface InterviewQuestionSetSummary {
   id: string;
@@ -47,7 +47,7 @@ export interface InterviewSessionDetail {
 }
 
 export function listInterviewQuestionSets(): Promise<InterviewQuestionSetSummary[]> {
-  return apiGet<InterviewQuestionSetSummary[]>("/api/interview-prep/question-sets");
+  return apiGetList<InterviewQuestionSetSummary>("/api/interview-prep/question-sets");
 }
 
 export function startInterviewSession(questionSetId: string): Promise<{ session_id: string; first_question: InterviewQuestion }> {

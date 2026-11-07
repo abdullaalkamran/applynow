@@ -1,6 +1,6 @@
 // Postgres-backed via /api/staff (server/src/routes/staff.js) — same synchronous-cache pattern as
 // applicationsStore.ts.
-import { apiGet, apiPost, apiPatch, apiDelete } from "../utils/apiClient";
+import { apiPost, apiPatch, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Role } from "../types";
 import { reportSaveError } from "../utils/toast";
@@ -34,7 +34,7 @@ let refreshSeq = 0;
 export function refreshStaff(): Promise<void> {
   return dedupeInFlight("staff", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<StaffMember[]>("/api/staff");
+    const next = await apiGetList<StaffMember>("/api/staff");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

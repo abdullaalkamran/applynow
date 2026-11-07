@@ -4,7 +4,7 @@
 // from other stores, nothing server-side); this store is actual rows written by the server (e.g.
 // applications.js's POST /:id/activity, for a new comment) and shared by every role. Same
 // synchronous-cache pattern as tasksStore.ts.
-import { apiGet, apiPatch } from "../utils/apiClient";
+import { apiPatch, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 
 export interface InboxNotification {
@@ -25,7 +25,7 @@ let refreshSeq = 0;
 export function refreshInbox(): Promise<void> {
   return dedupeInFlight("inbox", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<InboxNotification[]>("/api/inbox");
+    const next = await apiGetList<InboxNotification>("/api/inbox");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

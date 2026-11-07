@@ -8,6 +8,7 @@
 // requirements, and an empty result is relaxed step by step — with the relaxation reported — instead of reported as "none".
 import { toIELTSEquivalent, courseHasOpenIntake } from "./universityFilter";
 import { courseFeeText, courseFeeIn, courseCurrencySymbol, courseFeeKind, feeCurrenciesFor } from "./courseFee";
+import { courseCountOf } from "../data/universityCatalogStore";
 import type { University } from "../types";
 
 type Course = University["courses"][number];
@@ -397,7 +398,7 @@ export function universitySummary(u: University, courseLimit = 0) {
     applicationFeeWaiver: u.applicationFeeWaiverAvailable ? `${u.applicationFeeWaiverPercent ?? ""}%`.trim() : undefined,
     restrictedRegions: u.restrictedRegions ?? [],
     campuses: (u.campuses ?? []).map((k) => ({ id: k.id, name: k.name, city: k.city })),
-    subjects: u.subjects, courseCount: u.courses.length,
+    subjects: u.subjects, courseCount: courseCountOf(u),
     ...(courseLimit > 0 ? { courses: u.courses.slice(0, courseLimit).map((c) => ({ id: c.id, name: c.name, level: c.level, subject: c.subject })), coursesTruncated: u.courses.length > courseLimit } : {}),
   };
 }

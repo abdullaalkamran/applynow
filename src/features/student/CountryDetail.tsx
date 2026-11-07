@@ -9,7 +9,7 @@ import { usePreservedState } from "../../utils/syncCache";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search, GraduationCap, BookOpen, ChevronRight, Wallet } from "lucide-react";
 import { LogoBadge, Pagination } from "../../components/ui/mobile";
-import { getAllUniversities } from "../../data/universityCatalogStore";
+import { getAllUniversities, courseCountOf } from "../../data/universityCatalogStore";
 import { getCountryByName } from "../../data/countryRegistry";
 import { CountryGuideDisclosure } from "../../components/CountryGuideSection";
 import { CountryHero, CountryOverviewCards } from "../../components/CountryOverview";
@@ -28,7 +28,7 @@ export default function CountryDetail() {
 
   const universities = useMemo(() => getAllUniversities().filter((u) => u.country === country), [country]);
   const countryDetails = useMemo(() => getCountryByName(country), [country]);
-  const totalCourses = useMemo(() => universities.reduce((sum, u) => sum + u.courses.length, 0), [universities]);
+  const totalCourses = useMemo(() => universities.reduce((sum, u) => sum + courseCountOf(u), 0), [universities]);
 
   const subjectCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -178,7 +178,7 @@ export default function CountryDetail() {
                   <p className="truncate text-xs text-neutral-400">{u.city}, {u.country}</p>
                   <div className="mt-1 flex items-center gap-3 text-[11px] text-neutral-500">
                     <span className="inline-flex items-center gap-1"><GraduationCap size={11} /> {u.worldRank} world rank</span>
-                    <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
+                    <span className="inline-flex items-center gap-1"><BookOpen size={11} /> {courseCountOf(u)} course{u.courses.length === 1 ? "" : "s"}</span>
                   </div>
                 </div>
                 <ChevronRight size={16} className="shrink-0 text-neutral-300" />

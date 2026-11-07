@@ -3,7 +3,7 @@
 // page drives a sequential run loop, and a notifyCacheChange() would remount it (see
 // utils/syncCache.ts) mid-batch. Only an approval touches the shared university cache — the
 // caller refreshes that itself.
-import { apiDelete, apiGet, apiPatch, apiPost } from "../utils/apiClient";
+import { apiDelete, apiGet, apiPatch, apiPost, apiGetList } from "../utils/apiClient";
 import { dedupeInFlight } from "../utils/syncCache";
 import type { University } from "../types";
 
@@ -66,7 +66,7 @@ export function fetchCourseImportConfig(): Promise<CourseImportConfig> {
 }
 
 export async function listCourseImports(universityId: string): Promise<CourseImportItem[]> {
-  const items = await apiGet<CourseImportItem[]>(`/api/course-imports?universityId=${encodeURIComponent(universityId)}`);
+  const items = await apiGetList<CourseImportItem>(`/api/course-imports?universityId=${encodeURIComponent(universityId)}`);
   rememberCourseImports(items);
   return items;
 }

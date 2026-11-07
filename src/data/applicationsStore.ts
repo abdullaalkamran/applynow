@@ -8,7 +8,7 @@
 // too, written automatically server-side by the status/assignment routes below — nothing here
 // calls recordActivity() itself, since doing so would just double the entry the server already
 // creates in the same request.
-import { apiGet, apiPatch, apiPost } from "../utils/apiClient";
+import { apiGet, apiPatch, apiPost, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { ensureCoreDocRequested, statementOfPurposeType } from "./coreDocsStore";
 import type { Application, AppStatus, Role } from "../types";
@@ -25,7 +25,7 @@ let refreshSeq = 0;
 export function refreshApplications(): Promise<void> {
   return dedupeInFlight("applications", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<Application[]>("/api/applications");
+    const next = await apiGetList<Application>("/api/applications");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

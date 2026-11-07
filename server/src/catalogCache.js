@@ -16,7 +16,9 @@ const prisma = require("./prismaClient");
 // Universities per database round trip (each carries all its courses). One at a time meant one round trip per university —
 // hundreds of sequential queries holding connections from the shared pool while a counsellor's own requests waited behind them.
 const PAGE_SIZE = 5;
-const MAX_AGE_MS = 10 * 60 * 1000; // safety net for any write path that forgets to call invalidateCatalog()
+// Safety net for any write path that forgets to call invalidateCatalog(). Rebuilding is heavy (the whole catalogue is re-read,
+// serialised and gzipped), so it is rare: writes already invalidate immediately.
+const MAX_AGE_MS = 60 * 60 * 1000;
 
 let version = 0;
 let built = null; // { version, at, etag, gzip }

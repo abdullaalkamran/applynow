@@ -5,7 +5,8 @@ import { fetchCourseImportConfig } from "../../../data/courseImportsStore";
 import { PageHeader, Button, StatTile } from "../../../components/ui";
 import { LogoBadge, Pagination } from "../../../components/ui/mobile";
 import { usePagedList } from "../../../utils/usePagedList";
-import { getAllUniversities, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
+import { CatalogLoadNotice } from "../../../components/CatalogLoadNotice";
+import { getAllUniversities, courseCountOf, deleteUniversity, isCustomUniversity } from "../../../data/universityCatalogStore";
 import { getAllApplications } from "../../../data/applicationsStore";
 import { getAllStudents } from "../../../data/allStudentsStore";
 import { loadStaff } from "../../../data/staffStore";
@@ -28,7 +29,7 @@ export default function DataUniversities() {
 
   const universities = getAllUniversities();
   const countries = Array.from(new Set(universities.map((u) => u.country))).sort();
-  const totalCourses = universities.reduce((sum, u) => sum + u.courses.length, 0);
+  const totalCourses = universities.reduce((sum, u) => sum + courseCountOf(u), 0);
   const effectiveCountry = scopedCountry ?? country;
 
   // Students with an application to this destination country, and the agents representing them —
@@ -84,10 +85,11 @@ export default function DataUniversities() {
         }
       />
 
+      <CatalogLoadNotice />
       {scopedCountry && <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Country Overview</p>}
       <div className="mb-6 flex flex-wrap gap-4">
         <StatTile label="Universities" value={String(filtered.length)} />
-        <StatTile label="Courses" value={String(scopedCountry ? filtered.reduce((s, u) => s + u.courses.length, 0) : totalCourses)} />
+        <StatTile label="Courses" value={String(scopedCountry ? filtered.reduce((s, u) => s + courseCountOf(u), 0) : totalCourses)} />
         {!scopedCountry && <StatTile label="Countries" value={String(countries.length)} />}
         {scopedCountry && <StatTile label="Students" value={String(studentsInCountry.length)} />}
         {scopedCountry && <StatTile label="Agents" value={String(agentsInCountry.length)} />}
@@ -226,7 +228,7 @@ export default function DataUniversities() {
                 <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400">{u.id}</span>
               </p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500">
-                <span className="inline-flex items-center gap-1"><BookOpen size={11} className="text-slate-400" /> {u.courses.length} course{u.courses.length === 1 ? "" : "s"}</span>
+                <span className="inline-flex items-center gap-1"><BookOpen size={11} className="text-slate-400" /> {courseCountOf(u)} course{courseCountOf(u) === 1 ? "" : "s"}</span>
                 <span className="inline-flex items-center gap-1"><GraduationCap size={11} className="text-slate-400" /> {u.worldRank}</span>
               </div>
             </div>

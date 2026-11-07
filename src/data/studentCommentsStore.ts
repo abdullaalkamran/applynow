@@ -5,7 +5,7 @@
 // entirely and only the saving browser ever saw. Same lazy-per-id, always-refetch-on-read pattern
 // as applicationActivityStore.ts — see that file's own comment for why a comment thread refetches
 // on every read instead of only the first time.
-import { apiGet, apiPost } from "../utils/apiClient";
+import { apiPost, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged } from "../utils/syncCache";
 import type { Role } from "../types";
 import { reportSaveError } from "../utils/toast";
@@ -21,7 +21,7 @@ export interface StudentComment {
 const cache: Record<string, StudentComment[]> = {};
 
 function refreshFromServer(studentId: string) {
-  apiGet<StudentComment[]>(`/api/students/${studentId}/comments`)
+  apiGetList<StudentComment>(`/api/students/${studentId}/comments`)
     .then((next) => {
       if (!cacheChanged(next, cache[studentId] ?? [])) return;
       cache[studentId] = next;

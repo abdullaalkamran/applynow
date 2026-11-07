@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Table, Badge, PageHeader, EmptyState } from "../../components/ui";
 import { ROLES } from "../../data/mockData";
-import { apiGet } from "../../utils/apiClient";
+import { apiGetList } from "../../utils/apiClient";
 
 interface AuditEntry {
   id: string;
@@ -19,7 +19,7 @@ export default function AdminAuditLogs() {
 
   useEffect(() => {
     let cancelled = false;
-    apiGet<AuditEntry[]>("/api/applications/audit-log")
+    apiGetList<AuditEntry>("/api/applications/audit-log")
       .then((rows) => { if (!cancelled) setEntries(rows); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't load the audit log."); });
     return () => { cancelled = true; };

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { apiGet, apiPost } from "./apiClient";
+import { apiGet, apiGetList, apiPost } from "./apiClient";
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -55,5 +55,41 @@ describe("apiGet request sharing", () => {
     expect(results.map((r) => r.status)).toEqual(["rejected", "rejected"]);
     fetchMock.mockImplementation(async () => json({ fine: true }));
     await expect(apiGet("/api/x")).resolves.toEqual({ fine: true });
+  });
+});
+
+describe("unreadable and non-list answers", () => {
+  const text = (body: string, status = 200) => new Response(body, { status });
+
+  it("an OK answer that isn't JSON is an error — never {} handed on as if it were the data", async () => {
+    fetchMock.mockImplementation(async () => text("<html>Service temporarily unavailable</html>"));
+    await expect(apiGet("/api/countries")).rejects.toThrow(/unexpected response/i);
+  });
+
+  it("a body cut off mid-way is an error too", async () => {
+    fetchMock.mockImplementation(async () => text('[{"id":"u1","name":"Lee'));
+    await expect(apiGet("/api/universities/summary")).rejects.toThrow(/unexpected response/i);
+  });
+
+  it("a genuinely empty OK answer still reads as {}", async () => {
+    fetchMock.mockImplementation(async () => text(""));
+    await expect(apiGet("/api/anything")).resolves.toEqual({});
+  });
+
+  it("an error answer keeps the server's message and its status", async () => {
+    fetchMock.mockImplementation(async () => text(JSON.stringify({ error: "A country with that name already exists." }), 409));
+    await expect(apiPost("/api/countries/x", {})).rejects.toMatchObject({ message: "A country with that name already exists.", status: 409 });
+  });
+
+  it("apiGetList returns a real list", async () => {
+    fetchMock.mockImplementation(async () => json([{ id: "a" }]));
+    await expect(apiGetList("/api/x")).resolves.toEqual([{ id: "a" }]);
+  });
+
+  it("apiGetList refuses an object, so a store can never end up holding one", async () => {
+    fetchMock.mockImplementation(async () => json({ error: "slow" }));
+    await expect(apiGetList("/api/x")).rejects.toThrow(/unexpected response/i);
+    fetchMock.mockImplementation(async () => text(""));
+    await expect(apiGetList("/api/y")).rejects.toThrow(/unexpected response/i);
   });
 });

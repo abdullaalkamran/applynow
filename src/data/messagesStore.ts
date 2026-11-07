@@ -3,7 +3,7 @@
 // role) and, before that UI existed, the student AI assistant's "send a message" tool. `from` is
 // always derived server-side from whoever's authenticated, never trusted from the client.
 import type { Role } from "../types";
-import { apiGet, apiPost, apiPatch } from "../utils/apiClient";
+import { apiPost, apiPatch, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -41,7 +41,7 @@ export function threadIdFor(a: { role: Role; id: string }, b: { role: Role; id: 
 }
 
 function refreshThread(threadId: string) {
-  apiGet<Message[]>(`/api/messages/${threadId}`)
+  apiGetList<Message>(`/api/messages/${threadId}`)
     .then((messages) => {
       if (!cacheChanged(messages, cache[threadId] ?? [])) return;
       cache[threadId] = messages;
@@ -96,7 +96,7 @@ export function markThreadRead(threadId: string) {
  * conversations" is naturally one request. */
 export function refreshThreadsList(): Promise<void> {
   return dedupeInFlight("message-threads-list", async () => {
-    const next = await apiGet<MessageThread[]>("/api/messages/threads");
+    const next = await apiGetList<MessageThread>("/api/messages/threads");
     if (!cacheChanged(next, threads)) return;
     threads = next;
     notifyCacheChange();
@@ -115,7 +115,7 @@ export function unreadMessageCount(): number {
  * getContactsFor for the actual "who's connected to whom" rule per role. */
 export function refreshContacts(): Promise<void> {
   return dedupeInFlight("message-contacts", async () => {
-    const next = await apiGet<MessageParticipant[]>("/api/messages/contacts");
+    const next = await apiGetList<MessageParticipant>("/api/messages/contacts");
     if (!cacheChanged(next, contacts)) return;
     contacts = next;
     notifyCacheChange();

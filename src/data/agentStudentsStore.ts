@@ -1,7 +1,7 @@
 // Postgres-backed via /api/students?agentId=... (server/src/routes/students.js) — same
 // synchronous-cache pattern as applicationsStore.ts.
 import { CURRENT_AGENT_ID } from "./mockData";
-import { apiGet, apiPost } from "../utils/apiClient";
+import { apiPost, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import type { Student } from "../types";
 
@@ -14,7 +14,7 @@ export function refreshAgentStudents(): Promise<void> {
     // a pointless request.
     if (!CURRENT_AGENT_ID) return;
     const seq = ++refreshSeq;
-    const next = await apiGet<Student[]>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
+    const next = await apiGetList<Student>(`/api/students?agentId=${encodeURIComponent(CURRENT_AGENT_ID)}`);
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

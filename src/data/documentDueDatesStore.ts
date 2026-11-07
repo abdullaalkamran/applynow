@@ -5,7 +5,7 @@
 // derives from it for their Tasks pages — works uniformly whether the document is automatically
 // required (core/university derived) or a custom request, since it's keyed only by
 // (applicationId, type).
-import { apiGet, apiPost, apiDelete } from "../utils/apiClient";
+import { apiPost, apiDelete, apiGetList } from "../utils/apiClient";
 import { notifyCacheChange, cacheChanged, dedupeInFlight } from "../utils/syncCache";
 import { reportSaveError } from "../utils/toast";
 
@@ -24,7 +24,7 @@ let refreshSeq = 0;
 export function refreshDocDueDates(): Promise<void> {
   return dedupeInFlight("document-due-dates", async () => {
     const seq = ++refreshSeq;
-    const next = await apiGet<DueDateEntry[]>("/api/document-due-dates");
+    const next = await apiGetList<DueDateEntry>("/api/document-due-dates");
     // A slower, older response landing after a newer one must not win.
     if (seq !== refreshSeq) return;
     if (!cacheChanged(next, cache)) return;

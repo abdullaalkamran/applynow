@@ -8,7 +8,7 @@ const requireAuth = require("../middleware/requireAuth");
 const { requireDataRole } = require("../middleware/access");
 
 const zlib = require("zlib");
-const { getCatalog, invalidateCatalog, warmCatalog, catalogVersion } = require("../catalogCache");
+const { getCatalog, invalidateCatalog, catalogVersion } = require("../catalogCache");
 
 const router = express.Router();
 
@@ -412,7 +412,9 @@ router.delete("/:id/courses/:courseId", requireAuth, requireDataRole, async (req
 // The course write/read helpers are shared with routes/courseImports.js so an approved import
 // is created exactly the way a hand-entered course is. Attaching them to the router keeps
 // `app.use("/api/universities", require(...))` working unchanged.
-setTimeout(() => warmCatalog(serializeUniversity), 5000).unref();
-setTimeout(() => require("../courseSearch").warmIndex(), 8000).unref();
+// Deliberately NOT built at start-up: building the full catalogue (tens of MB of JSON, gzipped) and the search index is heavy CPU
+// and database work, and a freshly started worker does it while the first real requests are arriving — on a shared host that
+// throttles CPU, that made every request (even a plain 401) take seconds. Both are built the first time they're asked for and
+// then served from memory; see catalogCache.js and courseSearch.js.
 
 module.exports = Object.assign(router, { courseWriteData, serializeCourse, mergedSubjects, universityWriteData, serializeUniversity });

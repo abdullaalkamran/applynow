@@ -2,7 +2,7 @@
 // university-level twin of courseImportsStore.ts, with the same "plain async calls, no shared
 // cache tick" rationale (see that file). Only an approval touches the catalog cache; the caller
 // refreshes it.
-import { apiDelete, apiGet, apiPatch, apiPost } from "../utils/apiClient";
+import { apiDelete, apiPatch, apiPost, apiGetList } from "../utils/apiClient";
 import type { University } from "../types";
 import type { Confidence, CourseImportStatus } from "./courseImportsStore";
 
@@ -42,7 +42,7 @@ export function getCachedUniversityImport(id: string): UniversityImportItem | un
 }
 
 export async function listUniversityImports(): Promise<UniversityImportItem[]> {
-  const items = await apiGet<UniversityImportItem[]>("/api/university-imports");
+  const items = await apiGetList<UniversityImportItem>("/api/university-imports");
   for (const item of items) seen.set(item.id, item);
   return items;
 }
