@@ -16,6 +16,7 @@
 // built lazily from the database and rebuilt after any catalog write (see catalogCache.js's version counter).
 const prisma = require("./prismaClient");
 const { catalogVersion } = require("./catalogCache");
+const { slugify, slugClaimer } = require("./slugs");
 
 const FEE_MIN = 0;
 const FEE_MAX = 100000;
@@ -114,7 +115,40 @@ async function loadIndex(startedAt) {
     if (rows.length < COURSE_PAGE) break;
     cursor = rows[rows.length - 1].id;
   }
-  return { version: startedAt, at: Date.now(), universities: list, byId };
+  const bySlug = assignSlugs(list);
+  return { version: startedAt, at: Date.now(), universities: list, byId, bySlug };
+}
+
+/** Gives every university and course its readable URL name (see slugs.js) and returns the university slug -> university map.
+ * University slugs are unique across the catalogue (a taken name gets its city added, then a number); course slugs are unique
+ * within their university. Each university also gets `courseBySlug` / `courseById` lookups. */
+function assignSlugs(universities) {
+  const bySlug = new Map();
+  const claimUniversity = slugClaimer();
+  for (const u of universities) {
+    u.slug = claimUniversity(slugify(u.name, "university"), u.city);
+    bySlug.set(u.slug, u);
+    const claimCourse = slugClaimer();
+    u.courseBySlug = new Map();
+    u.courseById = new Map();
+    for (const c of u.courses) {
+      c.slug = claimCourse(slugify(c.name, "course"), c.level);
+      u.courseBySlug.set(c.slug, c);
+      u.courseById.set(c.id, c);
+    }
+  }
+  return bySlug;
+}
+
+/** The university a URL part names: its readable slug, or (old links) its id. */
+function resolveUniversity(index, key) {
+  const k = String(key ?? "");
+  return index.bySlug?.get(k) ?? index.bySlug?.get(k.toLowerCase()) ?? index.byId.get(k) ?? null;
+}
+/** The course of `university` a URL part names: its slug, or (old links) its id. */
+function resolveCourse(university, key) {
+  const k = String(key ?? "");
+  return university.courseBySlug?.get(k) ?? university.courseBySlug?.get(k.toLowerCase()) ?? university.courseById?.get(k) ?? null;
 }
 
 let built = null;
@@ -418,7 +452,7 @@ const SORTS = new Set(["best", "rank", "feeLow", "feeHigh", "employability", "na
 /** The fields a university card needs — not its courses. */
 function universityCard(u) {
   return {
-    id: u.id, name: u.name, city: u.city, country: u.country, tags: u.tags, openIntake: u.openIntake, logoUrl: u.logoUrl,
+    id: u.id, slug: u.slug, name: u.name, city: u.city, country: u.country, tags: u.tags, openIntake: u.openIntake, logoUrl: u.logoUrl,
     scholarshipsAvailable: u.scholarshipsAvailable, scholarships: u.scholarships, currencySymbol: u.currencySymbol,
     depositMode: u.depositMode, minimumDepositAmount: u.minimumDepositAmount, worldRank: u.worldRank, employability: u.employability,
     intakes: u.intakes, intakeStatus: u.intakeStatus,
@@ -426,7 +460,7 @@ function universityCard(u) {
 }
 function courseCard(c) {
   return {
-    id: c.id, name: c.name, level: c.level, duration: c.duration, subject: c.subject, feeUSD: c.feeUSD, feeStatus: c.feeStatus,
+    id: c.id, slug: c.slug, name: c.name, level: c.level, duration: c.duration, subject: c.subject, feeUSD: c.feeUSD, feeStatus: c.feeStatus,
     currencySymbol: c.currencySymbol, intakes: c.intakes, studyMode: c.studyMode,
   };
 }
@@ -603,4 +637,4 @@ function warmIndex() {
   startBuild().catch((err) => console.warn("Search index warm-up failed:", err));
 }
 
-module.exports = { search, runSearch, resolveFeeCurrency, facetsFor, runFacets, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };
+module.exports = { search, runSearch, resolveUniversity, resolveCourse, assignSlugs, resolveFeeCurrency, facetsFor, runFacets, getIndex, warmIndex, prepareFilters, filterUniversities, courseMatchesFilters, searchTokens, slimUniversity, slimCourse, MAX_LIMIT, DEFAULT_LIMIT };

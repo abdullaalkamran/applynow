@@ -55,7 +55,7 @@ export interface ExploreVariant {
   /** Route of the page; Advanced Search lives at `${basePath}/filters`. */
   basePath: string;
   title: string;
-  universityPath: (id: string) => string;
+  universityPath: (id: string, slug?: string) => string;
   countryPath: (name: string) => string;
   /** Student only: personal shortlist, apply-for-myself and the "complete your profile first" gate. */
   ownApplications: boolean;
@@ -69,7 +69,7 @@ export interface ExploreVariant {
    * Universities/Courses tabs are separate URLs (`defaultTab` is the one this route shows). */
   publicMode?: boolean;
   /** Where a course lives, when it has its own address (public pages): opening a program card goes there. */
-  coursePath?: (universityId: string, courseId: string) => string;
+  coursePath?: (universityId: string, courseId: string, universitySlug?: string, courseSlug?: string) => string;
   tabs?: Tab[];
   defaultTab?: Tab;
 }
@@ -243,8 +243,8 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
     });
   }
 
-  function openProgram(universityId: string, courseId: string, courseName: string, subject: string) {
-    if (variant.coursePath) return navigate(variant.coursePath(universityId, courseId));
+  function openProgram(universityId: string, courseId: string, courseName: string, subject: string, universitySlug?: string, courseSlug?: string) {
+    if (variant.coursePath) return navigate(variant.coursePath(universityId, courseId, universitySlug, courseSlug));
     navigate(variant.universityPath(universityId), { state: { selectedCourseName: courseName, subject } });
   }
 
@@ -509,7 +509,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                     course={c}
                     shortlisted={variant.ownApplications ? isShortlisted(programKey) : false}
                     onToggleShortlist={variant.ownApplications ? () => toggleProgramShortlist(programKey) : undefined}
-                    onOpen={() => openProgram(u.id, c.id, c.name, c.subject)}
+                    onOpen={() => openProgram(u.id, c.id, c.name, c.subject, u.slug, c.slug)}
                     onApply={
                       variant.ownApplications
                         ? () => { void openApply(row); }
@@ -580,7 +580,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                 return (
                   <button
                     key={u.id}
-                    onClick={() => navigate(variant.universityPath(u.id))}
+                    onClick={() => navigate(variant.universityPath(u.id, u.slug))}
                     className="relative flex w-full items-center gap-3 rounded-2xl bg-[var(--sd-card)] p-3.5 text-left shadow-neu sm:gap-4 sm:rounded-3xl sm:p-5"
                   >
                     <span

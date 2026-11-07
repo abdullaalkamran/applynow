@@ -5,6 +5,7 @@ process.env.DATABASE_URL ||= "mysql://test:test@localhost:3306/test";
 const require = createRequire(import.meta.url);
 const prisma = require("../src/prismaClient");
 const seo = require("../src/seo.js");
+const courseSearch = require("../src/courseSearch.js");
 const siteMeta = require("../../src/data/siteMeta.json");
 
 const UNI = {
@@ -119,7 +120,12 @@ async function page(pattern, url, params = {}) {
 const metaOf = (html, re) => (html.match(re) || [])[1] || "";
 const jsonLdTypes = (html) => [...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1].replace(/\\u003c/g, "<")))).map((o) => o["@type"]);
 
+// What the search index holds for the test catalogue (slugs are assigned by the real code).
+const INDEX_UNI = { id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", courses: [{ id: "c1", name: "MSc Data Science", level: "Postgraduate" }] };
+const INDEX = { universities: [INDEX_UNI], byId: new Map([["u1", INDEX_UNI]]), bySlug: courseSearch.assignSlugs([INDEX_UNI]) };
+
 beforeAll(() => {
+  courseSearch.getIndex = async () => INDEX;
   prisma.university.findMany = async () => [{ id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", updatedAt: new Date() }];
   prisma.university.findUnique = async ({ where }) => (where.id === "u1" ? UNI : null);
   prisma.blogPost.findMany = async () => [];
@@ -131,7 +137,7 @@ beforeAll(() => {
 describe("rendered pages", () => {
   const cases = [
     ["home", "/", "/"], ["universities", "/universities", "/universities"], ["courses", "/courses", "/courses"],
-    ["university", "/universities/:id", "/universities/u1", { id: "u1" }], ["course", "/universities/:id/courses/:courseId", "/universities/u1/courses/c1", { id: "u1", courseId: "c1" }],
+    ["university", "/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" }], ["course", "/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/msc-data-science", { id: "university-of-leeds", courseId: "msc-data-science" }],
   ];
   for (const [name, pattern, url, params] of cases) {
     it(`${name}: one h1, a canonical link, a title ≤65 and a description ≤160`, async () => {
@@ -156,7 +162,7 @@ describe("rendered pages", () => {
   });
 
   it("university and course pages carry FAQ markup that matches the answers shown on the page", async () => {
-    for (const [pattern, url, params] of [["/universities/:id", "/universities/u1", { id: "u1" }], ["/universities/:id/courses/:courseId", "/universities/u1/courses/c1", { id: "u1", courseId: "c1" }]]) {
+    for (const [pattern, url, params] of [["/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" }], ["/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/msc-data-science", { id: "university-of-leeds", courseId: "msc-data-science" }]]) {
       const { body } = await page(pattern, url, params);
       expect(jsonLdTypes(body)).toEqual(expect.arrayContaining(["FAQPage", "BreadcrumbList"]));
       const faq = JSON.parse([...body.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1].replace(/\\u003c/g, "<")).find((j) => j.includes("FAQPage")));
@@ -176,7 +182,42 @@ describe("rendered pages", () => {
 
   it("an unknown university or course is a 404 and not indexed", async () => {
     const u = await page("/universities/:id", "/universities/nope", { id: "nope" });
-    const c = await page("/universities/:id/courses/:courseId", "/universities/u1/courses/nope", { id: "u1", courseId: "nope" });
+    const c = await page("/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/nope", { id: "university-of-leeds", courseId: "nope" });
     for (const r of [u, c]) { expect(r.status).toBe(404); expect(r.body).toContain("noindex"); }
+  });
+});
+
+describe("readable addresses", () => {
+  it("the university and course pages name themselves by slug in canonical, structured data and links", async () => {
+    const u = await page("/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" });
+    expect(metaOf(u.body, /<link rel="canonical" href="([^"]+)"/)).toMatch(/\/universities\/university-of-leeds$/);
+    expect(u.body).toContain("/universities/university-of-leeds/courses/msc-data-science");
+    expect(u.body).not.toContain("/universities/u1");
+    const c = await page("/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/msc-data-science", { id: "university-of-leeds", courseId: "msc-data-science" });
+    expect(metaOf(c.body, /<link rel="canonical" href="([^"]+)"/)).toMatch(/\/universities\/university-of-leeds\/courses\/msc-data-science$/);
+    expect(c.body).toContain("/universities/university-of-leeds");
+  });
+
+  it("an old id-style address redirects (301) to the readable one", async () => {
+    const calls = [];
+    const run = async (pattern, url, params) => {
+      await routes[pattern]({ originalUrl: url, params }, { redirect: (code, to) => calls.push([code, to]), status() { return this; }, set() { return this; }, send() {} }, () => {});
+    };
+    await run("/universities/:id", "/universities/u1", { id: "u1" });
+    await run("/universities/:id/courses/:courseId", "/universities/u1/courses/c1", { id: "u1", courseId: "c1" });
+    await run("/universities/:id/courses/:courseId", "/universities/University-Of-Leeds/courses/c1", { id: "University-Of-Leeds", courseId: "c1" });
+    expect(calls).toEqual([
+      [301, "/universities/university-of-leeds"],
+      [301, "/universities/university-of-leeds/courses/msc-data-science"],
+      [301, "/universities/university-of-leeds/courses/msc-data-science"],
+    ]);
+  });
+
+  it("the sitemaps list the readable addresses", async () => {
+    const pages = await page("/sitemap-pages.xml", "/sitemap-pages.xml");
+    expect(pages.body).toContain("/universities/university-of-leeds<");
+    expect(pages.body).not.toContain("/universities/u1<");
+    const courses = await page("/sitemap-courses-:n.xml", "/sitemap-courses-1.xml", { n: "1" });
+    expect(courses.body).toContain("/universities/university-of-leeds/courses/msc-data-science<");
   });
 });

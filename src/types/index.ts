@@ -185,6 +185,8 @@ export interface CourseAccreditation {
 
 export interface University {
   id: string;
+  // Readable URL name ("bpp-university") — set by the server for the public pages; absent on the signed-in pages.
+  slug?: string;
   name: string;
   city: string;
   country: string;
@@ -208,6 +210,7 @@ export interface University {
   courseCount?: number;
   courses: {
     id: string;
+    slug?: string;
     name: string;
     level: string;
     duration: string;

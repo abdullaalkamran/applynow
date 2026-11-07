@@ -70,7 +70,7 @@ describe("course search: filters", () => {
 
   it("returns only card-sized fields, never descriptions or requirement lists", () => {
     const { item } = { item: run({}).items[0] };
-    expect(Object.keys(item.course).sort()).toEqual(["currencySymbol", "duration", "feeStatus", "feeUSD", "id", "intakes", "level", "name", "studyMode", "subject"].sort());
+    expect(Object.keys(item.course).sort()).toEqual(["currencySymbol", "duration", "feeStatus", "feeUSD", "id", "intakes", "level", "name", "slug", "studyMode", "subject"].sort());
     expect(item.university).not.toHaveProperty("courses");
     expect(JSON.stringify(item).length).toBeLessThan(1500);
   });

@@ -21,8 +21,10 @@ function PublicShell({ children }: { children: ReactNode }) {
 }
 
 const common: Omit<ExploreVariant, "basePath" | "title" | "defaultTab"> = {
-  universityPath: (id) => `/universities/${id}`,
-  coursePath: (universityId, courseId) => `/universities/${universityId}/courses/${encodeURIComponent(courseId)}`,
+  // Readable addresses (/universities/bpp-university/courses/msc-data-science); the id is only a fallback if no slug came back.
+  universityPath: (id, slug) => `/universities/${encodeURIComponent(slug ?? id)}`,
+  coursePath: (universityId, courseId, universitySlug, courseSlug) =>
+    `/universities/${encodeURIComponent(universitySlug ?? universityId)}/courses/${encodeURIComponent(courseSlug ?? courseId)}`,
   countryPath: () => "/login",
   ownApplications: false,
   publicMode: true,

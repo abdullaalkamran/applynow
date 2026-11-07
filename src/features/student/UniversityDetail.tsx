@@ -57,14 +57,21 @@ export default function UniversityDetail() {
   // Public pages keep the chosen course in the URL (/universities/:id/courses/:courseId) so each course has its own shareable,
   // indexable address; the signed-in pages keep it in state, as before.
   const pub = usePublicMode();
+  // The address names the university and course by readable slug (an old id-style address is accepted too).
   const course = pub
-    ? (courseId ? university?.courses.find((c) => c.id === courseId) : undefined)
+    ? (courseId ? university?.courses.find((c) => c.slug === courseId || c.id === courseId) : undefined)
     : university?.courses.find((c) => c.name === activeCourseName);
+  const publicBase = `/universities/${encodeURIComponent(university?.slug ?? id ?? "")}`;
   function setActiveCourseName(name: string | null) {
     if (!pub) return setActiveCourseNameState(name);
     const chosen = name ? university?.courses.find((c) => c.name === name) : undefined;
-    navigate(chosen ? `/universities/${id}/courses/${encodeURIComponent(chosen.id)}` : `/universities/${id}`);
+    navigate(chosen ? `${publicBase}/courses/${encodeURIComponent(chosen.slug ?? chosen.id)}` : publicBase);
   }
+  // An old id-style address is swapped for the readable one (the server also redirects it for crawlers).
+  const canonical = pub && university?.slug ? `${publicBase}${course ? `/courses/${encodeURIComponent(course.slug ?? course.id)}` : ""}` : null;
+  useEffect(() => {
+    if (canonical && decodeURIComponent(location.pathname) !== decodeURIComponent(canonical)) navigate(canonical, { replace: true });
+  }, [canonical, location.pathname, navigate]);
 
   const [uniTab, setUniTab] = useState<(typeof UNIVERSITY_TABS)[number]>("Overview");
   const [saved, setSaved] = useState(false);

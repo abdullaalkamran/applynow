@@ -10,6 +10,7 @@ const { getConfig } = require("./config");
 const faq = require("../../src/data/landingFaq.json");
 
 const SITE_NAME = "UnifinderAi";
+const courseSearch = require("./courseSearch");
 const siteMeta = require("../../src/data/siteMeta.json");
 const DEFAULT_TITLE = siteMeta.title;
 const DEFAULT_DESCRIPTION = siteMeta.description;
@@ -298,16 +299,26 @@ async function newsIndexPage() {
   });
 }
 
-// ---- public university catalogue pages (/universities, /universities/:id, /courses) ----
+// ---- public university catalogue pages (/universities, /universities/:slug, /universities/:slug/courses/:slug, /courses) ----
+// Addresses use readable names (see slugs.js). The old id-style addresses still work and redirect to the readable one. The slugs
+// come from the search index; if it can't be built the pages fall back to ids rather than failing.
+async function catalog() {
+  try { return await courseSearch.getIndex(); } catch (err) { console.warn("SEO pages: search index unavailable, using ids:", err.message); return null; }
+}
+const universityPath = (u) => `/universities/${encodeURIComponent(u.slug ?? u.id)}`;
+const coursePathOf = (u, c) => `${universityPath(u)}/courses/${encodeURIComponent(c.slug ?? c.id)}`;
 const publicImage = (v) => (typeof v === "string" && (v.startsWith("/uploads/") || /^https?:\/\//i.test(v)) ? v : undefined);
 
 async function universitiesIndexPage() {
-  const rows = await prisma.university.findMany({ select: { id: true, name: true, city: true, country: true }, orderBy: { name: "asc" }, take: 500 });
+  const idx = await catalog();
+  const rows = idx
+    ? [...idx.universities].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 500)
+    : await prisma.university.findMany({ select: { id: true, name: true, city: true, country: true }, orderBy: { name: "asc" }, take: 500 });
   const bodyHtml = `
     <main>
       <h1>Explore universities</h1>
       <p>Browse partner universities worldwide: where they are, what they offer, fees and entry requirements.</p>
-      <ul>${rows.map((u) => `<li><h2><a href="/universities/${esc(u.id)}">${esc(u.name)}</a></h2><p>${esc(u.city)}, ${esc(u.country)}</p></li>`).join("")}</ul>
+      <ul>${rows.map((u) => `<li><h2><a href="${esc(universityPath(u))}">${esc(u.name)}</a></h2><p>${esc(u.city)}, ${esc(u.country)}</p></li>`).join("")}</ul>
     </main>`;
   return render({
     title: `Explore Universities Worldwide — ${SITE_NAME}`,
@@ -320,7 +331,7 @@ async function universitiesIndexPage() {
         "@type": "ItemList",
         name: "Partner universities",
         numberOfItems: rows.length,
-        itemListElement: rows.slice(0, 100).map((u, i) => ({ "@type": "ListItem", position: i + 1, name: u.name, url: `${siteUrl()}/universities/${u.id}` })),
+        itemListElement: rows.slice(0, 100).map((u, i) => ({ "@type": "ListItem", position: i + 1, name: u.name, url: `${siteUrl()}${universityPath(u)}` })),
       },
     ],
     bodyHtml,
@@ -343,7 +354,15 @@ async function coursesIndexPage() {
   });
 }
 
-async function universityPage(id) {
+async function universityPage(param) {
+  const idx = await catalog();
+  const hit = idx ? courseSearch.resolveUniversity(idx, param) : null;
+  if (idx && !hit) {
+    return render({ title: `University not found — ${SITE_NAME}`, description: "This university doesn't exist or is no longer available.", path: `/universities/${encodeURIComponent(param)}`, noindex: true, status: 404, bodyHtml: "<main><h1>University not found</h1></main>" });
+  }
+  // An old id-style (or differently cased) address: send visitors and crawlers to the readable one.
+  if (hit && param !== hit.slug) return { redirect: universityPath(hit) };
+  const id = hit ? hit.id : param;
   const u = await prisma.university.findUnique({
     where: { id },
     select: {
@@ -355,8 +374,9 @@ async function universityPage(id) {
     },
   });
   if (!u) {
-    return render({ title: `University not found — ${SITE_NAME}`, description: "This university doesn't exist or is no longer available.", path: `/universities/${id}`, noindex: true, status: 404, bodyHtml: "<main><h1>University not found</h1></main>" });
+    return render({ title: `University not found — ${SITE_NAME}`, description: "This university doesn't exist or is no longer available.", path: `/universities/${encodeURIComponent(param)}`, noindex: true, status: 404, bodyHtml: "<main><h1>University not found</h1></main>" });
   }
+  const uPath = hit ? universityPath(hit) : `/universities/${encodeURIComponent(u.id)}`;
   const where = `${u.city}, ${u.country}`;
   const facts = universityFacts({ ...u, courseCount: u._count.courses, courseNames: u.courses.map((c) => c.name) });
   // The meta description is the direct-answer summary (name, place, ranking, courses, intakes) — what a result snippet should say.
@@ -371,13 +391,13 @@ async function universityPage(id) {
       <p><strong>${esc(facts.summary)}</strong></p>
       ${u.description ? `<p>${esc(u.description)}</p>` : ""}
       ${highlights.length ? `<ul>${highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
-      ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li><a href="/universities/${esc(u.id)}/courses/${esc(encodeURIComponent(c.id))}">${esc(c.name)}</a> — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
+      ${u.courses.length ? `<h2>Courses (${u._count.courses})</h2><ul>${u.courses.map((c) => `<li><a href="${esc(`${uPath}/courses/${encodeURIComponent(hit?.courseById.get(c.id)?.slug ?? c.id)}`)}">${esc(c.name)}</a> — ${esc(c.level)}, ${esc(c.duration)}</li>`).join("")}</ul>` : ""}
       ${faqHtml(facts.faqs)}
     </article></main>`;
   return render({
     title: `${u.name} — ${where} — ${SITE_NAME}`,
     description,
-    path: `/universities/${u.id}`,
+    path: uPath,
     image,
     jsonLd: [
       {
@@ -385,7 +405,7 @@ async function universityPage(id) {
         "@type": "CollegeOrUniversity",
         name: u.name,
         description,
-        url: `${siteUrl()}/universities/${u.id}`,
+        url: `${siteUrl()}${uPath}`,
         sameAs: u.website ? [`https://${String(u.website).replace(/^https?:\/\//i, "")}`] : undefined,
         logo: absolute(publicImage(u.logoUrl)),
         image: image ? [absolute(image)] : undefined,
@@ -397,7 +417,7 @@ async function universityPage(id) {
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: siteUrl() },
           { "@type": "ListItem", position: 2, name: "Universities", item: `${siteUrl()}/universities` },
-          { "@type": "ListItem", position: 3, name: u.name, item: `${siteUrl()}/universities/${u.id}` },
+          { "@type": "ListItem", position: 3, name: u.name, item: `${siteUrl()}${uPath}` },
         ],
       },
       ...faqLd(facts.faqs),
@@ -415,7 +435,16 @@ const feeSentence = (course, uni) => {
   return "";
 };
 
-async function coursePage(universityId, courseId) {
+async function coursePage(universityParam, courseParam) {
+  const idx = await catalog();
+  const uHit = idx ? courseSearch.resolveUniversity(idx, universityParam) : null;
+  const cHit = uHit ? courseSearch.resolveCourse(uHit, courseParam) : null;
+  const notFound = () => render({ title: `Course not found — ${SITE_NAME}`, description: "This course doesn't exist or is no longer available.", path: `/universities/${encodeURIComponent(universityParam)}/courses/${encodeURIComponent(courseParam)}`, noindex: true, status: 404, bodyHtml: "<main><h1>Course not found</h1></main>" });
+  if (idx && !cHit) return notFound();
+  // Old id-style addresses redirect to the readable one.
+  if (uHit && cHit && (universityParam !== uHit.slug || courseParam !== cHit.slug)) return { redirect: coursePathOf(uHit, cHit) };
+  const universityId = uHit ? uHit.id : universityParam;
+  const courseId = cHit ? cHit.id : courseParam;
   const c = await prisma.course.findFirst({
     where: { id: courseId, universityId },
     select: {
@@ -424,10 +453,8 @@ async function coursePage(universityId, courseId) {
       university: { select: { id: true, name: true, city: true, country: true, currencySymbol: true, logoUrl: true, coverPhotoUrl: true, website: true, intakes: true } },
     },
   });
-  const path = `/universities/${universityId}/courses/${courseId}`;
-  if (!c) {
-    return render({ title: `Course not found — ${SITE_NAME}`, description: "This course doesn't exist or is no longer available.", path, noindex: true, status: 404, bodyHtml: "<main><h1>Course not found</h1></main>" });
-  }
+  if (!c) return notFound();
+  const path = uHit && cHit ? coursePathOf(uHit, cHit) : `/universities/${encodeURIComponent(universityId)}/courses/${encodeURIComponent(courseId)}`;
   const u = c.university;
   const where = `${u.city}, ${u.country}`;
   const fee = feeSentence(c, u);
@@ -440,10 +467,11 @@ async function coursePage(universityId, courseId) {
   const modules = list(c.modules);
   const careers = list(c.careers);
   const intakes = list(c.intakes);
-  const uniUrl = `${siteUrl()}/universities/${u.id}`;
+  const uniPath = uHit ? universityPath(uHit) : `/universities/${encodeURIComponent(u.id)}`;
+  const uniUrl = `${siteUrl()}${uniPath}`;
   const bodyHtml = `
     <main><article>
-      <p><a href="/universities">Universities</a> › <a href="/universities/${esc(u.id)}">${esc(u.name)}</a></p>
+      <p><a href="/universities">Universities</a> › <a href="${esc(uniPath)}">${esc(u.name)}</a></p>
       <h1>${esc(c.name)}</h1>
       <p>${esc(u.name)} — ${esc(where)}</p>
       <p><strong>${esc(answers.summary)}</strong></p>
@@ -554,6 +582,7 @@ function pageHandler(build) {
     try {
       const page = await cached(req.originalUrl.split("?")[0], () => build(req));
       if (!page) return next(); // no built frontend (local dev) — let the normal handlers answer
+      if (page.redirect) return res.redirect(301, page.redirect);
       res.status(page.status).set({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" }).send(page.html);
     } catch (err) {
       next(err);
@@ -584,37 +613,42 @@ const urlsetXml = (urls) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xml
 
 async function sitemapIndexXml() {
   const base = siteUrl();
-  const courseCount = await prisma.course.count();
+  const idx = await catalog();
+  const courseCount = idx ? idx.universities.reduce((n, u) => n + u.courses.length, 0) : await prisma.course.count();
   const files = ["sitemap-pages.xml", ...Array.from({ length: Math.ceil(courseCount / COURSES_PER_SITEMAP) }, (_v, i) => `sitemap-courses-${i + 1}.xml`)];
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${files.map((f) => `  <sitemap><loc>${esc(`${base}/${f}`)}</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`;
 }
 
 async function sitemapPagesXml() {
   const posts = await publishedPosts(1000);
-  const universities = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 40000 });
+  const rows = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 40000 });
+  const idx = await catalog();
   const base = siteUrl();
   return urlsetXml([
     { loc: `${base}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${base}/universities`, changefreq: "weekly", priority: "0.9" },
     { loc: `${base}/courses`, changefreq: "weekly", priority: "0.8" },
     { loc: `${base}/news`, changefreq: "daily", priority: "0.8", lastmod: posts[0]?.updatedAt },
-    ...universities.map((u) => ({ loc: `${base}/universities/${u.id}`, changefreq: "monthly", priority: "0.7", lastmod: u.updatedAt })),
+    ...rows.map((r) => ({ loc: `${base}${universityPath(idx?.byId.get(r.id) ?? r)}`, changefreq: "monthly", priority: "0.7", lastmod: r.updatedAt })),
     ...posts.map((p) => ({ loc: `${base}/news/${p.slug}`, changefreq: "monthly", priority: "0.6", lastmod: p.updatedAt })),
   ]);
 }
 
 /** One file of course URLs (null when n is past the last file). Courses carry no timestamp of their own, so lastmod is the
- * university's. */
+ * university's. Addresses are the readable ones; if the index can't be built it falls back to ids. */
 async function sitemapCoursesXml(n) {
-  const total = await prisma.course.count();
-  if (!Number.isInteger(n) || n < 1 || n > Math.max(1, Math.ceil(total / COURSES_PER_SITEMAP))) return null;
-  const [courses, universities] = await Promise.all([
-    prisma.course.findMany({ select: { id: true, universityId: true }, orderBy: { id: "asc" }, skip: (n - 1) * COURSES_PER_SITEMAP, take: COURSES_PER_SITEMAP }),
-    prisma.university.findMany({ select: { id: true, updatedAt: true } }),
-  ]);
-  const modified = new Map(universities.map((u) => [u.id, u.updatedAt]));
+  const idx = await catalog();
+  const modified = new Map((await prisma.university.findMany({ select: { id: true, updatedAt: true } })).map((u) => [u.id, u.updatedAt]));
   const base = siteUrl();
-  return urlsetXml(courses.map((c) => ({ loc: `${base}/universities/${c.universityId}/courses/${encodeURIComponent(c.id)}`, changefreq: "monthly", priority: "0.5", lastmod: modified.get(c.universityId) })));
+  let entries;
+  if (idx) {
+    entries = idx.universities.flatMap((u) => u.courses.map((c) => ({ path: coursePathOf(u, c), at: modified.get(u.id) })));
+  } else {
+    const rows = await prisma.course.findMany({ select: { id: true, universityId: true }, orderBy: { id: "asc" } });
+    entries = rows.map((c) => ({ path: coursePathOf({ id: c.universityId }, c), at: modified.get(c.universityId) }));
+  }
+  if (!Number.isInteger(n) || n < 1 || n > Math.max(1, Math.ceil(entries.length / COURSES_PER_SITEMAP))) return null;
+  return urlsetXml(entries.slice((n - 1) * COURSES_PER_SITEMAP, n * COURSES_PER_SITEMAP).map((e) => ({ loc: `${base}${e.path}`, changefreq: "monthly", priority: "0.5", lastmod: e.at })));
 }
 
 async function llmsTxt() {

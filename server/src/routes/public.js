@@ -4,7 +4,7 @@
 // It never returns student, staff, commission or application data.
 const express = require("express");
 const prisma = require("../prismaClient");
-const { search, facetsFor } = require("../courseSearch");
+const { search, facetsFor, getIndex, resolveUniversity } = require("../courseSearch");
 const { serializeUniversity } = require("./universities");
 const { serializeCountry } = require("./countries");
 const { serialize: serializeSubject } = require("./subjects");
@@ -167,11 +167,23 @@ router.post("/courses/facets", async (req, res, next) => {
 // stored inline (data: URLs) are served as normal images through /photo/... instead of being embedded in the JSON.
 router.get("/universities/:id", async (req, res, next) => {
   try {
-    const row = await prisma.university.findUnique({ where: { id: req.params.id }, include: { courses: true } });
+    // The address part is the readable slug ("bpp-university") or, for old links, the id.
+    let id = req.params.id;
+    let hit = null;
+    try { hit = resolveUniversity(await getIndex(), req.params.id); } catch { /* index unavailable: treat the part as an id */ }
+    if (hit) id = hit.id;
+    const row = await prisma.university.findUnique({ where: { id }, include: { courses: true } });
     if (!row) return res.status(404).json({ error: "University not found." });
     const u = serializeUniversity(row);
     res.set("Cache-Control", "public, max-age=60");
-    res.json({ ...u, logoUrl: photoRef("universityLogo", u.id, row.logoUrl), coverPhotoUrl: photoRef("university", u.id, row.coverPhotoUrl) });
+    res.json({
+      ...u,
+      slug: hit?.slug,
+      // each course carries its readable slug so the page can link to it
+      courses: u.courses.map((c) => ({ ...c, slug: hit?.courseById.get(c.id)?.slug })),
+      logoUrl: photoRef("universityLogo", u.id, row.logoUrl),
+      coverPhotoUrl: photoRef("university", u.id, row.coverPhotoUrl),
+    });
   } catch (err) {
     next(err);
   }

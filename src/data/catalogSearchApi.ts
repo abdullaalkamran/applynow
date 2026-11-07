@@ -14,10 +14,10 @@ type Course = University["courses"][number];
 /** The university fields a list card shows — never its courses. */
 export type CardUniversity = Pick<
   University,
-  "id" | "name" | "city" | "country" | "tags" | "openIntake" | "logoUrl" | "scholarshipsAvailable" | "scholarships" | "currencySymbol" |
+  "id" | "slug" | "name" | "city" | "country" | "tags" | "openIntake" | "logoUrl" | "scholarshipsAvailable" | "scholarships" | "currencySymbol" |
   "depositMode" | "minimumDepositAmount" | "worldRank" | "employability" | "intakes" | "intakeStatus"
 >;
-export type CardCourse = Pick<Course, "id" | "name" | "level" | "duration" | "subject" | "feeUSD" | "feeStatus" | "currencySymbol" | "intakes" | "studyMode">;
+export type CardCourse = Pick<Course, "id" | "slug" | "name" | "level" | "duration" | "subject" | "feeUSD" | "feeStatus" | "currencySymbol" | "intakes" | "studyMode">;
 export interface ProgramRow { university: CardUniversity; course: CardCourse }
 
 export interface SearchPage<T> { items: T[]; total: number; page: number; limit: number; currencies?: string[] }
