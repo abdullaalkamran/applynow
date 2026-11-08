@@ -125,6 +125,10 @@ const INDEX_UNI = { id: "u1", name: "University of Leeds", city: "Leeds", countr
 const INDEX = { universities: [INDEX_UNI], byId: new Map([["u1", INDEX_UNI]]), bySlug: courseSearch.assignSlugs([INDEX_UNI]) };
 
 const stored = { row: null };
+const COUNTRIES = [
+  { id: "c-uk", name: "United Kingdom", updatedAt: new Date("2026-11-01"), tagline: "Heritage meets innovation", whyThisCountry: "World-ranked universities.", keyInfo: { avgTuitionFeeRange: "£12,000–£26,000 a year", postStudyWorkVisa: "2 years (Graduate Route)" }, whyStudyHighlights: [{ id: "h1", title: "Short degrees", description: "1-year Masters" }], photoUrl: null },
+  { id: "c-kr", name: "South Korea", updatedAt: new Date("2026-11-02"), keyInfo: null, whyStudyHighlights: [], photoUrl: null },
+];
 beforeAll(() => {
   courseSearch.getIndex = async () => INDEX;
   prisma.university.findMany = async () => [{ id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", updatedAt: new Date() }];
@@ -132,6 +136,7 @@ beforeAll(() => {
   prisma.blogPost.findMany = async () => [];
   prisma.course.findFirst = async ({ where }) => (where.id === "c1" ? COURSE : null);
   prisma.course.count = async () => 3;
+  prisma.country = { findMany: async () => COUNTRIES, findUnique: async ({ where }) => COUNTRIES.find((c) => c.id === where.id) ?? null };
   prisma.sitePage = { findUnique: async () => stored.row, upsert: async () => null, deleteMany: async () => null };
   seo.registerSeoRoutes({ use() {}, get(p, h) { routes[p] = h; } });
 });
@@ -139,7 +144,8 @@ beforeAll(() => {
 describe("rendered pages", () => {
   const cases = [
     ["home", "/", "/"], ["universities", "/universities", "/universities"], ["courses", "/courses", "/courses"],
-    ["about", "/about", "/about"],
+    ["about", "/about", "/about"], ["countries", "/countries", "/countries"],
+    ["country", "/countries/:slug", "/countries/united-kingdom", { slug: "united-kingdom" }],
     ["university", "/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" }], ["course", "/universities/:id/courses/:courseId", "/universities/university-of-leeds/courses/msc-data-science", { id: "university-of-leeds", courseId: "msc-data-science" }],
   ];
   for (const [name, pattern, url, params] of cases) {
@@ -283,5 +289,51 @@ describe("About page", () => {
     expect(loaded.isDefault).toBe(true);
     expect(loaded.content.heading).toBe("About UnifinderAi");
     stored.row = null;
+  });
+});
+
+describe("Country pages", () => {
+  it("a country page shows the guide, facts, universities and answers, with structured data", async () => {
+    const { status, body } = await page("/countries/:slug", "/countries/united-kingdom", { slug: "united-kingdom" });
+    expect(status).toBe(200);
+    expect(body).toContain("<h1>Study in United Kingdom</h1>");
+    expect(body).toContain("Heritage meets innovation");
+    expect(body).toContain("£12,000–£26,000 a year");
+    expect(body).toContain('<a href="/universities/university-of-leeds">University of Leeds</a>');
+    expect(body).toContain("How many universities can I choose from in United Kingdom?");
+    expect(body).not.toContain("undefined");
+    const types = [...body.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1].replace(/\\u003c/g, "<"))["@type"]);
+    expect(types).toEqual(expect.arrayContaining(["WebPage", "BreadcrumbList", "ItemList", "FAQPage"]));
+  });
+
+  it("a country with no universities or details still renders, without made-up answers", async () => {
+    const { status, body } = await page("/countries/:slug", "/countries/south-korea", { slug: "south-korea" });
+    expect(status).toBe(200);
+    expect(body).toContain("<h1>Study in South Korea</h1>");
+    expect(body).not.toContain("Frequently asked questions");
+  });
+
+  it("an unknown country is a real 404; an id or plain name redirects to the readable address", async () => {
+    expect((await page("/countries/:slug", "/countries/atlantis", { slug: "atlantis" })).status).toBe(404);
+    const calls = [];
+    const run = async (slug) => routes["/countries/:slug"]({ originalUrl: `/countries/${slug}`, params: { slug } }, { redirect: (c, to) => calls.push([c, to]), status() { return this; }, set() { return this; }, send() {} }, () => {});
+    await run("c-kr"); await run("South%20Korea");
+    expect(calls).toEqual([[301, "/countries/south-korea"], [301, "/countries/south-korea"]]);
+  });
+
+  it("every country in Country Management is in the sitemap and the countries list, with no list kept by hand", async () => {
+    const pages = await page("/sitemap-pages.xml", "/sitemap-pages.xml");
+    for (const slug of ["united-kingdom", "south-korea"]) expect(pages.body).toContain(`/countries/${slug}<`);
+    expect(pages.body).toMatch(/<loc>[^<]*\/countries<\/loc>/);
+    COUNTRIES.push({ id: "c-my", name: "Malaysia", updatedAt: new Date(), keyInfo: null, whyStudyHighlights: [], photoUrl: null });
+    require("../src/countryPages.js").invalidateCountryCache();
+    seo.invalidateSeoCache();
+    const after = await page("/sitemap-pages.xml", "/sitemap-pages.xml");
+    expect(after.body).toContain("/countries/malaysia<");
+    expect((await page("/countries", "/countries")).body).toContain('href="/countries/malaysia"');
+    expect((await page("/llms.txt", "/llms.txt")).body).toContain("/countries)");
+    COUNTRIES.pop();
+    require("../src/countryPages.js").invalidateCountryCache();
+    seo.invalidateSeoCache();
   });
 });

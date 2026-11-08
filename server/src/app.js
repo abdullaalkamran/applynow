@@ -233,7 +233,7 @@ app.use(
 // The first path segments the app really has (see src/App.tsx). Anything else is not a page: it still gets the app shell (which
 // sends a visitor on to the right place), but with a real 404 status and noindex, so search engines drop it instead of
 // indexing a "soft 404" that looks like the home page.
-const KNOWN_ROUTES = new Set(["", "landing", "universities", "courses", "news", "about", "login", "signup", "accept-invite", "messages", "student", "agent", "staff", "admin"]);
+const KNOWN_ROUTES = new Set(["", "landing", "universities", "courses", "news", "about", "countries", "login", "signup", "accept-invite", "messages", "student", "agent", "staff", "admin"]);
 app.get(/^\/(?!api\/|uploads\/|assets\/).*/, (req, res) => {
   res.set("Cache-Control", "no-cache");
   if (!KNOWN_ROUTES.has(req.path.split("/")[1] ?? "")) {

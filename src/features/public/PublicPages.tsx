@@ -7,8 +7,9 @@ import { ExploreUniversities, type ExploreVariant } from "../student/UniversityS
 import UniversityDetail from "../student/UniversityDetail";
 import { PublicHeader } from "./News";
 import { PublicModeContext, loadPublicReference } from "../../data/publicMode";
+import { slugify } from "../../utils/slug";
 
-function PublicShell({ children }: { children: ReactNode }) {
+export function PublicShell({ children }: { children: ReactNode }) {
   useEffect(() => { void loadPublicReference(); }, []);
   return (
     <PublicModeContext.Provider value={true}>
@@ -25,7 +26,8 @@ const common: Omit<ExploreVariant, "basePath" | "title" | "defaultTab"> = {
   universityPath: (id, slug) => `/universities/${encodeURIComponent(slug ?? id)}`,
   coursePath: (universityId, courseId, universitySlug, courseSlug) =>
     `/universities/${encodeURIComponent(universitySlug ?? universityId)}/courses/${encodeURIComponent(courseSlug ?? courseId)}`,
-  countryPath: () => "/login",
+  // The country's public page (readable name; the server also accepts the plain name).
+  countryPath: (name) => `/countries/${encodeURIComponent(slugify(name, "country"))}`,
   ownApplications: false,
   publicMode: true,
   tabs: ["universities", "subjects"],

@@ -9,6 +9,7 @@ const prisma = require("./prismaClient");
 const { getConfig } = require("./config");
 const faq = require("../../src/data/landingFaq.json");
 const { loadAbout } = require("./aboutPage");
+const countryPages = require("./countryPages");
 
 const SITE_NAME = "UnifinderAi";
 const courseSearch = require("./courseSearch");
@@ -281,7 +282,7 @@ async function landingPage() {
     <main>
       <h1>${esc(DEFAULT_TITLE)}</h1>
       <p>${esc(DEFAULT_DESCRIPTION)}</p>
-      <p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/about">About</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
+      <p><a href="/universities">Universities</a> · <a href="/courses">Courses</a> · <a href="/countries">Countries</a> · <a href="/about">About</a> · <a href="/login">Sign in</a> · <a href="/signup">Create an account</a> · <a href="/news">News &amp; Updates</a></p>
       <section><h2>Frequently asked questions</h2>
         ${faq.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("\n        ")}
       </section>
@@ -366,6 +367,97 @@ async function catalog() {
 const universityPath = (u) => `/universities/${encodeURIComponent(u.slug ?? u.id)}`;
 const coursePathOf = (u, c) => `${universityPath(u)}/courses/${encodeURIComponent(c.slug ?? c.id)}`;
 const publicImage = (v) => (typeof v === "string" && (v.startsWith("/uploads/") || /^https?:\/\//i.test(v)) ? v : undefined);
+
+const KEY_INFO = [["popularIntakes", "Popular intakes"], ["avgTuitionFeeRange", "Average tuition fees"], ["costOfLivingRange", "Cost of living"], ["postStudyWorkVisa", "Post-study work visa"], ["dependentsAllowed", "Dependents allowed"], ["partTimeWork", "Part-time work"], ["applicationProcessingTime", "Application processing time"]];
+
+async function countriesIndexPage() {
+  const all = (await countryPages.listCountries()).sort((a, b) => b.universityCount - a.universityCount || a.name.localeCompare(b.name));
+  const bodyHtml = `
+    <main>
+      <h1>Study abroad destinations</h1>
+      <p>Choose a country to see why students study there, key facts on fees, living costs and work rights, and the partner universities and courses on ${SITE_NAME}.</p>
+      <ul>${all.map((c) => `<li><h2><a href="/countries/${esc(c.slug)}">Study in ${esc(c.name)}</a></h2><p>${plural(c.universityCount, "university", "universities")} · ${plural(c.courseCount, "course", "courses")}</p></li>`).join("")}</ul>
+    </main>`;
+  return render({
+    title: `Study Abroad Destinations — ${SITE_NAME}`,
+    description: `Explore ${all.length ? `${all.length} ` : ""}study destinations: fees, living costs, work rights, intakes, and the universities and courses available in each country.`,
+    path: "/countries",
+    jsonLd: [
+      { "@context": "https://schema.org", "@type": "CollectionPage", name: "Study abroad destinations", url: `${siteUrl()}/countries` },
+      { "@context": "https://schema.org", "@type": "ItemList", name: "Study destinations", numberOfItems: all.length, itemListElement: all.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, url: `${siteUrl()}/countries/${c.slug}` })) },
+    ],
+    bodyHtml,
+  });
+}
+
+/** Direct answers about a country, from what Data Management entered and the catalogue only — a question is left out when its data isn't there. */
+function countryFacts(name, row, sum) {
+  const faqs = [];
+  const ki = row.keyInfo || {};
+  if (sum.universityCount > 0) faqs.push({ q: `How many universities can I choose from in ${name}?`, a: `${SITE_NAME} lists ${plural(sum.universityCount, "partner university", "partner universities")} in ${name}, with ${plural(sum.courseCount, "course", "courses")} between them.` });
+  if (ki.avgTuitionFeeRange) faqs.push({ q: `How much does it cost to study in ${name}?`, a: `Average tuition fees in ${name}: ${ki.avgTuitionFeeRange}.${ki.costOfLivingRange ? ` Cost of living: ${ki.costOfLivingRange}.` : ""}` });
+  else if (ki.costOfLivingRange) faqs.push({ q: `What is the cost of living in ${name}?`, a: `${ki.costOfLivingRange}.` });
+  if (ki.popularIntakes) faqs.push({ q: `When can I start studying in ${name}?`, a: `Popular intakes: ${ki.popularIntakes}.` });
+  if (ki.postStudyWorkVisa) faqs.push({ q: `Can I work after studying in ${name}?`, a: `Post-study work visa: ${ki.postStudyWorkVisa}.` });
+  if (ki.partTimeWork) faqs.push({ q: `Can international students work part-time in ${name}?`, a: `${ki.partTimeWork}.` });
+  if (sum.subjectCounts.length) faqs.push({ q: `What can I study in ${name}?`, a: `Popular study areas include ${joinList(sum.subjectCounts.slice(0, 6).map((x) => x.subject), 6)}.` });
+  return faqs;
+}
+
+async function countryPage(param) {
+  const hit = await countryPages.resolveCountry(param);
+  const row = hit ? await prisma.country.findUnique({ where: { id: hit.id } }) : null;
+  if (!hit || !row) {
+    return render({ title: `Country not found — ${SITE_NAME}`, description: "This country doesn't exist or is no longer available.", path: `/countries/${encodeURIComponent(param)}`, noindex: true, status: 404, bodyHtml: "<main><h1>Country not found</h1></main>" });
+  }
+  // An id- or name-style address goes to the readable one.
+  if (decodeURIComponent(param) !== hit.slug) return { redirect: `/countries/${encodeURIComponent(hit.slug)}` };
+  const sum = countryPages.summarize(hit);
+  const name = hit.name;
+  const base = siteUrl();
+  const faqs = countryFacts(name, row, sum);
+  const ki = row.keyInfo || {};
+  const keyRows = KEY_INFO.filter(([k]) => ki[k]);
+  const highlights = Array.isArray(row.whyStudyHighlights) ? row.whyStudyHighlights.filter((h) => h && h.title) : [];
+  const summary = clampText(
+    [row.tagline, row.whyThisCountry ? plainText(row.whyThisCountry) : "", sum.universityCount ? `${plural(sum.universityCount, "partner university", "partner universities")} and ${plural(sum.courseCount, "course", "courses")} on ${SITE_NAME}.` : ""].filter(Boolean).join(" "),
+    DESCRIPTION_MAX,
+  ) || `Study in ${name}: universities, courses, fees and entry requirements on ${SITE_NAME}.`;
+  const image = publicImage(row.photoUrl) || (row.photoUrl ? `${base}/api/public/photo/country/${encodeURIComponent(row.id)}` : undefined);
+  const bodyHtml = `
+    <main>
+      <h1>Study in ${esc(name)}</h1>
+      ${row.tagline ? `<p>${esc(row.tagline)}</p>` : ""}
+      <p>${sum.universityCount ? `${esc(plural(sum.universityCount, "partner university", "partner universities"))} · ${esc(plural(sum.courseCount, "course", "courses"))} on ${SITE_NAME}.` : `Universities in ${esc(name)} are being added.`}${row.internationalStudentStat ? ` International students: ${esc(row.internationalStudentStat)}.` : ""}</p>
+      ${row.whyThisCountry ? `<section><h2>Why study in ${esc(name)}?</h2>${markdownToHtml(row.whyThisCountry, 0)}</section>` : ""}
+      ${highlights.length ? `<section><h2>Highlights</h2><ul>${highlights.map((h) => `<li><strong>${esc(h.title)}</strong>${h.description ? ` — ${esc(h.description)}` : ""}</li>`).join("")}</ul></section>` : ""}
+      ${keyRows.length ? `<section><h2>Key facts</h2><ul>${keyRows.map(([k, label]) => `<li><strong>${esc(label)}:</strong> ${esc(ki[k])}</li>`).join("")}</ul></section>` : ""}
+      ${sum.universities.length ? `<section><h2>Universities in ${esc(name)}</h2><ul>${sum.universities.slice(0, 200).map((u) => `<li><a href="${esc(universityPath(u))}">${esc(u.name)}</a>${u.city ? ` — ${esc(u.city)}` : ""}</li>`).join("")}</ul></section>` : ""}
+      ${sum.subjectCounts.length ? `<section><h2>Popular study areas</h2><ul>${sum.subjectCounts.slice(0, 12).map((x) => `<li>${esc(x.subject)} (${x.count})</li>`).join("")}</ul></section>` : ""}
+      ${faqHtml(faqs)}
+      <p><a href="/countries">All countries</a> · <a href="/universities">Universities</a> · <a href="/courses">Courses</a></p>
+    </main>`;
+  return render({
+    title: `Study in ${name}: Universities, Fees & Courses — ${SITE_NAME}`,
+    description: summary,
+    path: `/countries/${hit.slug}`,
+    image,
+    jsonLd: [
+      { "@context": "https://schema.org", "@type": "WebPage", name: `Study in ${name}`, url: `${base}/countries/${hit.slug}`, description: summary, about: { "@type": "Country", name } },
+      {
+        "@context": "https://schema.org", "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: `${base}/` },
+          { "@type": "ListItem", position: 2, name: "Countries", item: `${base}/countries` },
+          { "@type": "ListItem", position: 3, name, item: `${base}/countries/${hit.slug}` },
+        ],
+      },
+      ...(sum.universities.length ? [{ "@context": "https://schema.org", "@type": "ItemList", name: `Universities in ${name}`, numberOfItems: sum.universities.length, itemListElement: sum.universities.slice(0, 100).map((u, i) => ({ "@type": "ListItem", position: i + 1, name: u.name, url: `${base}${universityPath(u)}` })) }] : []),
+      ...faqLd(faqs),
+    ],
+    bodyHtml,
+  });
+}
 
 async function universitiesIndexPage() {
   const idx = await catalog();
@@ -680,6 +772,7 @@ async function sitemapIndexXml() {
 async function sitemapPagesXml() {
   const posts = await publishedPosts(1000);
   const about = await loadAbout();
+  const countries = await countryPages.listCountries();
   const rows = await prisma.university.findMany({ select: { id: true, updatedAt: true }, orderBy: { name: "asc" }, take: 40000 });
   const idx = await catalog();
   const base = siteUrl();
@@ -687,6 +780,8 @@ async function sitemapPagesXml() {
     { loc: `${base}/`, changefreq: "weekly", priority: "1.0" },
     { loc: `${base}/universities`, changefreq: "weekly", priority: "0.9" },
     { loc: `${base}/courses`, changefreq: "weekly", priority: "0.8" },
+    { loc: `${base}/countries`, changefreq: "weekly", priority: "0.8" },
+    ...countries.map((c) => ({ loc: `${base}/countries/${c.slug}`, changefreq: "weekly", priority: "0.8", lastmod: c.updatedAt })),
     { loc: `${base}/about`, changefreq: "monthly", priority: "0.6", lastmod: about.updatedAt || undefined },
     { loc: `${base}/news`, changefreq: "daily", priority: "0.8", lastmod: posts[0]?.updatedAt },
     ...rows.map((r) => ({ loc: `${base}${universityPath(idx?.byId.get(r.id) ?? r)}`, changefreq: "monthly", priority: "0.7", lastmod: r.updatedAt })),
@@ -734,6 +829,7 @@ async function llmsTxt() {
     `- [Home](${base}/): what UnifinderAi is and common questions`,
     `- [Universities](${base}/universities): partner universities worldwide, with courses, fees, intakes and entry requirements`,
     `- [Courses](${base}/courses): search courses at partner universities`,
+    `- [Countries](${base}/countries): study destinations with fees, living costs, work rights and the universities in each`,
     `- [About](${base}/about): who UnifinderAi is, what the AI voice assistant does, and how it differs from similarly named sites`,
     `- [News & Updates](${base}/news): announcements about destinations, intakes and scholarships`,
     `- [Sitemap](${base}/sitemap.xml): every university and course page`,
@@ -785,6 +881,8 @@ function registerSeoRoutes(app) {
   app.get("/universities/:id", pageHandler((req) => universityPage(req.params.id)));
   app.get("/universities/:id/courses/:courseId", pageHandler((req) => coursePage(req.params.id, req.params.courseId)));
   app.get("/courses", pageHandler(coursesIndexPage));
+  app.get("/countries", pageHandler(countriesIndexPage));
+  app.get("/countries/:slug", pageHandler((req) => countryPage(req.params.slug)));
   app.get("/about", pageHandler(aboutPage));
   app.get("/news", pageHandler(newsIndexPage));
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));

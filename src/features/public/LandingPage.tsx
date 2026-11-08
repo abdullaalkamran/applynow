@@ -1,6 +1,7 @@
 import { Logo } from "../../components/Logo";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { slugify } from "../../utils/slug";
 import { ArrowRight, Search } from "lucide-react";
 import { BACKEND_BASE } from "../../utils/backendBase";
 import RealGlobe from "./RealGlobe";
@@ -60,7 +61,7 @@ function Header() {
       <nav aria-label="Main navigation">
         <Link to="/courses">Courses</Link>
         <Link to="/universities">Universities</Link>
-        <Link to="/login">Countries</Link>
+        <Link to="/countries">Countries</Link>
         <Link to="/news">News &amp; Updates</Link>
         <Link to="/about">About</Link>
       </nav>
@@ -235,7 +236,7 @@ export default function LandingPage() {
         {(destinations ?? []).map((item) => {
           const photo = photoSrc(item.photoUrl);
           return (
-            <Link className="destination-card" to="/login" key={item.id} aria-label={`Explore ${item.name}`}>
+            <Link className="destination-card" to={`/countries/${encodeURIComponent(slugify(item.name, "country"))}`} key={item.id} aria-label={`Explore ${item.name}`}>
               <div
                 className="destination-image"
                 style={{

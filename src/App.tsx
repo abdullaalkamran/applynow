@@ -97,6 +97,8 @@ const DataSubjects = lazy(() => import("./features/staff/data/Subjects"));
 const DataSubjectForm = lazy(() => import("./features/staff/data/SubjectForm"));
 const DataBlog = lazy(() => import("./features/staff/data/Blog"));
 const DataBlogForm = lazy(() => import("./features/staff/data/BlogForm"));
+const PublicCountries = lazy(() => import("./features/public/PublicCountries"));
+const PublicCountry = lazy(() => import("./features/public/PublicCountry"));
 const About = lazy(() => import("./features/public/About"));
 const DataAbout = lazy(() => import("./features/staff/data/AboutEditor"));
 const NewsList = lazy(() => import("./features/public/News"));
@@ -171,6 +173,8 @@ export default function App() {
           <Route path="/courses" element={<PublicCourses />}>
             <Route path="filters" element={<UniversityFilters />} />
           </Route>
+          <Route path="/countries" element={<PublicCountries />} />
+          <Route path="/countries/:slug" element={<PublicCountry />} />
           <Route path="/about" element={<About />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:slug" element={<NewsPost />} />

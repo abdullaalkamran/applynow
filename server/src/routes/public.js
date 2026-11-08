@@ -9,6 +9,7 @@ const { serializeUniversity } = require("./universities");
 const { serializeCountry } = require("./countries");
 const { serialize: serializeSubject } = require("./subjects");
 const { loadAbout } = require("../aboutPage");
+const { listCountries, resolveCountry, summarize } = require("../countryPages");
 
 const router = express.Router();
 
@@ -198,6 +199,44 @@ router.get("/universities/:id", async (req, res, next) => {
       logoUrl: photoRef("universityLogo", u.id, row.logoUrl),
       coverPhotoUrl: photoRef("university", u.id, row.coverPhotoUrl),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Country pages: every country Data Management has added (readable name, counts) and one country with its guide and summary.
+// The country guide is the same record signed-in users get from /api/countries, minus inline sample files and inline images.
+function publicCountry(c) {
+  const out = serializeCountry(c);
+  return {
+    ...out,
+    logoUrl: out.logoUrl && !out.logoUrl.startsWith("data:") ? out.logoUrl : undefined,
+    photoUrl: photoRef("country", c.id, c.photoUrl),
+    requiredDocuments: out.requiredDocuments?.map(({ sampleFileDataUrl: _drop, ...doc }) => doc),
+  };
+}
+
+router.get("/countries", async (_req, res, next) => {
+  try {
+    const all = await listCountries();
+    const rows = await prisma.country.findMany({ select: { id: true, photoUrl: true, tagline: true } });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    res.set("Cache-Control", "public, max-age=300").json(
+      all.map((c) => ({ id: c.id, slug: c.slug, name: c.name, tagline: byId.get(c.id)?.tagline || undefined, photoUrl: photoRef("country", c.id, byId.get(c.id)?.photoUrl), universityCount: c.universityCount, courseCount: c.courseCount }))
+        .sort((a, b) => b.universityCount - a.universityCount || a.name.localeCompare(b.name)),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/countries/:slug", async (req, res, next) => {
+  try {
+    const hit = await resolveCountry(req.params.slug);
+    if (!hit) return res.status(404).json({ error: "Country not found." });
+    const row = await prisma.country.findUnique({ where: { id: hit.id } });
+    if (!row) return res.status(404).json({ error: "Country not found." });
+    res.set("Cache-Control", "public, max-age=300").json({ slug: hit.slug, country: publicCountry(row), ...summarize(hit) });
   } catch (err) {
     next(err);
   }

@@ -1,0 +1,1 @@
+function e(e,t=`item`){return String(e??``).normalize(`NFKD`).replace(/[̀-ͯ]/g,``).replace(/&/g,` and `).toLowerCase().replace(/[^a-z0-9]+/g,`-`).replace(/^-+|-+$/g,``)||t}export{e as t};

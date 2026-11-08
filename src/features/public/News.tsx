@@ -10,7 +10,7 @@ export function PublicHeader() {
   const { pathname } = useLocation();
   // The Explore pages are public too: anyone can browse universities and courses before signing up.
   const link = (to: string, label: string) => (
-    <Link to={to} className={pathname === to || pathname.startsWith(`${to}/`) ? "text-neutral-900" : "hover:text-neutral-900"}>{label}</Link>
+    <Link to={to} className={`whitespace-nowrap ${pathname === to || pathname.startsWith(`${to}/`) ? "text-neutral-900" : "hover:text-neutral-900"}`}>{label}</Link>
   );
   return (
     <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-5 py-5">
@@ -18,6 +18,7 @@ export function PublicHeader() {
       <nav aria-label="Main navigation" className="order-last flex w-full items-center gap-5 overflow-x-auto text-[14px] font-medium text-neutral-600 sm:order-none sm:w-auto">
         {link("/universities", "Universities")}
         {link("/courses", "Courses")}
+        {link("/countries", "Countries")}
         {link("/news", "News & Updates")}
         {link("/about", "About")}
       </nav>

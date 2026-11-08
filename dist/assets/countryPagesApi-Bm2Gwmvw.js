@@ -1,0 +1,1 @@
+import{l as e}from"./blogApi-CHU0Z1Ux.js";var t=t=>e(`/api/public/countries`,t),n=(t,n)=>e(`/api/public/countries/${encodeURIComponent(t)}`,n);export{n,t};
