@@ -26,6 +26,7 @@ import { ExpandableSection } from "../../components/ExpandableSection";
 import { RestrictedRegionsNotice } from "../../components/RestrictedRegionsNotice";
 import { EnglishTestNotices } from "../../components/EnglishTestNotices";
 import { CourseAccreditations } from "../../components/CourseAccreditations";
+import { SectionBoundary } from "../../components/SectionBoundary";
 import { ApplyModal } from "./ApplyModal";
 import type { University } from "../../types";
 import { NeuTabs } from "../../components/ui/NeuTabs";
@@ -294,12 +295,14 @@ function CourseView({
 
         <CourseEntryCards university={university} course={course} />
 
-        <CourseSectionCard icon={<Landmark size={15} />} title="Deposit & Payment">
-          <PaymentRequirementsBlock university={university} />
-        </CourseSectionCard>
+        <SectionBoundary name="deposit">
+          <CourseSectionCard icon={<Landmark size={15} />} title="Deposit & Payment">
+            <PaymentRequirementsBlock university={university} />
+          </CourseSectionCard>
+        </SectionBoundary>
 
         {modules.length > 0 && (
-          <CourseSectionCard icon={<BookOpen size={15} />} title="Modules">
+          <SectionBoundary name="modules"><CourseSectionCard icon={<BookOpen size={15} />} title="Modules">
             <ul className="space-y-2">
               {modules.map((m) => (
                 <li key={m} className="flex items-start gap-2 text-[13px] text-neutral-600">
@@ -308,11 +311,11 @@ function CourseView({
                 </li>
               ))}
             </ul>
-          </CourseSectionCard>
+          </CourseSectionCard></SectionBoundary>
         )}
 
         {careers.length > 0 && (
-          <CourseSectionCard icon={<Briefcase size={15} />} title="Careers">
+          <SectionBoundary name="careers"><CourseSectionCard icon={<Briefcase size={15} />} title="Careers">
             <ul className="space-y-2">
               {careers.map((c) => (
                 <li key={c} className="flex items-start gap-2 text-[13px] text-neutral-600">
@@ -321,7 +324,7 @@ function CourseView({
                 </li>
               ))}
             </ul>
-          </CourseSectionCard>
+          </CourseSectionCard></SectionBoundary>
         )}
       </div>
     </>
