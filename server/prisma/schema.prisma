@@ -1293,6 +1293,16 @@ model BlogPost {
   publishedAt   DateTime?
   // Page visits to the post (every visit — see routes/public.js); shown only in Data Management, never to visitors.
   viewCount     Int       @default(0)
+  // SEO (all optional): search-result title, a 2-3 sentence direct answer, cover alt text, category, the countries it covers
+  // (names, for links to the country pages), cited sources [{name,url}], earlier slugs (301 redirects) and the FAQ found in the text.
+  seoTitle      String?
+  quickAnswer   String?   @db.Text
+  coverAlt      String?
+  category      String?
+  countries     Json?
+  sources       Json?
+  oldSlugs      Json?
+  faqJson       Json?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

@@ -10,6 +10,8 @@ const { getConfig } = require("./config");
 const faq = require("../../src/data/landingFaq.json");
 const { loadAbout } = require("./aboutPage");
 const countryPages = require("./countryPages");
+const { indexNowKey } = require("./indexNow");
+const { slugify } = require("./slugs");
 
 const SITE_NAME = "UnifinderAi";
 const courseSearch = require("./courseSearch");
@@ -52,7 +54,7 @@ function inlineMd(text) {
     // same-site links ("/universities"); "//host" would be a protocol-relative link to another site, so it is left as text
     .replace(/\[([^\]]+)\]\((\/(?!\/)[^)\s]*)\)/g, '<a href="$2">$1</a>');
 }
-function markdownToHtml(md, headingOffset = 1) {
+function markdownToHtml(md, headingOffset = 1, withIds = false) {
   const lines = String(md || "").replace(/\r\n/g, "\n").split("\n");
   const out = [];
   let list = null;
@@ -66,7 +68,7 @@ function markdownToHtml(md, headingOffset = 1) {
     if ((m = /^(#{1,4})\s+(.*)$/.exec(line))) {
       flushPara(); flushList();
       const level = Math.min(4, Math.max(2, m[1].length + headingOffset)); // the page's own <h1> is the post title
-      out.push(`<h${level}>${inlineMd(m[2])}</h${level}>`);
+      out.push(`<h${level}${withIds ? ` id="${slugify(plainText(m[2]), "section")}"` : ""}>${inlineMd(m[2])}</h${level}>`);
     } else if ((m = /^\s*[-*]\s+(.*)$/.exec(line))) {
       flushPara();
       if (list !== "ul") { flushList(); out.push("<ul>"); list = "ul"; }
@@ -143,6 +145,7 @@ function render({ title: rawTitle, description: rawDescription, path: pagePath, 
     `<meta name="twitter:title" content="${esc(title)}" />`,
     `<meta name="twitter:description" content="${esc(description)}" />`,
     `<meta name="twitter:image" content="${esc(img)}" />`,
+    `<link rel="alternate" type="application/rss+xml" title="${SITE_NAME} — News &amp; Updates" href="/rss.xml" />`,
     jsonLdScript(jsonLd),
   ].filter(Boolean).join("\n    ");
 
@@ -197,7 +200,7 @@ async function publishedPosts(take = 60) {
     where: { status: "published" },
     orderBy: { publishedAt: "desc" },
     take,
-    select: { slug: true, title: true, excerpt: true, content: true, coverImageUrl: true, publishedAt: true, updatedAt: true },
+    select: { slug: true, title: true, excerpt: true, quickAnswer: true, content: true, coverImageUrl: true, publishedAt: true, updatedAt: true },
   });
 }
 
@@ -664,25 +667,54 @@ async function coursePage(universityParam, courseParam) {
   });
 }
 
+/** Up to `n` other published posts on the same country or category, newest first. */
+async function relatedPosts(post, n = 3) {
+  const countries = Array.isArray(post.countries) ? post.countries.map(norm1) : [];
+  const rows = await prisma.blogPost.findMany({
+    where: { status: "published", id: { not: post.id } }, orderBy: { publishedAt: "desc" }, take: 60,
+    select: { slug: true, title: true, category: true, countries: true },
+  });
+  const score = (r) => (Array.isArray(r.countries) && r.countries.some((c) => countries.includes(norm1(c))) ? 2 : 0) + (post.category && r.category === post.category ? 1 : 0);
+  return rows.map((r) => ({ r, s: score(r) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, n).map((x) => x.r);
+}
+const norm1 = (v) => String(v ?? "").trim().toLowerCase();
+
 async function newsPostPage(slug) {
   const post = await prisma.blogPost.findFirst({ where: { slug, status: "published" } });
   if (!post) {
+    // An earlier address of a post whose slug was changed: send visitors and search engines to the current one.
+    const rows = await prisma.blogPost.findMany({ where: { status: "published" }, select: { slug: true, oldSlugs: true }, take: 5000 });
+    const moved = rows.find((r) => Array.isArray(r.oldSlugs) && r.oldSlugs.includes(slug));
+    if (moved) return { redirect: `/news/${encodeURIComponent(moved.slug)}` };
     return render({ title: `Post not found — ${SITE_NAME}`, description: "This post doesn't exist or is no longer available.", path: `/news/${slug}`, noindex: true, status: 404, bodyHtml: "<main><h1>Post not found</h1></main>" });
   }
-  const description = oneLine(post.excerpt || plainText(post.content), 200);
-  const url = `${siteUrl()}/news/${post.slug}`;
+  const base = siteUrl();
+  const description = oneLine(post.excerpt || post.quickAnswer || plainText(post.content), 200);
+  const url = `${base}/news/${post.slug}`;
   const image = absolute(post.coverImageUrl);
+  const faqs = (Array.isArray(post.faqJson) ? post.faqJson : []).filter((f) => f && f.q && f.a);
+  const sources = (Array.isArray(post.sources) ? post.sources : []).filter((x) => x && x.name && x.url);
+  const countryNames = Array.isArray(post.countries) ? post.countries : [];
+  const all = countryNames.length ? await countryPages.listCountries() : [];
+  const countryLinks = countryNames.map((n) => all.find((c) => norm1(c.name) === norm1(n))).filter(Boolean);
+  const related = await relatedPosts(post);
+  const headings = [...String(post.content).matchAll(/^##\s+(.+)$/gm)].map((m) => plainText(m[1])).filter((h) => !/frequently asked|\bfaqs?\b/i.test(h));
+  const edited = post.publishedAt && post.updatedAt.getTime() - post.publishedAt.getTime() > 86_400_000;
   const bodyHtml = `
     <main><article>
-      <p><a href="/news">All news</a></p>
+      <p><a href="/news">All news</a>${post.category ? ` · ${esc(post.category)}` : ""}</p>
       <h1>${esc(post.title)}</h1>
-      <p>${esc(dateText(post.publishedAt))}</p>
-      ${post.excerpt ? `<p><strong>${esc(post.excerpt)}</strong></p>` : ""}
-      ${image ? `<img src="${esc(image)}" alt="${esc(post.title)}" />` : ""}
-      ${markdownToHtml(post.content)}
+      <p>${esc(dateText(post.publishedAt))}${edited ? ` · Updated ${esc(dateText(post.updatedAt))}` : ""}</p>
+      ${post.quickAnswer ? `<section><h2>Quick answer</h2><p>${esc(post.quickAnswer)}</p></section>` : post.excerpt ? `<p><strong>${esc(post.excerpt)}</strong></p>` : ""}
+      ${image ? `<img src="${esc(image)}" alt="${esc(post.coverAlt || post.title)}" />` : ""}
+      ${headings.length >= 4 ? `<nav aria-label="Contents"><h2>Contents</h2><ol>${headings.map((h) => `<li><a href="#${slugify(h, "section")}">${esc(h)}</a></li>`).join("")}</ol></nav>` : ""}
+      ${markdownToHtml(post.content, 1, true)}
+      ${countryLinks.length ? `<p>${countryLinks.map((c) => `<a href="/countries/${esc(c.slug)}">Study in ${esc(c.name)}</a>`).join(" · ")}</p>` : ""}
+      ${sources.length ? `<section><h2>Sources</h2><ul>${sources.map((x) => `<li><a href="${esc(x.url)}" rel="nofollow noopener noreferrer">${esc(x.name)}</a></li>`).join("")}</ul></section>` : ""}
+      ${related.length ? `<section><h2>Related news</h2><ul>${related.map((r) => `<li><a href="/news/${esc(r.slug)}">${esc(r.title)}</a></li>`).join("")}</ul></section>` : ""}
     </article></main>`;
   return render({
-    title: `${post.title} — ${SITE_NAME}`,
+    title: `${post.seoTitle || post.title} — ${SITE_NAME}`,
     description,
     path: `/news/${post.slug}`,
     image: post.coverImageUrl,
@@ -691,11 +723,17 @@ async function newsPostPage(slug) {
       {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
-        headline: post.title,
+        "@id": `${url}#article`,
+        headline: clampText(post.title, 110),
         description,
         image: image ? [image] : undefined,
         datePublished: post.publishedAt?.toISOString(),
         dateModified: post.updatedAt.toISOString(),
+        articleSection: post.category || undefined,
+        inLanguage: "en",
+        about: countryNames.length ? countryNames.map((name) => ({ "@type": "Country", name })) : undefined,
+        citation: sources.length ? sources.map((x) => ({ "@type": "CreativeWork", name: x.name, url: x.url })) : undefined,
+        // The organisation is the author: posts never carry a writer's name.
         author: { "@type": "Organization", name: SITE_NAME },
         publisher: { "@type": "Organization", name: SITE_NAME, logo: { "@type": "ImageObject", url: absolute("/brand/mark.png") } },
         mainEntityOfPage: url,
@@ -704,14 +742,36 @@ async function newsPostPage(slug) {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl() },
-          { "@type": "ListItem", position: 2, name: "News & Updates", item: `${siteUrl()}/news` },
+          { "@type": "ListItem", position: 1, name: "Home", item: base },
+          { "@type": "ListItem", position: 2, name: "News & Updates", item: `${base}/news` },
           { "@type": "ListItem", position: 3, name: post.title, item: url },
         ],
       },
+      ...faqLd(faqs),
     ],
     bodyHtml,
   });
+}
+
+async function rssXml() {
+  const base = siteUrl();
+  const posts = await publishedPosts(50);
+  const x = (v) => esc(v).replace(/'/g, "&apos;");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>${x(SITE_NAME)} — News &amp; Updates</title>
+<link>${base}/news</link>
+<description>${x(DEFAULT_DESCRIPTION)}</description>
+<language>en</language>
+${posts.map((p) => `<item>
+  <title>${x(p.title)}</title>
+  <link>${base}/news/${x(p.slug)}</link>
+  <guid isPermaLink="true">${base}/news/${x(p.slug)}</guid>
+  ${p.publishedAt ? `<pubDate>${p.publishedAt.toUTCString()}</pubDate>` : ""}
+  <description>${x(oneLine(p.quickAnswer || p.excerpt || plainText(p.content), 300))}</description>
+</item>`).join("\n")}
+</channel></rss>
+`;
 }
 
 // ---- cache + handlers ----
@@ -834,7 +894,7 @@ async function llmsTxt() {
     `- [News & Updates](${base}/news): announcements about destinations, intakes and scholarships`,
     `- [Sitemap](${base}/sitemap.xml): every university and course page`,
     "",
-    ...(posts.length ? ["## Latest news", ...posts.map((p) => `- [${p.title}](${base}/news/${p.slug})${p.excerpt ? `: ${oneLine(p.excerpt, 140)}` : ""}`), ""] : []),
+    ...(posts.length ? ["## Latest news", ...posts.map((p) => `- [${p.title}](${base}/news/${p.slug})${p.quickAnswer || p.excerpt ? `: ${oneLine(p.quickAnswer || p.excerpt, 140)}` : ""}`), ""] : []),
     "## Frequently asked questions",
     ...faq.map((f) => `- **${f.q}** ${f.a}`),
     "",
@@ -876,6 +936,13 @@ function registerSeoRoutes(app) {
     }
   });
   app.get("/llms.txt", textHandler("text/plain", llmsTxt, "llms"));
+  app.get("/rss.xml", textHandler("application/rss+xml", rssXml, "rss"));
+  // IndexNow ownership proof: the key itself, served at /<key>.txt (only when INDEXNOW_KEY is set).
+  app.get(/^\/([A-Za-z0-9-]{8,128})\.txt$/, (req, res, next) => {
+    const key = indexNowKey();
+    if (!key || req.params[0] !== key) return next();
+    res.type("text/plain").set("Cache-Control", "public, max-age=3600").send(key);
+  });
   app.get("/", pageHandler(landingPage));
   app.get("/universities", pageHandler(universitiesIndexPage));
   app.get("/universities/:id", pageHandler((req) => universityPage(req.params.id)));
@@ -888,4 +955,4 @@ function registerSeoRoutes(app) {
   app.get("/news/:slug", pageHandler((req) => newsPostPage(req.params.slug)));
 }
 
-module.exports = { registerSeoRoutes, invalidateSeoCache, clampText, fitTitle, universityFacts, courseFacts };
+module.exports = { registerSeoRoutes, invalidateSeoCache, siteUrl, clampText, fitTitle, universityFacts, courseFacts };

@@ -125,6 +125,7 @@ const INDEX_UNI = { id: "u1", name: "University of Leeds", city: "Leeds", countr
 const INDEX = { universities: [INDEX_UNI], byId: new Map([["u1", INDEX_UNI]]), bySlug: courseSearch.assignSlugs([INDEX_UNI]) };
 
 const stored = { row: null };
+const newsPosts = [];
 const COUNTRIES = [
   { id: "c-uk", name: "United Kingdom", updatedAt: new Date("2026-11-01"), tagline: "Heritage meets innovation", whyThisCountry: "World-ranked universities.", keyInfo: { avgTuitionFeeRange: "£12,000–£26,000 a year", postStudyWorkVisa: "2 years (Graduate Route)" }, whyStudyHighlights: [{ id: "h1", title: "Short degrees", description: "1-year Masters" }], photoUrl: null },
   { id: "c-kr", name: "South Korea", updatedAt: new Date("2026-11-02"), keyInfo: null, whyStudyHighlights: [], photoUrl: null },
@@ -133,7 +134,8 @@ beforeAll(() => {
   courseSearch.getIndex = async () => INDEX;
   prisma.university.findMany = async () => [{ id: "u1", name: "University of Leeds", city: "Leeds", country: "United Kingdom", updatedAt: new Date() }];
   prisma.university.findUnique = async ({ where }) => (where.id === "u1" ? UNI : null);
-  prisma.blogPost.findMany = async () => [];
+  prisma.blogPost.findMany = async ({ where } = {}) => newsPosts.filter((p) => (!where?.status || p.status === where.status) && (!where?.id?.not || p.id !== where.id.not));
+  prisma.blogPost.findFirst = async ({ where }) => newsPosts.find((p) => p.slug === where.slug && p.status === where.status) ?? null;
   prisma.course.findFirst = async ({ where }) => (where.id === "c1" ? COURSE : null);
   prisma.course.count = async () => 3;
   prisma.country = { findMany: async () => COUNTRIES, findUnique: async ({ where }) => COUNTRIES.find((c) => c.id === where.id) ?? null };
@@ -335,5 +337,87 @@ describe("Country pages", () => {
     COUNTRIES.pop();
     require("../src/countryPages.js").invalidateCountryCache();
     seo.invalidateSeoCache();
+  });
+});
+
+describe("News posts", () => {
+  const blogSeo = require("../src/blogSeo.js");
+  const post = (over = {}) => ({
+    id: "p1", slug: "canada-study-permit-cap-2027", title: "Canada Study Permit Cap 2027: What the New Plan Means", excerpt: "The cap in short.", quickAnswer: "Canada caps new study permits for 2027, so apply early.",
+    content: "## Overview\n\nText here.\n\n## What changes\n\nMore.\n\n## Who is affected\n\nStudents.\n\n## Next steps\n\nApply.\n\n## Frequently asked questions\n\n### Is there a cap?\n\nYes, a cap applies.\n\n### When does it start?\n\nIn 2027.",
+    coverImageUrl: "/uploads/c.png", coverAlt: "Students on campus", status: "published", authorName: "Someone Private", category: "Visa news", countries: ["United Kingdom"],
+    sources: [{ name: "IRCC", url: "https://www.canada.ca/ircc" }], oldSlugs: ["canada-study-permit-cap-2027-what-the-new-e4f155"],
+    faqJson: blogSeo.detectFaq("## Frequently asked questions\n\n### Is there a cap?\n\nYes, a cap applies.\n\n### When does it start?\n\nIn 2027."),
+    publishedAt: new Date("2026-11-01"), updatedAt: new Date("2026-11-05"), ...over,
+  });
+  const other = { id: "p2", slug: "uk-visa-fees", title: "UK visa fees", status: "published", category: "Visa news", countries: ["United Kingdom"], oldSlugs: [], publishedAt: new Date("2026-10-01"), updatedAt: new Date("2026-10-01"), excerpt: "", content: "x" };
+
+  it("a post shows its quick answer, updated date, contents, sources, country link, related news and FAQ markup — and never the writer's name", async () => {
+    newsPosts.splice(0, newsPosts.length, post(), other);
+    seo.invalidateSeoCache();
+    const { status, body } = await page("/news/:slug", "/news/canada-study-permit-cap-2027", { slug: "canada-study-permit-cap-2027" });
+    expect(status).toBe(200);
+    expect(body).toContain("<h2>Quick answer</h2>");
+    expect(body).toMatch(/Updated 5 November 2026/);
+    expect(body).toContain('<nav aria-label="Contents">');
+    expect(body).toContain('id="what-changes"');
+    expect(body).toContain('href="/countries/united-kingdom"');
+    expect(body).toContain('<a href="/news/uk-visa-fees">UK visa fees</a>');
+    expect(body).toContain('href="https://www.canada.ca/ircc"');
+    expect(body).toContain('alt="Students on campus"');
+    expect(body).not.toContain("Someone Private");
+    const ld = [...body.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1].replace(/\\u003c/g, "<")));
+    expect(ld.map((o) => o["@type"])).toEqual(["BlogPosting", "BreadcrumbList", "FAQPage"]);
+    expect(ld[0].author).toEqual({ "@type": "Organization", name: "UnifinderAi" });
+    expect(ld[2].mainEntity).toHaveLength(2);
+    expect(body).toContain('rel="alternate" type="application/rss+xml"');
+  });
+
+  it("a post without FAQ, edits or extras still renders cleanly", async () => {
+    newsPosts.splice(0, newsPosts.length, post({ faqJson: null, quickAnswer: null, sources: null, countries: null, category: null, updatedAt: new Date("2026-11-01T10:00:00Z"), publishedAt: new Date("2026-11-01T09:00:00Z") }));
+    seo.invalidateSeoCache();
+    const { body } = await page("/news/:slug", "/news/canada-study-permit-cap-2027", { slug: "canada-study-permit-cap-2027" });
+    expect(body).not.toContain("FAQPage");
+    expect(body).not.toContain("Updated");
+    expect(body).not.toContain("Quick answer");
+    expect(body).not.toContain("undefined");
+  });
+
+  it("an earlier address answers 301 to the current one; an unknown one is a real 404", async () => {
+    newsPosts.splice(0, newsPosts.length, post());
+    seo.invalidateSeoCache();
+    const calls = [];
+    await routes["/news/:slug"]({ originalUrl: "/news/canada-study-permit-cap-2027-what-the-new-e4f155", params: { slug: "canada-study-permit-cap-2027-what-the-new-e4f155" } }, { redirect: (c, to) => calls.push([c, to]), status() { return this; }, set() { return this; }, send() {} }, () => {});
+    expect(calls).toEqual([[301, "/news/canada-study-permit-cap-2027"]]);
+    expect((await page("/news/:slug", "/news/nope", { slug: "nope" })).status).toBe(404);
+  });
+
+  it("the RSS feed lists published posts, escaped", async () => {
+    newsPosts.splice(0, newsPosts.length, post({ title: "A & B <tags>" }), post({ id: "p3", slug: "draft-one", status: "draft" }));
+    seo.invalidateSeoCache();
+    const { body } = await page("/rss.xml", "/rss.xml");
+    expect(body).toContain("<rss version=\"2.0\">");
+    expect(body).toContain("A &amp; B &lt;tags&gt;");
+    expect(body).toContain("/news/canada-study-permit-cap-2027<");
+    expect(body).not.toContain("draft-one");
+    expect(body).toContain("Canada caps new study permits for 2027");
+    newsPosts.splice(0, newsPosts.length);
+    seo.invalidateSeoCache();
+  });
+
+  it("slugs are clean keyword addresses, unique without a random code", () => {
+    expect(blogSeo.makeSlug("Canada Study Permit Cap 2027: What the New Immigration Levels Plan Means for Students")).toBe("canada-study-permit-cap-2027-new-immigration-levels");
+    expect(blogSeo.makeSlug("???")).toBe("post");
+    expect(blogSeo.uniqueSlug("a-b", (x) => ["a-b", "a-b-2"].includes(x))).toBe("a-b-3");
+    expect(blogSeo.isValidSlug("ok-slug-1")).toBe(true);
+    for (const bad of ["Bad", "a b", "-x", "x-", "a--b", "../x"]) expect(blogSeo.isValidSlug(bad)).toBe(false);
+  });
+
+  it("the FAQ is found from headings or bold questions, only inside the FAQ section", () => {
+    expect(blogSeo.detectFaq("## Intro\n\n### Not a question?\n\nNo.\n\n## FAQ\n\n**Is it free?**\n\nYes, **really**.\n\n### Why?\n\nBecause [reasons](https://x.test).\n\n## Next\n\n### Other?\n\nIgnored.")).toEqual([
+      { q: "Is it free?", a: "Yes, really." }, { q: "Why?", a: "Because reasons." },
+    ]);
+    expect(blogSeo.detectFaq("## Overview\n\nNo faq here.")).toEqual([]);
+    expect(blogSeo.detectFaq("## FAQ\n\n### Unanswered?\n")).toEqual([]);
   });
 });

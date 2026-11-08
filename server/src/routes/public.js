@@ -142,12 +142,31 @@ router.post("/news/:slug/read", async (req, res, next) => {
 
 router.get("/news/:slug", async (req, res, next) => {
   try {
-    const post = await prisma.blogPost.findFirst({ where: { slug: req.params.slug, status: "published" } });
+    let post = await prisma.blogPost.findFirst({ where: { slug: req.params.slug, status: "published" } });
+    if (!post) {
+      // An earlier address of a post whose slug changed: answer with the post (its current slug tells the page where it lives now).
+      const rows = await prisma.blogPost.findMany({ where: { status: "published" }, select: { id: true, oldSlugs: true }, take: 5000 });
+      const moved = rows.find((r) => Array.isArray(r.oldSlugs) && r.oldSlugs.includes(req.params.slug));
+      if (moved) post = await prisma.blogPost.findUnique({ where: { id: moved.id } });
+    }
     if (!post) return res.status(404).json({ error: "Post not found." });
+    const countries = Array.isArray(post.countries) ? post.countries : [];
+    const others = await prisma.blogPost.findMany({
+      where: { status: "published", id: { not: post.id } }, orderBy: { publishedAt: "desc" }, take: 60,
+      select: { slug: true, title: true, category: true, countries: true },
+    });
+    const lc = (v) => String(v ?? "").trim().toLowerCase();
+    const mine = countries.map(lc);
+    const score = (r) => (Array.isArray(r.countries) && r.countries.some((c) => mine.includes(lc(c))) ? 2 : 0) + (post.category && r.category === post.category ? 1 : 0);
+    const related = others.map((r) => ({ r, s: score(r) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3).map((x) => ({ slug: x.r.slug, title: x.r.title }));
+    const known = countries.length ? await listCountries() : [];
+    const countryLinks = countries.map((n) => known.find((c) => lc(c.name) === lc(n))).filter(Boolean).map((c) => ({ name: c.name, slug: c.slug }));
     res.set("Cache-Control", "public, max-age=60");
     res.json({
       id: post.id, slug: post.slug, title: post.title, excerpt: post.excerpt || "", content: post.content,
-      coverImageUrl: post.coverImageUrl || undefined, publishedAt: post.publishedAt?.toISOString(),
+      coverImageUrl: post.coverImageUrl || undefined, publishedAt: post.publishedAt?.toISOString(), updatedAt: post.updatedAt.toISOString(),
+      seoTitle: post.seoTitle || undefined, quickAnswer: post.quickAnswer || undefined, coverAlt: post.coverAlt || undefined, category: post.category || undefined,
+      sources: Array.isArray(post.sources) ? post.sources : [], related, countryLinks,
     });
   } catch (err) {
     next(err);

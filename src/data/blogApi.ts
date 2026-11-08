@@ -16,9 +16,19 @@ export interface BlogPost {
   authorName: string;
   viewCount: number;
   publishedAt?: string;
+  seoTitle: string;
+  quickAnswer: string;
+  coverAlt: string;
+  category: string;
+  countries: string[];
+  sources: BlogSource[];
+  /** How many questions the server found in the "Frequently asked questions" section of the text. */
+  faqCount: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface BlogSource { name: string; url: string }
 
 export interface BlogInput {
   title: string;
@@ -26,6 +36,14 @@ export interface BlogInput {
   content: string;
   coverImageUrl: string;
   status: BlogStatus;
+  seoTitle: string;
+  quickAnswer: string;
+  coverAlt: string;
+  category: string;
+  countries: string[];
+  sources: BlogSource[];
+  /** Blank = made from the title. A changed address keeps the old one as a redirect. */
+  slug: string;
 }
 
 export const listPosts = () => apiGetList<BlogPost>("/api/blog");
@@ -43,7 +61,17 @@ export interface PublicNewsItem {
   coverImageUrl?: string;
   publishedAt?: string;
 }
-export interface PublicNewsPost extends PublicNewsItem { content: string }
+export interface PublicNewsPost extends PublicNewsItem {
+  content: string;
+  updatedAt?: string;
+  seoTitle?: string;
+  quickAnswer?: string;
+  coverAlt?: string;
+  category?: string;
+  sources?: BlogSource[];
+  related?: { slug: string; title: string }[];
+  countryLinks?: { name: string; slug: string }[];
+}
 
 export async function publicGet<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${BACKEND_BASE}${path}`, { signal });
