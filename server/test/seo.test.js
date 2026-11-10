@@ -421,3 +421,14 @@ describe("News posts", () => {
     expect(blogSeo.detectFaq("## FAQ\n\n### Unanswered?\n")).toEqual([]);
   });
 });
+
+describe("Google tag", () => {
+  const TAG = "G-4FRLJ8KY3B";
+  it("is on every server-rendered public page, exactly once", async () => {
+    for (const [pattern, url, params] of [["/", "/"], ["/news", "/news"], ["/about", "/about"], ["/countries", "/countries"], ["/countries/:slug", "/countries/united-kingdom", { slug: "united-kingdom" }], ["/universities", "/universities"], ["/courses", "/courses"], ["/universities/:id", "/universities/university-of-leeds", { id: "university-of-leeds" }]]) {
+      const { body } = await page(pattern, url, params);
+      expect((body.match(new RegExp(`googletagmanager\\.com/gtag/js\\?id=${TAG}`, "g")) || []).length, url).toBe(1);
+      expect((body.match(new RegExp(`gtag\\('config', '${TAG}'\\)`, "g")) || []).length, url).toBe(1);
+    }
+  });
+});
