@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Bookmark, Building2, CalendarDays, GraduationCap, Landmark, Send, Wallet } from "lucide-react";
 import type { University } from "../../types";
 import { courseFeeText } from "../../utils/courseFee";
-import { courseHasOpenIntake, courseOwnOpenIntakes, depositLabel, scholarshipLabel } from "../../utils/universityFilter";
+import { courseHasOpenIntake, courseOwnIntakeParts, depositLabel, scholarshipLabel } from "../../utils/universityFilter";
 
 // Matches LogoBadge's own initials logic exactly — this card renders its own flat-color badge (rather than LogoBadge's gradient
 // one) only for this specific design, so the fallback letter(s) must still be identical to what LogoBadge would have picked.
@@ -29,7 +29,7 @@ export function ProgramCard({
 }) {
   const scholarship = scholarshipLabel(u);
   const open = courseHasOpenIntake(u, c);
-  const openMonths = courseOwnOpenIntakes(u, c);
+  const { open: openMonths, closed: closedMonths } = courseOwnIntakeParts(u, c);
   return (
     <div
       onClick={onOpen}
@@ -77,9 +77,9 @@ export function ProgramCard({
           )}
         </div>
         <div className="mt-2.5 flex items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
-          {openMonths.length > 0 && (
+          {(openMonths.length > 0 || closedMonths.length > 0) && (
             <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
-              <CalendarDays size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">Open: {openMonths.join(", ")}</span>
+              <CalendarDays size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">{openMonths.length > 0 ? `Open: ${openMonths.join(", ")}` : ""}{openMonths.length > 0 && closedMonths.length > 0 ? " · " : ""}{closedMonths.length > 0 ? `Closed: ${closedMonths.join(", ")}` : ""}</span>
             </span>
           )}
           {scholarship && (

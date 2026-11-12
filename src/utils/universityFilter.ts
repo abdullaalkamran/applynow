@@ -263,12 +263,19 @@ export function campusLabelFor(u: University, course: { feeUSD: number; feeStatu
   return names.length ? names.join(", ") : "Main Campus";
 }
 
-/** The intakes a course is open for — its own months when it sets any, else the university's — as one line for the
- * "Intake" fact tile. Falls back to the university's single open intake when none are marked open. */
-export function courseIntakeLabel(u: University, course: { intakes?: string[] }): string {
+/** Every intake a course offers (its own months when it sets any, else the university's), split into open and closed. */
+export function courseIntakeParts(u: University, course: { intakes?: string[] }): { open: string[]; closed: string[] } {
   const months = course.intakes && course.intakes.length > 0 ? course.intakes : u.intakes;
-  const open = months.filter((m) => !!u.intakeStatus?.[m]);
-  return open.length > 0 ? open.join(", ") : u.openIntake || "—";
+  return { open: months.filter((m) => !!u.intakeStatus?.[m]), closed: months.filter((m) => !u.intakeStatus?.[m]) };
+}
+
+/** All the intakes a course offers as one line for the "Intake" fact tile — open months plain, closed ones marked. */
+export function courseIntakeLabel(u: University, course: { intakes?: string[] }): string {
+  const { open, closed } = courseIntakeParts(u, course);
+  if (open.length === 0 && closed.length === 0) return "—";
+  const parts = [open.join(", ")].filter(Boolean);
+  if (closed.length) parts.push(`${closed.join(", ")} (closed)`);
+  return parts.join(" · ");
 }
 
 export interface SubjectStat {
@@ -687,8 +694,8 @@ export function feeFilterStats(f: UniversityFilterState): { unknown: number; oth
   return { unknown, otherCurrency };
 }
 
-/** For the course card label: ONLY the open months Data Management ticked on the course itself. No fallback to the
- * university's intakes, so a course with none selected shows no intake at all. */
-export function courseOwnOpenIntakes(u: University, course: University["courses"][number]): string[] {
-  return (course.intakes ?? []).filter((m) => !!u.intakeStatus?.[m]);
+/** For the course card: only the months Data Management ticked on the course itself (no university fallback), split open/closed. */
+export function courseOwnIntakeParts(u: University, course: University["courses"][number]): { open: string[]; closed: string[] } {
+  const months = course.intakes ?? [];
+  return { open: months.filter((m) => !!u.intakeStatus?.[m]), closed: months.filter((m) => !u.intakeStatus?.[m]) };
 }
