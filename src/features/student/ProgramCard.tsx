@@ -1,6 +1,7 @@
 // The course card shown in Explore → Courses and in Home → Recommended: big logo, course name, university, fee and deposit,
 // the open intake and scholarship, a bookmark and the Apply button. One component so both places always look and read the same.
 import type { ReactNode } from "react";
+import { IntakeSummary } from "../../components/IntakeSummary";
 import { Bookmark, Building2, CalendarDays, GraduationCap, Landmark, Send, Wallet } from "lucide-react";
 import type { University } from "../../types";
 import { courseFeeText } from "../../utils/courseFee";
@@ -79,7 +80,7 @@ export function ProgramCard({
         <div className="mt-2.5 flex items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
           {(openMonths.length > 0 || closedMonths.length > 0) && (
             <span className="inline-flex min-w-0 items-center gap-1 sm:gap-1.5">
-              <CalendarDays size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">{openMonths.length > 0 ? `Open: ${openMonths.join(", ")}` : ""}{openMonths.length > 0 && closedMonths.length > 0 ? " · " : ""}{closedMonths.length > 0 ? `Closed: ${closedMonths.join(", ")}` : ""}</span>
+              <CalendarDays size={13} className="shrink-0 text-neutral-400" /> <span className="truncate"><IntakeSummary open={openMonths} closed={closedMonths} /></span>
             </span>
           )}
           {scholarship && (
