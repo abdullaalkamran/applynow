@@ -686,3 +686,9 @@ export function feeFilterStats(f: UniversityFilterState): { unknown: number; oth
   });
   return { unknown, otherCurrency };
 }
+
+/** For the course card label: ONLY the open months Data Management ticked on the course itself. No fallback to the
+ * university's intakes, so a course with none selected shows no intake at all. */
+export function courseOwnOpenIntakes(u: University, course: University["courses"][number]): string[] {
+  return (course.intakes ?? []).filter((m) => !!u.intakeStatus?.[m]);
+}

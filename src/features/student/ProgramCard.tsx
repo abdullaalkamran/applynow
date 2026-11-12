@@ -29,7 +29,7 @@ export function ProgramCard({
 }) {
   const scholarship = scholarshipLabel(u);
   const open = courseHasOpenIntake(u, c);
-  const openMonths = courseOpenIntakes(u, c);
+  const openMonths = courseOwnOpenIntakes(u, c);
   return (
     <div
       onClick={onOpen}
