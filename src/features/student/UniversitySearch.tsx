@@ -617,7 +617,13 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                       {variant.universityNote?.(asUniversity(u))}
                       <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-transparent pt-2.5 text-[11px] text-neutral-500 sm:mt-4 sm:gap-3 sm:pt-3 sm:text-sm">
                         <span className="inline-flex items-center gap-1 sm:gap-1.5">
-                          <CalendarClock size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">Open: {u.openIntake}</span>
+                          <CalendarClock size={13} className="shrink-0 text-neutral-400" /> <span className="truncate">{(() => {
+                            const months = u.intakes ?? [];
+                            if (months.length === 0) return u.openIntake ? `Open: ${u.openIntake}` : "";
+                            const open = months.filter((m) => !!u.intakeStatus?.[m]);
+                            const closed = months.filter((m) => !u.intakeStatus?.[m]);
+                            return [open.length ? `Open: ${open.join(", ")}` : "", closed.length ? `Closed: ${closed.join(", ")}` : ""].filter(Boolean).join(" · ");
+                          })()}</span>
                         </span>
                         {u.scholarshipsAvailable && (
                           <>
