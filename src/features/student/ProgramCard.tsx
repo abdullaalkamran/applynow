@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Bookmark, Building2, CalendarDays, GraduationCap, Landmark, Send, Wallet } from "lucide-react";
 import type { University } from "../../types";
 import { courseFeeText } from "../../utils/courseFee";
-import { courseHasOpenIntake, courseOpenIntakes, depositLabel, scholarshipLabel } from "../../utils/universityFilter";
+import { courseHasOpenIntake, courseOwnOpenIntakes, depositLabel, scholarshipLabel } from "../../utils/universityFilter";
 
 // Matches LogoBadge's own initials logic exactly — this card renders its own flat-color badge (rather than LogoBadge's gradient
 // one) only for this specific design, so the fallback letter(s) must still be identical to what LogoBadge would have picked.
