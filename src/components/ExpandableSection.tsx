@@ -1,5 +1,5 @@
 // A collapsible info card for the University Detail Overview tab — collapsed by default (just the
-// title bar), hovering reveals a one-line preview via a pure CSS max-height transition (degrades
+// title bar), hovering reveals the full details via a pure CSS grid-rows transition (content always in the DOM for SEO/AEO) (degrades
 // gracefully to nothing on touch devices, which don't hover), and clicking locks it fully open.
 // Clicking again collapses it back. Used across every role's University Detail page so the many
 // stacked Overview sections (Why study here, Subjects, Campuses, Intakes, Scholarships, Deposit,
@@ -8,12 +8,13 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 export function ExpandableSection({
-  icon, title, preview, children, className = "", bodyClassName = "", defaultExpanded = false,
+  icon, title, children, className = "", bodyClassName = "", defaultExpanded = false,
 }: {
   icon?: ReactNode;
   title: string;
   // A short one-line summary shown on hover while collapsed — omit to skip the hover peek (e.g.
   // when the section has nothing worth summarizing, like an empty list).
+  // Kept for call-site compatibility; the full details now show on hover, so a summary line is no longer needed.
   preview?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -36,12 +37,13 @@ export function ExpandableSection({
         </span>
         <ChevronDown size={18} className={`shrink-0 text-neutral-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
-      {!expanded && preview && (
-        <div className="max-h-0 overflow-hidden px-4 transition-all duration-200 group-hover:max-h-16 group-hover:pb-3.5 sm:px-5">
-          <p className="truncate text-xs text-neutral-400">{preview}</p>
+      {/* The full content is ALWAYS in the DOM (so crawlers and AI answer engines read it — SEO/AEO); collapsing is purely
+          visual via a 0fr grid row. Hovering or focusing the card previews the full details; clicking locks it open. */}
+      <div className={`grid transition-[grid-template-rows] duration-200 ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr] group-hover:grid-rows-[1fr] group-focus-within:grid-rows-[1fr]"}`}>
+        <div className="min-h-0 overflow-hidden">
+          <div className={`px-4 pb-4 sm:px-5 ${bodyClassName}`}>{children}</div>
         </div>
-      )}
-      {expanded && <div className={`px-4 pb-4 sm:px-5 ${bodyClassName}`}>{children}</div>}
+      </div>
     </div>
   );
 }

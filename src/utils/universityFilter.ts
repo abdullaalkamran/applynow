@@ -212,8 +212,14 @@ export function depositLabel(u: University): string | null {
  * university that's never had any intake marked open) counts as closed, not open — the point of
  * this gate is to require an explicit "Open" from Data Management, not assume one. */
 export function courseHasOpenIntake(u: University, course: University["courses"][number]): boolean {
+  return courseOpenIntakes(u, course).length > 0;
+}
+
+/** The months this course actually runs that are marked open — NOT the university's headline `openIntake`, which can be a
+ * month this particular course doesn't offer. */
+export function courseOpenIntakes(u: University, course: University["courses"][number]): string[] {
   const months = course.intakes && course.intakes.length > 0 ? course.intakes : u.intakes;
-  return months.some((m) => !!u.intakeStatus?.[m]);
+  return months.filter((m) => !!u.intakeStatus?.[m]);
 }
 
 export interface Campus {
