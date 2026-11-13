@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { usePreservedState } from "../utils/syncCache";
+import { useSessionState } from "../utils/syncCache";
 import {
   fetchFacets, searchPrograms, searchUniversities, toSearchFilters,
   type CardUniversity, type Facets, type ProgramRow, type SearchFilters, type SearchPage, type SortBy,
@@ -50,7 +50,7 @@ interface PageOptions {
  * debounced; a new search returns to page 1; the previous page stays on screen until the next one arrives. */
 export function useCatalogPage<T extends ProgramRow | CardUniversity>(o: PageOptions) {
   const pub = usePublicMode();
-  const [page, setPage] = usePreservedState(o.persistKey, 1);
+  const [page, setPage] = useSessionState(o.persistKey, 1);
   const key = JSON.stringify({ v: o.view, q: o.query, f: filterStateKey(o.filters), s: o.sort, c: o.sortCurrency, k: o.shortlistKeys });
   const settledKey = useDebounced(key);
   const latest = useRef(o);

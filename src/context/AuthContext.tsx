@@ -3,6 +3,7 @@ import {
   loadStoredAuth, saveAuth, clearAuth, login as loginRequest, register as registerRequest, googleAuth, fetchMe, type AuthUser, type RegisterInput,
 } from "../utils/authClient";
 import { warmCaches, startCachePolling, stopCachePolling, clearAllCaches } from "../utils/warmCaches";
+import { clearSessionState } from "../utils/syncCache";
 import { bumpSessionGeneration, AUTH_EXPIRED_EVENT } from "../utils/apiClient";
 import { clearAdminToken } from "../utils/adminSettingsClient";
 import { setCurrentStudentId, setCurrentAgentId } from "../data/mockData";
@@ -37,6 +38,7 @@ function resetSessionState() {
   bumpSessionGeneration();
   clearAllCaches();
   clearPerUserLocalState();
+  clearSessionState();
 }
 
 interface AuthContextValue {

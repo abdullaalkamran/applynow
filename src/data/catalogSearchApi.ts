@@ -6,7 +6,7 @@ import { apiPost } from "../utils/apiClient";
 import { countryByIso2 } from "./countries";
 import { getCountryByName } from "./countryRegistry";
 import { getSubjectCatalog } from "./subjectCatalogStore";
-import { toIELTSEquivalent, type UniversityFilterState } from "../utils/universityFilter";
+import { toIELTSEquivalent, isKnownMoiUniversity, type UniversityFilterState } from "../utils/universityFilter";
 import type { University } from "../types";
 
 type Course = University["courses"][number];
@@ -56,6 +56,7 @@ export function toSearchFilters(f: UniversityFilterState) {
     scholarshipOnly: f.scholarshipOnly,
     withoutEnglishProficiency: f.withoutEnglishProficiency,
     moiUniversity: f.moiUniversity,
+    moiExact: isKnownMoiUniversity(f.moiUniversity),
     withoutGRE: f.withoutGRE,
     withoutGMAT: f.withoutGMAT,
     withoutMaths: f.withoutMaths,

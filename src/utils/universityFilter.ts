@@ -404,6 +404,13 @@ export function moiUniversityOptions(): string[] {
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
+/** True when the text is exactly one of the listed MOI universities (i.e. it was picked, not partly typed) — then only that
+ * university's letters match, instead of every name that merely contains the text ("University of Dhaka" vs "...Dhaka City College"). */
+export function isKnownMoiUniversity(text: string): boolean {
+  const k = normalizeText(text.trim());
+  return !!k && moiUniversityOptions().some((o) => normalizeText(o) === k);
+}
+
 export function emptyFilters(residenceCountry = ""): UniversityFilterState {
   return {
     residenceCountry,
@@ -522,6 +529,7 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
   const ieltsEquivalent = englishScore !== null ? toIELTSEquivalent(f.englishTestName, englishScore) : null;
   const gpa = f.minGPA ? Number(f.minGPA) : null;
   const moiQuery = normalizeText(f.moiUniversity.trim());
+  const moiExact = isKnownMoiUniversity(f.moiUniversity);
   return (u) => {
     if (residenceName && fullCountryName(u.country) === residenceName) return false;
     if (f.destination.size > 0 && !f.destination.has(u.country)) return false;
@@ -537,7 +545,7 @@ function makeUniversityGate(f: UniversityFilterState): (u: University) => boolea
     if (f.scholarshipOnly && !u.scholarshipsAvailable) return false;
     if (gpa !== null && u.minGPA > gpa) return false;
     if (f.withoutEnglishProficiency && !u.moiAccepted) return false;
-    if (moiQuery && !(u.moiAccepted && (u.moiAcceptedUniversities ?? []).some((n) => normalizeText(n).includes(moiQuery)))) return false;
+    if (moiQuery && !(u.moiAccepted && (u.moiAcceptedUniversities ?? []).some((n) => (moiExact ? normalizeText(n.trim()) === moiQuery : normalizeText(n).includes(moiQuery))))) return false;
     if (f.feeWaiverOnly && !u.applicationFeeWaiverAvailable) return false;
     if (f.eslElpOnly && !u.eslElpAvailable) return false;
     return true;

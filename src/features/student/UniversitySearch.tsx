@@ -1,6 +1,6 @@
 import { NeuTabs } from "../../components/ui/NeuTabs";
 import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
-import { usePreservedState } from "../../utils/syncCache";
+import { usePreservedState, useSessionState } from "../../utils/syncCache";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Search, SlidersHorizontal, Heart, MapPin, X, CalendarClock,
@@ -75,7 +75,7 @@ export interface ExploreVariant {
   defaultTab?: Tab;
 }
 
-const EXPLORE_FACETS = ["level"];
+const EXPLORE_FACETS = ["level", "destination"];
 
 export const STUDENT_EXPLORE: ExploreVariant = {
   basePath: "/student/search",
@@ -105,7 +105,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   const [staffApplyTarget, setStaffApplyTarget] = useState<{ university: University; course: University["courses"][number] } | null>(null);
   // State that would otherwise reset whenever cached data refreshes and rebuilds this page (see syncCache.ts usePreservedState).
   // On the public pages a search link (/universities?q=leeds — also what the site-search schema advertises) starts the search.
-  const [query, setQuery] = usePreservedState("explore:query", () => (variant.publicMode ? new URLSearchParams(location.search).get("q") ?? "" : ""));
+  const [query, setQuery] = useSessionState("explore:query", () => (variant.publicMode ? new URLSearchParams(location.search).get("q") ?? "" : ""));
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   // Bumped on every bookmark toggle so the memoised program list re-evaluates — matters when the
   // "Shortlisted" chip is on and un-bookmarking a program should drop it from the list immediately.
@@ -119,19 +119,20 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
   const [sortOpen, setSortOpen] = useState(false);
   const [intakeDropdownOpen, setIntakeDropdownOpen] = useState(false);
   const [levelDropdownOpen, setLevelDropdownOpen] = useState(false);
+  const [destinationDropdownOpen, setDestinationDropdownOpen] = useState(false);
   // On mobile the full filter grid (Intake/Year/Nationality/State) takes up too much vertical
   // space above the results — collapsed by default there, tap to expand; always shown on lg:+
   // where there's room for the whole row at once (see the "contents" wrapper below).
-  const [filtersExpanded, setFiltersExpanded] = usePreservedState("explore:filtersExpanded", false);
-  const [sortBy, setSortBy] = usePreservedState<SortBy>("explore:sortBy", "best");
+  const [filtersExpanded, setFiltersExpanded] = useSessionState("explore:filtersExpanded", false);
+  const [sortBy, setSortBy] = useSessionState<SortBy>("explore:sortBy", "best");
   // Fees are only ever compared within one currency (never converted), so fee sorting needs to know which one: "" = the most
   // common currency among the current results (or the destination's own when a country is picked).
-  const [sortCurrency, setSortCurrency] = usePreservedState("explore:sortCurrency", "");
-  const [filters, setFilters] = usePreservedState<UniversityFilterState>("explore:filters", () => emptyFilters(defaultResidenceCountry));
+  const [sortCurrency, setSortCurrency] = useSessionState("explore:sortCurrency", "");
+  const [filters, setFilters] = useSessionState<UniversityFilterState>("explore:filters", () => emptyFilters(defaultResidenceCountry));
   // `/student/search?shortlisted=1` (the Dashboard's "Saved Programs" tile) lands straight on the
   // Courses tab with only the student's bookmarked programs showing.
   const openOnShortlist = new URLSearchParams(location.search).get("shortlisted") === "1";
-  const [tabState, setTabState] = usePreservedState<Tab>("explore:tab", "subjects");
+  const [tabState, setTabState] = useSessionState<Tab>("explore:tab", "subjects");
   // Public pages keep the tab in the URL (/universities, /courses); the signed-in page keeps it in state, as before.
   const tab: Tab = variant.publicMode ? variant.defaultTab ?? "universities" : tabState;
   const setTab = (t: Tab) => (variant.publicMode ? navigate(t === "subjects" ? "/courses" : "/universities") : setTabState(t));
@@ -227,6 +228,15 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
     setProgramShortlistedOnly(false);
   }
 
+  // Same Study Destination selection as Advanced Search's — one shared filter.
+  function toggleFilterDestination(country: string) {
+    setFilters((f) => {
+      const next = new Set(f.destination);
+      if (next.has(country)) next.delete(country); else next.add(country);
+      return { ...f, destination: next };
+    });
+  }
+
   function toggleFilterIntake(month: string) {
     setFilters((f) => {
       const next = new Set(f.intakes);
@@ -270,7 +280,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
         </div>
 
         <div className="mt-4 rounded-2xl bg-[var(--sd-card)] p-3.5 shadow-neu">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7 lg:items-end">
             <div className="lg:col-span-1">
               <SubLabel>Search Programs</SubLabel>
               <div className="flex items-center gap-2">
@@ -298,13 +308,25 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
             <div className={filtersExpanded ? "contents" : "hidden sm:contents"}>
               <div>
                 <DropdownChips
+                  label="Country"
+                  floating
+                  options={[...new Set([...filters.destination, ...(facets?.facets.destination ?? countryStats().map((c) => c.name))])].sort((a, b) => a.localeCompare(b))}
+                  selected={filters.destination}
+                  onToggle={toggleFilterDestination}
+                  open={destinationDropdownOpen}
+                  onToggleOpen={() => { setDestinationDropdownOpen((v) => !v); setLevelDropdownOpen(false); setIntakeDropdownOpen(false); }}
+                  placeholder="All countries"
+                />
+              </div>
+              <div>
+                <DropdownChips
                   label="Level"
                   floating
                   options={[...new Set([...filters.level, ...(facets?.facets.level ?? [])])]}
                   selected={filters.level}
                   onToggle={toggleFilterLevel}
                   open={levelDropdownOpen}
-                  onToggleOpen={() => { setLevelDropdownOpen((v) => !v); setIntakeDropdownOpen(false); }}
+                  onToggleOpen={() => { setLevelDropdownOpen((v) => !v); setIntakeDropdownOpen(false); setDestinationDropdownOpen(false); }}
                   placeholder="All levels"
                 />
               </div>
@@ -316,7 +338,7 @@ export function ExploreUniversities({ variant }: { variant: ExploreVariant }) {
                   selected={filters.intakes}
                   onToggle={toggleFilterIntake}
                   open={intakeDropdownOpen}
-                  onToggleOpen={() => { setIntakeDropdownOpen((v) => !v); setLevelDropdownOpen(false); }}
+                  onToggleOpen={() => { setIntakeDropdownOpen((v) => !v); setLevelDropdownOpen(false); setDestinationDropdownOpen(false); }}
                   placeholder="All intakes"
                 />
               </div>

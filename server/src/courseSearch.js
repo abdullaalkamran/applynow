@@ -291,6 +291,7 @@ function prepareFilters(raw) {
     scholarshipOnly: !!r.scholarshipOnly,
     withoutEnglishProficiency: !!r.withoutEnglishProficiency,
     moiQuery: normalizeText(String(r.moiUniversity || "").trim()),
+    moiExact: !!r.moiExact,
     withoutGRE: !!r.withoutGRE,
     withoutGMAT: !!r.withoutGMAT,
     withoutMaths: !!r.withoutMaths,
@@ -317,7 +318,7 @@ function universityGate(f, u) {
   if (f.scholarshipOnly && !u.scholarshipsAvailable) return false;
   if (f.gpa !== null && u.minGPA > f.gpa) return false;
   if (f.withoutEnglishProficiency && !u.moiAccepted) return false;
-  if (f.moiQuery && !(u.moiAccepted && (u.moiAcceptedUniversities ?? []).some((n) => normalizeText(n).includes(f.moiQuery)))) return false;
+  if (f.moiQuery && !(u.moiAccepted && (u.moiAcceptedUniversities ?? []).some((n) => (f.moiExact ? normalizeText(n.trim()) === f.moiQuery : normalizeText(n).includes(f.moiQuery))))) return false;
   if (f.feeWaiverOnly && !u.applicationFeeWaiverAvailable) return false;
   if (f.eslElpOnly && !u.eslElpAvailable) return false;
   return true;

@@ -40,6 +40,25 @@ export function usePreservedState<T>(key: string, initial: T | (() => T)) {
   return [value, setValue] as const;
 }
 
+// ---- Keeping the student's search across navigation ----------------------------------------------------------------------
+// usePreservedState (above) only bridges a cache-driven remount. Opening a university or course and coming back is a real
+// navigation, which used to wipe the Explore search and every filter. State kept here lives for the whole signed-in session
+// (in memory, so Sets and other non-JSON values are fine) and is cleared on logout / user change.
+const sessionKept = new Map<string, unknown>();
+
+/** Like useState, but the value outlives the page being left and re-entered — for search text, filters, tab, sort and page. */
+export function useSessionState<T>(key: string, initial: T | (() => T)) {
+  const [value, setValue] = useState<T>(() => {
+    if (sessionKept.has(key)) return sessionKept.get(key) as T;
+    return typeof initial === "function" ? (initial as () => T)() : initial;
+  });
+  sessionKept.set(key, value);
+  return [value, setValue] as const;
+}
+
+/** Forget every kept search (call when the session ends). */
+export function clearSessionState() { sessionKept.clear(); }
+
 // Bumped on every cache change — lets a component that mounts (and subscribes) *after* a change
 // already happened catch up, instead of only reacting to changes that happen after it started
 // listening. This matters on a full page reload: AuthContext kicks off warmCaches() as soon as
